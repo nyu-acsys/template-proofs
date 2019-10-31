@@ -25,7 +25,7 @@ Record flowintT :=
     outf : gmap node flowdom;
   }.
 
-Canonical Structure flowintRAC := leibnizO flowintT.    (* leibnizO? *)
+Canonical Structure flowintRAC := leibnizO flowintT.
 
 Instance flowintRAop : Op flowintT.
 Proof. Admitted.
@@ -79,9 +79,8 @@ Type 1%Qp.
 (* This is the rule AUTH-FI-UPD in the paper *)
 Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
   match (auth_auth_proj x) with
-  | Some (Qp_one, {| agree_car := [I']; agree_not_nil := eq_refl |}) => (I_n' = auth_frag_proj x) 
-                                                      ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
-  | Some (q, _) => False
+  | Some (Qp_one, z) => ∃ I', (z = to_agree(I')) ∧ (I_n' = auth_frag_proj x) 
+                        ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
   | _ => False
   end.
 
