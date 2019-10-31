@@ -7,8 +7,8 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
-Require Export flows.
 Set Default Proof Using "Type*".
+Require Export flows.
 
 (* ---------- The program ---------- *)
 
@@ -260,38 +260,6 @@ Section Give_Up_Template.
         iSplitR. iPureIntro. { admit. }
         iSplitR. iPureIntro. exists Io. done.
   Admitted.
-(*    unfold flowint_update_P. simpl.
-    case_eq x. simpl. case_eq (Some (Qp_one, {| agree_car := [x]; agree_not_nil := eq_refl |})). simpl.
-    - intros e Hax xa xo Hx.
-      case_eq e.
-      + intros u He. rewrite <-Hx.
-    iIntros "H". *)
-
-(* 
-    unfold flowint_update_P. simpl.
-    case_eq x.
-    case_eq (● x).
-    - intros e Hax xa xo Hx.
-      case_eq e.
-      + intros u He. rewrite <- Hx. rewrite -> Hax. rewrite -> He.
-        iIntros "[(% & % & %) Hown]".
-        iExists u. repeat iSplit; try done.
-        replace I_n'. rewrite <- auth_both_op.
-        assert (∀ I: flowintUR, Some (Excl I) = Excl' I).
-        { intros. done. }
-        replace (Excl' u) with (authoritative x).
-        replace (Auth (authoritative x) (auth_own x)) with x. done.
-        destruct x. done. 
-        congruence.
-      + intros He.
-        replace (authoritative (Auth xa xo)) with (Some (ExclBot: excl flowintUR)).
-        iIntros "(% & ?)". iExFalso. done.
-        congruence.
-    - intros Hax xa xo Hx.
-      rewrite <- Hx. rewrite Hax.
-      iIntros "(% & ?)". iExFalso. done.
-  Qed.
-*)
 
   Lemma inv_impl_fp n Ns γ γ_fp γ_c I Ns' C:
     main_inv γ γ_fp γ_c I Ns' C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ -∗ ⌜n ∈ Nds I⌝.
@@ -435,14 +403,14 @@ Section Give_Up_Template.
   Qed.
 
   Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
-          ∀ (Ns: gsetUR node) (C: gset key),
+          ∀ (Ns: gsetUR node),
           is_dict γ γ_fp γ_c -∗ own γ_fp (◯ Ns) ∗ ⌜ root ∈ Ns ⌝ -∗
-      <<< own γ_c (◯ (Some (Excl C))) >>>
+      <<< ∀ (C: gset key), own γ_c (◯ (Some (Excl C))) >>>
             (searchStrOp dop root) #k
                   @ ⊤∖↑dictN
       <<< ∃ (C': gset key) (res: bool), own γ_c (◯ (Some (Excl C'))) ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
   Proof.
-    iIntros (Ns C). iIntros "#HInv H" (Φ) "AU". iLöb as "IH" forall (Ns).
+    iIntros (Ns). iIntros "#HInv H" (Φ) "AU". iLöb as "IH" forall (Ns).
     wp_lam. wp_bind(traverse _ _ _)%E. iDestruct "H" as "#(H1 & H2)".
     awp_apply (traverse_spec γ γ_fp γ_c). done. eauto with iFrame.
     iAssert (True)%I as "Ht". done. iAaccIntro with "Ht". eauto with iFrame.
@@ -467,8 +435,8 @@ Section Give_Up_Template.
       iAssert (own γ (● I') ∗ own γ (◯ In'))%I with "[HIIn]" as "(HI' & HIn')". { by rewrite own_op. }
       iPoseProof ((own_valid γ (● I')) with "HI'") as "%".
       iPoseProof ((Ψ_keyset_theorem dop k n In In' I I' result) with "[H6 HNds Hinset Hout] [Hdop]") as "HΨI".
-      { repeat iSplitL; try done; iPureIntro; apply auth_auth_valid; done. } { done. }
-      iMod "AU" as "[hoho [_ Hcl]]". 
+      { repeat iSplitL; try done; iPureIntro; apply auth_auth_valid; done. } { admit. }
+      iMod "AU" as (C) "[hoho [_ Hcl]]".
       iDestruct (auth_agree with "H3 hoho") as %Hauth.
       iMod (auth_update γ_c (cont I') with "H3 hoho") as "[H3 hoho]".
       iSpecialize ("Hcl" $! (cont I') result). iEval (rewrite <-Hauth) in "Hcl".
@@ -479,11 +447,11 @@ Section Give_Up_Template.
           assert (Nds I = Nds I') as HH. { (*by apply (contextualLeq_impl_fp I I').*) admit. }
           iEval (rewrite HH) in "H7 H9". iFrame "∗ % #". iPureIntro. reflexivity.
         + iModIntro. wp_pures. wp_bind (unlockNode _)%E. 
-          iDestruct "HΦ" as "_". awp_apply (unlockNode_spec γ γ_fp γ_c n Ns'). done.
+          (*iDestruct "HΦ" as "_". *) awp_apply (unlockNode_spec γ γ_fp γ_c n Ns with "[HInv] [Hrep HIn']"). done.
           iSplitL. iApply "Hfp". iApply "Hin".
           iAssert (hrep n In' ∗ own γ (◯ In') ∗ ⌜Nds In' = {[n]}⌝)%I with "[Hrep HIn' HNds]" as "Haac". { eauto with iFrame. }
           iAaccIntro with "Haac". iIntros "(Hrep & HInt & _)". iModIntro. iFrame "Hrep". iFrame "HInt".
-          iIntros . iModIntro.  wp_pures.
+          iIntros . iModIntro. wp_pures.
 
 
 

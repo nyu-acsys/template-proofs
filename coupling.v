@@ -8,7 +8,7 @@ From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Require Export flows.
-Set Default Proof Using "Type*".
+Set Default Proof Using "All".
 
 Inductive dOp := memberOp | insertOp | deleteOp.
 
@@ -86,7 +86,7 @@ Definition contentΣ : gFunctors := #[GFunctor (authR (optionUR (exclR (gsetR ke
 Instance subG_contentΣ {Σ} : subG contentΣ Σ → contentG Σ.
 Proof. solve_inG. Qed.
 
-Section Give_Up_Template.
+Section Coupling_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !contentG Σ} (N : namespace).
   Notation iProp := (iProp Σ).
 
@@ -101,6 +101,11 @@ Section Give_Up_Template.
   Parameter hrep_fp : ∀ n I_n, hrep n I_n -∗ ⌜Nds I_n = {[n]}⌝.
 
   Variable empty_node : node → iProp.
+(*  Parameter hrep_timeless_proof : ∀ n, Timeless (empty_node n).
+  Instance hrep_timeless n I : Timeless (empty_node n).
+  Proof. apply hrep_timeless_proof. Qed.
+  Parameter hrep_fp : ∀ n I_n, hrep n I_n -∗ ⌜Nds I_n = {[n]}⌝.
+*)
 
   Variable globalint : flowintUR → Prop.
   Hypothesis globalint_root_fp : ∀ I, globalint I → root ∈ Nds I.
@@ -113,11 +118,11 @@ Section Give_Up_Template.
     ∀ I I', globalint I → contextualLeq I I' → globalint I'.
 
   (* The flow graphs store keyset of region in node abstraction *)
-  (*Variable in_keyset : key → flowintUR → Prop.
+  Variable in_keyset : key → flowintUR → Prop.
 
   Hypothesis flowint_keyset : ∀ k I_n n,
       in_inset k I_n n ∧ not_in_outset k I_n n → in_keyset k I_n.
-  Hypothesis flowint_keyset_mono : ∀ k I1 I2, in_keyset k I1 → in_keyset k (I1 ⋅ I2).*)
+  Hypothesis flowint_keyset_mono : ∀ k I1 I2, in_keyset k I1 → in_keyset k (I1 ⋅ I2).
 
   (* ---------- Coarse-grained specification ---------- *)
 
@@ -147,10 +152,11 @@ Section Give_Up_Template.
       destruct H as ((HC1 & HkC1) & (HC2 & HkC2) & HEq); congruence.
   Qed.
 
-  Axiom Ψ_keyset_theorem : ∀ (dop: dOp) (k: key) (n: node) (I_n I_n' I I': flowintUR) (res: bool),
-      ⌜globalint I⌝ ∗ ⌜Nds I_n = {[n]}⌝ ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝
-      ∗ ⌜(∃ (I_o: flowintUR), I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o)⌝ ∗ ✓ I ∗ ✓ I'
+  Axiom Ψ_keyset_theorem : ∀ dop k I_n I_n' I I' res,
+      ⌜globalint I⌝ ∗ ⌜in_keyset k I_n⌝
+      ∗ ⌜(∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o)⌝ ∗ ✓ I ∗ ✓ I'
       -∗ Ψ dop k (cont I_n) (cont I_n') res -∗ Ψ dop k (cont I) (cont I') res.
+
 
   (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
 
@@ -170,8 +176,8 @@ Section Give_Up_Template.
                           ∗ ⌜✓I_m⌝ ∗ ⌜in_edgeset k I_p p n⌝ ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ >>>
                              decisiveOp dop #p #n #k @ ⊤
                     <<< ∃ (b: bool) (I_p' I_n' I_m': flowintUR) (res: bool), 
-                          match b with false => hrep p I_p ∗ hrep n I_n ∗ empty_node m 
-                                                  ∗ Ψ dop k (cont (I_p ⋅ I_n)) (cont (I_p ⋅ I_n)) res |
+                          match b with false => hrep p I_p' ∗ hrep n I_n' ∗ empty_node m 
+                                                  ∗ Ψ dop k (cont (I_p ⋅ I_n)) (cont (I_p' ⋅ I_n')) res |
                                         true => hrep p I_p' ∗ hrep n I_n' ∗ hrep m I_m'
                                                 ∗ Ψ dop k (cont (I_p ⋅ I_n ⋅ I_m)) (cont (I_p' ⋅ I_n' ⋅ I_m')) res
                                                 ∗ ⌜Nds I_p' = {[p]}⌝ ∗ ⌜Nds I_n' = {[n]}⌝ ∗ ⌜Nds I_m' = {[m]}⌝
@@ -263,14 +269,14 @@ Section Give_Up_Template.
   Parameter alloc_spec : ∀ γ γ_fp γ_c,
         is_dict γ γ_fp γ_c -∗ 
                 <<< True >>> alloc #() @ ⊤∖↑dictN
-                <<< ∃ (m: node) (I_m: flowintUR), empty_node m ∗ own γ (◯ I_m) ∗ ⌜Nds I_m = {[m]}⌝ 
+                <<< ∃ (m: node) (I_m: flowintUR), own γ (◯ I_m) ∗ empty_node m ∗ ⌜Nds I_m = {[m]}⌝ 
                                                 ∗ ⌜✓I_m⌝ ∗ ⌜is_empty_flowint I_m⌝, RET #m >>>.
 
   (* ---------- Ghost state manipulation to make final proof cleaner ---------- *)
 
   Lemma ghost_update_step γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n: flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ 
-                                ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝ ∗ ⌜n ∈ Ns'⌝ ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
+                ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝ ∗ ⌜n ∈ Ns'⌝ ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
   Proof.
   Admitted.
 
@@ -395,14 +401,14 @@ Section Give_Up_Template.
   Qed.
 
   Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
-          ∀ (Ns: gsetUR node) (C: gset key),
+          ∀ (Ns: gsetUR node),
           is_dict γ γ_fp γ_c -∗ own γ_fp (◯ Ns) ∗ ⌜ root ∈ Ns ⌝ -∗
-      <<< own γ_c (◯ (Some (Excl C))) >>>
+      <<< ∀ (C: gset key), own γ_c (◯ (Some (Excl C))) >>>
             (searchStrOp dop root) #k
                   @ ⊤∖↑dictN
-      <<< ∃ (C': gset key) (res: bool), own γ_c (◯ (Some (Excl C'))) ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
+      <<< ∃ (C': gset key) (res: bool), own γ_c (◯ (Some (Excl C'))) ∗ Ψ dop k C C' res, RET #res >>>.
   Proof.
-    iIntros (Ns C). iIntros "#HInv H" (Φ) "AU". iLöb as "IH".
+    iIntros (Ns). iIntros "#HInv H" (Φ) "AU". iLöb as "IH".
     iDestruct "H" as "#(Hfp & Hroot)". wp_lam. wp_bind(lockNode _)%E.
     awp_apply (lockNode_spec γ γ_fp γ_c root Ns). done. eauto with iFrame.
     iAssert (True)%I as "#Ht". { done. } iAaccIntro with "Ht". eauto with iFrame.
@@ -428,16 +434,51 @@ Section Give_Up_Template.
       iIntros (p' n' Ip' In') "(HIp' & HIn' & HrepP' & HrepN' & #HNdsP' & #HNdsN' & #HedgeP' & #HinsetN' & #HnotoutN')".
       iModIntro. wp_pures. wp_bind(alloc _)%E. awp_apply (alloc_spec γ γ_fp γ_c). done.
       iAaccIntro with "Ht". eauto with iFrame.
-      iIntros (m Im) "(HempM & HIm & #HNdsM & #HM & #HempIntM)".
+      iIntros (m Im) "(HIm & HempM & #HNdsM & #HM & #HempIntM)".
       iModIntro. wp_pures. wp_bind (decisiveOp _ _ _ _)%E. iDestruct "HempM" as "_".
       awp_apply (decisiveOp_3_spec dop Ip' In' Im p' n' m k).
+      iAssert (empty_node m)%I as "HempM". { admit. }
+      iAssert (hrep p' Ip' ∗ hrep n' In' ∗ empty_node m ∗ ⌜is_empty_flowint Im⌝ ∗ ⌜Nds Im = {[m]}⌝
+               ∗ ⌜✓ Im⌝ ∗ ⌜in_edgeset k Ip' p' n'⌝ ∗ ⌜in_inset k In' n'⌝ ∗ ⌜not_in_outset k In' n'⌝)%I 
+               with "[HrepP' HrepN' HempM]" as "Haac".
+      { iFrame "HrepP' HrepN' HempM HempIntM HNdsM HM HedgeP' HinsetN' HnotoutN'". }
+      iAaccIntro with "Haac". iIntros "(HrepP' & HrepN' & _)". iModIntro. iFrame "AU HIp' HIn' HrepP' HrepN' HIm".
+      iIntros (b Ip'' In'' Im'' res) "Hb'". destruct b.
+      + iDestruct "Hb'" as "(HrepP'' & HrepN'' & HrepM'' & #HΨ & #HNdsP'' & #HNdsN'' & #HNdsM'' & #Hcon)".
+        iInv dictN as ">H". iDestruct "H" as (I N' C') "(HC & HCI & HI & Hglob & Hstar & HAfp & HINds)".
+        iPoseProof (own_valid with "HI") as "%". 
+        iAssert (own γ (◯ (Ip'⋅ In' ⋅ Im)))%I with "[HIp' HIn' HIm]" as "HIpnm'".
+        { rewrite auth_frag_op. rewrite own_op. iFrame. rewrite auth_frag_op. rewrite own_op. iFrame. }
+        iDestruct "Hcon" as %Hcon.
+        iMod (own_updateP (flowint_update_P I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')) γ
+                          (● I ⋅ ◯ (Ip' ⋅ In' ⋅ Im)) with "[HI HIpnm']") as (Io) "H0".
+        { apply (flowint_update I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')). admit. }
+        { rewrite own_op. iFrame. }
+        iPoseProof ((flowint_update_result γ I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im''))
+                      with "H0") as (I') "(% & % & HIIpnm)".
+        iEval (rewrite own_op) in "HIIpnm". iDestruct "HIIpnm" as "(HI' & HIpnm'')".
+        iPoseProof ((own_valid γ (● I')) with "HI'") as "%".
+        iDestruct "HinsetN'" as %HinsetN'. iDestruct "HnotoutN'" as %HnotoutN'.
+        iPoseProof ((Ψ_keyset_theorem dop k (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')
+                                      I I' res) with "[-] [$HΨ]") as "#HΨI".
+        { iFrame "# %". iFrame "Hglob". iPureIntro. repeat split.
+          - apply flowint_keyset_mono. rewrite (comm op). apply flowint_keyset_mono.
+            by apply (flowint_keyset k In' n').
+          - apply auth_auth_valid. apply H.
+          - apply auth_auth_valid. apply H2. }
+        assert (Nds I = Nds I') as HFP. { apply contextualLeq_impl_fp. admit. }
+        iDestruct "HCI" as %HCI. iEval (rewrite <-HCI) in "HΨI". iDestruct "Hglob" as %Hglob.
+        iMod "AU" as (C) "[hoho [_ Hcl]]".
+        iDestruct (auth_agree with "HC hoho") as %Hauth.
+        iMod (auth_update γ_c (cont I') with "HC hoho") as "[HC hoho]".
+        iSpecialize ("Hcl" $! (cont I') res). iEval (rewrite <- Hauth) in "Hcl".
+        iMod ("Hcl" with "[hoho HΨI]") as "HΦ". iFrame. iEval (rewrite <- Hauth). done.
+        iDestruct "HIpnm''" as "((HIp'' & HIn'') & HIm'')". iModIntro. iSplitR "HrepP'' HrepN'' HIp'' HIn'' HΦ".
+        * iNext. iExists I', N', (cont I'). unfold main_inv. iEval (rewrite HFP) in "Hstar".
+          iEval (rewrite HFP) in "HINds". iFrame "HC HI' Hstar HAfp HINds". assert (globalint I') as HI'. 
+          { by apply (contextualLeq_impl_globalint I I'). } iPureIntro. eauto.
+        * iModIntro. wp_let. iDestruct "HΦ" as "_". awp_apply (unlockNode_spec γ γ_fp γ_c p' Ns').
 
-
-(* 
-1) 2 issues in give-up.
-2) no funding for popl
-3) can use ghost_step and change the preconditions.
-*)
 
 
 
