@@ -56,16 +56,16 @@ Section Toy_Template.
     <<< is_locked_ref x y v, RET #() >>>.
   Proof.
     unfold is_locked_ref.
-    iIntros (Φ) "HP". iLöb as "IH".
+    iIntros (Φ) "HP".
     wp_lam. wp_pures. wp_bind (lockNode _)%E.
-(*  atomic spec for lock  *)
+    (*  atomic spec for lock *)
     awp_apply (lock_spec).
-(* peeking into the AU *)
+    (* peeking into the AU *)
     iApply (aacc_aupd_abort with "HP"). done.
     iIntros (v0) "Hislock". 
     iDestruct "Hislock" as (b) "(Hy & Hif)".
     iAaccIntro with "Hy".
-(* the atomic lock_spec either aborts or commits, which are the two cases below *)
+    (* the atomic lock_spec either aborts or commits, which are the two cases below *)
     - (* abort *)
       iIntros "Hy". iModIntro.
       iSplitL. iExists b. iFrame.
@@ -82,20 +82,33 @@ Section Toy_Template.
         iIntros "HP". iModIntro.
         wp_pures. wp_store.
         awp_apply (unlock_spec).
-        (* need y ↦ #true to open the atomic accessor (AACC thing), but we don't have,
-           we can peek into the AU again, but that does not give us y ↦ #true, just y ↦ some b *)
-        iApply (aacc_aupd_abort with "HP"). done.
-        iIntros (v1) "Hislock".
-        iDestruct "Hislock" as (b') "(Hy & H')".
-(*  At this point, we need y ↦ #true, but we don't have that information.
-    This is because when we apply the lock_spec, we need y ↦ _ for the 
-    lock_spec, which we obtain by peeking into the AU. That gives us is_locked_ref
-    (and y ↦ _) but we have to give back is_locked_ref after the atomic step. At that point,
-    we have y ↦ #true from the post-condition of the lock_spec, but we 
-    have to use it to give bakc is_locked_ref. When we have to unlock later,
-    we thus does not have y ↦ #true, which is required by the pre-condition
-    of unlock_spec. In this scenario, I think what we may work is fractional
-    mapping, of the form y ↦{1/2} _. One-half belongs in the spec, the other half in the
-    is_locked_ref. The store is allowed only if we have the full ownership, which
-    we will by writing appropriate specs for lock and unlock.
-    Hope this makes sense, haha!     *)
+        (* Sid: note I'm using the commit case because this is the 
+           linearization point.
+         *)
+        iApply (aacc_aupd with "HP"); first done.
+        iIntros (u) "Hlock".
+        iDestruct "Hlock" as (b') "(Hy & Hifx)".
+        destruct (b').
+        { (* b' == True *)
+          iAaccIntro with "Hy".
+          {
+            iIntros "Hy". iModIntro. iSplitL.
+            iExists true. iFrame.
+            eauto with iFrame.
+            (* Sid: Help, what's going on here? *)
+            admit.
+          }
+          {
+            iIntros "Hy". iModIntro.
+            (* Here, pick the second disjunct and prove it to finish the proof. *)
+            admit.
+          }
+        }
+        { (* b' == False *)
+          (* Sid: we do know y ↦ #true at this point,
+             because H' ==> x ↦ v1 if b' = false. That will give us a context
+             containing two intances of x ↦ _, contradiction!
+           *)
+          admit.
+        }
+  Admitted.
