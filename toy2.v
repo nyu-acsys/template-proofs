@@ -37,7 +37,7 @@ Section Toy_Template.
     iIntros (Φ) "AU". iLöb as "IH". wp_lam.
     wp_bind(CmpXchg _ _ _)%E.
     iMod "AU" as (w) "[Hy Hclose]".
-    destruct (w) as [[= ->]|Hx].  
+    destruct (w).
     - wp_cmpxchg_fail. iDestruct "Hclose" as "[Hclose _]".
       iMod ("Hclose" with "Hy") as "AU".
       iModIntro. wp_pures. iApply "IH". done.
@@ -54,8 +54,11 @@ Section Toy_Template.
   Proof.
     iIntros (Φ) "AU". 
     wp_lam.
-    (* TODO complete this proof. *)
-  Admitted.
+    iMod "AU" as "[Hy [_ Hclose]]".
+    wp_store.
+    iMod ("Hclose" with "Hy") as "HΦ".
+    iModIntro. done.
+  Qed.
 
   Definition is_locked_ref x y v : iProp :=
     (∃ (b: bool), y ↦ #b ∗ if b then True else x ↦ v)%I.
