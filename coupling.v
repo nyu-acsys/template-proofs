@@ -326,19 +326,66 @@ Section Coupling_Template.
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝ ∗ own γ (◯ I_n') ∗ ⌜Nds I_n' = {[n']}⌝
           ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ ={ ⊤ }=∗ own γ (◯ I_n) ∗ own γ (◯ I_n') ∗ ⌜in_inset k I_n' n'⌝.
   Proof.
-  Admitted.
+    iIntros "Hinv (HIn & % & HIn' & % & % & %)".
+    iInv dictN as ">HInv" "HClose".
+    iDestruct "HInv" as (I Ns' C) "(? & % & HI & % & ? & HNs' & %)".
+    (* I_n ≼ I ∧ I_n' ≼ I *)
+    iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
+    iPoseProof (auth_own_incl with "[$HI $HIn']") as "%".
+    iAssert (⌜✓(I_n ⋅ I_n')⌝)%I with "[HIn HIn']" as "%".
+    { iPoseProof (own_op γ (◯ I_n) (◯ I_n') with "[$HIn $HIn']") as "HIn".
+      iEval (rewrite own_valid) in "HIn". iDestruct "HIn" as "%".
+      iPureIntro. revert H8.
+      apply auth_frag_proj_valid. }
+    (* Close inv *)
+    iMod ("HClose" with "[-HIn HIn']").
+    {
+      iNext. iExists I, Ns', C. iFrame "# % ∗".
+    }
+    iModIntro.
+    iFrame. iPureIntro. by apply (flowint_inset_step I_n n I_n').
+  Qed.
 
   Lemma ghost_update_root_inset γ γ_fp γ_c (k:key) (I_root: flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_root) ∗ ⌜Nds I_root = {[root]}⌝ 
                                 ={ ⊤ }=∗ own γ (◯ I_root) ∗ ⌜in_inset k I_root root⌝.
   Proof.
-  Admitted.
+    iIntros "Hinv (HIn & %)".
+    iInv dictN as ">HInv" "HClose".
+    iDestruct "HInv" as (I Ns' C) "(? & % & HI & % & ? & HNs' & %)".
+    iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
+    iPoseProof ((own_valid γ (● I)) with "HI") as "%".
+    iAssert (⌜in_inset k I_root root⌝)%I as "%".
+    { iPureIntro. apply (flowint_proj I); try done.
+      by apply auth_auth_valid.
+      by apply globalint_root_inset. }
+    (* Close inv *)
+    iMod ("HClose" with "[-HIn]").
+    {
+      iNext. iExists I, Ns', C. iFrame "# % ∗".
+    }
+    iModIntro. iFrame. iPureIntro. done.
+  Qed.
 
   Lemma ghost_update_root_fp γ γ_fp γ_c :
           is_dict γ γ_fp γ_c -∗ True
                                 ={ ⊤ }=∗ ∃ (Ns: gsetUR node), own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝.
   Proof.
-  Admitted.
+    iIntros "Hinv Ht".
+    iInv dictN as ">HInv" "HClose".
+    iDestruct "HInv" as (I Ns C) "(HC & % & HI & % & HIns & HNs & %)".
+    (* snapshot fp to get Ns *)
+    iMod (own_update γ_fp (● Ns) (● Ns ⋅ ◯ Ns) with "HNs") as "HNs".
+    apply auth_update_core_id. apply gset_core_id. done.
+    iEval (rewrite own_op) in "HNs". iDestruct "HNs" as "(HNs0 & HNs)".
+    iMod ("HClose" with "[-HNs]").
+    {
+      iNext. iExists I, Ns, C. iFrame "# % ∗".
+    }
+    iModIntro. iExists Ns. iFrame.
+    iPureIntro. replace Ns.
+    by apply globalint_root_fp.
+  Qed.
 
   (* ---------- Lock module proofs ---------- *)
 

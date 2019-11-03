@@ -22,7 +22,7 @@ Definition prog : val :=
   λ: "x" "y" "v",
   lockNode "y";;
   "x" <- "v";;
-  unlockNode "y";; "v".
+  unlockNode "y".
 
 Section Toy_Template.
   Context `{!heapG Σ} (N : namespace).
@@ -85,23 +85,22 @@ Section Toy_Template.
         (* Sid: note I'm using the commit case because this is the 
            linearization point.
          *)
-        iApply (aacc_aupd with "HP"); first done.
+        iApply (aacc_aupd_commit with "HP"); first done.
         iIntros (u) "Hlock".
         iDestruct "Hlock" as (b') "(Hy & Hifx)".
-        destruct (b').
+        destruct b' eqn:Hb.
         { (* b' == True *)
           iAaccIntro with "Hy".
           {
-            iIntros "Hy". iModIntro. iSplitL.
+            iIntros "Hy". iModIntro. iSplitR "Hif".
             iExists true. iFrame.
             eauto with iFrame.
-            (* Sid: Help, what's going on here? *)
-            admit.
           }
           {
             iIntros "Hy". iModIntro.
             (* Here, pick the second disjunct and prove it to finish the proof. *)
-            admit.
+            iSplitL. iExists false. iFrame. iIntros.
+            iModIntro. done.
           }
         }
         { (* b' == False *)
