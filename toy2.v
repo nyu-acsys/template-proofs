@@ -28,24 +28,34 @@ Section Toy_Template.
   Context `{!heapG Σ} (N : namespace).
   Notation iProp := (iProp Σ).
 
-  (* We should be able to prove the following specs: *)
-
   Lemma lock_spec (y: loc) :
     <<< ∀ (b: bool), y ↦ #b >>>
         lockNode #y @ ⊤
     <<< y ↦ #true ∗ if b then False else True, RET #() >>>.
+  (* TODO: what's the nice way to say b is false? *)
   Proof.
-    iIntros (Φ) "AU". wp_lam.
+    iIntros (Φ) "AU". iLöb as "IH". wp_lam.
     wp_bind(CmpXchg _ _ _)%E.
-(* ***** This is where I get the error ***** *)
-(*     awp_apply (cmpxchg_spec y #false #true). *)
-  Admitted.
+    iMod "AU" as (w) "[Hy Hclose]".
+    destruct (w) as [[= ->]|Hx].  
+    - wp_cmpxchg_fail. iDestruct "Hclose" as "[Hclose _]".
+      iMod ("Hclose" with "Hy") as "AU".
+      iModIntro. wp_pures. iApply "IH". done.
+    - wp_cmpxchg_suc. iDestruct "Hclose" as "[_ Hclose]".
+      iAssert (True)%I as "Ht"; first done.
+      iMod ("Hclose" with "[$]") as "HΦ".
+      iModIntro. wp_pures. done.
+  Qed.
 
   Lemma unlock_spec (y: loc) :
     <<< y ↦ #true >>>
         unlockNode #y @ ⊤
     <<< y ↦ #false, RET #() >>>.
-  Proof. Admitted.
+  Proof.
+    iIntros (Φ) "AU". 
+    wp_lam.
+    (* TODO complete this proof. *)
+  Admitted.
 
   Definition is_locked_ref x y v : iProp :=
     (∃ (b: bool), y ↦ #b ∗ if b then True else x ↦ v)%I.
@@ -77,7 +87,6 @@ Section Toy_Template.
       + iModIntro.
         (* left-most spatial proposition is giving back the AU, after peeking *)
         iSplitR "Hif". 
-        (* here is where we give away y ↦ #true *)
         iExists true. iFrame.
         iIntros "HP". iModIntro.
         wp_pures. wp_store.
@@ -91,14 +100,13 @@ Section Toy_Template.
         destruct b' eqn:Hb.
         { (* b' == True *)
           iAaccIntro with "Hy".
-          {
+          { (* TODO what does this case mean? *)
             iIntros "Hy". iModIntro. iSplitR "Hif".
             iExists true. iFrame.
             eauto with iFrame.
           }
           {
             iIntros "Hy". iModIntro.
-            (* Here, pick the second disjunct and prove it to finish the proof. *)
             iSplitL. iExists false. iFrame. iIntros.
             iModIntro. done.
           }
@@ -108,6 +116,7 @@ Section Toy_Template.
              because H' ==> x ↦ v1 if b' = false. That will give us a context
              containing two intances of x ↦ _, contradiction!
            *)
+          exfalso.
           admit.
         }
   Admitted.
