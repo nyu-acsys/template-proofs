@@ -19,7 +19,7 @@ Definition flowdom := nat.
 
 Record flowintT :=
   {
-    Nds : gset node;                                    (* Why nodes and edge functions defined inside interface *)
+    Nds : gset node;
     Edf : gmap (node * node * flowdom) flowdom;
     inf : gmap node flowdom;
     outf : gmap node flowdom;
@@ -56,13 +56,14 @@ Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof. Admitted.
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
-Variable in_inset : key → flowintUR → node → Prop.
-Variable in_edgeset : key → flowintUR → node → node → Prop.
-Variable not_in_outset : key → flowintUR → node → Prop.
-Variable cont : flowintUR → gset key.
-Variable inreach : flowintUR → node → gset key.
-Variable contextualLeq : flowintUR → flowintUR → Prop.
-Variable is_empty_flowint : flowintUR → Prop.
+Parameter in_inset : key → flowintUR → node → Prop.
+Parameter in_edgeset : key → flowintUR → node → node → Prop.
+Parameter not_in_outset : key → flowintUR → node → Prop.
+Parameter cont : flowintUR → gset key.
+Parameter inreach : flowintUR → node → gset key.
+Parameter contextualLeq : flowintUR → flowintUR → Prop.
+Parameter is_empty_flowint : flowintUR → Prop.
+Parameter globalint : flowintUR → Prop.           (* Need to discuss *)
 
 (* ---------- Lemmas about flow interfaces proved in the appendix : ---------- *)
 
@@ -74,12 +75,10 @@ Proof. Admitted.
 Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → Nds I = Nds I'.
 Proof. Admitted.
 
-Type 1%Qp.
-
 (* This is the rule AUTH-FI-UPD in the paper *)
 Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
   match (auth_auth_proj x) with
-  | Some (Qp_one, z) => ∃ I', (z = to_agree(I')) ∧ (I_n' = auth_frag_proj x) 
+  | Some (q, z) => ∃ I', (z = to_agree(I')) ∧ q = 1%Qp ∧ (I_n' = auth_frag_proj x) 
                         ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
   | _ => False
   end.
@@ -110,6 +109,6 @@ Lemma flowint_proj I I_n n k :
 Proof. Admitted.
 
 Lemma flowint_step (I I1 I2: flowintUR) k n n':
-  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_edgeset k I1 n n' (*→ globalint I*) → n' ∈ Nds I2.
+  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_edgeset k I1 n n' → globalint I → n' ∈ Nds I2.
 Proof. Admitted.
 

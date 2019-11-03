@@ -19,15 +19,6 @@ Variable lockLoc : node → loc.
 Variable getLockLoc : val.
 Variable alloc : val.
 
-Variable in_inset : key → flowintUR → node → Prop.
-Variable in_edgeset : key → flowintUR → node → node → Prop.
-Variable not_in_outset : key → flowintUR → node → Prop.
-Variable cont : flowintUR → gset key.
-Variable inreach : flowintUR → node → gset key.
-Variable contextualLeq : flowintUR → flowintUR → Prop.
-Variable is_empty_flowint : flowintUR → Prop.
-
-
 Definition lockNode : val :=
   rec: "lockN" "x" :=
     let: "l" := getLockLoc "x" in
@@ -107,7 +98,6 @@ Section Coupling_Template.
   Parameter hrep_fp : ∀ n I_n, hrep n I_n -∗ ⌜Nds I_n = {[n]}⌝.
 *)
 
-  Variable globalint : flowintUR → Prop.
   Hypothesis globalint_root_fp : ∀ I, globalint I → root ∈ Nds I.
   (* Hypothesis globalint_fpo : ∀ I, globalint I → FPo I = ∅. *)
   Hypothesis globalint_root_inr : ∀ I k, globalint I → k ∈ inreach I root.
@@ -220,13 +210,19 @@ Section Coupling_Template.
     rewrite -own_op. rewrite own_valid. iPureIntro.
     rewrite auth_valid_discrete. simpl. rewrite ucmra_unit_right_id_L.
     intros. destruct H. inversion H0 as [m H1].
-    destruct H1. destruct H2. apply gset_included in H2. rewrite /to_agree in H1.
-    Admitted.
+    destruct H1. destruct H2. apply gset_included in H2.
+    apply to_agree_inj in H1. set_solver.
+  Qed.
 
   Lemma auth_own_incl γ (x y: flowintUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
-    simpl. rewrite ucmra_unit_left_id_L. Admitted.
+    simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
+    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
+    assert (ε ⋅ y = y) as Hy.
+    { rewrite /(⋅) /=. rewrite left_id. done. }
+    rewrite Hy in Hb. rewrite <- Ha in Hb. done.
+  Qed.
 
   Lemma auth_agree γ xs ys :
     own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
@@ -250,21 +246,37 @@ Section Coupling_Template.
 
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
-                                          ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝ 
-                                                                     ∗ own γ (● I' ⋅ ◯ I_n').
+                       ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝ 
+                                ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
-    unfold flowint_update_P. simpl.
+    unfold flowint_update_P.
     case_eq (auth_auth_proj x); last first.
     - intros H. iIntros "(% & ?)". iExFalso. done.
-    - intros p. intros H. case_eq p. intros q a Hp. case_eq a.
-      intros intl b Ha. destruct intl as [ | I' ?]. iIntros "(% & ?)". iExFalso. done.
-      case_eq intl; last first. intros u0 l _. iIntros "(% & ?)". iExFalso. done.
-      + intros Hintl. simpl in b. assert (b = eq_refl) as H0. { admit. }
-        rewrite H0. iIntros "(Hfr & Hown)". iDestruct "Hfr" as %Hfr. destruct Hfr as [Hfrag Hcon].
-        destruct Hcon as [Hcon HIo]. destruct HIo as [Io HIo]. iExists I'.
-        iSplitR. iPureIntro. { admit. }
-        iSplitR. iPureIntro. exists Io. done.
-  Admitted.
+    - intros p. intros H. case_eq p. intros q a Hp.
+      iIntros "[% Hown]". destruct H0 as [I' H0].
+      destruct H0. destruct H1. destruct H2. destruct H3.
+      iExists I'.
+      iSplit. iPureIntro. apply H3.
+      iSplit. iPureIntro. apply H4.
+      assert (Auth (auth_auth_proj x) (auth_frag_proj x) = x) as Hx.
+      { destruct x. reflexivity. }
+      assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'. 
+      { rewrite <-Hx. rewrite H. rewrite <-H2. rewrite Hp. rewrite H1.
+       rewrite H0. reflexivity. }
+      assert (● I' = Auth (Some (1%Qp, to_agree(I'))) ε) as HI'. { reflexivity. }
+      assert (◯ I_n' = Auth ε I_n') as HIn'. { reflexivity. }
+      assert (ε ⋅ I_n' = I_n') as HeIn.
+      { rewrite /(⋅) /=. rewrite left_id. done. }
+      assert (Some (1%Qp, to_agree I') ⋅ None = Some (1%Qp, to_agree I')) as Hs.
+      { rewrite /(⋅) /=.
+        rewrite /(cmra_op (optionR (prodR fracR (agreeR flowintUR))) (Some (1%Qp, to_agree I')) (None)) /=.
+        reflexivity. }
+      assert (● I' ⋅ ◯ I_n' = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as Hd.
+      { rewrite /(● I') /= /(◯ I_n') /=. rewrite /(⋅) /=.
+        rewrite /(cmra_op (authR flowintUR) (Auth (Some (1%Qp, to_agree I')) ε) (Auth None I_n')) /=.
+        rewrite /auth_op /=. rewrite HeIn. rewrite Hs. reflexivity. }
+      iEval (rewrite Hd). iEval (rewrite <- H'). done.
+  Qed.
 
   Parameter alloc_spec : ∀ γ γ_fp γ_c,
         is_dict γ γ_fp γ_c -∗ 
@@ -278,7 +290,37 @@ Section Coupling_Template.
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ 
                 ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝ ∗ ⌜n ∈ Ns'⌝ ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
   Proof.
-  Admitted.
+    iIntros "#Hinv (HIn & % & % & %)".
+    iInv dictN as ">HInv" "HClose".
+    iDestruct "HInv" as (I Ns' C) "(? & % & HI & % & ? & HNs' & %)".
+    (* I = I_n ⋅ I2 *)
+    iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
+    unfold included in H5. destruct H5 as [I2 Hmult].
+    (* n' ∈ FP I *)
+    iPoseProof ((own_valid γ (● I)) with "HI") as "%".
+    iAssert (⌜n' ∈ Nds I⌝)%I as "%".
+    { iPureIntro.
+      assert (n' ∈ Nds I2).
+      { apply (flowint_step I I_n _ k n). done.
+        by apply auth_auth_valid.
+        replace (Nds I_n). set_solver. done. apply H3. }
+      apply flowint_comp_fp in Hmult. set_solver.
+    }
+    (* snapshot fp to get Ns' *)
+    iMod (own_update γ_fp (● Ns') (● Ns' ⋅ ◯ Ns') with "HNs'") as "HNs'".
+    apply auth_update_core_id. apply gset_core_id. done.
+    iEval (rewrite own_op) in "HNs'". iDestruct "HNs'" as "(HNs0 & HNs')".
+    iAssert (⌜n ∈ Nds I⌝)%I as "%".
+    { apply flowint_comp_fp in Hmult. rewrite H in Hmult. iPureIntro. set_solver. } 
+    iAssert (⌜root ∈ Nds I⌝)%I as "%".
+    { iPureIntro. apply globalint_root_fp. done. } 
+    (* Close inv *)
+    iMod ("HClose" with "[-HNs' HIn]").
+    {
+      iNext. iExists I, Ns', C. iFrame "# % ∗".
+    }
+    iModIntro. iExists Ns'. iFrame. iPureIntro. replace Ns'. set_solver. 
+  Qed.
 
   Lemma ghost_update_step_2 γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n I_n': flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝ ∗ own γ (◯ I_n') ∗ ⌜Nds I_n' = {[n']}⌝
@@ -393,11 +435,7 @@ Section Coupling_Template.
       iDestruct (ghost_update_step_2 γ γ_fp γ_c n n' k Ns I_n I_n' with "[Hinv] [HIn HNdsN HIn' HNds' Hinset Hb]") as ">HN".
       { done. } { eauto with iFrame. } iDestruct "HN" as "(HIn & HIn' & #Hb')".
       iApply ("IH" with "[Hrep' HIn' HNds' HIn Hrep]"). 
-      { iSplitL "Hrep'". done. iSplitL "HIn'". done.  
-        iSplitL "HNds'". done. iSplitL "Hb'". done.
-        iSplitL "HNs'". done. iSplitL "Hin". done.
-        iSplitL "Hin'". done. iSplitL "HIn". done.
-        eauto with iFrame. } done.
+      { iFrame "Hrep' HIn' HNds' Hb' HNs' Hin Hin' HIn Hrep". eauto with iFrame. } done.
   Qed.
 
   Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
@@ -452,7 +490,7 @@ Section Coupling_Template.
         iDestruct "Hcon" as %Hcon.
         iMod (own_updateP (flowint_update_P I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')) γ
                           (● I ⋅ ◯ (Ip' ⋅ In' ⋅ Im)) with "[HI HIpnm']") as (Io) "H0".
-        { apply (flowint_update I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')). admit. }
+        { apply (flowint_update I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im'')). done. }
         { rewrite own_op. iFrame. }
         iPoseProof ((flowint_update_result γ I (Ip' ⋅ In' ⋅ Im) (Ip'' ⋅ In'' ⋅ Im''))
                       with "H0") as (I') "(% & % & HIIpnm)".
@@ -466,7 +504,7 @@ Section Coupling_Template.
             by apply (flowint_keyset k In' n').
           - apply auth_auth_valid. apply H.
           - apply auth_auth_valid. apply H2. }
-        assert (Nds I = Nds I') as HFP. { apply contextualLeq_impl_fp. admit. }
+        assert (Nds I = Nds I') as HFP. { apply contextualLeq_impl_fp. done. }
         iDestruct "HCI" as %HCI. iEval (rewrite <-HCI) in "HΨI". iDestruct "Hglob" as %Hglob.
         iMod "AU" as (C) "[hoho [_ Hcl]]".
         iDestruct (auth_agree with "HC hoho") as %Hauth.
