@@ -74,7 +74,7 @@ Section Toy_Template.
     (*  atomic spec for lock *)
     awp_apply (lock_spec).
     (* peeking into the AU *)
-    iApply (aacc_aupd_abort with "HP"). done.
+    iApply (aacc_aupd_abort with "HP"); first done.
     iIntros (v0) "Hislock". 
     iDestruct "Hislock" as (b) "(Hy & Hif)".
     iAaccIntro with "Hy".

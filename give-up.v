@@ -92,7 +92,7 @@ Section Give_Up_Template.
 
   Hypothesis globalint_root_fp: ∀ I, globalint I → root ∈ Nds I.
 
- (* Hypothesis globalint_fpo : ∀ I, globalint I → ∀ n:node, outf I n = 0.   
+ (* Hypothesis globalint_fpo : ∀ I, globalint I → ∀ n:node, outf I n = 0.
                                            Can't figure out (outf I n). Also is it appropriate?  *)
 
   Hypothesis contextualLeq_impl_globalint :
@@ -134,44 +134,50 @@ Section Give_Up_Template.
   (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
 
   Parameter getLockLoc_spec : ∀ (n: node),
-                  (<<< True >>> getLockLoc #n @ ⊤
-                           <<< ∃ l:loc, ⌜lockLoc n = l⌝, RET #l >>>)%I.
+      (<<< True >>>
+           getLockLoc #n @ ⊤
+       <<< ∃ l:loc, ⌜lockLoc n = l⌝, RET #l >>>)%I.
 
   Parameter inRange_spec : ∀ (n: node) (I_n : flowintUR) (k: key),
-                  (<<< hrep n I_n >>> inRange #n #k @ ⊤
-                              <<< ∃ b: bool, hrep n I_n ∗ (match b with true => ⌜in_inset k I_n n⌝ |
-                                                                        false => ⌜True⌝ end),
-                                  RET #b >>>)%I.
+      (<<< hrep n I_n >>>
+           inRange #n #k @ ⊤
+       <<< ∃ b: bool, hrep n I_n
+                    ∗ (match b with true => ⌜in_inset k I_n n⌝ |
+                               false => ⌜True⌝ end),
+         RET #b >>>)%I.
 
   Parameter findNext_spec : ∀ (n: node) (I_n : flowintUR) (k: key),
-                  (<<< hrep n I_n >>> findNext #n #k @ ⊤
-                              <<< ∃ (b: bool) (n': node), hrep n I_n ∗ 
-                                      (match b with true => ⌜in_edgeset k I_n n n'⌝ |
-                                                    false => ⌜not_in_outset k I_n n⌝ end),
-                                  RET (match b with true => (SOMEV #n') | 
-                                                    false => NONEV end) >>>)%I.
+      (<<< hrep n I_n >>>
+           findNext #n #k @ ⊤
+       <<< ∃ (b: bool) (n': node), hrep n I_n
+                                 ∗ (match b with true => ⌜in_edgeset k I_n n n'⌝ |
+                                            false => ⌜not_in_outset k I_n n⌝ end),
+         RET (match b with true => (SOMEV #n') |
+                      false => NONEV end) >>>)%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (I_n: flowintUR) (n: node) (k: key),
-                  (<<< hrep n I_n ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ ∗ ⌜Nds I_n = {[n]}⌝ >>>
-                        decisiveOp dop #n #k @ ⊤
-                   <<< ∃ (b: bool) (I_n': flowintUR) (res: bool), 
-                            match b with false => hrep n I_n |
-                                         true => hrep n I_n' ∗ Ψ dop k (cont I_n) (cont I_n') res
-                                                 ∗ ⌜contextualLeq I_n I_n'⌝ ∗ ⌜Nds I_n' = {[n]}⌝ end,
-                       RET (match b with false => NONEV |
-                                         true => (SOMEV #res) end) >>>)%I. 
+      (<<< hrep n I_n ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ ∗ ⌜Nds I_n = {[n]}⌝ >>>
+           decisiveOp dop #n #k @ ⊤
+       <<< ∃ (b: bool) (I_n': flowintUR) (res: bool),
+           match b with false => hrep n I_n |
+                   true => hrep n I_n' ∗ Ψ dop k (cont I_n) (cont I_n') res
+         ∗ ⌜contextualLeq I_n I_n'⌝ ∗ ⌜Nds I_n' = {[n]}⌝ end,
+           RET (match b with false => NONEV |
+                        true => (SOMEV #res) end) >>>)%I.
 
   (* ---------- The invariant ---------- *)
 
   Definition dictN : namespace := N .@ "dict".
 
+  (* Sid: I think we don't need γ_c anymore. *)
   Definition main_searchStr (γ: gname) (γ_fp: gname) (γ_c: gname) I Ns C
     : iProp :=
     (own γ_c (● (Some (Excl C))) ∗ ⌜C = cont I⌝
         ∗ own γ (● I) ∗ ⌜globalint I⌝
-        ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool, (lockLoc n) ↦ #b
-                                ∗ if b then True else (∃ (In: flowintUR),
-                                                         own γ (◯ In) ∗ hrep n In ∗ ⌜Nds In = {[n]}⌝)))
+        ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool,
+           (lockLoc n) ↦ #b
+           ∗ if b then True
+             else (∃ (In: flowintUR), own γ (◯ In) ∗ hrep n In ∗ ⌜Nds In = {[n]}⌝)))
         ∗ own γ_fp (● Ns) ∗ ⌜Ns = (Nds I)⌝
     )%I.
 
@@ -231,7 +237,7 @@ Section Give_Up_Template.
 
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
-                       ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝ 
+                       ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝
                                 ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
     unfold flowint_update_P.
@@ -245,7 +251,7 @@ Section Give_Up_Template.
       iSplit. iPureIntro. apply H4.
       assert (Auth (auth_auth_proj x) (auth_frag_proj x) = x) as Hx.
       { destruct x. reflexivity. }
-      assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'. 
+      assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'.
       { rewrite <-Hx. rewrite H. rewrite <-H2. rewrite Hp. rewrite H1.
        rewrite H0. reflexivity. }
       assert (● I' = Auth (Some (1%Qp, to_agree(I'))) ε) as HI'. { reflexivity. }
@@ -274,16 +280,17 @@ Section Give_Up_Template.
 
   (* ---------- Lock module proofs ---------- *)
 
+  (* Sid: shouldn't the postcondition also have is_searchStr? *)
   Lemma lockNode_spec (γ: gname) (γ_fp: gname) (γ_c: gname) (n: node) (Ns: gset node):
-          <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ >>>
-                lockNode #n    @ ⊤
-          <<< ∃ (I_n: flowintUR), own γ (◯ I_n) ∗ hrep n I_n ∗ ⌜Nds I_n = {[n]}⌝, RET #() >>>.
+    <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ >>>
+        lockNode #n    @ ⊤
+    <<< ∃ (I_n: flowintUR), own γ (◯ I_n) ∗ hrep n I_n ∗ ⌜Nds I_n = {[n]}⌝, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
     awp_apply getLockLoc_spec.
     iApply (aacc_aupd_abort with "AU"); first done.
-    iIntros (C) "(Hst & Hfp & Hin)". 
+    iIntros (C) "(Hst & Hfp & Hin)".
     iAssert (True)%I as "Ht". done.
     iAaccIntro with "Ht". iIntros "_". eauto 4 with iFrame.
     iIntros (l) "#Hl". iModIntro. iSplitL. iFrame. iIntros "AU".
@@ -296,17 +303,19 @@ Section Give_Up_Template.
     rewrite (big_sepS_elem_of_acc _ (Nds I) n); last by eauto.
     iDestruct "H5" as "[ho hoho]".
     iDestruct "ho" as (b) "[Hlock Hlock']". iEval (rewrite Hl) in "Hlock". destruct b.
-      - wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]". 
+      - wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]".
         iMod ("HAU" with "[H1 H2 H3 H4 Hlock Hlock' hoho H6 H7 Hfp Hin]") as "H".
         iFrame. iExists I, N0. iFrame. iApply "hoho". iExists true.
         iEval (rewrite <-Hl) in "Hlock". iFrame.
         iModIntro. wp_pures. iApply "IH". done.
-      - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]". 
+      - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
         iDestruct "Hlock'" as (In) "HPost".
         iMod ("HAU" with "HPost") as "HΦ".
         iModIntro. wp_pures. done.
   Qed.
 
+  (* Shouldn't the pre have own γ (◯ I_n) ∗ hrep n I_n ∗ ⌜Nds I_n = {[n]}⌝?
+     And the post should also have is_searchStr? *)
   Lemma unlockNode_spec (γ: gname) (γ_fp: gname) (γ_c: gname) (n: node) (Ns: gset node) :
           <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝  >>>
                 unlockNode #n    @ ⊤
@@ -315,25 +324,25 @@ Section Give_Up_Template.
   Admitted.
 
   Lemma traverse_spec (γ γ_fp γ_c: gname) (k: key) (n: node):
-          ∀ (Ns: gsetUR node), <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ ⌜root ∈ Ns⌝ >>>
+    ∀ (Ns: gsetUR node), <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ ⌜root ∈ Ns⌝ >>>
                 traverse root #n #k
                     @ ⊤
           <<< ∃ (n': node) (Ns': gsetUR node) (I_n': flowintUR), ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
-                 ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝ 
+                 ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝
                  ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
   Proof.
   Admitted.
 
   Lemma ghost_update_root_fp γ γ_fp γ_c C:
-          is_searchStr γ γ_fp γ_c C ==∗ 
+          is_searchStr γ γ_fp γ_c C ==∗
                  ∃ (Ns: gsetUR node), is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝.
   Proof.
     iIntros "Hst". iModIntro.
     iDestruct "Hst" as (I Ns) "(H1 & H2 & H3 & H4 & H5 & H6 & H7)".
     iExists Ns.
   Admitted.
-  
-  
+
+
   Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
       <<< ∀ C, is_searchStr γ γ_fp γ_c C >>>
             (searchStrOp dop root) #k
@@ -344,8 +353,8 @@ Section Give_Up_Template.
     wp_bind (traverse _ _ _)%E.
     (* traverse needs the footprint also as an argument, which we don't know yet
        because we get the footprint by ghost_update_root_fp. For this update, we
-       need to peek into the  pre-condition. The problem would be solved if we 
-       could peak before awp_apply (traverse_spec), but that is not allowed for 
+       need to peek into the  pre-condition. The problem would be solved if we
+       could peak before awp_apply (traverse_spec), but that is not allowed for
        some reason. *)
     awp_apply (traverse_spec γ γ_fp γ_c k root).
     rewrite /atomic_acc /=. iMod "AU" as (C0) "[H [H' _]]".
@@ -381,14 +390,14 @@ Section Give_Up_Template.
     iAssert (True)%I as "Ht". done.
     iMod ("Hcl" with "Ht") as "HΦ".
     iModIntro. iModIntro. iSplitR "HΦ". iNext. iExists I', N', C'. rewrite /main_inv. iFrame.
-    iApply "hoho". iExists false. iEval (rewrite <-Hl) in "Hlock". iFrame. iExists I_n. 
+    iApply "hoho". iExists false. iEval (rewrite <-Hl) in "Hlock". iFrame. iExists I_n.
     iDestruct "Hr" as "(? & ? & ?)". eauto with iFrame. done.
   Qed.
 
 
   Lemma ghost_update_step γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n: flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝
-       ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝ 
+       ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝
                                                         ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
   Proof.
     iIntros "#Hinv (HNs & % & HIn & % & % & %)".
@@ -423,7 +432,7 @@ Section Give_Up_Template.
                 traverse root #n #k
                     @ ⊤∖↑dictN
           <<< ∃ (n': node) (Ns': gsetUR node) (I_n': flowintUR), ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
-                 ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝ 
+                 ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝
                  ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
   Proof.
     iIntros (n Ns). iIntros "#HInv H". iLöb as "IH" forall (n Ns).
@@ -437,16 +446,16 @@ Section Give_Up_Template.
       iIntros (b) "(Hrep & H1)". iModIntro. destruct b.
         + (* inRange succeeds *)
           wp_if. wp_bind (findNext _ _)%E. awp_apply (findNext_spec n In k).
-          iAaccIntro with "Hrep". eauto with iFrame. iIntros (b n') "(Hrep & H2)". 
+          iAaccIntro with "Hrep". eauto with iFrame. iIntros (b n') "(Hrep & H2)".
           destruct b.
-            * (* findNext succeeds *) 
+            * (* findNext succeeds *)
                iModIntro. wp_pures.
-               iDestruct (ghost_update_step γ γ_fp γ_c n n' k Ns In 
+               iDestruct (ghost_update_step γ γ_fp γ_c n n' k Ns In
                                   with "[HInv] [Hfp Hin HInt Hdom H1 H2]") as ">hoho".
                { done. } { eauto with iFrame. } iDestruct "hoho" as (Ns') "(#Hfp' & #Hin' & HInt & #Hr')".
                awp_apply (unlockNode_spec γ γ_fp γ_c n Ns).
                { done. } { eauto with iFrame. }
-               iAssert (hrep n In ∗ own γ (◯ In) ∗ ⌜Nds In = {[n]}⌝)%I with "[Hrep HInt Hdom]" as "Haac". 
+               iAssert (hrep n In ∗ own γ (◯ In) ∗ ⌜Nds In = {[n]}⌝)%I with "[Hrep HInt Hdom]" as "Haac".
                { eauto with iFrame. }
                iAaccIntro with "Haac". { iIntros "(Hrep & HInt & HNds)". iModIntro. iFrame. } iIntros "Ht".
                iModIntro. wp_pures. iSpecialize ("IH" $! n' Ns'). iApply "IH". eauto with iFrame. done.
@@ -456,7 +465,7 @@ Section Give_Up_Template.
               iModIntro. wp_pures. done.
         + (*inRange fails *)
           wp_if. awp_apply (unlockNode_spec γ γ_fp γ_c n Ns). done. eauto with iFrame.
-          iAssert (hrep n In ∗ own γ (◯ In) ∗ ⌜Nds In = {[n]}⌝)%I with "[Hrep HInt Hdom]" as "Haac". 
+          iAssert (hrep n In ∗ own γ (◯ In) ∗ ⌜Nds In = {[n]}⌝)%I with "[Hrep HInt Hdom]" as "Haac".
           { eauto with iFrame. }
           iAaccIntro with "Haac". { iIntros "(Hrep & HInt & HNds)". iModIntro. iFrame. }
           iIntros. iModIntro. wp_pures. iApply "IH". eauto with iFrame. done.
@@ -476,7 +485,7 @@ Section Give_Up_Template.
     iAssert (True)%I as "Ht". done. iAaccIntro with "Ht". eauto with iFrame.
     iIntros (n Ns' In) "(#Hin & #Hfp & HInt & Hrep & #HNds & #Hinset & #Hout)". iModIntro. wp_let.
     wp_bind(decisiveOp dop _ _)%E. awp_apply (decisiveOp_spec dop In n k).
-    iAssert (hrep n In ∗ ⌜in_inset k In n⌝ ∗ ⌜not_in_outset k In n⌝ ∗ ⌜Nds In = {[n]}⌝)%I 
+    iAssert (hrep n In ∗ ⌜in_inset k In n⌝ ∗ ⌜not_in_outset k In n⌝ ∗ ⌜Nds In = {[n]}⌝)%I
                                       with "[Hrep Hinset Hout HNds]" as "Haac".
     { eauto with iFrame. }
     iAaccIntro with "Haac". { iIntros "(Hrep & ?)". iModIntro. iFrame. }
@@ -505,7 +514,7 @@ Section Give_Up_Template.
       iMod ("Hcl" with "[hoho HΨI]") as "HΦ". eauto with iFrame.
       iModIntro. iSplitR "Hrep HIn' HNds' HΦ".
         + iNext. iExists I', Nd, (cont I').
-          unfold main_inv. assert (globalint I') as HI'. 
+          unfold main_inv. assert (globalint I') as HI'.
           { apply (contextualLeq_impl_globalint I I'). done. done. }
           assert (Nds I = Nds I') as HH. { apply (contextualLeq_impl_fp I I'). done. }
           iEval (rewrite HH) in "H7 H9". iFrame "∗ % #". iPureIntro. reflexivity.
