@@ -71,8 +71,8 @@ Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
 Proof. solve_inG. Qed.
 
 (* RA for set of contents *)
-Class contentG Σ := ContentG { content_inG :> inG Σ (authR (optionUR (exclR (gsetR key)))) }.
-Definition contentΣ : gFunctors := #[GFunctor (authR (optionUR (exclR (gsetR key))))].
+Class contentG Σ := ContentG { content_inG :> inG Σ (gsetR key) }.
+Definition contentΣ : gFunctors := #[GFunctor (gsetR key)].
 
 Instance subG_contentΣ {Σ} : subG contentΣ Σ → contentG Σ.
 Proof. solve_inG. Qed.
@@ -155,8 +155,9 @@ Section Give_Up_Template.
          RET (match b with true => (SOMEV #n') |
                       false => NONEV end) >>>)%I.
 
-  Parameter decisiveOp_spec : ∀ (dop: dOp) (I_n: flowintUR) (n: node) (k: key),
-      (<<< hrep n I_n ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ ∗ ⌜Nds I_n = {[n]}⌝ >>>
+  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: node) (k: key),
+      (<<< ∀ (I_n: flowintUR), hrep n I_n ∗ ⌜in_inset k I_n n⌝ 
+                    ∗ ⌜not_in_outset k I_n n⌝ ∗ ⌜Nds I_n = {[n]}⌝ >>>
            decisiveOp dop #n #k @ ⊤
        <<< ∃ (b: bool) (I_n': flowintUR) (res: bool),
            match b with false => hrep n I_n |
@@ -172,7 +173,7 @@ Section Give_Up_Template.
   (* Sid: I think we don't need γ_c anymore. *)
   Definition main_searchStr (γ: gname) (γ_fp: gname) (γ_c: gname) I Ns C
     : iProp :=
-    (own γ_c (● (Some (Excl C))) ∗ ⌜C = cont I⌝
+    (own γ_c C ∗ ⌜C = cont I⌝
         ∗ own γ (● I) ∗ ⌜globalint I⌝
         ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool,
            (lockLoc n) ↦ #b
@@ -215,7 +216,7 @@ Section Give_Up_Template.
     rewrite Hy in Hb. rewrite <- Ha in Hb. done.
   Qed.
 
-  Lemma auth_agree γ xs ys :
+(*  Lemma auth_agree γ xs ys :
     own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
   Proof.
    iIntros "Hγ● Hγ◯". by iDestruct (own_valid_2 with "Hγ● Hγ◯")
@@ -233,7 +234,7 @@ Section Give_Up_Template.
     { by apply auth_update, option_local_update, exclusive_local_update. }
     done.
   Qed.
-
+*)
 
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
@@ -319,17 +320,17 @@ Section Give_Up_Template.
   Lemma unlockNode_spec (γ: gname) (γ_fp: gname) (γ_c: gname) (n: node) (Ns: gset node) :
           <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝  >>>
                 unlockNode #n    @ ⊤
-          <<< True, RET #() >>>.
+          <<< is_searchStr γ γ_fp γ_c C, RET #() >>>.
   Proof.
   Admitted.
 
   Lemma traverse_spec (γ γ_fp γ_c: gname) (k: key) (n: node):
-    ∀ (Ns: gsetUR node), <<< ∀ C, is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ ⌜root ∈ Ns⌝ >>>
+    <<< ∀ C, ∃ (Ns: gsetUR node), is_searchStr γ γ_fp γ_c C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ ⌜root ∈ Ns⌝ >>>
                 traverse root #n #k
                     @ ⊤
-          <<< ∃ (n': node) (Ns': gsetUR node) (I_n': flowintUR), ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
-                 ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝
-                 ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
+          <<< ∃ (n': node) (Ns': gsetUR node) (I_n': flowintUR), is_searchStr γ γ_fp γ_c C ∗ ⌜n' ∈ Ns'⌝ 
+                  ∗ own γ_fp (◯ Ns') ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝
+                  ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
   Proof.
   Admitted.
 
@@ -344,27 +345,65 @@ Section Give_Up_Template.
 
 
   Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
-      <<< ∀ C, is_searchStr γ γ_fp γ_c C >>>
-            (searchStrOp dop root) #k
+      <<< ∀ (C: gset key), is_searchStr γ γ_fp γ_c C >>>
+            searchStrOp dop root #k
                   @ ⊤
       <<< ∃ (C': gset key) (res: bool), is_searchStr γ γ_fp γ_c C' ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH". wp_lam.
     wp_bind (traverse _ _ _)%E.
-    (* traverse needs the footprint also as an argument, which we don't know yet
-       because we get the footprint by ghost_update_root_fp. For this update, we
-       need to peek into the  pre-condition. The problem would be solved if we
-       could peak before awp_apply (traverse_spec), but that is not allowed for
-       some reason. *)
     awp_apply (traverse_spec γ γ_fp γ_c k root).
     rewrite /atomic_acc /=. iMod "AU" as (C0) "[H [H' _]]".
     iDestruct (ghost_update_root_fp γ γ_fp γ_c C0 with "[H]") as ">Ho".
     done. iDestruct "Ho" as (Ns) "(Hst & #Hfp & #HinR)".
-    iModIntro. iExists C0. Show Existentials. iSplitL "Hst Hfp HinR".
-    iFrame. iFrame "Hfp". eauto with iFrame.
-
-
-  Admitted.
+    iModIntro. iExists C0. iSplitL "Hst Hfp HinR". iExists Ns.
+    eauto with iFrame. iSplit. iIntros "Hst".
+    iDestruct "Hst" as (Ns') "(Hst & _)". iMod ("H'" with "Hst") as "AU".
+    iModIntro. done. iIntros (n Ns' In) "(Hst & #HinN & #Hfp' & HIn & HrepN & #HNdsn & #Hinset & #Hnotout)".
+    iMod ("H'" with "Hst") as "AU".
+    iModIntro. wp_pures. wp_bind (decisiveOp _ _ _)%E.
+    awp_apply (decisiveOp_spec dop n k).
+    iAssert (hrep n In ∗ ⌜in_inset k In n⌝ ∗ ⌜not_in_outset k In n⌝ ∗ ⌜Nds In = {[n]}⌝)%I
+        with "[HrepN]" as "Haac".
+    { eauto with iFrame. } iAaccIntro with "Haac". iIntros "(Hrep & _)".
+    iModIntro. eauto with iFrame. iIntros (b In' res). iIntros "Hb". destruct b.
+    - iDestruct "Hb" as "(Hrep & HΨ & #Hcon & #HNds')".
+      iModIntro. wp_pures. wp_bind(unlockNode _)%E.
+      iDestruct "HΨ" as "#HΨ".
+      awp_apply (unlockNode_spec γ γ_fp γ_c n Ns').
+      iApply (aacc_aupd_commit with "AU"); first done.
+      iIntros (C1) "Hst". iAssert (is_searchStr γ γ_fp γ_c C1 ∗ own γ_fp (◯ Ns') ∗ ⌜n ∈ Ns'⌝)%I
+      with "[Hst]" as "Haac". eauto with iFrame. iAaccIntro with "Haac".
+      iIntros "(Hst & _)". iModIntro. iSplitL "Hst"; try done. iIntros "AU".
+      iModIntro. iFrame "HIn AU Hrep". iIntros "Hst".
+      iDestruct "Hst" as (I Nd) "(H3 & H4 & H5 & H6 & H7 & H8 & H9)".
+      iDestruct "H4" as %H4. iDestruct "H6" as %H6. iEval (rewrite H4) in "H3".
+      iPoseProof (auth_own_incl with "[$H5 $HIn]") as (I2)"%".
+      iPoseProof ((own_valid γ (● I)) with "H5") as "%". iDestruct "Hcon" as %Hcon.
+      iMod (own_updateP (flowint_update_P I In In') γ (● I ⋅ ◯ In) with "[H5 HIn]") as (?) "H0".
+      { apply (flowint_update I In In'). done. } { rewrite own_op. iFrame. }
+      iPoseProof ((flowint_update_result γ I In In') with "H0") as (I') "(% & % & HIIn)".
+      iAssert (own γ (● I') ∗ own γ (◯ In'))%I with "[HIIn]" as "(HI' & HIn')". { by rewrite own_op. }
+      iPoseProof ((own_valid γ (● I')) with "HI'") as "%".
+      iPoseProof ((Ψ_keyset_theorem dop k n In In' I I' res) with "[HNdsn Hinset Hnotout] [HΨ]") as "HΨI".
+      { repeat iSplitL; try done; iPureIntro; apply auth_auth_valid; done. } { done. }
+      iMod (own_update γ_c (cont I) (cont I') with "[H3]") as "H3'".
+      { apply (gset_update (cont I) (cont I')). } done.
+      iModIntro. iExists (cont I'), res. iSplitL. iEval (rewrite H4). iFrame.
+      iExists I', Nd. assert (globalint I') as HI'.
+      { apply (contextualLeq_impl_globalint I I'). done. done. }
+      assert (Nds I = Nds I') as HH. { apply (contextualLeq_impl_fp I I'). done. }
+      iEval (rewrite HH) in "H7 H9". iFrame "∗ % #". iPureIntro. reflexivity.
+      iIntros "HΦ". iModIntro. wp_pures. done.
+    - iModIntro. wp_pures. wp_bind(unlockNode _)%E.
+      awp_apply (unlockNode_spec γ γ_fp γ_c n Ns').
+      iApply (aacc_aupd_abort with "AU"); first done.
+      iIntros (C2) "Hst". iAssert (is_searchStr γ γ_fp γ_c C2 ∗ own γ_fp (◯ Ns') ∗ ⌜n ∈ Ns'⌝)%I
+      with "[Hst]" as "Haac". eauto with iFrame. iAaccIntro with "Haac".
+      iIntros "(Hst & _)". iModIntro. iFrame "Hst". iIntros "AU". eauto with iFrame.
+      iIntros "Hst". iModIntro. iFrame "Hst". iIntros "AU". iModIntro.
+      wp_pures. iApply "IH". done.
+  Qed.
 
 
   (* ---------- Ghost state manipulation to make final proof cleaner ---------- *)
@@ -397,7 +436,8 @@ Section Give_Up_Template.
 
   Lemma ghost_update_step γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n: flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝
-       ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝
+       ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝
+              ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝
                                                         ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
   Proof.
     iIntros "#Hinv (HNs & % & HIn & % & % & %)".

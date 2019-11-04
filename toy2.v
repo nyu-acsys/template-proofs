@@ -119,7 +119,8 @@ Section Toy_Template.
              because H' ==> x ↦ v1 if b' = false. That will give us a context
              containing two intances of x ↦ _, contradiction!
            *)
-          exfalso.
-          admit.
+          iDestruct (mapsto_valid_2 with "Hif Hifx") as %H.
+          assert (False) as Hf. { done. }
+          exfalso. done.
         }
-  Admitted.
+  Qed.
