@@ -33,14 +33,16 @@ Section stack_model.
   Proof.
     iLöb as "IH" forall (x). iIntros (Φ) "AU".
     wp_lam. wp_bind (findNext _ )%E. awp_apply (findNext_spec X x).
-    iApply (aacc_aupd_abort with "AU"); first done. iIntros "(HNs & #Hin)".
-    (* Sid: can you update the proof from here on? *)
-    iAssert (⌜x ∈ X⌝ ∗ x ↦ #w)%I with "[Hx]" as "Haac". eauto with iFrame.
-    iAaccIntro with "Haac". eauto with iFrame. 
-    iIntros (b y) "(Hx & Hb)". destruct b.
-    - admit.
-      (* Sid: we know how to prove the b == true case right? If so, add a 
-        comment saying so. *)
-    - iModIntro. iSplitL "Hx". eauto with iFrame. iIntros "AU".
-      iModIntro. wp_match. iApply "IH".
+    iApply (aacc_aupd_abort with "AU"); first done. iIntros "(HNs & #Hx)".
+    iAssert (([∗ set] n ∈ X, ∃ v: val, n ↦ v) ∗ ⌜x ∈ X⌝)%I with "[$]" as "Haacc".
+    iAaccIntro with "Haacc"; first eauto with iFrame. 
+    iIntros (b y) "(HNs & #Hy)". destruct b.
+    - iModIntro. iSplitL. { eauto with iFrame. }
+      iIntros "AU". iModIntro. wp_match. iApply "IH". 
+      (* We are stuck here because we can't prove the AU with y ∈ X *)
+      admit.
+    - iModIntro. iSplitL. eauto with iFrame. iIntros "AU".
+      iMod "AU" as "[HNs [_ HClose]]". 
+      iMod ("HClose" with "[$]") as "HΦ".
+      iModIntro. wp_match. done.
   Admitted.
