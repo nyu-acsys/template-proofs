@@ -17,6 +17,7 @@ Section stack_model.
   Context `{!heapG Σ}.
   Notation iProp := (iProp Σ).
 
+  (* TODO this should be a non-atomic Hoare triple *)
   Lemma findNext_spec (X: gset loc) (x: loc):
     <<< ([∗ set] n ∈ X, ∃ v: val, n ↦ v) ∗ ⌜x ∈ X⌝ >>>
       findNext #x @ ⊤
@@ -27,22 +28,23 @@ Section stack_model.
   Proof. Admitted. (* Omitting this proof for clarity *)
 
   Lemma traverse_spec (X: gset loc) (x: loc):
-    <<< ([∗ set] n ∈ X, ∃ v: val, n ↦ v) ∗ ⌜x ∈ X⌝ >>>
+    ⌜x ∈ X⌝ -∗
+    <<< ([∗ set] n ∈ X, ∃ v: val, n ↦ v) >>>
       traverse #x @ ⊤
     <<< ∃ (y: loc), ([∗ set] n ∈ X, ∃ v: val, n ↦ v) ∗ ⌜y ∈ X⌝, RET #y >>>.
   Proof.
-    iLöb as "IH" forall (x). iIntros (Φ) "AU".
+    iLöb as "IH" forall (x). iIntros "#Hx". iIntros (Φ) "AU".
     wp_lam. wp_bind (findNext _ )%E. awp_apply (findNext_spec X x).
-    iApply (aacc_aupd_abort with "AU"); first done. iIntros "(HNs & #Hx)".
+    iApply (aacc_aupd_abort with "AU"); first done. iIntros "HNs".
     iAssert (([∗ set] n ∈ X, ∃ v: val, n ↦ v) ∗ ⌜x ∈ X⌝)%I with "[$]" as "Haacc".
-    iAaccIntro with "Haacc"; first eauto with iFrame. 
-    iIntros (b y) "(HNs & #Hy)". destruct b.
+    iAaccIntro with "Haacc".
+    { iIntros "(HNs & _)". iModIntro. eauto with iFrame. }
+    iIntros (b y) "(HNs & %)". destruct b.
     - iModIntro. iSplitL. { eauto with iFrame. }
-      iIntros "AU". iModIntro. wp_match. iApply "IH". 
-      (* We are stuck here because we can't prove the AU with y ∈ X *)
-      admit.
+      iIntros "AU". iModIntro. wp_match. iApply "IH"; first by auto.
+      iFrame.
     - iModIntro. iSplitL. eauto with iFrame. iIntros "AU".
       iMod "AU" as "[HNs [_ HClose]]". 
       iMod ("HClose" with "[$]") as "HΦ".
       iModIntro. wp_match. done.
-  Admitted.
+  Qed.
