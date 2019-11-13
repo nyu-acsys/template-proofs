@@ -89,13 +89,16 @@ Section Give_Up_Template.
   Instance hrep_timeless n I : Timeless (hrep n I).
   Proof. apply hrep_timeless_proof. Qed.
   Parameter hrep_fp : ∀ n I_n, hrep n I_n -∗ ⌜Nds I_n = {[n]}⌝.
+  (* Sid: Could instead have hrep n I_n -∗ n ↦ _ *)
   Parameter hrep_sep_star: ∀ n I_n I_n', hrep n I_n ∗ hrep n I_n' -∗ False.
 
+  (* Sid: why don't we write out the globalint in Iris? *)
   Hypothesis globalint_root_fp: ∀ I, globalint I → root ∈ Nds I.
 
  (* Hypothesis globalint_fpo : ∀ I, globalint I → ∀ n:node, outf I n = 0.
                                            Can't figure out (outf I n). Also is it appropriate?  *)
 
+  (* Sid: then in theory we can also prove this: *)
   Hypothesis contextualLeq_impl_globalint :
     ∀ I I', globalint I →  contextualLeq I I' → globalint I'.
 
@@ -133,6 +136,7 @@ Section Give_Up_Template.
 
   (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
 
+  (* Sid: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
   Parameter getLockLoc_spec : ∀ (n: node),
       ({{{ True }}}
            getLockLoc #n
@@ -143,6 +147,7 @@ Section Give_Up_Template.
            inRange #n #k
        {{{ (b: bool), RET #b; hrep n I_n ∗ (match b with true => ⌜in_inset k I_n n⌝ |
                                     false => ⌜True⌝ end) }}})%I.
+  (* Sid: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
 
   Parameter findNext_spec : ∀ (n: node) (I_n : flowintUR) (k: key),
       ({{{ hrep n I_n }}}
