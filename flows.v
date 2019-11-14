@@ -72,7 +72,7 @@ Lemma flowint_comp_fp (I1 I2 I : flowintUR) : I = I1 ⋅ I2 → Nds I = Nds I1 �
 Proof. Admitted.
 
 (* Directly follows from definition of contextual extension *)
-Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → Nds I = Nds I'.
+Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → Nds I = Nds I'. (* check if this is used anywhere *)
 Proof. Admitted.
 
 (* This is the rule AUTH-FI-UPD in the paper *)
