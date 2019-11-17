@@ -154,7 +154,7 @@ Section Give_Up_Template.
            findNext #n #k
        {{{ (b: bool) (n': node), 
               RET (match b with true => (SOMEV #n') | false => NONEV end); 
-               hrep n I_n ∗ (match b with true => ⌜in_edgeset k I_n n n'⌝ |
+               hrep n I_n ∗ (match b with true => ⌜in_outset k I_n n n'⌝ |
                                           false => ⌜not_in_outset k I_n n⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: node) (k: key) (I_n: flowintUR),

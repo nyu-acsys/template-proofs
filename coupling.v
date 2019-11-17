@@ -156,14 +156,14 @@ Section Coupling_Template.
 
   Parameter findNext_spec : ∀ (n: node) (I_n : flowintUR) (k: key),
                   (<<< hrep n I_n >>> findNext #n #k @ ⊤
-                              <<< ∃ (b: bool) (n': node), hrep n I_n ∗ (match b with true => ⌜in_edgeset k I_n n n'⌝ |
+                              <<< ∃ (b: bool) (n': node), hrep n I_n ∗ (match b with true => ⌜in_outset k I_n n n'⌝ |
                                                                                      false => ⌜not_in_outset k I_n n⌝ end),
                                   RET (match b with true => (SOMEV #n') | 
                                                     false => NONEV end) >>>)%I.
 
   Parameter decisiveOp_3_spec : ∀ (dop: dOp) (I_p I_n I_m: flowintUR) (p n m: node) (k:key),
                   (<<< hrep p I_p ∗ hrep n I_n ∗ empty_node m ∗ ⌜is_empty_flowint I_m ⌝ ∗ ⌜Nds I_m = {[m]}⌝ 
-                          ∗ ⌜✓I_m⌝ ∗ ⌜in_edgeset k I_p p n⌝ ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ >>>
+                          ∗ ⌜✓I_m⌝ ∗ ⌜in_outset k I_p p n⌝ ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝ >>>
                              decisiveOp dop #p #n #k @ ⊤
                     <<< ∃ (b: bool) (I_p' I_n' I_m': flowintUR) (res: bool), 
                           match b with false => hrep p I_p' ∗ hrep n I_n' ∗ empty_node m 
@@ -287,7 +287,7 @@ Section Coupling_Template.
   (* ---------- Ghost state manipulation to make final proof cleaner ---------- *)
 
   Lemma ghost_update_step γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n: flowintUR):
-          is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ 
+          is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_outset k I_n n n'⌝ 
                 ={ ⊤ }=∗ ∃ (Ns': gset node), own γ_fp (◯ Ns') ∗ ⌜n' ∈ Ns'⌝ ∗ ⌜n ∈ Ns'⌝ ∗ own γ (◯ I_n) ∗ ⌜root ∈ Ns'⌝.
   Proof.
     iIntros "#Hinv (HIn & % & % & %)".
@@ -324,7 +324,7 @@ Section Coupling_Template.
 
   Lemma ghost_update_step_2 γ γ_fp γ_c (n n': node) (k:key) (Ns: gset node) (I_n I_n': flowintUR):
           is_dict γ γ_fp γ_c -∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝ ∗ own γ (◯ I_n') ∗ ⌜Nds I_n' = {[n']}⌝
-          ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_edgeset k I_n n n'⌝ ={ ⊤ }=∗ own γ (◯ I_n) ∗ own γ (◯ I_n') ∗ ⌜in_inset k I_n' n'⌝.
+          ∗ ⌜in_inset k I_n n⌝ ∗ ⌜in_outset k I_n n n'⌝ ={ ⊤ }=∗ own γ (◯ I_n) ∗ own γ (◯ I_n') ∗ ⌜in_inset k I_n' n'⌝.
   Proof.
     iIntros "Hinv (HIn & % & HIn' & % & % & %)".
     iInv dictN as ">HInv" "HClose".
@@ -450,11 +450,11 @@ Section Coupling_Template.
   Lemma traverse_spec γ γ_fp γ_c (I_p I_n: flowintUR) (Ns: gset node) (p n: node) (k: key) :
     is_dict γ γ_fp γ_c -∗ hrep n I_n ∗ own γ (◯ I_n) ∗ ⌜Nds I_n = {[n]}⌝ ∗ ⌜in_inset k I_n n⌝
                           ∗ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ (◯ I_p) 
-                          ∗ hrep p I_p ∗ ⌜Nds I_p = {[p]}⌝ ∗ ⌜in_edgeset k I_p p n⌝ -∗
+                          ∗ hrep p I_p ∗ ⌜Nds I_p = {[p]}⌝ ∗ ⌜in_outset k I_p p n⌝ -∗
         <<< True >>>
                   traverse #p #n #k @ ⊤∖↑dictN
         <<< ∃ (p' n': node) (I_p' I_n': flowintUR), own γ (◯ I_p') ∗ own γ (◯ I_n') ∗ hrep p' I_p' ∗ hrep n' I_n'
-                                          ∗ ⌜Nds I_p' = {[p']}⌝ ∗ ⌜Nds I_n' = {[n']}⌝ ∗ ⌜in_edgeset k I_p' p' n'⌝
+                                          ∗ ⌜Nds I_p' = {[p']}⌝ ∗ ⌜Nds I_n' = {[n']}⌝ ∗ ⌜in_outset k I_p' p' n'⌝
                                           ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝,
               RET (#p', #n') >>>.
   Proof.
@@ -524,7 +524,7 @@ Section Coupling_Template.
       awp_apply (decisiveOp_3_spec dop Ip' In' Im p' n' m k).
       iAssert (empty_node m)%I as "HempM". { admit. }
       iAssert (hrep p' Ip' ∗ hrep n' In' ∗ empty_node m ∗ ⌜is_empty_flowint Im⌝ ∗ ⌜Nds Im = {[m]}⌝
-               ∗ ⌜✓ Im⌝ ∗ ⌜in_edgeset k Ip' p' n'⌝ ∗ ⌜in_inset k In' n'⌝ ∗ ⌜not_in_outset k In' n'⌝)%I 
+               ∗ ⌜✓ Im⌝ ∗ ⌜in_outset k Ip' p' n'⌝ ∗ ⌜in_inset k In' n'⌝ ∗ ⌜not_in_outset k In' n'⌝)%I 
                with "[HrepP' HrepN' HempM]" as "Haac".
       { iFrame "HrepP' HrepN' HempM HempIntM HNdsM HM HedgeP' HinsetN' HnotoutN'". }
       iAaccIntro with "Haac". iIntros "(HrepP' & HrepN' & _)". iModIntro. iFrame "AU HIp' HIn' HrepP' HrepN' HIm".

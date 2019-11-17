@@ -57,7 +57,7 @@ Proof. Admitted.
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
 Parameter in_inset : key → flowintUR → node → Prop.
-Parameter in_edgeset : key → flowintUR → node → node → Prop.
+Parameter in_outset : key → flowintUR → node → node → Prop.
 Parameter not_in_outset : key → flowintUR → node → Prop.
 Parameter cont : flowintUR → gset key.
 Parameter inreach : flowintUR → node → gset key.
@@ -96,12 +96,12 @@ Proof. Admitted.
 
 Lemma flowint_inset_step I1 n I2 n' k :
   Nds I1 = {[n]} → Nds I2 = {[n']} → ✓(I1 ⋅ I2)
-  → in_inset k I1 n → in_edgeset k I1 n n' → in_inset k I2 n'.        (* in_edgeset interpretation? *)
+  → in_inset k I1 n → in_outset k I1 n n' → in_inset k I2 n'.        (* in_outset interpretation? *)
 Proof. Admitted.
 
 Lemma flowint_inreach_step (I I1 I2: flowintUR) k n n':
-  Nds I1 = {[n]} → n' ∈ Nds I2 → I = I1 ⋅ I2 → ✓(I)
-  → k ∈ inreach I n → in_edgeset k I1 n n' → k ∈ inreach I n'.
+  Nds I1 = {[n]} → Nds I2 = {[n']} → ✓(I1 ⋅ I2)
+  → k ∈ inreach I1 n → in_outset k I1 n n' → k ∈ inreach I2 n'.
 Proof. Admitted.
 
 Lemma flowint_proj I I_n n k :
@@ -109,6 +109,6 @@ Lemma flowint_proj I I_n n k :
 Proof. Admitted.
 
 Lemma flowint_step (I I1 I2: flowintUR) k n n':
-  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_edgeset k I1 n n' → globalint I → n' ∈ Nds I2.
+  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_outset k I1 n n' → globalint I → n' ∈ Nds I2.
 Proof. Admitted.
 
