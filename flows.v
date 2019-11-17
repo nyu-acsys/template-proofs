@@ -59,7 +59,7 @@ Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 Parameter in_inset : key → flowintUR → node → Prop.
 Parameter in_edgeset : key → flowintUR → node → node → Prop.
 Parameter not_in_outset : key → flowintUR → node → Prop.
-Parameter cont : flowintUR → gset key.
+Parameter cont : node → gset key.
 Parameter inreach : flowintUR → node → gset key.
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 Parameter is_empty_flowint : flowintUR → Prop.
@@ -72,7 +72,7 @@ Lemma flowint_comp_fp (I1 I2 I : flowintUR) : I = I1 ⋅ I2 → Nds I = Nds I1 �
 Proof. Admitted.
 
 (* Directly follows from definition of contextual extension *)
-Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → Nds I = Nds I'. (* check if this is used anywhere *)
+Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → Nds I = Nds I'.
 Proof. Admitted.
 
 (* This is the rule AUTH-FI-UPD in the paper *)
