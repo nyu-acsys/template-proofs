@@ -173,37 +173,84 @@ Section Give_Up_Template.
 
   Lemma auth_own_incl γ (x y: flowintUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
+    rewrite -own_op. rewrite own_valid. iPureIntro.
+    apply auth_both_valid.
+  Qed.
+
+  Lemma auth_own_incl_ks γ (x y: prodUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
     simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
     destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
     assert (ε ⋅ y = y) as Hy.
-    { rewrite /(⋅) /=. rewrite left_id. done. }
+    { rewrite /(⋅) /=. destruct y; try done. }
     rewrite Hy in Hb. rewrite <- Ha in Hb. done.
   Qed.
-
-  Lemma auth_own_incl_ks γ x y : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iIntros "Hown".
-    iEval (rewrite /(✓ (_)) /=) in "Hown".
-    iEval (rewrite /(cmra_op) /=) in "Hown".
-  Admitted.
   
-  Lemma auth_ks_included (a1 a2 b1 b2: gset key) : prod (a1, b1) ≼ prod (a2, b2) 
+  Lemma auth_ks_included (a1 a2 b1 b2: gset key) : 
+             ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2) 
                 → (a1 = a2 ∧ b1 = b2) ∨ 
                     (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
   Proof.
-  Admitted.  
+    intros H1 H2 H. destruct H as [z H]. assert (✓ z). { apply (cmra_valid_op_r (prod (a1, b1))).
+    rewrite <-H. done. } rewrite /(✓ prod (a1, b1)) /= in H1. rewrite /(✓ prod (a2, b2)) /= in H2.
+    destruct z.
+    - destruct p. rewrite /(✓ prod (g, g0)) /= in H0. rewrite /(⋅) /= in H.
+      destruct (decide (b1 ⊆ a1)). destruct (decide (g0 ⊆ g)). destruct (decide (a1 ## g)).
+      destruct (decide (b1 ## g0)). right. exists g, g0. set_solver. inversion H. inversion H.
+      inversion H. inversion H.
+    - rewrite /(✓ prodTop) /= in H0. exfalso. done.
+    - rewrite /(⋅) /= in H. inversion H. left. done.
+  Qed.  
   
-  Lemma auth_ks_local_update_insert K1 C Cn k: k ∈ K1 ∧ k ∉ Cn →
+  Lemma auth_ks_local_update_insert K1 C Cn k: 
+              ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn →
              (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
-  Proof. 
-  Admitted.
+  Proof.
+    intros [H1 [H2 [H3 H4]]]. apply local_update_discrete. intros z.
+    intros _. intros. split. rewrite /(✓ prod (KS, C ∪ {[k]})) /=. 
+    rewrite /(cmra_valid prodRA) /=. rewrite /(✓ prod (KS, C)) /= in H1.
+    assert (k ∈ KS). { apply KS_full. } set_solver. rewrite /(opM) /= in H.
+    destruct z. rewrite /(opM) /=. destruct c. destruct p. rewrite /(op) /= in H.
+    rewrite /(cmra_op prodRA) /= in H. destruct (decide (Cn ⊆ K1)).
+    destruct (decide (g0 ⊆ g)). destruct (decide (K1 ## g)). destruct (decide (Cn ## g0)).
+    inversion H. rewrite /(op) /=. rewrite /(cmra_op prodRA) /=. destruct (decide (Cn ∪ {[k]} ⊆ K1)).
+    destruct (decide (g0 ⊆ g)). destruct (decide (K1 ## g)). destruct (decide (Cn ∪ {[k]} ## g0)).
+    assert (Cn ∪ g0 ∪ {[k]} = Cn ∪ {[k]} ∪ g0). { set_solver. } rewrite H0. done.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    rewrite /(op) /= in H. rewrite /(cmra_op prodRA) /= in H. inversion H.
+    rewrite /(op) /= in H. rewrite /(cmra_op prodRA) /= in H. inversion H.
+    rewrite /(op) /=. rewrite /(cmra_op prodRA) /=. done.
+    rewrite /(opM) /=. inversion H. done.
+  Qed.
 
-  Lemma auth_ks_local_update_delete K1 C Cn k: k ∈ K1 ∧ k ∈ Cn →
+  Lemma auth_ks_local_update_delete K1 C Cn k:
+              ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∈ Cn →
              (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∖ {[k]}), prod (K1, Cn ∖ {[k]})).
-  Proof. 
-  Admitted.
-
+  Proof.
+    intros [H1 [H2 [H3 H4]]]. apply local_update_discrete. intros z.
+    intros _. intros. split. rewrite /(✓ prod (KS, C ∖ {[k]})) /=. 
+    rewrite /(cmra_valid prodRA) /=. rewrite /(✓ prod (KS, C)) /= in H1.
+    set_solver. rewrite /(opM) /= in H.
+    destruct z. rewrite /(opM) /=. destruct c. destruct p. rewrite /(op) /= in H.
+    rewrite /(cmra_op prodRA) /= in H. destruct (decide (Cn ⊆ K1)).
+    destruct (decide (g0 ⊆ g)). destruct (decide (K1 ## g)). destruct (decide (Cn ## g0)).
+    inversion H. rewrite /(op) /=. rewrite /(cmra_op prodRA) /=. destruct (decide (Cn ∖ {[k]} ⊆ K1)).
+    destruct (decide (g0 ⊆ g)). destruct (decide (K1 ## g)). destruct (decide (Cn ∖ {[k]} ## g0)).
+    assert (k ∉ g0). { set_solver. }
+    assert ((Cn ∪ g0) ∖ {[k]} = Cn ∖ {[k]} ∪ g0). { set_solver. } rewrite H7. done.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    unfold not in n. exfalso. apply n. set_solver. unfold not in n. exfalso. apply n. set_solver.
+    rewrite /(op) /= in H. rewrite /(cmra_op prodRA) /= in H. inversion H.
+    rewrite /(op) /= in H. rewrite /(cmra_op prodRA) /= in H. inversion H.
+    rewrite /(op) /=. rewrite /(cmra_op prodRA) /=. done.
+    rewrite /(opM) /=. inversion H. done.
+  Qed.
          
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
@@ -389,46 +436,52 @@ Section Give_Up_Template.
                  ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C')) ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
     iIntros "(#HΨ & Ha & Hf & % & %)". iPoseProof (auth_own_incl_ks γ_k (prod (KS, C)) (prod (K1, Cn))
-                with "[$Ha $Hf]") as "%". apply (auth_ks_included _ _ _ _) in H1. destruct H1.
-    - iEval (unfold Ψ) in "HΨ". destruct H1. destruct dop. 
-      + iDestruct "HΨ" as "%". destruct H3.
-        iModIntro. iExists C. iEval (rewrite <-H3) in "Hf". iFrame. unfold Ψ.
-        iPureIntro. split; try done. rewrite <-H2. done.
-      + iDestruct "HΨ" as "%". destruct H3. destruct res.
+                with "[$Ha $Hf]") as "%".
+    iPoseProof ((own_valid γ_k (● prod (KS, C))) with "Ha") as "%".
+    iPoseProof ((own_valid γ_k (◯ prod (K1, Cn))) with "Hf") as "%".
+    assert ((K1 = KS ∧ Cn = C) ∨ 
+                    (∃ a0 b0, KS = K1 ∪ a0 ∧ C = Cn ∪ b0 ∧ K1 ## a0 ∧ Cn ## b0 ∧ Cn ⊆ K1 ∧ C ⊆ KS ∧ b0 ⊆ a0)) as Hs.
+    { apply (auth_ks_included K1 KS Cn C); try done. apply auth_auth_valid. done. }
+    destruct Hs.
+    - iEval (unfold Ψ) in "HΨ". destruct H4. destruct dop. 
+      + iDestruct "HΨ" as "%". destruct H6.
+        iModIntro. iExists C. iEval (rewrite <-H6) in "Hf". iFrame. unfold Ψ.
+        iPureIntro. split; try done. rewrite <-H5. done.
+      + iDestruct "HΨ" as "%". destruct H6. destruct res.
         * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn)) 
           (● prod (KS, C ∪ {[k]}) ⋅ ◯ prod (K1, Cn ∪ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
-          { apply auth_update. apply auth_ks_local_update_insert. split; try done. }
-          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H3). iFrame.
-          unfold Ψ. iPureIntro. split; try done. rewrite <-H2. done.
-        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H5) in "Hf".
-          iFrame. unfold Ψ. iPureIntro. rewrite <- H2. split; try done. rewrite H5 in H3. done.
-      + iDestruct "HΨ" as "%". destruct H3. destruct res.
+          { apply auth_update. apply auth_ks_local_update_insert. split; try done. apply auth_auth_valid. done. }
+          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H6). iFrame.
+          unfold Ψ. iPureIntro. split; try done. rewrite <-H5. done.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H8) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. rewrite <- H5. split; try done. rewrite H8 in H6. done.
+      + iDestruct "HΨ" as "%". destruct H6. destruct res.
         * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn)) 
           (● prod (KS, C ∖ {[k]}) ⋅ ◯ prod (K1, Cn ∖ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
-          { apply auth_update. apply auth_ks_local_update_delete. split; try done. }
-          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H3). iFrame.
-          unfold Ψ. iPureIntro. split; try done. rewrite <-H2. done.
-        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H5) in "Hf".
-          iFrame. unfold Ψ. iPureIntro. rewrite <- H2. split; try done. rewrite H5 in H3. done.
-    - destruct H1 as [Ko [Co [H1 [H2 [H3 [H4 [H5 [H6 H7]]]]]]]]. destruct dop.
-      + iDestruct "HΨ" as "%". destruct H8.
-        iModIntro. iExists C. iEval (rewrite <-H8) in "Hf". iFrame. unfold Ψ.
+          { apply auth_update. apply auth_ks_local_update_delete. split; try done. apply auth_auth_valid. done. }
+          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H6). iFrame.
+          unfold Ψ. iPureIntro. split; try done. rewrite <-H5. done.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H8) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. rewrite <- H5. split; try done. rewrite H8 in H6. done.
+    - destruct H4 as [Ko [Co [H4 [H5 [H6 [H7 [H8 [H9 H10]]]]]]]]. destruct dop.
+      + iDestruct "HΨ" as "%". destruct H11.
+        iModIntro. iExists C. iEval (rewrite <-H11) in "Hf". iFrame. unfold Ψ.
         iPureIntro. split; try done. destruct res; set_solver.
-      + iDestruct "HΨ" as "%". destruct H8. destruct res.
+      + iDestruct "HΨ" as "%". destruct H11. destruct res.
         * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn)) 
           (● prod (KS, C ∪ {[k]}) ⋅ ◯ prod (K1, Cn ∪ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
           { apply auth_update. apply auth_ks_local_update_insert. split; try done. }
-          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H8). iFrame.
+          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H11). iFrame.
           unfold Ψ. iPureIntro. split; try done. set_solver.
-        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H10) in "Hf".
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H13) in "Hf".
           iFrame. unfold Ψ. iPureIntro. set_solver.
-      + iDestruct "HΨ" as "%". destruct H8. destruct res.
+      + iDestruct "HΨ" as "%". destruct H11. destruct res.
         * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn)) 
           (● prod (KS, C ∖ {[k]}) ⋅ ◯ prod (K1, Cn ∖ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
           { apply auth_update. apply auth_ks_local_update_delete. split; try done. }
-          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H8). iFrame.
+          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H11). iFrame.
           unfold Ψ. iPureIntro. split; try done. set_solver.
-        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H10) in "Hf".
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H13) in "Hf".
           iFrame. unfold Ψ. iPureIntro. set_solver.
   Qed.
 
