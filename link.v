@@ -97,8 +97,8 @@ Section Link_Template.
   Parameter hrep_sep_star: ∀ n I_n I_n', hrep n I_n ∗ hrep n I_n' -∗ False.
 
   Hypothesis globalint_root_fp : ∀ I, globalint I → root ∈ Nds I.
-  (* Hypothesis globalint_fpo : ∀ I, globalint I → FPo I = ∅. *)
-  Hypothesis globalint_root_inr : ∀ I k, globalint I → k ∈ inreach I root.
+  Hypothesis globalint_root_inr : ∀ I Ir k,
+    globalint I ∧ Ir ≼ I ∧ Nds Ir = {[root]} → k ∈ inreach Ir root.
   Hypothesis contextualLeq_impl_globalint :
     ∀ I I', globalint I → contextualLeq I I' → globalint I'.
   Hypothesis globalint_inreach :
@@ -141,13 +141,13 @@ Section Link_Template.
       -∗ Ψ dop k (cont I_n) (cont I_n') res -∗ ⌜Ψ dop k (cont I) (cont I') res⌝.
 
 
-  (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
+  (* ---------- Helper functions specs ---------- *)
+  (* These are proved for each implementation in GRASShopper *)
 
   Parameter getLockLoc_spec : ∀ (n: node),
     ({{{ True }}}
       getLockLoc #n
     {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
-
 
   Parameter findNext_spec : ∀ (n: node) (I_n : flowintUR) (k: key),
     ({{{ hrep n I_n }}}
@@ -208,8 +208,8 @@ Section Link_Template.
 
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
-                       ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝ 
-                                ∗ own γ (● I' ⋅ ◯ I_n').
+    ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝ 
+    ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
     unfold flowint_update_P.
     case_eq (auth_auth_proj x); last first.
@@ -240,6 +240,14 @@ Section Link_Template.
       iEval (rewrite Hd). iEval (rewrite <- H'). done.
   Qed.
 
+  Lemma own_fp_Nds γ_fp I Ns Ns' n:
+    own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (● Ns') ∗ ⌜Ns' = (Nds I)⌝ -∗ ⌜n ∈ Nds I⌝.
+  Proof.
+    iIntros "(HNs & % & Hns' & %)".
+    iPoseProof ((auth_set_incl γ_fp Ns Ns') with "[$]") as "%".
+    iPureIntro. set_solver.
+  Qed.
+  
 
   (* ---------- Lock module proofs ---------- *)
 
@@ -282,16 +290,8 @@ Section Link_Template.
   Qed.
 
 
-  (* ---------- Refinement proofs ---------- *)
+  (* ---------- Template proof ---------- *)
 
-  Lemma own_fp_Nds γ_fp I Ns Ns' n:
-    own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (● Ns') ∗ ⌜Ns' = (Nds I)⌝ -∗ ⌜n ∈ Nds I⌝.
-  Proof.
-    iIntros "(HNs & % & Hns' & %)".
-    iPoseProof ((auth_set_incl γ_fp Ns Ns') with "[$]") as "%".
-    iPureIntro. set_solver.
-  Qed.
-  
   Lemma traverse_spec γ γ_fp γ_c γ_inr (k: key) (n: node) Ns Inr:
     own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝  ∗ own (γ_inr n) (◯ Inr) ∗ ⌜k ∈ Inr⌝ -∗
     <<< ∀ C, searchStr γ γ_fp γ_inr γ_c C >>>
@@ -363,6 +363,10 @@ Section Link_Template.
       iMod (own_update γ_fp (● Ns1) (● Ns1 ⋅ ◯ Ns1) with "HAfp") as "HNs".
       apply auth_update_core_id. apply gset_core_id. done.
       iDestruct "HNs" as "(HAfp & #Hfp1)".
+
+      iAssert (own γ (◯ In) -∗ ⌜In ≼ In⌝)%I with "[HAIn]" as "Hmagic".
+
+      
       (* Snapshot the inreach of n' *)
       iAssert (∃ Inr', own (γ_inr n') (◯ Inr') ∗ ⌜k ∈ Inr'⌝)%I as (Inr') "(#Hinr' & %)".
       { (* Need to unroll H8 on n' and take snapshot of its inreach *)
@@ -467,32 +471,16 @@ Section Link_Template.
 
    Don't need γ_c anymore!
 
-   why do we need Auth(FI)? Why not just have FI?
-
-   Idea: you don't need to remove the In from the shared state since anyway none 
-   of the helper functions need it.
-   Do split and maintenance operations need it?
-   Don't think so: we can always update the interfaces after the helpers have
-     returned.
-   If the interface is always in the shared state, then we can talk about inreach
-      of locked nodes too?
-   Might still need Auth(Set) to say inreach is only increased.
-   Inreach-step lemma is easier now, can say it in terms of the two relevant
-     singleton interfaces?
-
-
+   Adding new nodes:
      decisiveOp returns lockLoc for new nodes - this should tell us that they're not part of the global interface
      Add a constraint that the global interface is closed
      Then we can get the side condition for REPL.
      
-     TODO: in_outset k I x y doesn't need x parameter
+   TODO: in_outset k I x y doesn't need x parameter
 
-     in_inset k I n --> k ∈ inset I n
+   in_inset k I n --> k ∈ inset I n
 
-     lockNode spec should take searchStr and return the node?
-
-     Hypothesis globalint_root_inr : ∀ I Ir k,
-     globalint I ∧ Ir ≼ I ∧ Nds Ir = {[root]} → k ∈ inreach Ir root.
+   lockNode spec should take searchStr and return the node?
 
  *)
   
