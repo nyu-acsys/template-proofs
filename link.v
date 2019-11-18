@@ -172,16 +172,15 @@ Section Link_Template.
 
   Definition searchStr γ γ_fp γ_inr γ_c C : iProp :=
     (∃ I N,
-      own γ_c C ∗ ⌜C = cont I⌝
-      ∗ own γ (● I) ∗ ⌜globalint I⌝
-      ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool,
+      ∗ own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● Nds I) ∗ ⌜globalint I⌝
+      ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool (In: flowintUR),
           (lockLoc n) ↦ #b
           ∗ if b then True
-            else (∃ (In: flowintUR), own γ (◯ In) ∗ hrep n In ∗ ⌜Nds In = {[n]}⌝)))
-      ∗ own γ_fp (● N) ∗ ⌜N = (Nds I)⌝
-      ∗ ([∗ set] n ∈ (Nds I), (∃ (Inr_n: gsetUR key),
-          own (γ_inr n) (● Inr_n) ∗ ⌜Inr_n = inreach I n⌝))
+            else (∃ Cn, hrep n In Cn ∗ own (γ_fi n) ({0.5} In) ∗ own γ_k (◯ prod (ks(n), Cn)))
+          ∗ own γ (◯ In) ∗ ⌜Nds In = {[n]}⌝ ∗ own (γ_fi n) ({0.5} In) ∗ own (γ_inr n) (● (inreach In))
+        ))
     )%I.
+  (* TODO is ⌜Nds In = {[n]}⌝ needed for lemmas like inreach_impl_inset? *)
 
 
   (* ---------- Assorted useful lemmas ---------- *)

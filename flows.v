@@ -56,16 +56,33 @@ Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof. Admitted.
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
+(* inset I n := { k | I.inf[n].ks[k] > 0 } *)
+(* TODO in_inset k I n -> k ∈ inset I n *)
 Parameter in_inset : key → flowintUR → node → Prop.
+
+(* outset I n' := { k | I.out[n'].ks[k] > 0 } OR *)
+(* outset I n' := { k | I.out[n'].ks[k] > 0 || I.out[n'].ir[k] > 0 } *)
+(* TODO in_outset k I n n' -> k ∈ outset I n' *)
+(* TODO not_in_outset k I n' -> k ∉ outset I n' *)
 Parameter in_outset : key → flowintUR → node → node → Prop.
 Parameter not_in_outset : key → flowintUR → node → Prop.
-Parameter cont : flowintUR → gset key.
-Parameter inreach : flowintUR → node → gset key.
-Parameter contextualLeq : flowintUR → flowintUR → Prop.
-Parameter is_empty_flowint : flowintUR → Prop.
-Parameter globalint : flowintUR → Prop.           (* Need to discuss *)
 
-(* ---------- Lemmas about flow interfaces proved in the appendix : ---------- *)
+(* TODO remove this *)
+Parameter cont : flowintUR → gset key.
+
+(* inreach I n  := { k | I.inf[n].ks[k] > 0 || I.inf[n].ir[k] > 0 } *)
+Parameter inreach : flowintUR → node → gset key.
+
+(* TODO contextualLeq is just equality, unless decisiveOp returns more than one node. *)
+Parameter contextualLeq : flowintUR → flowintUR → Prop.
+
+(* TODO discuss when doing lock coupling. *)
+Parameter is_empty_flowint : flowintUR → Prop.
+
+Parameter globalint : flowintUR → Prop.
+
+
+(* ---------- Lemmas about flow interfaces proved in GRASShopper : ---------- *)
 
 (* Directly follows from definition of composition *)
 Lemma flowint_comp_fp (I1 I2 I : flowintUR) : I = I1 ⋅ I2 → Nds I = Nds I1 ∪ Nds I2.
