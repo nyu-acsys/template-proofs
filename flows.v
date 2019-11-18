@@ -56,16 +56,33 @@ Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof. Admitted.
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
+(* inset I n := { k | I.inf[n].ks[k] > 0 } *)
+(* TODO in_inset k I n -> k ∈ inset I n *)
 Parameter in_inset : key → flowintUR → node → Prop.
-Parameter in_edgeset : key → flowintUR → node → node → Prop.
-Parameter not_in_outset : key → flowintUR → node → Prop.
-Parameter cont : node → gset key.
-Parameter inreach : flowintUR → node → gset key.
-Parameter contextualLeq : flowintUR → flowintUR → Prop.
-Parameter is_empty_flowint : flowintUR → Prop.
-Parameter globalint : flowintUR → Prop.           (* Need to discuss *)
 
-(* ---------- Lemmas about flow interfaces proved in the appendix : ---------- *)
+(* outset I n' := { k | I.out[n'].ks[k] > 0 } OR *)
+(* outset I n' := { k | I.out[n'].ks[k] > 0 || I.out[n'].ir[k] > 0 } *)
+(* TODO in_outset k I n n' -> k ∈ outset I n' *)
+(* TODO not_in_outset k I n' -> k ∉ outset I n' *)
+Parameter in_outset : key → flowintUR → node → node → Prop.
+Parameter not_in_outset : key → flowintUR → node → Prop.
+
+(* TODO remove this *)
+Parameter cont : flowintUR → gset key.
+
+(* inreach I n  := { k | I.inf[n].ks[k] > 0 || I.inf[n].ir[k] > 0 } *)
+Parameter inreach : flowintUR → node → gset key.
+
+(* TODO contextualLeq is just equality, unless decisiveOp returns more than one node. *)
+Parameter contextualLeq : flowintUR → flowintUR → Prop.
+
+(* TODO discuss when doing lock coupling. *)
+Parameter is_empty_flowint : flowintUR → Prop.
+
+Parameter globalint : flowintUR → Prop.
+
+
+(* ---------- Lemmas about flow interfaces proved in GRASShopper : ---------- *)
 
 (* Directly follows from definition of composition *)
 Lemma flowint_comp_fp (I1 I2 I : flowintUR) : I = I1 ⋅ I2 → Nds I = Nds I1 ∪ Nds I2.
@@ -96,12 +113,12 @@ Proof. Admitted.
 
 Lemma flowint_inset_step I1 n I2 n' k :
   Nds I1 = {[n]} → Nds I2 = {[n']} → ✓(I1 ⋅ I2)
-  → in_inset k I1 n → in_edgeset k I1 n n' → in_inset k I2 n'.        (* in_edgeset interpretation? *)
+  → in_inset k I1 n → in_outset k I1 n n' → in_inset k I2 n'.        (* in_outset interpretation? *)
 Proof. Admitted.
 
 Lemma flowint_inreach_step (I I1 I2: flowintUR) k n n':
-  Nds I1 = {[n]} → n' ∈ Nds I2 → I = I1 ⋅ I2 → ✓(I)
-  → k ∈ inreach I n → in_edgeset k I1 n n' → k ∈ inreach I n'.
+  Nds I1 = {[n]} → Nds I2 = {[n']} → ✓(I1 ⋅ I2)
+  → k ∈ inreach I1 n → in_outset k I1 n n' → k ∈ inreach I2 n'.
 Proof. Admitted.
 
 Lemma flowint_proj I I_n n k :
@@ -109,6 +126,6 @@ Lemma flowint_proj I I_n n k :
 Proof. Admitted.
 
 Lemma flowint_step (I I1 I2: flowintUR) k n n':
-  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_edgeset k I1 n n' → globalint I → n' ∈ Nds I2.
+  I = I1 ⋅ I2 → ✓I → n ∈ Nds I1 → in_outset k I1 n n' → globalint I → n' ∈ Nds I2.
 Proof. Admitted.
 
