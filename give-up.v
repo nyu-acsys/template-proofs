@@ -234,8 +234,7 @@ Section Give_Up_Template.
   Lemma auth_ks_local_update_insert K1 C Cn k: 
               ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn →
              (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
-  Proof. Admitted.
-(*  
+  Proof.
     intros [H1 [H2 [H3 H4]]]. apply local_update_discrete. intros z.
     intros _. intros. split. rewrite /(✓ prod (KS, C ∪ {[k]})) /=. 
     rewrite /(cmra_valid keysetRA) /=. rewrite /(✓ prod (KS, C)) /= in H1.
@@ -255,12 +254,11 @@ Section Give_Up_Template.
     rewrite /(op) /=. rewrite /(cmra_op keysetRA) /=. done.
     rewrite /(opM) /=. inversion H. done.
   Qed.
-*)
+
   Lemma auth_ks_local_update_delete K1 C Cn k:
               ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∈ Cn →
              (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∖ {[k]}), prod (K1, Cn ∖ {[k]})).
-  Proof. Admitted.
-(*
+  Proof.
     intros [H1 [H2 [H3 H4]]]. apply local_update_discrete. intros z.
     intros _. intros. split. rewrite /(✓ prod (KS, C ∖ {[k]})) /=. 
     rewrite /(cmra_valid keysetRA) /=. rewrite /(✓ prod (KS, C)) /= in H1.
@@ -281,52 +279,7 @@ Section Give_Up_Template.
     rewrite /(op) /=. rewrite /(cmra_op keysetRA) /=. done.
     rewrite /(opM) /=. inversion H. done.
   Qed.
-*)
 
-(*         
-  Lemma flowint_update_result γ I I_n I_n' x :
-    ⌜flowint_update_P I I_n I_n' x⌝ ∧ own γ x -∗
-                       ∃ I', ⌜contextualLeq I I'⌝ ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝
-                                ∗ own γ (● I' ⋅ ◯ I_n').
-  Proof.
-    unfold flowint_update_P.
-    case_eq (auth_auth_proj x); last first.
-    - intros H. iIntros "(% & ?)". iExFalso. done.
-    - intros p. intros H. case_eq p. intros q a Hp.
-      iIntros "[% Hown]". destruct H0 as [I' H0].
-      destruct H0. destruct H1. destruct H2. destruct H3.
-      iExists I'.
-      iSplit. iPureIntro. apply H3.
-      iSplit. iPureIntro. apply H4.
-      assert (Auth (auth_auth_proj x) (auth_frag_proj x) = x) as Hx.
-      { destruct x. reflexivity. }
-      assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'.
-      { rewrite <-Hx. rewrite H. rewrite <-H2. rewrite Hp. rewrite H1.
-       rewrite H0. reflexivity. }
-      assert (● I' = Auth (Some (1%Qp, to_agree(I'))) ε) as HI'. { reflexivity. }
-      assert (◯ I_n' = Auth ε I_n') as HIn'. { reflexivity. }
-      assert (ε ⋅ I_n' = I_n') as HeIn.
-      { rewrite /(⋅) /=. rewrite left_id. done. }
-      assert (Some (1%Qp, to_agree I') ⋅ None = Some (1%Qp, to_agree I')) as Hs.
-      { rewrite /(⋅) /=.
-        rewrite /(cmra_op (optionR (prodR fracR (agreeR flowintUR))) (Some (1%Qp, to_agree I')) (None)) /=.
-        reflexivity. }
-      assert (● I' ⋅ ◯ I_n' = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as Hd.
-      { rewrite /(● I') /= /(◯ I_n') /=. rewrite /(⋅) /=.
-        rewrite /(cmra_op (authR flowintUR) (Auth (Some (1%Qp, to_agree I')) ε) (Auth None I_n')) /=.
-        rewrite /auth_op /=. rewrite HeIn. rewrite Hs. reflexivity. }
-      iEval (rewrite Hd). iEval (rewrite <- H'). done.
-  Qed.
-
-  Lemma inv_impl_fp n Ns γ γ_fp γ_k I Ns' C:
-    main_searchStr γ γ_fp γ_k I Ns' C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ -∗ ⌜n ∈ Nds I⌝.
-  Proof.
-    iIntros "(HInv & HNs & %)".
-    iDestruct "HInv" as "(? & HIns & ? & ? & HNs' & %)".
-    iPoseProof (auth_set_incl with "[$HNs $HNs']") as "%".
-    iPureIntro. set_solver.
-  Qed.                                       (* Made Proof using Type* *)
-*)
   (* ---------- Lock module proofs ---------- *)
 
   Lemma lockNode_spec (n: node):
@@ -367,7 +320,7 @@ Section Give_Up_Template.
     iModIntro. done.
   Qed.
 
-  (* ---------- Refinement proofs ---------- *)
+  (* ---------- Proofs of traverse and searchStrOp ---------- *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: key) (n: node) (Ns: gset node):
        ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k C >>>
