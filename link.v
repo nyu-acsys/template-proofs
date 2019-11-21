@@ -113,29 +113,37 @@ Section Link_Template.
 
   (* ---------- Proved in GRASShopper for each implementation: ---------- *)
 
+  (** follows from def of intComp - I suggest to fill in the definition of interface composition so that this one just follows from the definition in Coq as well. Otherwise, it should be moved to flows.v *)
   Lemma flowint_comp_fp (I1 I2 I : flowintUR) : I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
   Proof. Admitted.
 
+  (*done*)
   Hypothesis globalint_root_fp: ∀ I, globalint I → root ∈ dom I.
-
+  (* part of nodeint *)
   Hypothesis keyset_in_out : ∀ k In n, in_inset k In n → not_in_outset k In → k ∈ ks n.
-  
+
+  (* done *)
   Hypothesis globalint_root_inr : ∀ I k, globalint I → k ∈ inreach I root. (* can be proved in coq itself *)
 
+  (* please rename to "inreach_monotone" and change it according to multipair-flows.spl *)
   Hypothesis globalint_inreach :
     ∀ Ir I, Ir ≼ I → dom Ir = {[root]} → globalint I → inreach Ir root = inreach I root.
-      
+
+  (* done *)
   Hypothesis outset_distinct : ∀ I n, (∃ k, in_outset k I n) → n ∉ dom I. 
-  
+
+  (* part of nodeint. Why does this need V(I)? *)
   Lemma inreach_impl_inset I_n n k:
     dom I_n = {[n]} → k ∈ inreach I_n n ∧ not_in_outset k I_n ∧ ✓ I_n → in_inset k I_n n.
   Proof. Admitted.
 
+  (* todo *)
   Lemma flowint_inreach_step (I I1 I2: flowintUR) k n n':
     dom I1 = {[n]} → n' ∈ dom I2 → I = I1 ⋅ I2 → ✓(I)
     → k ∈ inreach I1 n → in_outset k I1 n' → k ∈ inreach I2 n'.
   Proof. Admitted.
 
+  (* done *)
   Lemma flowint_step (I I1 I2: flowintUR) k n:
     I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalint I → n ∈ dom I2.
   Proof. Admitted.
