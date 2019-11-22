@@ -20,11 +20,7 @@ Variable decisiveOp : (dOp → val).
 Variable searchStrSpec : (dOp → val).
 Variable lockLoc : node → loc.
 Variable getLockLoc : val.
-<<<<<<< HEAD
 Variable ks: node → gset key.
-=======
-
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
 
 Definition lockNode : val :=
   rec: "lockN" "x" :=
@@ -74,7 +70,6 @@ Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR node))].
 Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
 Proof. solve_inG. Qed.
 
-<<<<<<< HEAD
 (* RA for pair of keysets and contents *)
 Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (prodUR)) }.
 Definition keysetΣ : gFunctors := #[GFunctor (authUR (prodUR))].
@@ -84,43 +79,21 @@ Proof. solve_inG. Qed.
 
 Section Give_Up_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
-=======
-(* RA for set of contents *)
-Class contentG Σ := ContentG { content_inG :> inG Σ (gsetR key) }.
-Definition contentΣ : gFunctors := #[GFunctor (gsetR key)].
-
-Instance subG_contentΣ {Σ} : subG contentΣ Σ → contentG Σ.
-Proof. solve_inG. Qed.
-
-Section Give_Up_Template.
-  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !contentG Σ} (N : namespace).
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
   Notation iProp := (iProp Σ).
 
 (* ---------- Flow interface set-up specific to this proof ---------- *)
 
   Variable root : node.
-<<<<<<< HEAD
   Variable KS : gset key.
   Variable hrep : node → flowintUR → gset key → iProp.
   Parameter hrep_timeless_proof : ∀ n I C, Timeless (hrep n I C).
   Instance hrep_timeless n I C: Timeless (hrep n I C).
   Proof. apply hrep_timeless_proof. Qed.
   Parameter hrep_fp : ∀ n I_n C, hrep n I_n C -∗ ⌜Nds I_n = {[n]}⌝.
+  (* Sid: Could instead have hrep n I_n -∗ n ↦ _ *)
   Parameter hrep_sep_star: ∀ n I_n I_n' C C', hrep n I_n C ∗ hrep n I_n' C' -∗ False.
   Parameter KS_full : ∀ k, k ∈ KS.
   
-=======
-  Variable hrep : node → flowintUR → iProp.
-  Parameter hrep_timeless_proof : ∀ n I, Timeless (hrep n I).
-  Instance hrep_timeless n I : Timeless (hrep n I).
-  Proof. apply hrep_timeless_proof. Qed.
-  Parameter hrep_fp : ∀ n I_n, hrep n I_n -∗ ⌜Nds I_n = {[n]}⌝.
-  (* Sid: Could instead have hrep n I_n -∗ n ↦ _ *)
-  Parameter hrep_sep_star: ∀ n I_n I_n', hrep n I_n ∗ hrep n I_n' -∗ False.
-
-  (* Sid: why don't we write out the globalint in Iris? *)
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
   Hypothesis globalint_root_fp: ∀ I, globalint I → root ∈ Nds I.
 
  (* Hypothesis globalint_fpo : ∀ I, globalint I → ∀ n:node, outf I n = 0.
@@ -144,29 +117,6 @@ Section Give_Up_Template.
   Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
   Proof. destruct dop; apply _. Qed.
 
-<<<<<<< HEAD
-=======
-  Lemma Ψ_determines_res dop k C1 C1' C2 C2' res1 res2 :
-    Ψ dop k C1 C1' res1 ∗ Ψ dop k C2 C2' res2 ∗ ⌜C1 = C2⌝ -∗ ⌜res1 = res2⌝.
-  Proof.
-    destruct dop; iPureIntro; destr_bool;
-    destruct H as ((HC1 & HkC1) & (HC2 & HkC2) & HEq);
-    exfalso; rewrite HEq in HkC1; rewrite <- HkC2 in HkC1; inversion HkC1; contradiction.
-  Qed.
-
-  Lemma Ψ_determines_C' dop k C1 C1' C2 C2' res1 res2 :
-    Ψ dop k C1 C1' res1 ∗ Ψ dop k C2 C2' res2 ∗ ⌜C1 = C2⌝ -∗ ⌜C1' = C2'⌝.
-  Proof.
-    destruct dop; iPureIntro; simpl; destr_bool;
-      destruct H as ((HC1 & HkC1) & (HC2 & HkC2) & HEq); congruence.
-  Qed.
-
-  Axiom Ψ_keyset_theorem : ∀ (dop: dOp) (k: key) (n: node) (I_n I_n' I I': flowintUR) (res: bool),
-      ⌜globalint I⌝ ∗ ⌜Nds I_n = {[n]}⌝ ∗ ⌜in_inset k I_n n⌝ ∗ ⌜not_in_outset k I_n n⌝
-      ∗ ⌜(∃ (I_o: flowintUR), I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o)⌝ ∗ ✓ I ∗ ✓ I'
-      -∗ Ψ dop k (cont I_n) (cont I_n') res -∗ ⌜Ψ dop k (cont I) (cont I') res⌝.
-
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
   (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
 
   (* Sid: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
@@ -196,18 +146,12 @@ Section Give_Up_Template.
            decisiveOp dop #n #k
        {{{ (b: bool) (I_n': flowintUR) (res: bool),
                   RET (match b with false => NONEV | true => (SOMEV #res) end);
-<<<<<<< HEAD
                   match b with false => hrep n I_n C |
                               true => hrep n I_n' C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ ks n⌝
-=======
-                  match b with false => hrep n I_n |
-                              true => hrep n I_n' ∗ Ψ dop k (cont I_n) (cont I_n') res
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
                                       ∗ ⌜contextualLeq I_n I_n'⌝ ∗ ⌜Nds I_n' = {[n]}⌝ end }}})%I.
 
   (* ---------- The invariant ---------- *)
 
-<<<<<<< HEAD
   Definition main_searchStr (γ γ_fp γ_k : gname) I Ns (C: gset key)
     : iProp :=
        ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalint I⌝
@@ -218,30 +162,6 @@ Section Give_Up_Template.
     )%I.
 
   Definition is_searchStr γ γ_fp γ_k C := (∃ I Ns, (main_searchStr γ γ_fp γ_k I Ns C))%I.
-=======
-  Definition main_searchStr (γ: gname) (γ_fp: gname) (γ_c: gname) I Ns C
-    : iProp :=
-    (own γ_c C ∗ ⌜C = cont I⌝
-        ∗ own γ (● I) ∗ ⌜globalint I⌝
-        ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool,
-           (lockLoc n) ↦ #b
-           ∗ if b then True
-             else (∃ (In: flowintUR), own γ (◯ In) ∗ hrep n In ∗ ⌜Nds In = {[n]}⌝)))
-        ∗ own γ_fp (● Ns) ∗ ⌜Ns = (Nds I)⌝
-    )%I.
-
-  Definition is_searchStr γ γ_fp γ_c C := (∃ I Ns, (main_searchStr γ γ_fp γ_c I Ns C))%I.
-(*
-  Instance main_searchStr_timeless γ γ_fp γ_c I Ns C :
-    Timeless (main_searchStr γ γ_fp γ_c I Ns C).
-  Proof.
-    rewrite /main_searchStr. repeat apply bi.sep_timeless; try apply _.
-    try apply big_sepS_timeless. intros. apply bi.exist_timeless. intros.
-    apply bi.sep_timeless; try apply _.
-    destruct x0; try apply _.
-  Qed.
-*)
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
 
   (* ---------- Assorted useful lemmas ---------- *)
 
@@ -323,19 +243,11 @@ Section Give_Up_Template.
       iEval (rewrite Hd). iEval (rewrite <- H'). done.
   Qed.
 
-<<<<<<< HEAD
   Lemma inv_impl_fp n Ns γ γ_fp γ_k I Ns' C:
     main_searchStr γ γ_fp γ_k I Ns' C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ -∗ ⌜n ∈ Nds I⌝.
   Proof.
     iIntros "(HInv & HNs & %)".
     iDestruct "HInv" as "(? & HIns & ? & ? & HNs' & %)".
-=======
-  Lemma inv_impl_fp n Ns γ γ_fp γ_c I Ns' C:
-    main_searchStr γ γ_fp γ_c I Ns' C ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ -∗ ⌜n ∈ Nds I⌝.
-  Proof.
-    iIntros "(HInv & HNs & %)".
-    iDestruct "HInv" as "(? & ? & ? & ? & HIns & HNs' & %)".
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
     iPoseProof (auth_set_incl with "[$HNs $HNs']") as "%".
     iPureIntro. set_solver.
   Qed.                                       (* Made Proof using Type* *)
@@ -382,7 +294,6 @@ Section Give_Up_Template.
 
   (* ---------- Refinement proofs ---------- *)
 
-<<<<<<< HEAD
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: key) (n: node) (Ns: gset node):
        ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k C >>>
                 traverse root #n #k
@@ -391,15 +302,6 @@ Section Give_Up_Template.
                       ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns') ∗ own γ (◯ I_n') ∗ hrep n' I_n' Cn 
                       ∗ own γ_k (◯ prod (ks(n'), Cn)) ∗ ⌜Nds I_n' = {[n']}⌝ ∗ ⌜in_inset k I_n' n'⌝ 
                       ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
-=======
-  Lemma traverse_spec (γ γ_fp γ_c: gname) (k: key) (n: node) (Ns: gset node):
-       ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_c C >>>
-                traverse root #n #k
-                    @ ⊤
-          <<< ∃ (n': node) (Ns': gsetUR node) (I_n': flowintUR), is_searchStr γ γ_fp γ_c C ∗ ⌜n' ∈ Ns'⌝ 
-                  ∗ own γ_fp (◯ Ns') ∗ own γ (◯ I_n') ∗ hrep n' I_n' ∗ ⌜Nds I_n' = {[n']}⌝
-                  ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜not_in_outset k I_n' n'⌝, RET #n' >>>.
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
   Proof.
     iLöb as "IH" forall (n Ns). iIntros "(#Hinn & #Hfp & #Hroot)".
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
@@ -482,7 +384,6 @@ Section Give_Up_Template.
       iApply "IH". eauto with iFrame. done.
   Qed.
 
-<<<<<<< HEAD
 
   (* ---------- Ghost state manipulation to make final proof cleaner ---------- *)
 
@@ -555,27 +456,6 @@ Section Give_Up_Template.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C1) "Hst". iAaccIntro with "Hst"; first by eauto with iFrame.
     iIntros (n Ns1 In Cn) "(Hst & #Hinn & #Hfp1 & HIn & Hrepn & HKS & #HNdsn & #Hinset & #Hnotout)".
-=======
-  Theorem searchStrOp_spec (γ γ_fp γ_c: gname) (dop: dOp) (k: key):
-      <<< ∀ (C: gset key), is_searchStr γ γ_fp γ_c C >>>
-            searchStrOp dop root #k
-                  @ ⊤
-      <<< ∃ (C': gset key) (res: bool), is_searchStr γ γ_fp γ_c C' ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
-  Proof.
-    iIntros (Φ) "AU". iLöb as "IH". wp_lam.
-    iApply fupd_wp. iMod "AU" as (C0) "[Hst [HAU _]]".
-    iDestruct "Hst" as (I Ns0) "(H1 & H2 & H3 & % & H5 & H6 & %)".
-    assert (root ∈ Ns0)%I as Hroot. { replace Ns0. apply globalint_root_fp. done. }
-    iMod (own_update γ_fp (● Ns0) (● Ns0 ⋅ ◯ Ns0) with "H6") as "HNs".
-    apply auth_update_core_id. apply gset_core_id. done. 
-    iDestruct "HNs" as "(HAfp & #Hfp0)".
-    iMod ("HAU" with "[H1 H2 H3 H5 HAfp] ") as "AU". { iExists I, Ns0. iFrame "∗ % #". }
-    iModIntro. wp_pures. wp_bind (traverse _ _ _)%E.
-    awp_apply (traverse_spec γ γ_fp γ_c k root Ns0). eauto with iFrame.
-    iApply (aacc_aupd_abort with "AU"); first done.
-    iIntros (C1) "Hst". iAaccIntro with "Hst"; first by eauto with iFrame.
-    iIntros (n Ns1 In) "(Hst & #Hinn & #Hfp1 & HIn & Hrepn & #HNdsn & #Hinset & #Hnotout)".
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
     iModIntro. iFrame. iIntros "AU". iModIntro. wp_pures. wp_bind (decisiveOp _ _ _)%E.
     wp_apply ((decisiveOp_spec dop n k In) with "[Hrepn]"). eauto with iFrame.
     iIntros (b In' res). iIntros "Hb". destruct b.
@@ -583,7 +463,6 @@ Section Give_Up_Template.
       wp_pures. wp_bind(unlockNode _)%E.
       awp_apply (unlockNode_spec n).
       iApply (aacc_aupd_commit with "AU"); first done. iIntros (C2) "Hst".
-<<<<<<< HEAD
       iDestruct "Hst" as (I Ns2) "(H1 & H2 & % & H5 & H6 & %)".
       iAssert (⌜n ∈ Nds I⌝)%I with "[Hfp1 Hinn H6]" as "%".
       { iPoseProof ((auth_set_incl γ_fp Ns1 Ns2) with "[$]") as "%".
@@ -616,40 +495,6 @@ Section Give_Up_Template.
       rewrite HH in H2. iFrame "∗ % #". iEval (rewrite HH) in "H5".
       iApply "H5". iExists false. iFrame. iExists In', Cn'. eauto with iFrame. } done.
       iIntros "HΦ". iModIntro. wp_pures. done.
-=======
-      iDestruct "Hst" as (I1 Ns2)"(H1 & H2 & H3 & H4 & H5 & H6 & H7)". 
-      iAssert (⌜n ∈ Nds I1⌝)%I with "[Hfp1 Hinn H6 H7]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns1 Ns2) with "[$]") as "%".
-        iDestruct "H7" as %H7. iDestruct "Hinn" as %Hinn. iEval (rewrite <-H7).
-        iPureIntro. set_solver. }
-      rewrite (big_sepS_elem_of_acc _ (Nds I1) n); last by eauto.
-      iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
-      destruct b; first last. { iDestruct "Hl" as (In'') "(_ & Hrep' & _)".
-      iAssert (⌜False⌝)%I with "[Hrep Hrep']" as %Hf. { iApply (hrep_sep_star n In' In''). 
-      iFrame. } exfalso. done. }
-      iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "HIn Hrep".
-      iExists I1, Ns2. iFrame "∗ % #". iApply "H5". iExists true. iFrame. eauto with iFrame. }
-      iIntros "Hlock". iDestruct "H4" as %H4. iDestruct "H7" as %H7.
-      iDestruct "H2" as %H2. iEval (rewrite H2) in "H1".
-      iPoseProof (auth_own_incl with "[$H3 $HIn]") as (I2)"%".
-      iPoseProof ((own_valid γ (● I1)) with "H3") as "%". iDestruct "Hcon" as %Hcon.
-      iMod (own_updateP (flowint_update_P I1 In In') γ (● I1 ⋅ ◯ In) with "[H3 HIn]") as (?) "H0".
-      { apply (flowint_update I1 In In'). done. } { rewrite own_op. iFrame. }
-      iPoseProof ((flowint_update_result γ I1 In In') with "H0") as (I1') "(% & % & HIIn)".
-      iAssert (own γ (● I1') ∗ own γ (◯ In'))%I with "[HIIn]" as "(HI' & HIn')". { by rewrite own_op. }
-      iPoseProof ((own_valid γ (● I1')) with "HI'") as "%".
-      iPoseProof ((Ψ_keyset_theorem dop k n In In' I1 I1' res) with "[HNdsn Hinset Hnotout] [HΨ]") as "HΨI".
-      { repeat iSplitL; try done; iPureIntro; apply auth_auth_valid; done. } { done. }
-      iMod (own_update γ_c (cont I1) (cont I1') with "[H1]") as "H1'".
-      { apply (gset_update (cont I1) (cont I1')). } done.
-      iModIntro. iExists (cont I1'), res. iSplitL. iSplitR "HΨI".
-      { iExists I1', Ns2. assert (globalint I1') as HI'.
-      { apply (contextualLeq_impl_globalint I1 I1'). done. done. }
-      assert (Nds I1 = Nds I1') as HH. { apply (contextualLeq_impl_fp I1 I1'). done. }
-      iFrame "∗ % #". iSplitR. iPureIntro. reflexivity. iSplitL. iEval (rewrite HH) in "H5".
-      iApply "H5". iExists false. iFrame. iExists In'. eauto with iFrame. iPureIntro. set_solver. }
-      iEval (rewrite H2). done. iIntros "HΦ". iModIntro. wp_pures. done.
->>>>>>> 0e79d48f326945b193d540548cf19d3d0e1bc860
     - wp_match. awp_apply (unlockNode_spec n).
       iApply (aacc_aupd_abort with "AU"); first done. iIntros (C2) "Hst".
       iDestruct "Hst" as (I1 Ns2)"(H1 & H2 & % & H5 & H6 & %)". 
