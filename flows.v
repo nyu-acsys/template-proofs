@@ -11,17 +11,17 @@ From iris.algebra Require Export auth agree.
 
 (* This section is proved in the appendix *)
 
-Definition key := nat.
+Definition key := nat.                                             (* put this in the templates file *)
 
-Definition node := nat.
+Definition Node := nat.
 
 Definition flowdom := nat.
 
 Record flowintT :=
   {
-    inf : gmap node flowdom;
-    out : gmap node flowdom;
-    dom : gset node;
+    inf : gmap Node flowdom;
+    out : gmap Node flowdom;
+    dom : gset Node;
   }.
   
 Canonical Structure flowintRAC := leibnizO flowintT.
@@ -58,10 +58,6 @@ Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 
-(* Directly follows from definition of contextual extension *)
-Lemma contextualLeq_impl_fp I I' : contextualLeq I I' → dom I = dom I'.
-Proof. Admitted.
-
 (* This is the rule AUTH-FI-UPD in the paper *)
 Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
   match (auth_auth_proj x) with
@@ -70,7 +66,10 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
   | _ => False
   end.
 
-Lemma flowint_update I I_n I_n' :
-  contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
-Proof. Admitted.
+(* Directly follows from definition of contextual extension *)
+Hypothesis contextualLeq_impl_fp : ∀ I I', contextualLeq I I' → dom I = dom I'.
 
+Hypothesis flowint_update : ∀ I I_n I_n',
+  contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
+
+Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
