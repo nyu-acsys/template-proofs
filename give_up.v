@@ -451,3 +451,5 @@ Section Give_Up_Template.
       iApply "H5". iExists false. eauto with iFrame. iIntros "AU". iModIntro.
       wp_pures. iApply "IH"; try done.
   Qed.
+
+End Give_Up_Template.

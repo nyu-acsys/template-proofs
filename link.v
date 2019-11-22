@@ -508,4 +508,4 @@ Section Link_Template.
       iExists Cn. iFrame. iIntros "AU". iModIntro. wp_pures. iApply "IH"; try done.
   Qed.
  
-
+End Link_Template.

@@ -4,3 +4,5 @@
 *.vo
 .coqdeps.d
 *.v.d
+Makefile
+Makefile.conf
