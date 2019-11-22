@@ -3,3 +3,4 @@
 *.glob
 *.vo
 .coqdeps.d
+*.v.d
