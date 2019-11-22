@@ -80,37 +80,45 @@ Section Give_Up_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
   Notation iProp := (iProp Σ).
 
-  (* ---------- Flow interface set-up specific to this proof ---------- *)
+  (** Flow interface set-up specific to this proof *)
   
-  Parameter in_inset : key → flowintUR → Node → Prop.
-  Parameter in_outset : key → flowintUR → Node → Prop.      
-  Parameter linkset : flowintUR → Node → gset key.               (*inreach → linkset*)
-  Parameter is_empty_flowint : flowintUR → Prop.
-  Parameter keyset : flowintUR → Node → gset key.            
 
+  (* The following parameters are defined in the GRASShopper file give-up.spl *)
+  Parameter in_inset : key → flowintUR → Node → Prop.
+  Parameter in_outset : key → flowintUR → Node → Prop.
+  Parameter linkset : flowintUR → Node → gset key.
+  Parameter keyset : flowintUR → Node → gset key.
+
+  (* The node predicate is specific to each template implementation. See GRASShopper files
+     b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
   Parameter node : Node → flowintUR → gset key → iProp.
+
+  (* The following assumption is justified by the fact that GRASShopper uses a first-order separation logic. *)
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
   Definition in_outsets k In := ∃ n, in_outset k In n.
 
+  (* See also give-up.spl for the matching GRASShopper definition *)
   Definition globalint root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
                                   ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n))
                                       ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n)).  
 
-  (* ---------- Proved in GRASShopper for each implementation: ---------- *)
-
+  (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
   Hypothesis keyset_def : ∀ k I_n n, in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
 
-  Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
-         
+  (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
   Hypothesis flowint_step :
     ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalint root I → n ∈ dom I2.
   
+  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
+  Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
+
+  (* TODO: move to flows.v *)
   Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
   
-  (* ---------- Coarse-grained specification ---------- *)
+  (** Coarse-grained specification *)
 
   Definition Ψ dop k (C: gset key) (C': gset key) (res: bool) : iProp :=
     match dop with
@@ -122,12 +130,14 @@ Section Give_Up_Template.
   Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
   Proof. destruct dop; apply _. Qed.
 
-  (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
+  (** Helper functions specs *)
 
   Parameter getLockLoc_spec : ∀ (n: Node),
       ({{{ True }}}
            getLockLoc #n
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+
+  (* the following functions are proved for each implementation in GRASShopper (see b+-tree.spl and hashtbl-give-up.spl *)
 
   Parameter inRange_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
       ({{{ node n I_n C }}}
@@ -152,7 +162,7 @@ Section Give_Up_Template.
                   match b with false => node n I_n C |
                               true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset I_n n⌝ end }}})%I.
 
-  (* ---------- The invariant ---------- *)
+  (** The concurrent search structure invariant *)
 
   Definition main_searchStr (γ γ_fp γ_k : gname) root I (C: gset key)
     : iProp :=
