@@ -125,7 +125,7 @@ Section Give_Up_Template.
   (* ---------- Helper functions specs - proved for each implementation in GRASShopper ---------- *)
 
   (* Sid: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
-  Parameter getLockLoc_spec : ∀ (n: node),
+  Parameter getLockLoc_spec : ∀ (n: Node),
       ({{{ True }}}
            getLockLoc #n
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
