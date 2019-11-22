@@ -94,7 +94,6 @@ Section Link_Template.
   Parameter in_inset : key → flowintUR → Node → Prop.
   Parameter in_outset : key → flowintUR → Node → Prop.      
   Parameter linkset : flowintUR → Node → gset key.               (*inreach → linkset*)
-  Parameter is_empty_flowint : flowintUR → Prop.
   Parameter keyset : flowintUR → Node → gset key.                 (* define as a lemma keyset I_n n *)
 
   Parameter node : Node → flowintUR → gset key → iProp.
