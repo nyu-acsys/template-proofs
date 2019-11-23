@@ -9,7 +9,8 @@ From iris.algebra Require Export auth agree.
 
 (* ---------- Flow Interface encoding and camera definitions ---------- *)
 
-(* This section is proved in the appendix *)
+(* All hypotheses in this file are proved as lemmas of the same name
+   in the flows.spl file in GRASShopper *)
 
 Definition key := nat. (* TODO put this in the templates file *)
 
@@ -48,11 +49,7 @@ Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 �
 
 Hypothesis intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
 
-(* TODO this needs to be added to grasshopper *)
 Hypothesis intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
-
-(* TODO this needs to be added to grasshopper *)
-Hypothesis intComp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
 
 Hypothesis intValid : Valid flowintT.
 
