@@ -137,11 +137,8 @@ Section Link_Template.
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
     (* check the name *)
    
-  (*Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.*)
-    (* move to the flows file *)
-
-  (* Sid rename to linkset_monotone? *)
-  Hypothesis inreach_monotone :                                           (* globalinv_inreach → inreach_monotone *)
+  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
+  Hypothesis linkset_monotone :
     ∀ I I1 I2 k n,  ✓ I → I = I1⋅I2 → n ∈ dom I1 → k ∈ linkset I n → k ∈ linkset I1 n.
       
   (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
@@ -227,7 +224,7 @@ Section Link_Template.
     unfold globalinv in Hglob. destruct Hglob as [H3 [H4 [H5 H6]]].
     specialize (H6 root). assert (k ∈ linkset I root).
     { apply H6. done. } destruct H1 as [I2 H1].
-     apply (inreach_monotone I Ir I2 k root); try done. set_solver.
+     apply (linkset_monotone I Ir I2 k root); try done. set_solver.
   Qed. 
 
   Lemma auth_own_incl γ (x y: flowintUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
@@ -411,7 +408,7 @@ Section Link_Template.
       iPoseProof (own_valid with "HI") as "%". iAssert (⌜n' ∈ dom I1⌝)%I as "%".
       { iPureIntro. assert (n' ∈ dom I2). { apply (flowint_step I1 In I2 k n' root). done. 
         apply auth_auth_valid. done. done. done. }
-        apply flowint_comp_fp in H4. set_solver. }
+        apply flowint_comp_fp in H4. set_solver. apply Hglob. }
       assert (n ≠ n') as Hneq. { assert (n' ∉ dom In). { apply (outset_distinct In n').
       exists k. done. } rewrite HNds1 in H7. set_solver. }
       rewrite (big_sepS_delete _ (dom I1 ∖ {[n]}) n'); last first.

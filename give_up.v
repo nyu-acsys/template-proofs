@@ -117,9 +117,6 @@ Section Give_Up_Template.
   (* TODO: Assume node n I_n C -∗ n ↦ _ and use builtin n ↦ _ ∗ n ↦ _ -∗ False to be consistent with paper *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
-  (* TODO: move to flows.v *)
-  Hypothesis flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
-  
   (** Coarse-grained specification *)
 
   Definition Ψ dop k (C: gsetO key) (C': gsetO key) (res: bool) : iProp :=
@@ -313,7 +310,7 @@ Section Give_Up_Template.
             { apply (flowint_step I1 In I2 k n' root); try done. 
               apply auth_auth_valid. done. }
             unfold globalinv in H0.
-            apply flowint_comp_fp in H3. set_solver. }
+            apply flowint_comp_fp in H3. set_solver. apply H0. }
             iFrame. iPureIntro. split; try done. apply globalinv_root_fp. auto. }
         iDestruct "Hghost" as "(% & % & HAIn & HAfp & HIn)".
         iMod (own_update γ_fp (● (dom I1)) (● (dom I1) ⋅ ◯ (dom I1)) with "HAfp") as "HNs".
