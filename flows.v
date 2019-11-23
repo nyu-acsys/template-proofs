@@ -34,6 +34,8 @@ Hypothesis flowintRop_empty : ∀ Ir, flowintRop Ir I_emptyR = Ir.
 
 Hypothesis flowintRvalid : flowintR → Prop.
 
+Hypothesis flowintRvalid_empty : flowintRvalid I_emptyR.
+
 Hypothesis flowintRvalid_op : ∀ Ir1 Ir2,
     flowintRvalid (flowintRop Ir1 Ir2) → flowintRvalid Ir1.
                                                   
@@ -132,11 +134,18 @@ Proof.
 Qed.
 
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
-Proof. Admitted.
+Proof.
+  split; try apply _; try done.
+  - unfold ε, flowintRAunit, valid, flowintRAvalid. simpl. apply flowintRvalid_empty.
+  - unfold LeftId. intros x. unfold ε, flowintRAunit, op, flowintRAop. simpl.
+    destruct x.
+    + rewrite flowintRop_comm. by rewrite flowintRop_empty.
+    + done.
+Qed.
 
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
-(* Sid: let's rename this to intLeq to be consistent with Grasshopper *)
+(* TODO: let's rename this to intLeq to be consistent with Grasshopper *)
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 
 (* This is the rule AUTH-FI-UPD in the paper *)
