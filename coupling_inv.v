@@ -180,11 +180,58 @@ Section Lock_Coupling_Template.
   Definition css_cont (γ_c: gname) (C: gset key) : iProp :=
     (own γ_c (◯ (Some ((Excl C)))))%I.
 
-  Instance main_inv_timeless γ γ_fp γ_c I N C :
-    Timeless (main_inv γ γ_fp γ_c I N C).
+  Instance css_inv_timeless  γ γ_fp γ_k γ_c root :
+    Timeless (css_inv γ γ_fp γ_k γ_c root).
   Proof.
-    rewrite /main_inv. repeat apply bi.sep_timeless; try apply _.
-    try apply big_sepS_timeless. intros. apply bi.exist_timeless. intros.
+    rewrite /css_inv. repeat (apply bi.exist_timeless; intros).
+    repeat apply bi.sep_timeless; try apply _.
+    apply big_sepS_timeless. intros. apply bi.exist_timeless. intros.
     apply bi.sep_timeless; try apply _.
-    destruct x0; try apply _.
+    destruct x2; try apply _.
   Qed.
+
+  (* ---------- Lock module proofs ---------- *)
+
+  Lemma lockNode_spec γ γ_fp γ_k γ_c first Ns (n: Node):
+    css γ γ_fp γ_k γ_c first ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝ -∗
+    <<< True >>>
+        lockNode #n    @ ⊤
+    <<< ∃ (I_n: flowintUR) (C_n: gset key),
+        own γ (◯ I_n) ∗ node first n I_n C_n ∗ own γ_k (◯ prod (keyset I_n n, C_n)),
+        RET #()
+    >>>.
+  Proof.
+  Admitted.
+
+  Lemma unlockNode_spec γ γ_fp γ_k γ_c first Ns (n: Node) I_n C_n:
+    css γ γ_fp γ_k γ_c first ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝
+    own γ (◯ I_n) ∗ node first n I_n C_n ∗ own γ_k (◯ prod (keyset I_n n, C_n)) -∗
+    <<< True >>>
+      unlockNode #n    @ ⊤
+    <<< True, RET #() >>>.
+  Proof.
+  Admitted.
+
+  (* ---------- Proof of the lock coupling template  ---------- *)
+
+  Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
+    css γ γ_fp γ_k γ_c first -∗
+    {{{ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
+        ∗ node p first I_p C_p ∗ own γ (◯ I_p) ∗ ⌜in_inset k I_p p⌝ ∗ ⌜in_outset k I_p n⌝
+        ∗ ⌜dom I_p = {[p]}⌝ ∗ own γ_k (◯ prod (keyset I_p p, C_p))
+        ∗ node n first I_n C_n ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝
+        ∗ own γ_k (◯ prod (keyset I_n n, C_n))
+    }}}
+      traverse #p #n #k @ ⊤
+    {{{ (p' n': Node) (Ns': gsetUR Node) (I_p' I_n': flowintUR) (C_p' C_n': gset key), 
+        RET (#p', #n');
+        own γ_fp (◯ Ns') ∗ ⌜p' ∈ Ns'⌝ ∗ ⌜n' ∈ Ns'⌝ ∗ own γ (◯ I_p') ∗ own γ (◯ I_n') 
+        ∗ node p' first I_p' C_p' ∗ node n' first I_n' C_n' ∗ ⌜n' ≠ first⌝
+        ∗ own γ_k (◯ prod (keyset I_p' p', C_p'))
+        ∗ own γ_k (◯ prod (keyset I_n' n', C_n')) 
+        ∗ ⌜dom I_p' = {[p']}⌝ ∗ ⌜dom I_n' = {[n']}⌝
+        ∗ ⌜in_inset k I_p' p'⌝ ∗ ⌜in_outset k I_p' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝
+    }}}.
+  Proof. Admitted.
+
+  
