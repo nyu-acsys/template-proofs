@@ -103,26 +103,32 @@ Section Link_Template.
 
   Definition in_outsets k In := ∃ n, in_outset k In n.
 
-  Definition globalint root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
-                                  ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n ∧ k ∈ linkset I n))
-                                      ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n ∧ k ∉ linkset I n)).
+  Definition globalint root I : Prop :=
+    ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
+    ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n ∧ k ∈ linkset I n))
+    ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n ∧ k ∉ linkset I n)).
 
-  Definition nodeinv I_n n: Prop := (∀ k, k ∈ linkset I_n n ∧ ¬ in_outsets k I_n → in_inset k I_n n).    
+  Definition nodeinv I_n n: Prop :=
+    (∀ k, k ∈ linkset I_n n ∧ ¬ in_outsets k I_n → in_inset k I_n n).    
 
   (* ---------- Proved in GRASShopper for each implementation: ---------- *)
 
-  Hypothesis keyset_def : ∀ k I_n n, in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
+  Hypothesis keyset_def : ∀ k I_n n,
+    in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
 
   (* TODO: instead have node n I_n C -∗ n ↦ _ and use
      iDestruct (mapsto_valid_2 with "H1 H2") as %[]
      to say n ↦ _ ∗ n ↦ _ -∗ False *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
-  Hypothesis node_implies_nodeinv : ∀ n I_n C, (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
-                                                        (* check the name *)
+  Hypothesis node_implies_nodeinv : ∀ n I_n C,
+    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
+    (* check the name *)
    
-  Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.      (* move to the flows file *)
+  Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+    (* move to the flows file *)
 
+  (* Sid rename to linkset_monotone? *)
   Hypothesis inreach_monotone :                                           (* globalint_inreach → inreach_monotone *)
     ∀ I I1 I2 k n,  ✓ I → I = I1⋅I2 → n ∈ dom I1 → k ∈ linkset I n → k ∈ linkset I1 n.
       
@@ -151,26 +157,26 @@ Section Link_Template.
   (* These are proved for each implementation in GRASShopper *)
 
   Parameter getLockLoc_spec : ∀ (n: Node),
-      ({{{ True }}}
-           getLockLoc #n
-       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+    ({{{ True }}}
+      getLockLoc #n
+    {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
   Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
-      ({{{ node n I_n C ∗ ⌜k ∈ linkset I_n n ∨ in_inset k I_n n⌝ }}}
-           findNext #n #k
-       {{{ (b: bool) (n': Node), 
-              RET (match b with true => (SOMEV #n') | false => NONEV end); 
-               node n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
-                                          false => ⌜¬in_outsets k I_n⌝ end) }}})%I.
+    ({{{ node n I_n C ∗ ⌜k ∈ linkset I_n n ∨ in_inset k I_n n⌝ }}}
+      findNext #n #k
+    {{{ (b: bool) (n': Node), 
+        RET (match b with true => (SOMEV #n') | false => NONEV end); 
+        node n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
+                                    false => ⌜¬in_outsets k I_n⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: key) (I_n: flowintUR) (C: gset key),
-      ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝
-                    ∗ ⌜¬in_outsets k I_n⌝ }}}
-           decisiveOp dop #n #k
-       {{{ (b: bool) (C': gset key) (res: bool),
-                  RET (match b with false => NONEV | true => (SOMEV #res) end);
-                  match b with false => node n I_n C |
-                              true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset I_n n⌝ end }}})%I.
+    ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝ ∗ ⌜¬in_outsets k I_n⌝ }}}
+      decisiveOp dop #n #k
+    {{{ (b: bool) (C': gset key) (res: bool),
+        RET (match b with false => NONEV | true => (SOMEV #res) end);
+        match b with false => node n I_n C |
+                      true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset I_n n⌝
+        end }}})%I.
 
   (* ---------- The invariant ---------- *)
   
@@ -178,12 +184,12 @@ Section Link_Template.
   (* Sid: can we make these two one predicate called SchStr like in the paper? *)
   Definition searchStr γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=                             
     (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● dom I) ∗ ⌜globalint root I⌝
-      ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: flowintUR),
-          (lockLoc n) ↦ #b
-          ∗ (if b then True
-            else (∃ C_n, node n I_n C_n ∗ own (γ_fi n) ((●{1/2} I_n)) ∗ own γ_k (◯ prod (keyset I_n n, C_n))))
-          ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝ ∗ own (γ_fi n) ((●{1/2} I_n)) ∗ own (γ_inr n) (● (linkset I_n n))
-        ))
+    ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: flowintUR),
+      (lockLoc n) ↦ #b
+      ∗ (if b then True
+        else (∃ C_n, node n I_n C_n ∗ own (γ_fi n) ((●{1/2} I_n)) ∗ own γ_k (◯ prod (keyset I_n n, C_n))))
+      ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝ ∗ own (γ_fi n) ((●{1/2} I_n))
+      ∗ own (γ_inr n) (● (linkset I_n n))))
     )%I.    
 
   Definition is_searchStr γ γ_fp γ_k γ_inr γ_fi root C := (∃ I, (searchStr γ γ_fp γ_k γ_inr γ_fi root I C))%I.
@@ -196,8 +202,8 @@ Section Link_Template.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.    
 
-  Lemma globalint_root_inr : ∀ I Ir root k, globalint root I ∧ Ir ≼ I 
-                                           ∧ dom Ir = {[root]} → k ∈ linkset Ir root.
+  Lemma globalint_root_inr : ∀ I Ir root k,
+    globalint root I ∧ Ir ≼ I ∧ dom Ir = {[root]} → k ∈ linkset Ir root.
   Proof.
     intros I Ir root k Hglob. destruct Hglob as [Hglob [H1 H2]].
     unfold globalint in Hglob. destruct Hglob as [H3 [H4 [H5 H6]]].
@@ -236,7 +242,7 @@ Section Link_Template.
 
   Lemma lockNode_spec (n: Node):
     <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
-        lockNode #n    @ ⊤
+      lockNode #n    @ ⊤
     <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>. (* rewrite if then else *)
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
@@ -257,9 +263,9 @@ Section Link_Template.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-          <<< lockLoc n ↦ #true >>>
-                unlockNode #n    @ ⊤
-          <<< lockLoc n ↦ #false, RET #() >>>.
+    <<< lockLoc n ↦ #true >>>
+      unlockNode #n    @ ⊤
+    <<< lockLoc n ↦ #false, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". wp_lam. wp_bind(getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
@@ -272,11 +278,13 @@ Section Link_Template.
     iModIntro. done.
   Qed.
 
-
+  (* Sid: I think k ∈ KS follows from k ∈ K1, so we can drop it here,
+    and in searchStrOp_spec. *)
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
-          Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
-                             ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝  ==∗
-                 ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C')) ∗ own γ_k (◯ prod (K1, Cn')).
+    Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
+    ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
+    ==∗ ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C'))
+      ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
     iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl_ks γ_k (prod (KS, C)) (prod (K1, Cn))
                 with "[$Ha $Hf]") as "%". iDestruct "HKS" as %HKS.
@@ -331,18 +339,20 @@ Section Link_Template.
 
   (* ---------- Proofs of traverse and searchStrOp ---------- *)
 
+  (* Sid: why do we need to return ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')? *)
   Lemma traverse_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (n: Node) (Ns: gset Node) (I_n:flowintUR) :
-       ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ ∗ own (γ_inr n) (◯ (linkset I_n n)) ∗ ⌜k ∈ linkset I_n n⌝ -∗ 
-          <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
-                traverse #n #k
-                    @ ⊤
-          <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (Cn': gset key),
-                           is_searchStr γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' 
-                         ∗ own (γ_fi n') ((●{1/2} I_n')) ∗ own γ_k (◯ prod (keyset I_n' n', Cn')) ∗ ⌜dom I_n' = {[n']}⌝
-                         ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝, RET #n' >>>.
+    ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
+    ∗ own (γ_inr n) (◯ (linkset I_n n)) ∗ ⌜k ∈ linkset I_n n⌝ -∗ 
+    <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
+      traverse #n #k @ ⊤
+    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (Cn': gset key),
+        is_searchStr γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
+        ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
+        ∗ own γ_k (◯ prod (keyset I_n' n', Cn')) ∗ ⌜dom I_n' = {[n']}⌝
+        ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝, RET #n' >>>.
   Proof.
-    iLöb as "IH" forall (n Ns I_n). iIntros "(#Hinn & #Hfp & #Hroot & #Hinrfp & #Hkinr)".
-    iDestruct "Hinn" as %Hinn. iDestruct "Hroot" as %Hroot.
+    iLöb as "IH" forall (n Ns I_n). iIntros "(#Hinn & #Hfp & #Hinrfp & #Hkinr)".
+    iDestruct "Hinn" as %Hinn.
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
     awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "Hst". iDestruct "Hst" as (I) "(HI & HKS & HNDS & Hglob & Hstar)".
@@ -418,11 +428,10 @@ Section Link_Template.
   Qed.
 
   Theorem searchStrOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (dop: dOp):
-      ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
-            searchStrOp dop root #k
-                  @ ⊤
-      <<< ∃ C' (res: bool), is_searchStr γ γ_fp γ_k γ_inr γ_fi root C' 
-                                        ∗ Ψ dop k C C' res, RET #res >>>.
+    ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
+      searchStrOp dop root #k @ ⊤
+    <<< ∃ C' (res: bool), is_searchStr γ γ_fp γ_k γ_inr γ_fi root C' 
+        ∗ Ψ dop k C C' res, RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
     iApply fupd_wp. iMod "AU" as (C0) "[Hst [HAU _]]".
