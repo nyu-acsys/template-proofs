@@ -159,6 +159,12 @@ Section Lock_Coupling_Template.
            ∗ ⌜keyset I_p' p ∪ keyset I_n' n ∪ keyset I_m' m
               = keyset I_p p ∪ keyset I_n n⌝ }}})%I.
 
+  Parameter alloc_spec : 
+      ({{{ True }}}
+           alloc #()
+       {{{ (m: Node) (l:loc), RET #m; hrep_spatial m ∗ ⌜lockLoc m = l⌝ ∗ l ↦ #false }}})%I.
+
+
   (** The concurrent search structure invariant *)
 
   Definition cssN : namespace := N .@ "css".
@@ -225,7 +231,7 @@ Section Lock_Coupling_Template.
       traverse #p #n #k @ ⊤
     <<< ∃ (p' n': Node) (Ns': gsetUR Node) (I_p' I_n': flowintUR) (C_p' C_n': gset key), 
         own γ_fp (◯ Ns') ∗ ⌜p' ∈ Ns'⌝ ∗ ⌜n' ∈ Ns'⌝ ∗ own γ (◯ I_p') ∗ own γ (◯ I_n') 
-        ∗ node p' first I_p' C_p' ∗ node n' first I_n' C_n' ∗ ⌜n' ≠ first⌝
+        ∗ node first p' I_p' C_p' ∗ node first n' I_n' C_n' ∗ ⌜n' ≠ first⌝
         ∗ own γ_k (◯ prod (keyset I_p' p', C_p'))
         ∗ own γ_k (◯ prod (keyset I_n' n', C_n')) 
         ∗ ⌜dom I_p' = {[p']}⌝ ∗ ⌜dom I_n' = {[n']}⌝
@@ -247,4 +253,32 @@ Section Lock_Coupling_Template.
       searchStrOp dop first #k @ ⊤
     <<< ∃ C' (res: bool), css_cont γ_c C' ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
   Proof.
+    iIntros "(% & #HInv)". iIntros (Φ) "AU". wp_lam. wp_bind (lockNode _)%E.
+    iApply fupd_wp. iInv "HInv" as ">H". iDestruct "H" as (I C) "H".
+    iAssert (own γ_fp (◯ dom I))%I as "#Hfp". { admit. }
+    assert (first ∈ dom I). { admit. }
+    iModIntro. iSplitL "H". iNext. iExists I, C. iFrame "∗ # %".
+    iModIntro. awp_apply (lockNode_spec γ γ_fp γ_k γ_c first (dom I) first).
+    iFrame "∗ # %". iAssert (⌜True⌝)%I as "Ht". { done. }
+    iAaccIntro with "Ht"; eauto with iFrame.
+    iIntros (If Cf) "(HIf & Hrepf & Hksf)".
+    iModIntro. wp_pures. wp_bind (findNext _ _)%E.
+    wp_apply ((findNext_spec first first If Cf k) with "[Hrepf]").
+    { iFrame. iPureIntro. admit. }
+    iIntros (b n) "(Hrepf & Hb)". destruct b; last first. exfalso. admit.
+    wp_let. wp_pures. wp_bind (lockNode _)%E.
+    iApply fupd_wp. iInv "HInv" as ">H". iDestruct "H" as (I1 C1) "H".
+    iAssert (own γ_fp (◯ dom I1))%I as "#Hfp1". { admit. }
+    iModIntro. iSplitL "H". iNext. iExists I1, C1. iFrame "∗ # %".
+    iModIntro. awp_apply (lockNode_spec γ γ_fp γ_k γ_c first (dom I) n).
+    { iFrame "HInv Hfp". iPureIntro. admit. }
+    iAaccIntro with "[]". iPureIntro. done. iIntros. iModIntro.
+    eauto with iFrame. iIntros (In Cn) "(HIn & Hrepn & Hksn)".
+    iModIntro. wp_pures. wp_bind (traverse _ _ _)%E.
+    awp_apply ((traverse_spec γ γ_fp γ_k γ_c first k first n (dom I1) If Cf In Cn) with "[-AU]").
+    iFrame "∗ # %". admit. iAaccIntro with "[]". iPureIntro. done.
+    iIntros. iModIntro. eauto with iFrame. 
+    iIntros (p' n' Ns' Ip' In' Cp' Cn') "(#Hfp' & % & % & HIp' & HIn' 
+                & Hrepp' & Hrepn' & % & Hksp' & Hksn' & % & % & % & % & %)".
+    iModIntro. wp_pures.       
   Admitted.
