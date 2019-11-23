@@ -215,24 +215,31 @@ Section Lock_Coupling_Template.
   (* ---------- Proof of the lock coupling template  ---------- *)
 
   Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
-    css γ γ_fp γ_k γ_c first -∗
-    {{{ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
-        ∗ node p first I_p C_p ∗ own γ (◯ I_p) ∗ ⌜in_inset k I_p p⌝ ∗ ⌜in_outset k I_p n⌝
-        ∗ ⌜dom I_p = {[p]}⌝ ∗ own γ_k (◯ prod (keyset I_p p, C_p))
-        ∗ node n first I_n C_n ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝
-        ∗ own γ_k (◯ prod (keyset I_n n, C_n))
-    }}}
+    css γ γ_fp γ_k γ_c first
+    ∗ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
+    ∗ node first p I_p C_p ∗ own γ (◯ I_p) ∗ ⌜in_inset k I_p p⌝ ∗ ⌜in_outset k I_p n⌝
+    ∗ ⌜dom I_p = {[p]}⌝ ∗ own γ_k (◯ prod (keyset I_p p, C_p))
+    ∗ node first n I_n C_n ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝
+    ∗ own γ_k (◯ prod (keyset I_n n, C_n)) -∗
+    <<< True >>>
       traverse #p #n #k @ ⊤
-    {{{ (p' n': Node) (Ns': gsetUR Node) (I_p' I_n': flowintUR) (C_p' C_n': gset key), 
-        RET (#p', #n');
+    <<< ∃ (p' n': Node) (Ns': gsetUR Node) (I_p' I_n': flowintUR) (C_p' C_n': gset key), 
         own γ_fp (◯ Ns') ∗ ⌜p' ∈ Ns'⌝ ∗ ⌜n' ∈ Ns'⌝ ∗ own γ (◯ I_p') ∗ own γ (◯ I_n') 
         ∗ node p' first I_p' C_p' ∗ node n' first I_n' C_n' ∗ ⌜n' ≠ first⌝
         ∗ own γ_k (◯ prod (keyset I_p' p', C_p'))
         ∗ own γ_k (◯ prod (keyset I_n' n', C_n')) 
         ∗ ⌜dom I_p' = {[p']}⌝ ∗ ⌜dom I_n' = {[n']}⌝
-        ∗ ⌜in_inset k I_p' p'⌝ ∗ ⌜in_outset k I_p' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝
-    }}}.
-  Proof. Admitted.
+        ∗ ⌜in_inset k I_p' p'⌝ ∗ ⌜in_outset k I_p' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝,
+        RET (#p', #n')
+    >>>.
+  Proof.
+    iLöb as "IH" forall (p n Ns I_p C_p I_n C_n).                                        
+    iIntros "(Hinv & #Hfp & % & % & % & % & Hp & HIp & % & % & % & HCp & Hn & HIn & % & HCn)".
+    iIntros (Φ) "AU".
+    wp_lam. wp_let. wp_let. wp_bind(findNext _ _)%E.
+    wp_apply ((findNext_spec first n I_n C_n k) with "[Hn]"). iFrame "∗ # %".    
+    
+  Admitted.
 
   Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (dop: dOp):
     ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c first -∗
