@@ -127,15 +127,11 @@ Section Link_Template.
     in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
 
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
-  (* TODO: instead have node n I_n C -∗ n ↦ _ and use
-     iDestruct (mapsto_valid_2 with "H1 H2") as %[]
-     to say n ↦ _ ∗ n ↦ _ -∗ False *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
-    (* check the name *)
    
   (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
   Hypothesis linkset_monotone :
@@ -195,8 +191,6 @@ Section Link_Template.
 
   (* ---------- The invariant ---------- *)
   
-  (* should change the name so as to not confuse with the node-level predicate *)
-  (* Sid: can we make these two one predicate called SchStr like in the paper? *)
   Definition CCS γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=                             
     (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● dom I) ∗ ⌜globalinv root I⌝
     ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: flowintUR),
@@ -293,8 +287,6 @@ Section Link_Template.
     iModIntro. done.
   Qed.
 
-  (* Sid: I think k ∈ KS follows from k ∈ K1, so we can drop it here,
-    and in CCSOp_spec. *)
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
     Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
@@ -354,7 +346,6 @@ Section Link_Template.
 
   (* ---------- Proofs of traverse and CCSOp ---------- *)
 
-  (* Sid: why do we need to return ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')? *)
   Lemma traverse_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (n: Node) (Ns: gset Node) (I_n:flowintUR) :
     ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
     ∗ own (γ_inr n) (◯ (linkset I_n n)) ∗ ⌜k ∈ linkset I_n n⌝ -∗ 

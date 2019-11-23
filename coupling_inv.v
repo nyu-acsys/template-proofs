@@ -280,5 +280,9 @@ Section Lock_Coupling_Template.
     iIntros. iModIntro. eauto with iFrame. 
     iIntros (p' n' Ns' Ip' In' Cp' Cn') "(#Hfp' & % & % & HIp' & HIn' 
                 & Hrepp' & Hrepn' & % & Hksp' & Hksn' & % & % & % & % & %)".
-    iModIntro. wp_pures.       
+    iModIntro. wp_pures. wp_bind (alloc _)%E. wp_apply (alloc_spec); try done.
+    iIntros (m l) "(hreps & % & Hlm)". wp_pures. wp_bind (decisiveOp _ _ _ _)%E.
+    destruct dop. 
+    - admit.
+    - wp_apply (decisiveOp_insert_spec first k p' n' m Ip' In' Cp' Cn')%E.     
   Admitted.

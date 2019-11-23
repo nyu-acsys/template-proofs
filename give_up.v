@@ -86,7 +86,6 @@ Section Give_Up_Template.
   (* The following parameters are defined in the GRASShopper file give-up.spl *)
   Parameter in_inset : key → flowintUR → Node → Prop.
   Parameter in_outset : key → flowintUR → Node → Prop.
-  Parameter linkset : flowintUR → Node → gset key.
   Parameter keyset : flowintUR → Node → gset key.
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
@@ -101,7 +100,7 @@ Section Give_Up_Template.
   Definition in_outsets k In := ∃ n, in_outset k In n.
 
   (* The global invariant ϕ.
-   * See also link.spl for the matching GRASShopper definition *)
+   * See also give-up.spl for the matching GRASShopper definition *)
   Definition globalinv root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
                                   ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n))
                                       ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n)).  
@@ -114,7 +113,6 @@ Section Give_Up_Template.
     ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.
   
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
-  (* TODO: Assume node n I_n C -∗ n ↦ _ and use builtin n ↦ _ ∗ n ↦ _ -∗ False to be consistent with paper *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
   (** Coarse-grained specification *)
@@ -131,7 +129,6 @@ Section Give_Up_Template.
 
   (** Helper functions specs *)
 
-  (* Sid: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
   Parameter getLockLoc_spec : ∀ (n: Node),
       ({{{ True }}}
            getLockLoc #n
@@ -145,8 +142,6 @@ Section Give_Up_Template.
            inRange #n #k
        {{{ (b: bool), RET #b; node n I_n C ∗ (match b with true => ⌜in_inset k I_n n⌝ |
                                     false => ⌜True⌝ end) }}})%I.
-  (* Sid: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
-
   Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
       ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝ }}}
            findNext #n #k
@@ -166,7 +161,6 @@ Section Give_Up_Template.
 
   (** The concurrent search structure invariant *)
 
-  (* Sid: can we make these two one predicate called SchStr like in the paper? *)
   Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset key)
     : iProp :=
        ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv root I⌝

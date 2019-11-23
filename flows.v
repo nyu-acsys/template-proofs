@@ -12,7 +12,7 @@ From iris.algebra Require Export auth agree.
 (* All hypotheses in this file are proved as lemmas of the same name
    in the flows.spl file in GRASShopper *)
 
-Definition key := nat. (* TODO put this in the templates file *)
+Definition key := nat.
 
 Definition Node := nat.
 
@@ -22,7 +22,7 @@ Record flowintR :=
   {
     inf : gmap Node flowdom;
     out : gmap Node flowdom;
-    domm : gset Node;  (* This is dom in GRASShopper, but Coq doesn't let me overload *)
+    domm : gset Node;
   }.
 
 Definition I_emptyR := {| inf := ∅; out := ∅; domm := ∅ |}.
@@ -129,8 +129,6 @@ Qed.
 
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
-(* TODO: let's rename this to intLeq to be consistent with Grasshopper *)
-(* TODO these need to be updated after coupling is updated. *)
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 
 Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=

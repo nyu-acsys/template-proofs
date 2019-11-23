@@ -138,7 +138,7 @@ Proof.
   - rewrite /(⋅) /= in H. inversion H. left. done.
 Qed.  
 
-Lemma auth_ks_local_update_insert K1 C Cn k:                                      (* move to keyset_ra.v ? *)
+Lemma auth_ks_local_update_insert K1 C Cn k:
             ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn ∧ k ∈ KS →
            (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
 Proof.
