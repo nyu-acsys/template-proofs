@@ -11,35 +11,73 @@ From iris.algebra Require Export auth agree.
 
 (* This section is proved in the appendix *)
 
-Definition key := nat.                                             (* put this in the templates file *)
+Definition key := nat. (* TODO put this in the templates file *)
 
 Definition Node := nat.
 
 Definition flowdom := nat.
 
-Record flowintT :=
+Record flowintR :=
   {
     inf : gmap Node flowdom;
     out : gmap Node flowdom;
     dom : gset Node;
   }.
-  
+
+Definition I_emptyR := {| inf := ∅; out := ∅; dom := ∅ |}.
+
+Hypothesis flowintRop : flowintR → flowintR → flowintR.
+
+Hypothesis flowintRop_comm : ∀ Ir1 Ir2, flowintRop Ir1 Ir2 = flowintRop Ir2 Ir1.
+
+Hypothesis flowintRop_empty : ∀ Ir, flowintRop Ir I_emptyR = Ir.
+
+Hypothesis flowintRvalid : flowintR → Prop.
+
+Hypothesis flowintRvalid_op : ∀ Ir1 Ir2,
+    flowintRvalid (flowintRop Ir1 Ir2) → flowintRvalid Ir1.
+                                                  
+Inductive flowintT :=
+| int: flowintR → flowintT
+| intUndef: flowintT.
+
+Definition I_empty := int I_emptyR.
+
 Canonical Structure flowintRAC := leibnizO flowintT.
 
-Instance flowintRAop : Op flowintT.
-Proof. Admitted.
+Instance flowintRAop : Op flowintT :=
+  λ I1 I2,
+  match I1, I2 with
+  | int Ir1, int Ir2 => int (flowintRop Ir1 Ir2)
+  | intUndef, int Ir2 => intUndef
+  | int Ir1, intUndef => intUndef
+  | intUndef, intUndef => intUndef
+  end.
 
-Instance flowintRAvalid : Valid flowintT.
-Proof. Admitted.
+Hypothesis intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 
-Instance flowintRAcore : PCore flowintT.
-Proof. Admitted.
+Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 
-Instance flowintRAunit : cmra.Unit flowintT.
-Proof. Admitted.
+Hypothesis intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
 
-Lemma intComp_assoc (I1 I2 I3: flowintT) : I1 ⋅ I2 ⋅ I3 ≡ I1 ⋅ (I2 ⋅ I3).
-Proof. Admitted.
+(* TODO remove this in favour of below *)
+Hypothesis intComp_undef_idem : intUndef ⋅ intUndef ≡ intUndef.
+
+Hypothesis intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
+
+Instance flowintRAvalid : Valid flowintT :=
+  λ I, match I with
+       | int Ir => flowintRvalid Ir
+       | intUndef => False
+       end.
+
+Instance flowintRAcore : PCore flowintT :=
+  λ I, match I with
+       | int Ir => Some I_empty
+       | intUndef => Some intUndef
+       end.
+
+Instance flowintRAunit : cmra.Unit flowintT := I_empty.
 
 Definition flowintRA_mixin : RAMixin flowintT.
 Proof.
@@ -47,9 +85,38 @@ Proof.
   - (* Core is unique? *)
     intros ? ? cx -> ?. exists cx. done.
   - (* Associativity *)
-    intros I1 I2 I3. try (apply leibniz_equiv). try auto.
-    (* HELP. Can't I just use intComp_assoc here? *)
-Admitted.
+    unfold Assoc. eauto using intComp_assoc. 
+  - (* Commutativity *)
+    unfold Comm. eauto using intComp_comm.
+  - (* Core-ID *)
+    intros x cx.
+    destruct cx; unfold pcore, flowintRAcore; destruct x;
+      try (intros H; inversion H).
+    + rewrite intComp_comm. apply intComp_unit.
+    + apply intComp_undef_idem.
+  - (* Core-Idem *)
+    intros x cx. 
+    destruct cx; unfold pcore, flowintRAcore; destruct x;
+      try (intros H; inversion H); try done.
+  - (* Core-Mono *)
+    intros x y cx.
+    destruct cx; unfold pcore, flowintRAcore; destruct x; intros H;
+      intros H1; inversion H1; destruct y; try eauto.
+    + exists I_empty. split; try done.
+      exists (int I_emptyR). by rewrite intComp_unit.
+    + exists intUndef. split; try done. exists intUndef.
+      rewrite intComp_comm. by rewrite intComp_unit.
+    + exists I_empty. split; try done.
+      destruct H as [a H].
+      assert (intUndef ≡ intUndef ⋅ a); first by rewrite intComp_undef_op.
+      rewrite <- H0 in H.
+      inversion H.
+  - (* Valid-Op *)
+    intros x y.
+    unfold valid, flowintRAvalid.
+    destruct x; destruct y; unfold op, flowintRAop; try done.
+    apply flowintRvalid_op.
+Qed.
 
 
 Canonical Structure flowintRA := discreteR flowintT flowintRA_mixin.
@@ -58,7 +125,11 @@ Instance flowintRA_cmra_discrete : CmraDiscrete flowintRA.
 Proof. apply discrete_cmra_discrete. Qed.
 
 Instance flowintRA_cmra_total : CmraTotal flowintRA.
-Proof. Admitted.
+Proof.
+  rewrite /CmraTotal. intros. destruct x.
+  - exists I_empty. done.
+  - exists intUndef. done.
+Qed.
 
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof. Admitted.
@@ -77,9 +148,9 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
   end.
 
 (* Directly follows from definition of contextual extension *)
-Hypothesis contextualLeq_impl_fp : ∀ I I', contextualLeq I I' → dom I = dom I'.
+(* Hypothesis contextualLeq_impl_fp : ∀ I I', contextualLeq I I' → dom I = dom I'. *)
 
-Hypothesis flowint_update : ∀ I I_n I_n',
-  contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
+(* Hypothesis flowint_update : ∀ I I_n I_n', *)
+(*   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n'). *)
 
-Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+(* Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2. *)
