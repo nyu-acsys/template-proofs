@@ -220,11 +220,20 @@ Section Lock_Coupling_Template.
 
   (* ---------- Proof of the lock coupling template  ---------- *)
 
+  Hypothesis outset_impl_inset: ∀ I1 I2 k n n',
+    ✓ (I1⋅I2) → n' ∈ (dom I2) → in_inset k I1 n → in_outset k I1 n' → in_inset k I2 n'.
+
+  Hypothesis flowint_step :
+    ∀ I I1 I2 k n first, I = I1 ⋅ I2 → in_outset k I1 n → globalint first I → n ∈ dom I2.
+
+  Hypothesis successor_not_first : ∀ I I1 I2 I3 first n k C,
+    I = I1⋅I2⋅I3 → globalint first I → in_outset k I1 n → nodeinv first n I2 C → n ≠ first. 
+
   Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
     css γ γ_fp γ_k γ_c first
     ∗ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
     ∗ node first p I_p C_p ∗ own γ (◯ I_p) ∗ ⌜in_inset k I_p p⌝ ∗ ⌜in_outset k I_p n⌝
-    ∗ ⌜dom I_p = {[p]}⌝ ∗ own γ_k (◯ prod (keyset I_p p, C_p))
+    ∗ own γ_k (◯ prod (keyset I_p p, C_p))
     ∗ node first n I_n C_n ∗ own γ (◯ I_n) ∗ ⌜dom I_n = {[n]}⌝
     ∗ own γ_k (◯ prod (keyset I_n n, C_n)) -∗
     <<< True >>>
@@ -240,11 +249,58 @@ Section Lock_Coupling_Template.
     >>>.
   Proof.
     iLöb as "IH" forall (p n Ns I_p C_p I_n C_n).                                        
-    iIntros "(Hinv & #Hfp & % & % & % & % & Hp & HIp & % & % & % & HCp & Hn & HIn & % & HCn)".
+    iIntros "(#Hinv & #Hfp & % & % & % & % & Hp & HIp & % & % & HCp & Hn & HIn & % & HCn)".
     iIntros (Φ) "AU".
     wp_lam. wp_let. wp_let. wp_bind(findNext _ _)%E.
-    wp_apply ((findNext_spec first n I_n C_n k) with "[Hn]"). iFrame "∗ # %".    
-    
+    (* Prove in_inset k In n *)
+    iAssert (⌜in_inset k I_n n⌝)%I with "[HIp HIn]" as "%".
+    {
+      iPoseProof ((own_op γ (◯ I_p) (◯ I_n)) with "[HIp HIn]") as "H";
+        first by eauto with iFrame.
+      iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H6.
+      iPureIntro.
+      apply (outset_impl_inset I_p I_n k p n); try done. set_solver.
+    }
+    wp_apply ((findNext_spec first n I_n C_n k) with "[$Hn]"). iPureIntro. done.
+    iIntros (b n') "(Hn & Hb)". destruct b.
+    - (* findNext returns Some n' *)
+      wp_pures. wp_bind(lockNode _)%E.
+      iAssert (⌜n' ∈ Ns⌝)%I as "%".
+      { 
+        iPureIntro. assert (n' ∈ Ns).
+        { apply (flowint_step I1 In I2 k n' root); try done.
+          apply auth_auth_valid. done. }
+        unfold globalinv in H0.
+        apply flowint_comp_fp in H3. set_solver.
+      }
+      awp_apply ((lockNode_spec γ γ_fp γ_k γ_c first Ns n') with "[$Hinv $Hfp //]").
+      iAaccIntro with "[]".
+      { iPureIntro. done. }
+      iIntros. iModIntro. iFrame "∗ % #".
+      iIntros (I_n' C_n') "(HIn' & Hn' & HCn')".
+      iModIntro. wp_seq. wp_bind(unlockNode _)%E.
+      awp_apply ((unlockNode_spec γ γ_fp γ_k γ_c first Ns p)
+                   with "[$Hinv $Hfp $Hp $HIp $HCp //]").
+      iAaccIntro with "[]".
+      { iPureIntro. done. }
+      iIntros. iModIntro. iFrame "∗ % #".
+      iIntros. iModIntro. wp_pures.
+      iAssert (⌜n' ≠ first⌝)%I as "%".
+      {
+        admit.                  (* use successor_not_first *)
+      }
+      iAssert (⌜dom I_n' = {[n']}⌝)%I as "%".
+      {
+        admit.                  (* get rid of this *)
+      }
+      iSpecialize ("IH" $! n n' Ns I_n C_n I_n' C_n').
+      iApply ("IH" with "[-AU]"). iFrame "∗ # %".
+      done.
+    - (* findNext returns None *)
+      iApply fupd_wp. iMod "AU" as "[_ [_ HCl]]".
+      iSpecialize ("HCl" $! p n Ns I_p I_n C_p C_n).
+      iMod ("HCl" with "[-]"). iFrame "∗ # %".
+      iModIntro. wp_pures. done.
   Admitted.
 
   Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (dop: dOp):
