@@ -111,10 +111,60 @@ Section Lock_Coupling_Template.
   Definition nodeinv first n I_n  C_n : Prop :=
     C_n = keyset I_n n ∧ (n = first → ∀ k, k ∈ KS → in_outsets k I_n).    
 
+  (** Coarse-grained specification *)
+
+  Definition Ψ dop k (C: gsetO key) (C': gsetO key) (res: bool) : iProp :=
+    match dop with
+    | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
+    | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    end.
+
+  Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
+  Proof. destruct dop; apply _. Qed.
+
+  (** Helper functions specs *)
+
+  (* Sid: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
+  Parameter getLockLoc_spec : ∀ (n: Node),
+      ({{{ True }}}
+           getLockLoc #n
+       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+
+  (* the following functions are proved for each implementation in GRASShopper (see b+-tree.spl and hashtbl-give-up.spl) *)
+
+  Parameter findNext_spec : ∀ first (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
+      ({{{ node first n I_n C ∗ ⌜in_inset k I_n n⌝ }}}
+           findNext #n #k
+       {{{ (b: bool) (n': Node), 
+              RET (match b with true => (SOMEV #n') | false => NONEV end); 
+               node first n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
+                                          false => ⌜¬in_outsets k I_n⌝ end) }}})%I.
+
+  Parameter decisiveOp_insert_spec :
+    ∀ first (p n m: Node) (k: key) (I_p I_n: flowintUR) (C_p C_n: gset key),
+      ({{{ node p first I_p C_p ∗ node n first I_n C_n ∗ hrep_spatial m ∗ ⌜n ≠ first⌝
+           ∗ ⌜m ≠ first⌝ ∗ ⌜in_inset k I_p p⌝ ∗ ⌜in_outset k I_p n ⌝
+           ∗ ⌜¬in_outsets k I_n⌝ }}}
+         decisiveOp insertOp #p #n #k
+       {{{ (C_p' C_n' C_m': gset key) (I_p' I_n' I_m': flowintUR) (res: bool),
+           RET  #res;
+           node p first I_p' C_p' ∗ node n first I_n' C_n' ∗ node m first I_m' C_m'
+           ∗ ⌜Ψ insertOp k (C_p ∪ C_n) (C_p' ∪ C_n' ∪ C_m') res⌝ 
+           ∗ ⌜contextualLeq (I_p ⋅ I_n) (I_p' ⋅ I_n' ⋅ I_m')⌝
+           ∗ ⌜dom I_p' = {[p]}⌝ ∗ ⌜dom I_n' = {[n]}⌝ ∗ ⌜dom I_m' = {[m]}⌝
+           ∗ ⌜C_p' ⊆ keyset I_p' p⌝ ∗ ⌜C_n' ⊆ keyset I_n' n⌝ ∗ ⌜C_m' ⊆ keyset I_m' m⌝
+           ∗ ⌜keyset I_p' p ## keyset I_n' n⌝ ∗ ⌜keyset I_p' p ## keyset I_m' m⌝
+           ∗ ⌜keyset I_m' m ## keyset I_n' n⌝ 
+           ∗ ⌜keyset I_p' p ∪ keyset I_n' n ∪ keyset I_m' m
+              = keyset I_p p ∪ keyset I_n n⌝ }}})%I.
+
   (** The concurrent search structure invariant *)
 
-  Definition ccs (γ γ_fp γ_k γ_c : gname) root (C: gset key) : iProp :=
-    (∃ I,
+  Definition cssN : namespace := N .@ "css".
+
+  Definition css_inv (γ γ_fp γ_k γ_c : gname) root : iProp :=
+    (∃ I (C: gset key),
         own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalint root I⌝
         ∗ own γ_fp (● dom I) ∗ own γ_c (● (Some ((Excl C))))
         ∗ ([∗ set] n ∈ (dom I), (∃ b: bool,
@@ -124,7 +174,10 @@ Section Lock_Coupling_Template.
                                       ∗ own γ_k (◯ prod (keyset I_n n, C_n)))))
     )%I.
 
-  Definition ccs_cont (γ_c: gname) (C: gset key) : iProp :=
+  Definition css (γ γ_fp γ_k γ_c : gname) root : iProp :=
+    inv N (css_inv γ γ_fp γ_k γ_c root).
+  
+  Definition css_cont (γ_c: gname) (C: gset key) : iProp :=
     (own γ_c (◯ (Some ((Excl C)))))%I.
 
   Instance main_inv_timeless γ γ_fp γ_c I N C :

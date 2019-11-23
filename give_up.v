@@ -139,7 +139,7 @@ Section Give_Up_Template.
            getLockLoc #n
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
-  (* the following functions are proved for each implementation in GRASShopper (see b+-tree.spl and hashtbl-give-up.spl *)
+  (* the following functions are proved for each implementation in GRASShopper (see b+-tree.spl and hashtbl-give-up.spl) *)
 
   Parameter inRange_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
       ({{{ node n I_n C }}}
