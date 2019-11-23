@@ -234,4 +234,10 @@ Section Lock_Coupling_Template.
     }}}.
   Proof. Admitted.
 
-  
+  Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) first (k: key) (dop: dOp):
+    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c first -∗
+    <<< ∀ (C: gset key), css_cont γ_c C >>>
+      searchStrOp dop first #k @ ⊤
+    <<< ∃ C' (res: bool), css_cont γ_c C' ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
+  Proof.
+  Admitted.
