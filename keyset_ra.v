@@ -40,7 +40,8 @@ Instance prodUnit : Unit prodT := prodBot.
 Definition prodRA_mixin : RAMixin prodT.
 Proof.
   split; try apply _; try done.
-  unfold valid, op, prodOp, prodValid. intros ? ? cx -> ?; exists cx; done.
+  - (* Core is unique? *)
+    intros ? ? cx -> ?. exists cx. done.
   - unfold op, prodOp. intros [] [] []; try (simpl; done).
     case_eq p. intros g g0 Hp. case_eq p0. intros g1 g2 Hp0. case_eq p1. intros g3 g4 Hp1.
     destruct (decide (g2 ⊆ g1)). destruct (decide (g4 ⊆ g3)). destruct (decide (g1 ## g3)).

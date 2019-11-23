@@ -38,10 +38,19 @@ Proof. Admitted.
 Instance flowintRAunit : cmra.Unit flowintT.
 Proof. Admitted.
 
-Definition flowintRA_mixin : RAMixin flowintT.        (* separate proofs and admits of flowint RA *) 
+Lemma intComp_assoc (I1 I2 I3: flowintT) : I1 ⋅ I2 ⋅ I3 ≡ I1 ⋅ (I2 ⋅ I3).
+Proof. Admitted.
+
+Definition flowintRA_mixin : RAMixin flowintT.
 Proof.
   split; try apply _; try done.
+  - (* Core is unique? *)
+    intros ? ? cx -> ?. exists cx. done.
+  - (* Associativity *)
+    intros I1 I2 I3. try (apply leibniz_equiv). try auto.
+    (* HELP. Can't I just use intComp_assoc here? *)
 Admitted.
+
 
 Canonical Structure flowintRA := discreteR flowintT flowintRA_mixin.
 
