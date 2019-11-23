@@ -265,10 +265,13 @@ Section Lock_Coupling_Template.
     iIntros (b n') "(Hn & Hb)". destruct b.
     - (* findNext returns Some n' *)
       wp_pures. wp_bind(lockNode _)%E.
-      iAssert (⌜n' ∈ Ns⌝)%I as "%".
-      { 
+      (* Open invariant *)
+      iApply fupd_wp. iInv "Hinv" as ">H". iDestruct "H" as (I C) "H".
+      iAssert (⌜n' ∈ Ns⌝)%I with "HIn " as "%".
+      {
+        iPoseProof (auth_own_incl with "[$H2 $HIn]") as (I2)"%".
         iPureIntro. assert (n' ∈ Ns).
-        { apply (flowint_step I1 In I2 k n' root); try done.
+        { apply (flowint_step I I_n I_n' k n' first); try done.
           apply auth_auth_valid. done. }
         unfold globalinv in H0.
         apply flowint_comp_fp in H3. set_solver.
