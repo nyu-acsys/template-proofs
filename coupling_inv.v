@@ -84,23 +84,48 @@ Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
 Proof. solve_inG. Qed.
 
 Section Lock_Coupling_Template.
-  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
+  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !contentG Σ, !keysetG Σ} (N : namespace).
   Notation iProp := (iProp Σ).
   
-  Definition dictN : namespace := N .@ "dict".
+  (* ---------- Flow interface set-up specific to this proof ---------- *)
 
-  Definition main_inv (γ: gname) (γ_fp: gname) (γ_c: gname) I Ns C
-    : iProp :=
-    (own γ (● (Some ((Excl C)))) ∗ own γ_k (● prod (KS, C)
-        ∗ own γ (● I) ∗ ⌜globalint I⌝
-        ∗ ([∗ set] n ∈ (Nds I), (∃ b: bool, (lockLoc n) ↦ #b
-                                ∗ if b then True else (∃ (In: flowintUR),
-                                                         own γ (◯ In) ∗ hrep n In ∗ ⌜Nds In = {[n]}⌝)))
-        ∗ own γ_fp (● Ns) ∗ ⌜Ns = (Nds I)⌝
+  Parameter in_inset : key → flowintUR → Node → Prop.
+  Parameter in_outset : key → flowintUR → Node → Prop.      
+  Parameter linkset : flowintUR → Node → gset key.
+  Parameter is_empty_flowint : flowintUR → Prop.
+  Parameter keyset : flowintUR → Node → gset key.            
+  Parameter hrep_spatial : Node → iProp.
+
+  Parameter node : Node → Node → flowintUR → gset key → iProp.
+  Parameter node_timeless_proof : ∀ n first I C, Timeless (node n first I C).
+  Instance node_timeless n first I C: Timeless (node n first I C).
+  Proof. apply node_timeless_proof. Qed.
+
+  Definition in_outsets k In := ∃ n, in_outset k In n.
+
+  Definition globalint first I : Prop :=
+    ✓I ∧ (first ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
+    ∧ ∀ n, ((n = first) → (∀ k, in_inset k I n))
+           ∧ ((n ≠ first) → (∀ k, ¬ in_inset k I n)).  
+
+  Definition nodeinv first n I_n  C_n : Prop :=
+    C_n = keyset I_n n ∧ (n = first → ∀ k, k ∈ KS → in_outsets k I_n).    
+
+  (** The concurrent search structure invariant *)
+
+  Definition ccs (γ γ_fp γ_k γ_c : gname) root (C: gset key) : iProp :=
+    (∃ I,
+        own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalint root I⌝
+        ∗ own γ_fp (● dom I) ∗ own γ_c (● (Some ((Excl C))))
+        ∗ ([∗ set] n ∈ (dom I), (∃ b: bool,
+          (lockLoc n) ↦ #b ∗ if b then True
+                             else (∃ (I_n: flowintUR) (C_n: gset key),
+                                      own γ (◯ I_n) ∗ node root n I_n C_n 
+                                      ∗ own γ_k (◯ prod (keyset I_n n, C_n)))))
     )%I.
 
-  Definition is_dict γ γ_fp γ_c :=
-    inv dictN (∃ I Ns C, (main_inv γ γ_fp γ_c I Ns C))%I.
+  Definition ccs_cont (γ_c: gname) (C: gset key) : iProp :=
+    (own γ_c (◯ (Some ((Excl C)))))%I.
 
   Instance main_inv_timeless γ γ_fp γ_c I N C :
     Timeless (main_inv γ γ_fp γ_c I N C).

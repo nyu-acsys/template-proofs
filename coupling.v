@@ -84,7 +84,7 @@ Section Lock_Coupling_Template.
 
   Parameter in_inset : key → flowintUR → Node → Prop.
   Parameter in_outset : key → flowintUR → Node → Prop.      
-  Parameter linkset : flowintUR → Node → gset key.               (*inreach → linkset*)
+  Parameter linkset : flowintUR → Node → gset key.
   Parameter is_empty_flowint : flowintUR → Prop.
   Parameter keyset : flowintUR → Node → gset key.            
   Parameter hrep_spatial : Node → iProp.
