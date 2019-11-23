@@ -21,40 +21,26 @@ Record flowintR :=
   {
     inf : gmap Node flowdom;
     out : gmap Node flowdom;
-    dom : gset Node;
+    domm : gset Node;  (* This is dom in GRASShopper, but Coq doesn't let me overload *)
   }.
 
-Definition I_emptyR := {| inf := ∅; out := ∅; dom := ∅ |}.
+Definition I_emptyR := {| inf := ∅; out := ∅; domm := ∅ |}.
 
-Hypothesis flowintRop : flowintR → flowintR → flowintR.
-
-Hypothesis flowintRop_comm : ∀ Ir1 Ir2, flowintRop Ir1 Ir2 = flowintRop Ir2 Ir1.
-
-Hypothesis flowintRop_empty : ∀ Ir, flowintRop Ir I_emptyR = Ir.
-
-Hypothesis flowintRvalid : flowintR → Prop.
-
-Hypothesis flowintRvalid_empty : flowintRvalid I_emptyR.
-
-Hypothesis flowintRvalid_op : ∀ Ir1 Ir2,
-    flowintRvalid (flowintRop Ir1 Ir2) → flowintRvalid Ir1.
-                                                  
 Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT.
+
+Definition dom (I: flowintT) :=
+  match I with
+  | int Ir => domm Ir
+  | intUndef => ∅
+  end.
 
 Definition I_empty := int I_emptyR.
 
 Canonical Structure flowintRAC := leibnizO flowintT.
 
-Instance flowintRAop : Op flowintT :=
-  λ I1 I2,
-  match I1, I2 with
-  | int Ir1, int Ir2 => int (flowintRop Ir1 Ir2)
-  | intUndef, int Ir2 => intUndef
-  | int Ir1, intUndef => intUndef
-  | intUndef, intUndef => intUndef
-  end.
+Hypothesis intComp : Op flowintT.
 
 Hypothesis intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 
@@ -62,16 +48,17 @@ Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 �
 
 Hypothesis intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
 
-(* TODO remove this in favour of below *)
-Hypothesis intComp_undef_idem : intUndef ⋅ intUndef ≡ intUndef.
-
+(* TODO this needs to be added to grasshopper *)
 Hypothesis intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
 
-Instance flowintRAvalid : Valid flowintT :=
-  λ I, match I with
-       | int Ir => flowintRvalid Ir
-       | intUndef => False
-       end.
+(* TODO this needs to be added to grasshopper *)
+Hypothesis intComp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+
+Hypothesis intValid : Valid flowintT.
+
+Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
+
+Hypothesis intEmp_valid : intValid I_empty.
 
 Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -95,7 +82,7 @@ Proof.
     destruct cx; unfold pcore, flowintRAcore; destruct x;
       try (intros H; inversion H).
     + rewrite intComp_comm. apply intComp_unit.
-    + apply intComp_undef_idem.
+    + apply intComp_undef_op.
   - (* Core-Idem *)
     intros x cx. 
     destruct cx; unfold pcore, flowintRAcore; destruct x;
@@ -114,10 +101,7 @@ Proof.
       rewrite <- H0 in H.
       inversion H.
   - (* Valid-Op *)
-    intros x y.
-    unfold valid, flowintRAvalid.
-    destruct x; destruct y; unfold op, flowintRAop; try done.
-    apply flowintRvalid_op.
+    intros x y. unfold valid. apply intComp_valid2.
 Qed.
 
 
@@ -136,19 +120,19 @@ Qed.
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof.
   split; try apply _; try done.
-  - unfold ε, flowintRAunit, valid, flowintRAvalid. simpl. apply flowintRvalid_empty.
-  - unfold LeftId. intros x. unfold ε, flowintRAunit, op, flowintRAop. simpl.
+  - unfold ε, flowintRAunit, valid. apply intEmp_valid.
+  - unfold LeftId. intros x. unfold ε, flowintRAunit. simpl.
     destruct x.
-    + rewrite flowintRop_comm. by rewrite flowintRop_empty.
-    + done.
+    + rewrite intComp_comm. by rewrite intComp_unit.
+    + rewrite intComp_comm. by rewrite intComp_unit.
 Qed.
 
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
 (* TODO: let's rename this to intLeq to be consistent with Grasshopper *)
+(* TODO these need to be updated after coupling is updated. *)
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 
-(* This is the rule AUTH-FI-UPD in the paper *)
 Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
   match (auth_auth_proj x) with
   | Some (q, z) => ∃ I', (z = to_agree(I')) ∧ q = 1%Qp ∧ (I_n' = auth_frag_proj x) 
@@ -156,10 +140,5 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
   | _ => False
   end.
 
-(* Directly follows from definition of contextual extension *)
-(* Hypothesis contextualLeq_impl_fp : ∀ I I', contextualLeq I I' → dom I = dom I'. *)
-
-(* Hypothesis flowint_update : ∀ I I_n I_n', *)
-(*   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n'). *)
-
-(* Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2. *)
+Hypothesis flowint_update : ∀ I I_n I_n',
+  contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
