@@ -17,7 +17,7 @@ Inductive dOp := memberOp | insertOp | deleteOp.
 Variable findNext : val.
 Variable inRange : val.
 Variable decisiveOp : (dOp → val).
-Variable searchStrSpec : (dOp → val).
+Variable CCSSpec : (dOp → val).
 Variable lockLoc : Node → loc.
 Variable getLockLoc : val.
 
@@ -45,7 +45,7 @@ Definition traverse (root: Node) : val :=
       unlockNode "n";;
       "tr" #root "k".
 
-Definition searchStrOp (Ψ: dOp) (root: Node) : val :=
+Definition CCSOp (Ψ: dOp) (root: Node) : val :=
   rec: "dictOp" "k" :=
     let: "n" := (traverse root) #root "k" in
     match: ((decisiveOp Ψ) "n" "k") with
@@ -100,8 +100,9 @@ Section Give_Up_Template.
 
   Definition in_outsets k In := ∃ n, in_outset k In n.
 
-  (* See also give-up.spl for the matching GRASShopper definition *)
-  Definition globalint root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
+  (* The global invariant ϕ.
+   * See also link.spl for the matching GRASShopper definition *)
+  Definition globalinv root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
                                   ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n))
                                       ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n)).  
 
@@ -110,14 +111,14 @@ Section Give_Up_Template.
 
   (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
   Hypothesis flowint_step :
-    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalint root I → n ∈ dom I2.
+    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.
   
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
   (* TODO: Assume node n I_n C -∗ n ↦ _ and use builtin n ↦ _ ∗ n ↦ _ -∗ False to be consistent with paper *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
   (* TODO: move to flows.v *)
-  Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+  Hypothesis flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
   
   (** Coarse-grained specification *)
 
@@ -139,7 +140,8 @@ Section Give_Up_Template.
            getLockLoc #n
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
-  (* the following functions are proved for each implementation in GRASShopper (see b+-tree.spl and hashtbl-give-up.spl) *)
+  (* The following functions are proved for each implementation in GRASShopper
+   * (see b+-tree.spl and hashtbl-give-up.spl *)
 
   Parameter inRange_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
       ({{{ node n I_n C }}}
@@ -168,22 +170,22 @@ Section Give_Up_Template.
   (** The concurrent search structure invariant *)
 
   (* Sid: can we make these two one predicate called SchStr like in the paper? *)
-  Definition main_searchStr (γ γ_fp γ_k : gname) root I (C: gset key)
+  Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset key)
     : iProp :=
-       ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalint root I⌝
+       ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv root I⌝
         ∗ ([∗ set] n ∈ (dom I), (∃ b: bool, (lockLoc n) ↦ #b ∗ if b then True
                                  else (∃ (I_n: flowintUR) (C_n: gset key), own γ (◯ I_n) ∗ node n I_n C_n 
                                                 ∗ ⌜dom I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset I_n n, C_n)))))
         ∗ own γ_fp (● dom I)
     )%I.
 
-  Definition is_searchStr γ γ_fp γ_k root C := (∃ I, (main_searchStr γ γ_fp γ_k root I C))%I.
+  Definition is_CCS γ γ_fp γ_k root C := (∃ I, (main_CCS γ γ_fp γ_k root I C))%I.
 
   (* ---------- Assorted useful lemmas ---------- *)
 
-  Lemma globalint_root_fp: ∀ I root, globalint root I → root ∈ dom I.
+  Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ dom I.
   Proof. 
-    intros I root Hglob. unfold globalint in Hglob.
+    intros I root Hglob. unfold globalinv in Hglob.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.    
 
@@ -253,13 +255,13 @@ Section Give_Up_Template.
     iModIntro. done.
   Qed.
 
-  (* ---------- Proofs of traverse and searchStrOp ---------- *)
+  (* ---------- Proofs of traverse and CCSOp ---------- *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) root (k: key) (n: Node) (Ns: gset Node):
-       ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k root C >>>
+       ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
                 traverse root #n #k
                     @ ⊤
-          <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (C_n': gset key), is_searchStr γ γ_fp γ_k root C
+          <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (C_n': gset key), is_CCS γ γ_fp γ_k root C
                       ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns') ∗ own γ (◯ I_n') ∗ node n' I_n' C_n' 
                       ∗ own γ_k (◯ prod (keyset I_n' n', C_n')) ∗ ⌜dom I_n' = {[n']}⌝ ∗ ⌜in_inset k I_n' n'⌝ 
                       ∗ ⌜¬in_outsets k I_n'⌝, RET #n' >>>.
@@ -310,8 +312,9 @@ Section Give_Up_Template.
           { iPureIntro. assert (n' ∈ dom I2).
             { apply (flowint_step I1 In I2 k n' root); try done. 
               apply auth_auth_valid. done. }
+            unfold globalinv in H0.
             apply flowint_comp_fp in H3. set_solver. }
-            iFrame. iPureIntro. split; try done. apply globalint_root_fp. auto. }
+            iFrame. iPureIntro. split; try done. apply globalinv_root_fp. auto. }
         iDestruct "Hghost" as "(% & % & HAIn & HAfp & HIn)".
         iMod (own_update γ_fp (● (dom I1)) (● (dom I1) ⋅ ◯ (dom I1)) with "HAfp") as "HNs".
         apply auth_update_core_id. apply gset_core_id. done.
@@ -400,17 +403,17 @@ Section Give_Up_Template.
           iFrame. unfold Ψ. iPureIntro. set_solver.
   Qed.
   
-  Theorem searchStrOp_spec (γ γ_fp γ_k: gname) root (dop: dOp) (k: key):
-      ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k root C >>>
-            searchStrOp dop root #k
+  Theorem CCSOp_spec (γ γ_fp γ_k: gname) root (dop: dOp) (k: key):
+      ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
+            CCSOp dop root #k
                   @ ⊤
-      <<< ∃ C' (res: bool), is_searchStr γ γ_fp γ_k root C' 
+      <<< ∃ C' (res: bool), is_CCS γ γ_fp γ_k root C' 
                                         ∗ Ψ dop k C C' res, RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
     iApply fupd_wp. iMod "AU" as (C0) "[Hst [HAU _]]".
     iDestruct "Hst" as (I0) "(H1 & H2 & % & H5 & H6)".
-    assert (root ∈ (dom I0))%I as Hroot. { apply globalint_root_fp. done. }
+    assert (root ∈ (dom I0))%I as Hroot. { apply globalinv_root_fp. done. }
     iMod (own_update γ_fp (● (dom I0)) (● (dom I0) ⋅ ◯ (dom I0)) with "H6") as "HNs".
     { apply auth_update_core_id. apply gset_core_id. done. } 
     iDestruct "HNs" as "(HAfp & #Hfp0)". iDestruct "HKin" as %HKin.

@@ -16,7 +16,7 @@ Inductive dOp := memberOp | insertOp | deleteOp.
 
 Variable findNext : val.
 Variable decisiveOp : (dOp → val).
-Variable searchStrSpec : (dOp → val).
+Variable CCSSpec : (dOp → val).
 Variable lockLoc : Node → loc.
 Variable getLockLoc : val.
 
@@ -40,7 +40,7 @@ Definition traverse : val :=
     | SOME "n'" => unlockNode "n";; "tr" "n'" "k"
     end.
 
-Definition searchStrOp (Ψ: dOp) (root: Node) : val :=
+Definition CCSOp (Ψ: dOp) (root: Node) : val :=
   rec: "dictOp" "k" :=
     let: "n" := traverse #root "k" in
     match: ((decisiveOp Ψ) "n" "k") with
@@ -89,58 +89,73 @@ Section Link_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ, !inreachG Σ, !fracintG Σ}.
   Notation iProp := (iProp Σ).
 
-  (* ---------- Flow interface set-up specific to this proof ---------- *)
+  (** Flow interface set-up specific to this proof *)
   
+  (* The following parameters are defined in the GRASShopper file link.spl *)
   Parameter in_inset : key → flowintUR → Node → Prop.
   Parameter in_outset : key → flowintUR → Node → Prop.      
   Parameter linkset : flowintUR → Node → gset key.               (*inreach → linkset*)
   Parameter keyset : flowintUR → Node → gset key.                 (* define as a lemma keyset I_n n *)
 
+  (* The node predicate is specific to each template implementation. See GRASShopper files
+     b-link.spl and hashtbl-link.spl for the concrete definitions. *)
   Parameter node : Node → flowintUR → gset key → iProp.
+
+  (* The following assumption is justified by the fact that GRASShopper uses a first-order separation logic. *)
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
   Definition in_outsets k In := ∃ n, in_outset k In n.
 
-  Definition globalint root I : Prop :=
+  (* The global invariant ϕ.
+   * See also link.spl for the matching GRASShopper definition *)
+  Definition globalinv root I : Prop :=
     ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
     ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n ∧ k ∈ linkset I n))
     ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n ∧ k ∉ linkset I n)).
 
+  (* The node-level invariant γ.
+   * See also link.spl for the matching GRASShopper definition *)
   Definition nodeinv I_n n: Prop :=
     (∀ k, k ∈ linkset I_n n ∧ ¬ in_outsets k I_n → in_inset k I_n n).    
 
   (* ---------- Proved in GRASShopper for each implementation: ---------- *)
 
+  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
   Hypothesis keyset_def : ∀ k I_n n,
     in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
 
+  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
   (* TODO: instead have node n I_n C -∗ n ↦ _ and use
      iDestruct (mapsto_valid_2 with "H1 H2") as %[]
      to say n ↦ _ ∗ n ↦ _ -∗ False *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
+  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
     (* check the name *)
    
-  Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+  (*Hypothesis flowint_comp_fp : ∀ I1 I2 I, I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.*)
     (* move to the flows file *)
 
   (* Sid rename to linkset_monotone? *)
-  Hypothesis inreach_monotone :                                           (* globalint_inreach → inreach_monotone *)
+  Hypothesis inreach_monotone :                                           (* globalinv_inreach → inreach_monotone *)
     ∀ I I1 I2 k n,  ✓ I → I = I1⋅I2 → n ∈ dom I1 → k ∈ linkset I n → k ∈ linkset I1 n.
       
+  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
   Hypothesis outset_distinct : ∀ I n, (∃ k, in_outset k I n) → n ∉ dom I. 
   
+  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
   Hypothesis flowint_inreach_step : 
     ∀ I I1 I2 k n1 n2, ✓ I → I = I1⋅I2 → in_outset k I1 n2 → k ∈ linkset I1 n1 → k ∈ linkset I2 n2.
 
+  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
   Hypothesis flowint_step :
-    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalint root I → n ∈ dom I2.
+    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.
   
-  (* ---------- Coarse-grained specification ---------- *)
+  (** Coarse-grained specification *)
 
   Definition Ψ dop k (C: gset key) (C': gset key) (res: bool) : iProp :=
     match dop with
@@ -161,6 +176,9 @@ Section Link_Template.
       getLockLoc #n
     {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
+  (* The following functions are proved for each implementation in GRASShopper 
+   * (see b-link.spl and hashtbl-link.spl *)
+  
   Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
     ({{{ node n I_n C ∗ ⌜k ∈ linkset I_n n ∨ in_inset k I_n n⌝ }}}
       findNext #n #k
@@ -182,8 +200,8 @@ Section Link_Template.
   
   (* should change the name so as to not confuse with the node-level predicate *)
   (* Sid: can we make these two one predicate called SchStr like in the paper? *)
-  Definition searchStr γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=                             
-    (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● dom I) ∗ ⌜globalint root I⌝
+  Definition CCS γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=                             
+    (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● dom I) ∗ ⌜globalinv root I⌝
     ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: flowintUR),
       (lockLoc n) ↦ #b
       ∗ (if b then True
@@ -192,21 +210,21 @@ Section Link_Template.
       ∗ own (γ_inr n) (● (linkset I_n n))))
     )%I.    
 
-  Definition is_searchStr γ γ_fp γ_k γ_inr γ_fi root C := (∃ I, (searchStr γ γ_fp γ_k γ_inr γ_fi root I C))%I.
+  Definition is_CCS γ γ_fp γ_k γ_inr γ_fi root C := (∃ I, (CCS γ γ_fp γ_k γ_inr γ_fi root I C))%I.
 
   (* ---------- Assorted useful lemmas ---------- *)
 
-  Lemma globalint_root_fp: ∀ I root, globalint root I → root ∈ dom I.
+  Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ dom I.
   Proof. 
-    intros I root Hglob. unfold globalint in Hglob.
+    intros I root Hglob. unfold globalinv in Hglob.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.    
 
-  Lemma globalint_root_inr : ∀ I Ir root k,
-    globalint root I ∧ Ir ≼ I ∧ dom Ir = {[root]} → k ∈ linkset Ir root.
+  Lemma globalinv_root_inr : ∀ I Ir root k,
+    globalinv root I ∧ Ir ≼ I ∧ dom Ir = {[root]} → k ∈ linkset Ir root.
   Proof.
     intros I Ir root k Hglob. destruct Hglob as [Hglob [H1 H2]].
-    unfold globalint in Hglob. destruct Hglob as [H3 [H4 [H5 H6]]].
+    unfold globalinv in Hglob. destruct Hglob as [H3 [H4 [H5 H6]]].
     specialize (H6 root). assert (k ∈ linkset I root).
     { apply H6. done. } destruct H1 as [I2 H1].
      apply (inreach_monotone I Ir I2 k root); try done. set_solver.
@@ -279,7 +297,7 @@ Section Link_Template.
   Qed.
 
   (* Sid: I think k ∈ KS follows from k ∈ K1, so we can drop it here,
-    and in searchStrOp_spec. *)
+    and in CCSOp_spec. *)
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
     Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
@@ -337,16 +355,16 @@ Section Link_Template.
           iFrame. unfold Ψ. iPureIntro. set_solver.
   Qed.
 
-  (* ---------- Proofs of traverse and searchStrOp ---------- *)
+  (* ---------- Proofs of traverse and CCSOp ---------- *)
 
   (* Sid: why do we need to return ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')? *)
   Lemma traverse_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (n: Node) (Ns: gset Node) (I_n:flowintUR) :
     ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
     ∗ own (γ_inr n) (◯ (linkset I_n n)) ∗ ⌜k ∈ linkset I_n n⌝ -∗ 
-    <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
+    <<< ∀ C, is_CCS γ γ_fp γ_k γ_inr γ_fi root C >>>
       traverse #n #k @ ⊤
     <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (Cn': gset key),
-        is_searchStr γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
+        is_CCS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
         ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
         ∗ own γ_k (◯ prod (keyset I_n' n', Cn')) ∗ ⌜dom I_n' = {[n']}⌝
         ∗ ⌜in_inset k I_n' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝, RET #n' >>>.
@@ -404,7 +422,7 @@ Section Link_Template.
       assert (✓ (In ⋅ In')). { apply (auth_frag_valid (◯ (In ⋅ In'))). done. }
       iDestruct "HNds'" as %HNds'. assert (k ∈ linkset In' n').
       { apply (flowint_inreach_step (In⋅In') In In' k n n'); try done. }
-      assert (root ∈ dom I1). { apply globalint_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
+      assert (root ∈ dom I1). { apply globalinv_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
       iMod (own_update (γ_inr n') (● linkset In' n') (● linkset In' n' ⋅ ◯ linkset In' n') with "Hks1'") as "HNs".
       apply auth_update_core_id. apply gset_core_id. done. iDestruct "HNs" as "(Hks1' & #Hinr1')".
       iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "Hfil Hks Hrep". iFrame "∗ # %".
@@ -427,17 +445,17 @@ Section Link_Template.
       apply Hninv. try done. iModIntro. wp_pures. done.
   Qed.
 
-  Theorem searchStrOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (dop: dOp):
-    ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_searchStr γ γ_fp γ_k γ_inr γ_fi root C >>>
-      searchStrOp dop root #k @ ⊤
-    <<< ∃ C' (res: bool), is_searchStr γ γ_fp γ_k γ_inr γ_fi root C' 
+  Theorem CCSOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (dop: dOp):
+    ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k γ_inr γ_fi root C >>>
+      CCSOp dop root #k @ ⊤
+    <<< ∃ C' (res: bool), is_CCS γ γ_fp γ_k γ_inr γ_fi root C' 
         ∗ Ψ dop k C C' res, RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
     iApply fupd_wp. iMod "AU" as (C0) "[Hst [HAU _]]".
     iDestruct "Hst" as (I0) "(HI & HKS & HNDS & #Hglob & Hstar)".
     iDestruct "Hglob" as %Hglob. iDestruct "HKin" as %HKin. 
-    assert (root ∈ dom I0)%I as Hroot. { apply globalint_root_fp. done. }
+    assert (root ∈ dom I0)%I as Hroot. { apply globalinv_root_fp. done. }
     iMod (own_update γ_fp (● dom I0) (● dom I0 ⋅ ◯ dom I0) with "HNDS") as "H".
     { apply auth_update_core_id. apply gset_core_id. done. } 
     iDestruct "H" as "(HNDS & #Hfp0)".
@@ -445,14 +463,14 @@ Section Link_Template.
     iDestruct "Hstar" as "[Hn Hstar]".
     iDestruct "Hn" as (b Ir) "(H1 & H2 & H3 & H4 & H5 & Hksr)".
     iPoseProof (auth_own_incl with "[$HI $H3]") as "%". iDestruct "H4" as %HNdsr.
-    (*assert (inreach Ir root = inreach I0 root) as Hinreach. { apply globalint_inreach; try done. }*)
+    (*assert (inreach Ir root = inreach I0 root) as Hinreach. { apply globalinv_inreach; try done. }*)
     iMod (own_update (γ_inr root) (● linkset Ir root) (● linkset Ir root ⋅ ◯ linkset Ir root) with "Hksr") as "H".
     apply auth_update_core_id. apply gset_core_id. done. iDestruct "H" as "(Hksr & #Hinr)".
     iMod ("HAU" with "[HI HKS H1 H2 H3 H5 Hstar HNDS Hksr] ") as "AU". 
     { iExists I0. iFrame "∗ % #". iApply "Hstar". iExists b, Ir. iFrame "∗ # %". }
     iModIntro. wp_bind (traverse _ _)%E.
     awp_apply (traverse_spec γ γ_fp γ_k γ_inr γ_fi root k root (dom I0) Ir). iFrame "∗ # %".
-    iPureIntro. apply (globalint_root_inr I0 Ir root k); try done.
+    iPureIntro. apply (globalinv_root_inr I0 Ir root k); try done.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C1) "Hst". iAaccIntro with "Hst"; first by eauto with iFrame.
     iIntros (n Ns In Cn) "(Hst & #Hinn & #Hfp & Hrepn & Hfil & Hks & #HNdsn & #Hinset & #Hnotout)".

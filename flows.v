@@ -41,6 +41,7 @@ Definition I_empty := int I_emptyR.
 
 Canonical Structure flowintRAC := leibnizO flowintT.
 
+(** The following hypotheses are proved in GRASShopper. See flows.spl *)
 Hypothesis intComp : Op flowintT.
 
 Hypothesis intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
@@ -56,6 +57,8 @@ Hypothesis intValid : Valid flowintT.
 Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
 
 Hypothesis intEmp_valid : intValid I_empty.
+
+Hypothesis intComp_dom : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
 
 Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -139,3 +142,8 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
 
 Hypothesis flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
+
+Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+Proof.
+  apply intComp_dom.
+Qed.
