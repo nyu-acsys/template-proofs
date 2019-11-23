@@ -205,7 +205,7 @@ Section Lock_Coupling_Template.
 
   Lemma unlockNode_spec γ γ_fp γ_k γ_c first Ns (n: Node) I_n C_n:
     css γ γ_fp γ_k γ_c first ∗ own γ_fp (◯ Ns) ∗ ⌜n ∈ Ns⌝
-    own γ (◯ I_n) ∗ node first n I_n C_n ∗ own γ_k (◯ prod (keyset I_n n, C_n)) -∗
+    ∗ own γ (◯ I_n) ∗ node first n I_n C_n ∗ own γ_k (◯ prod (keyset I_n n, C_n)) -∗
     <<< True >>>
       unlockNode #n    @ ⊤
     <<< True, RET #() >>>.
