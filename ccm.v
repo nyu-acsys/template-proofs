@@ -7,11 +7,12 @@ Class Cancelative {A} (R : relation A) (f : A → A → A) : Prop :=
 Class PartialInv {A} (R: relation A) (f : A → A → A) (g : A → A → A) : Prop :=
   pinv x y : R (g (f x y) y) x.
 
-Class CCM {M} :=
+Class CCM :=
   {
-    ccm_unit : M;
-    ccm_op: M → M → M;
-    ccm_opinv: M → M → M;
+    ccm_car :> Type;
+    ccm_unit : ccm_car;
+    ccm_op: ccm_car → ccm_car → ccm_car;
+    ccm_opinv: ccm_car → ccm_car → ccm_car;
     ccm_assoc : Assoc (=) ccm_op;
     ccm_comm : Comm (=) ccm_op;
     ccm_left_id : LeftId (=) ccm_unit ccm_op;
@@ -19,10 +20,10 @@ Class CCM {M} :=
     ccm_pinv : PartialInv (=) ccm_op ccm_opinv;
   }.
 
-Lemma ccm_right_id `{CCM M} : RightId (=) ccm_unit ccm_op.
+Lemma ccm_right_id {M: CCM} : RightId (=) ccm_unit ccm_op.
 Proof. intros x. etrans; [apply ccm_comm|apply ccm_left_id]. Qed.
 
-Lemma ccm_pinv_unit `{CCM M} x : ccm_opinv x ccm_unit = x.
+Lemma ccm_pinv_unit {M: CCM} x : ccm_opinv x ccm_unit = x.
 Proof.
   rewrite <- (ccm_right_id x) at 1.
   apply ccm_pinv.
