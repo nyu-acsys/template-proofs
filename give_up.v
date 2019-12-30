@@ -1,4 +1,3 @@
-Add LoadPath "/home/nisarg/Academics/templates".
 From iris.algebra Require Import excl auth gmap agree gset.
 From iris.heap_lang Require Export lifting notation locations lang.
 From iris.base_logic.lib Require Export invariants.
@@ -129,6 +128,7 @@ Section Give_Up_Template.
 
   (** Helper functions specs *)
 
+  (* Todo: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
   Parameter getLockLoc_spec : ∀ (n: Node),
       ({{{ True }}}
            getLockLoc #n
@@ -142,6 +142,8 @@ Section Give_Up_Template.
            inRange #n #k
        {{{ (b: bool), RET #b; node n I_n C ∗ (match b with true => ⌜in_inset k I_n n⌝ |
                                     false => ⌜True⌝ end) }}})%I.
+
+  (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
   Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
       ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝ }}}
            findNext #n #k
