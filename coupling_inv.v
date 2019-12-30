@@ -134,11 +134,11 @@ Section Lock_Coupling_Template.
                                   (see b+-tree.spl and hashtbl-give-up.spl) *)
 
   Parameter findNext_spec : ∀ first (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
-      ({{{ node first n I_n C ∗ ⌜in_inset k I_n n⌝ }}}
+      ({{{ node n first I_n C ∗ ⌜in_inset k I_n n⌝ }}}
            findNext #n #k
        {{{ (b: bool) (n': Node), 
               RET (match b with true => (SOMEV #n') | false => NONEV end); 
-               node first n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
+               node n first I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
                                           false => ⌜¬in_outsets k I_n⌝ ∗ ⌜n ≠ first⌝ end) }}})%I.
 
   Parameter decisiveOp_insert_spec : ∀ dop first (p n m: Node) (k: key) (I_p I_n: flowintUR) (C_p C_n: gset key),
@@ -304,7 +304,48 @@ Section Lock_Coupling_Template.
         ∗ own γ_k (◯ prod (keyset I_n' n', C_n')) 
         ∗ ⌜in_inset k I_p' p'⌝ ∗ ⌜in_outset k I_p' n'⌝ ∗ ⌜¬in_outsets k I_n'⌝
     }}}.
-  Proof. Admitted.
+  Proof.
+    iIntros "#HInv". iIntros (Φ) "!# H HCont". iLöb as "IH" forall (Ns p n I_p I_n C_p C_n). 
+    iDestruct "H" as "(#Hfp & % & % & % & % & Hnodep & HIp & % & % & Hksp & Hnoden & HIn & Hksn)".
+    wp_lam. wp_pures. wp_bind (findNext _ _)%E. 
+    wp_apply ((findNext_spec first n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #". admit.
+    iIntros (b n') "(Hnoden & Hb)". destruct b.
+    - iDestruct "Hb" as "%". wp_pures.
+      wp_bind (lockNode _)%E. 
+      iClear "HCont".
+      awp_apply (lockNode_spec n').
+      iInv "HInv" as ">H". iDestruct "H" as (I0 C0) "(HKS & HInt & % & HFP & Hcont & Hstar)".
+      assert (n' ∈ dom I0). { admit. }
+      rewrite (big_sepS_elem_of_acc _ (dom I0) n'); last by eauto.
+      iDestruct "Hstar" as "[Hb Hstar]".
+      iDestruct "Hb" as (b) "[Hlock Hb]".
+      iAaccIntro with "Hlock". { iIntros "H". iModIntro. iFrame "∗ # %".
+      iNext. iExists I0, C0. iFrame "∗ # %". iApply "Hstar".
+      iExists b. iFrame "∗ # %". }
+      iIntros "(Hlock & H)". destruct b. { iExFalso. done. } iClear "H".
+      iModIntro. iSplitL "HKS HInt HFP Hcont Hstar Hlock".
+      { iNext. iExists I0, C0. iFrame "∗ # %". iApply "Hstar".
+      iExists true. iFrame. } iDestruct "Hb" as (I_n' C_n') "(HIn' & Hnoden' & Hksn')".
+      wp_pures. wp_bind (unlockNode _)%E. awp_apply (unlockNode_spec p).
+        iInv "HInv" as ">H". iDestruct "H" as (I1 C1) "(HKS & HInt & % & HFP & Hcont & Hstar)".
+      assert (p ∈ dom I1). { admit. } 
+      rewrite (big_sepS_elem_of_acc _ (dom I1) p); last by eauto.
+      iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
+      destruct b; last first. { iDestruct "Hb" as (In1 Cn1) "(_ & Hrep' & _)".
+      iAssert (⌜False⌝)%I with "[Hrep' Hnodep]" as %Hf. { iApply (node_sep_star first p In1 I_p). 
+      iFrame. } exfalso. done. }
+      iAaccIntro with "Hlock". { iIntros. iModIntro. iFrame "∗ # %". iNext. iExists I1, C1.  
+      iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
+      iMod (own_update γ_fp (● (dom I1)) (● (dom I1) ⋅ ◯ (dom I1)) with "HFP") as "H".
+      apply auth_update_core_id. apply gset_core_id. done.
+      iDestruct "H" as "(HFP & #Hfp1)". 
+      iIntros "Hlock". iModIntro. iSplitL "HKS HInt HFP Hcont Hstar Hlock Hnodep HIp Hksp".
+      iNext. iExists I1, C1. iFrame "∗ # %". iApply "Hstar". iExists false. iFrame.
+      iExists I_p, C_p. iFrame "∗ # %". wp_pures. iSpecialize ("IH" $! (dom I1) n n' I_n I_n' C_n C_n').
+      iApply ("IH" with "[-Hb]"). iFrame "∗ # %". admit. iNext. admit.
+    - wp_pures. iDestruct "Hb" as "(% & %)". iSpecialize ("HCont" $! p n Ns I_p I_n C_p C_n).
+      iApply "HCont". iFrame "∗ # %".
+  Admitted.
 
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
           ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
