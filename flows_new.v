@@ -8,6 +8,7 @@ From iris.algebra Require Export auth agree.
 
 From stdpp Require Export gmap.
 From stdpp Require Import mapset.
+From stdpp Require Import finite.
 Require Export ccm gmap_more.
 
 Definition Node := positive.
@@ -32,6 +33,11 @@ Definition I_emptyR := {| infR := ∅; outR := ∅ |}.
 Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT.
+
+Instance flow_dom_eq_dec: EqDecision M.
+Proof.
+  apply (@ccm_eq FlowDom).
+Qed.
 
 Definition out_map (I: flowintT) :=
   match I with
@@ -68,7 +74,8 @@ Instance flowint_valid : Valid flowintT :=
 
 
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
-  map_Forall_dec (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) .
+  true.
+  (*map_Forall_dec (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) .*)
 
 Instance intComp : Op flowintT :=
   λ I1 I2, if intComposable I1 I2 then

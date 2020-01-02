@@ -10,6 +10,7 @@ Class PartialInv {A} (R: relation A) (f : A → A → A) (g : A → A → A) : P
 Class CCM :=
   {
     ccm_car :> Type;
+    ccm_eq : EqDecision ccm_car;
     ccm_unit : ccm_car;
     ccm_op: ccm_car → ccm_car → ccm_car;
     ccm_opinv: ccm_car → ccm_car → ccm_car;
