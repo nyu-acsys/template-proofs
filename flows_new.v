@@ -10,7 +10,7 @@ From stdpp Require Export gmap.
 From stdpp Require Import mapset.
 Require Export ccm gmap_more.
 
-Definition Node := nat.
+Definition Node := positive.
 
 Parameter FlowDom: CCM.
 
@@ -68,8 +68,7 @@ Instance flowint_valid : Valid flowintT :=
 
 
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
-  true.
-  (*map_Forall_dec (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) .*)
+  map_Forall_dec (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) .
 
 Instance intComp : Op flowintT :=
   λ I1 I2, if intComposable I1 I2 then
