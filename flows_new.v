@@ -38,6 +38,7 @@ Instance flow_dom_eq_dec: EqDecision M.
 Proof.
   apply (@ccm_eq FlowDom).
 Qed.
+  
 
 Definition out_map (I: flowintT) :=
   match I with
@@ -72,13 +73,20 @@ Instance flowint_valid : Valid flowintT :=
        | intUndef => False
        end.
 
+Instance intComposable_dec (I1 I2: flowintT) : ∀ (i: Node) (x: M), Decision ((λ (n : Node) _, inf I1 n = out I2 n + (inf I1 n - out I2 n)) i x).
+Proof.
+  intros.
+  unfold Decision.
+  apply flow_dom_eq_dec.
+Qed.
 
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
-  true.
-  (*map_Forall_dec (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) .*)
+  dom I1 ## dom I2 ∧
+  map_Forall (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
+  map_Forall (λ (n: Node) (m: M), inf I2 n = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
 
 Instance intComp : Op flowintT :=
-  λ I1 I2, if intComposable I1 I2 then
+  λ I1 I2, if decide (intComposable I1 I2) then
              let f_inf n o1 o2 :=
                  match o1, o2 with
                  | Some m1, _ => Some (m1 - out I2 n)
