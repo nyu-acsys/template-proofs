@@ -7,6 +7,16 @@ From iris.heap_lang.lib Require Import par.
 From iris.algebra Require Export auth agree.
 From stdpp Require Import mapset finite.
 
+From stdpp Require Export gmap.
+From stdpp Require Import mapset.
+     
+Definition m: gmap Z Z := {[ 1 := 2 ]}.
+
+Definition X: gset Z := mapset_dom m.
+
+Compute if gset_elem_of_dec 1 X then true else false.
+
+
 
 (* ---------- Flow Interface encoding and camera definitions ---------- *)
 

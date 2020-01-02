@@ -287,6 +287,8 @@ Section Link_Template.
     iModIntro. done.
   Qed.
 
+  (* Todo: I think k ∈ KS follows from k ∈ K1, so we can drop it here,
+    and in CCSOp_spec. *)
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
     Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
