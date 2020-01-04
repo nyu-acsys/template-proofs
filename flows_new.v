@@ -34,11 +34,11 @@ Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT.
 
-Instance flow_dom_eq_dec: EqDecision M.
+Instance flowdom_eq_dec: EqDecision M.
 Proof.
   apply (@ccm_eq FlowDom).
 Qed.
-  
+
 
 Definition out_map (I: flowintT) :=
   match I with
@@ -90,18 +90,14 @@ Proof.
   admit.
 Admitted.
 
-Instance intComposable_dec (I1 I2: flowintT) : ∀ (i: Node) (x: M), Decision ((λ (n : Node) _, inf I1 n = out I2 n + (inf I1 n - out I2 n)) i x).
-Proof.
-  intros.
-  unfold Decision.
-  apply flow_dom_eq_dec.
-Qed.
-
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
   flowint_valid I1 ∧ flowint_valid I2 ∧
   dom I1 ## dom I2 ∧
   map_Forall (λ (n: Node) (m: M), inf I1 n = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
   map_Forall (λ (n: Node) (m: M), inf I2 n = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
+
+Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
+Proof. solve_decision. Qed.
 
 Instance intComp : Op flowintT :=
   λ I1 I2, if decide (intComposable I1 I2) then
@@ -128,4 +124,3 @@ Instance intComp : Op flowintT :=
            else if decide (I1 = I_empty) then I2
                 else if decide (I2 = I_empty) then I1
                      else intUndef.
-

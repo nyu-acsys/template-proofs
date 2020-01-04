@@ -1,5 +1,6 @@
 From stdpp Require Export gmap pmap.
 From Coq Require Import PArith.
+Require Import Coq.Setoids.Setoid.
 
 Fixpoint Poimap_raw {A B} (f : positive → A → option B) (t : Pmap_raw A) : Pmap_raw B :=
   match t with
@@ -158,12 +159,12 @@ Proof.
                                 t1_2)).
     apply Poimap_wf.
     auto.
-    
+
     +  destruct (Poimap_raw ((λ i : positive, flip (f i) None ∘ Some) ∘ xO)
                             t1_1).
        destruct (o ≫= flip (f 1%positive) None ∘ Some);
          unfold Pmap_wf.
-       rewrite ?andb_True. 
+       rewrite ?andb_True.
        eauto using Poimap_wf.
        destruct (Poimap_raw ((λ i : positive, flip (f i) None ∘ Some) ∘ xI)
                             t1_2).
@@ -268,7 +269,7 @@ Proof.
   apply Pimerge_lookup.
   apply Hf.
 Qed.
-  
+
 Lemma gmap_imerge_wf `{Countable K} {A B C}
     (f : K → option A → option B → option C) m1 m2 :
   let f' i o1 o2 := match o1, o2 with
@@ -296,3 +297,40 @@ Definition gmap_imerge `{Countable K} : Imerge (gmap K) K :=
   GMap (imerge f' m1 m2) (bool_decide_pack _ (gmap_imerge_wf f _ _
     (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
 
+Transparent gmap_empty.
+
+Lemma gmap_imerge_empty {A} `{Countable K} (M : gmap K A) (f : K → option A → option A → option A)
+  (Hf : ∀ i y, f i y None = y)
+  : gmap_imerge A A A f M ∅ = M.
+Proof.
+  cut (∀ (M1 M2 : gmap K A), M1 = M2 ↔ ∀ i, M1 !! i = M2 !! i).
+  intros gmap_lookup_eq.
+  unfold gmap_imerge.
+  rewrite gmap_lookup_eq.
+  intros.
+  destruct M.
+  unfold empty.
+  unfold gmap_empty.
+  unfold lookup.
+  simpl.
+  rewrite lookup_imerge.
+  simpl.
+  rewrite decode_encode.
+  simpl.
+  rewrite lookup_empty.
+  set (x := gmap_car !! encode i).
+  rewrite Hf.
+  destruct x.
+  all: trivial.
+  intros.
+  apply map_eq_iff.
+Qed.
+
+Lemma map_Forall_True {A} `{Countable K} (m : gmap K A) (p : K -> A -> Prop) :
+      (∀ (k : K) (a : A), p k a) → (map_Forall p m).
+Proof.
+  intros.
+  unfold map_Forall.
+  intros.
+  apply H0.
+Qed.

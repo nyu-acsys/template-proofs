@@ -5,64 +5,70 @@ From iris.heap_lang Require Import proofmode.
 From iris.heap_lang Require Import notation lang.
 From iris.heap_lang.lib Require Import par.
 From iris.algebra Require Export auth agree.
-From stdpp Require Import mapset finite.
 
 From stdpp Require Export gmap.
 From stdpp Require Import mapset.
-     
-Definition m: gmap Z Z := {[ 1 := 2 ]}.
+From stdpp Require Import finite.
+Require Export ccm gmap_more.
 
-Definition X: gset Z := mapset_dom m.
-
-Compute if gset_elem_of_dec 1 X then true else false.
-
-
+Require Import Coq.Setoids.Setoid.
 
 (* ---------- Flow Interface encoding and camera definitions ---------- *)
 
-(* All hypotheses in this file are proved as lemmas of the same name
-   in the flows.spl file in GRASShopper *)
+Definition Node := positive.
 
-Definition key := nat.
+Parameter FlowDom: CCM.
 
-Definition Node := nat.
+Definition flowdom := @ccm_car FlowDom.
+Local Notation "x + y" := (@ccm_op FlowDom x y).
+Local Notation "x - y" := (@ccm_opinv FlowDom x y).
+Local Notation "0" := (@ccm_unit FlowDom).
 
-Definition flowdom := nat.
-
-Definition domZero : flowdom := O.
 
 Record flowintR :=
   {
-    inf : gmap Node flowdom;
-    out : gmap Node flowdom;
+    infR : gmap Node flowdom;
+    outR : gmap Node flowdom;
   }.
 
 Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT.
 
-Definition I_emptyR := {| inf := ∅; out := ∅ |}.
-
+Definition I_emptyR := {| infR := ∅; outR := ∅ |}.
 Definition I_empty := int I_emptyR.
+Instance flowint_empty : Empty flowintT := I_empty.
 
-Definition default_Ir (I : flowintT) : flowintR :=
+
+Definition out_map (I: flowintT) :=
   match I with
-  | int Ir => Ir
-  | intUndef => I_emptyR
+    | int Ir => outR Ir
+    | intUndef => ∅
   end.
 
-Definition inf' (I : flowintT) := inf (default_Ir I).
-Definition out' (I : flowintT) := out (default_Ir I).
+Definition inf_map (I: flowintT) :=
+  match I with
+    | int Ir => infR Ir
+    | intUndef => ∅
+  end.
 
-Definition inf_lookup (I : flowintT) (n : Node) := (inf' I !! n).
-Definition out_lookup (I : flowintT) (n : Node) := (out' I !! n).
+Definition inf (I: flowintT) (n: Node) := default 0 (inf_map I !! n).
+Definition out (I: flowintT) (n: Node) := default 0 (out_map I !! n).
 
-Notation "I ◁ n" := (inf_lookup I n) (no associativity, at level 20).
-Notation "I ▷ n" := (out_lookup I n) (no associativity, at level 20).
+Instance flowint_dom : Dom flowintT (gset Node) :=
+  λ I, dom (gset Node) (inf_map I).
+Definition domm (I : flowintT) := dom (gset Node) I.
+
+
+(* Composition and proofs - some of these have counterparts in flows.spl in GRASShopper *)
+
+Instance flowdom_eq_dec: EqDecision flowdom.
+Proof.
+  apply (@ccm_eq FlowDom).
+Qed.
 
 Canonical Structure flowintRAC := leibnizO flowintT.
 
-(** The following hypotheses are proved in GRASShopper. See flows.spl *)
 Instance int_eq_dec: EqDecision flowintT.
 Proof.
   unfold EqDecision.
@@ -71,132 +77,91 @@ Proof.
   all: apply gmap_eq_eq.
 Qed.
 
-Instance int_elem_of : ElemOf Node flowintT :=
-  λ n I, n ∈ mapset_dom (inf' I).
+Instance flowint_valid : Valid flowintT :=
+  λ I, match I with
+       | int Ir =>
+         infR Ir ##ₘ outR Ir
+         ∧ (infR Ir = ∅ → outR Ir = ∅)
+       | intUndef => False
+       end.
 
-Instance int_dom : Dom flowintT (gset Node) :=
-  λ I, mapset_dom (inf' I).
-
-Lemma int_elem_of_dec : RelDecision (∈@{flowintT}).
-Proof.
-  unfold RelDecision.
-  intros.
-  unfold elem_of; unfold int_elem_of.
-  apply gset_elem_of_dec.
-Qed.
-
-Instance intValid : Valid flowintT :=
-  λ I,
-  I ≠ intUndef
-  (* outflow is valid on proper domain *)
-  ∧ (∀ n, n ∉ I -> ∃ f, (I ▷ n) = Some f)
-  (* Inflow and outflow are properly defined *)
-  ∧ (∀ n, n ∈ I -> (I ▷ n) = None)
-  ∧ (∀ n, n ∉ I -> (I ◁ n) = None).
-
-Hypothesis node_finite : Finite Node.
-
-Lemma gmap_lookup_eq_dec {A} `{Countable K, EqDecision A} :
-  ∀ (m : gmap K A) (k : K) (oa : option A), Decision (m !! k = oa).
+Instance flowint_valid_dec : ∀ I: flowintT, Decision (✓ I).
 Proof.
   intros.
-  exact (option_eq_dec (m !! k) oa).
+  unfold valid; unfold flowint_valid.
+  destruct I; last first.
+  all: solve_decision.
 Qed.
 
-Instance intValid_dec : ∀ I: flowintT, Decision (✓ I).
-Proof.
-  intros.
-  unfold valid; unfold intValid.
-  repeat apply and_dec.
-  apply not_dec; apply int_eq_dec.
-  all: apply forall_dec; intros; apply impl_dec.
-  1,5: apply not_dec.
-  1,2,4: apply int_elem_of_dec.
-  apply exists_dec; intros.
-  all: (unfold out_lookup || unfold inf_lookup); apply option_eq_dec.
-Qed.
+Definition intComposable (I1: flowintT) (I2: flowintT) :=
+  ✓ I1 ∧ ✓ I2 ∧
+  domm I1 ## domm I2 ∧
+  map_Forall (λ (n: Node) (m: flowdom), inf I1 n = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
+  map_Forall (λ (n: Node) (m: flowdom), inf I2 n = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
 
-Definition option_apply {A} {B} {C} (f : A -> B -> C) (x : option A) (y : option B) : option C :=
-  match x, y with
-  | Some x', Some y' => Some (f x' y')
-  | _, _ => None
-  end.
-
-Definition option_add := option_apply Init.Nat.add.
-Definition option_sub := option_apply Init.Nat.sub.
-Notation "x ⊕ y" := (option_add x y) (at level 50).
-Notation "x ⊖ y" := (option_sub x y) (at level 50).
-
-Definition intComposable (I1 I2 : flowintT) : Prop :=
-  (✓ I1) ∧ (✓ I2)
-  ∧ (dom _ I1 ## dom (gset Node) I2)
-  ∧ (∀ n, n ∈ I1 → I1 ◁ n = I2 ▷ n ⊕ (I1 ◁ n ⊖ I2 ▷ n))
-  ∧ (∀ n, n ∈ I2 → I2 ◁ n = I1 ▷ n ⊕ (I2 ◁ n ⊖ I1 ▷ n))
-  ∧ (∀ n, n ∈ I1 → ∃ x, (I1 ◁ n ⊕ I2 ▷ n) = Some x)
-  ∧ (∀ n, n ∈ I2 → ∃ x, (I2 ◁ n ⊕ I1 ▷ n) = Some x).
-
-Instance intComposable_dec : ∀ I1 I2, Decision (intComposable I1 I2).
-Proof.
-  intros.
-  unfold intComposable.
-  repeat apply and_dec.
-  all: try apply forall_dec; intros.
-  1,5: apply not_dec; apply int_eq_dec.
-  all: apply impl_dec.
-  all: try ((apply gset_elem_of_dec) || (try apply not_dec; apply gset_elem_of_dec)).
-  all: try apply exists_dec; intros; apply option_eq_dec.
-Qed.
-
-Definition func_to_gmap `{Countable K} {A} (f : K → option A) (ks : list K) : gmap K A :=
-  foldr (λ k map, match f k with Some a => insert k a map | None => map end) ∅ ks.
-
-Definition nodes (I1 I2 : flowintT) : list Node :=
-  elements $
-  mapset_dom (inf' I1)
-  ∪ mapset_dom (inf' I2)
-  ∪ mapset_dom (out' I1)
-  ∪ mapset_dom (out' I2).
-
-Definition infComp (n : Node) (I1 I2 : flowintT) : option flowdom :=
-  if decide (n ∈ I1) then ((I1 ◁ n) ⊖ (I2 ▷ n))
-  else if decide (n ∈ I2) then ((I2 ◁ n) ⊖ (I1 ▷ n))
-  else None.
+Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
+Proof. solve_decision. Qed.
 
 Instance intComp : Op flowintT :=
-  λ I1 I2,
-  in
-  let outCompFunc := λ n,
-                     None
-      (* if decide (n ∉ I1 ∧ n ∉ I2) then (I1 ▷ n ⊕ I2 ▷ n) *)
-      (* else None *)
-  in
-  if decide (intComposable I1 I2) then
-    int {|
-      inf := func_to_gmap infCompFunc nodes;
-      out := func_to_gmap outCompFunc nodes
-    |}
-  else
-    intUndef.
+  λ I1 I2, if decide (intComposable I1 I2) then
+             let f_inf n o1 o2 :=
+                 match o1, o2 with
+                 | Some m1, _ => Some (m1 - out I2 n)
+                 | _, Some m2 => Some (m2 - out I1 n)
+                 | _, _ => None
+                 end
+             in
+             let inf12 := gmap_imerge flowdom flowdom flowdom f_inf (inf_map I1) (inf_map I2) in
+             let f_out n o1 o2 : option flowdom :=
+                 match o1, o2 with
+                 | Some m1, None =>
+                   if gset_elem_of_dec n (domm I2) then None else Some m1
+                 | None, Some m2 =>
+                   if gset_elem_of_dec n (domm I1) then None else Some m2
+                 | Some m1, Some m2 => Some (m1 + m2)
+                 | _, _ => None
+                 end
+             in
+             let out12 := gmap_imerge flowdom flowdom flowdom f_out (out_map I1) (out_map I2) in
+             int {| infR := inf12; outR := out12 |}
+           else if decide (I1 = ∅) then I2
+           else if decide (I2 = ∅) then I1
+           else intUndef.
 
 Lemma intEmp_valid : ✓ I_empty.
 Proof.
-  unfold valid; unfold intValid.
-  repeat split.
-  unfold I_empty; discriminate.
-  intros.
-Admitted.
+  unfold valid.
+  unfold flowint_valid.
+  unfold I_empty.
+  simpl.
+  split.
+  refine (map_disjoint_empty_l _).
+  trivial.
+Qed.
 
-Hypothesis intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
+Lemma intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
+Proof.
+  intros.
+  unfold op; unfold intComp.
+  rewrite decide_False.
+  reflexivity.
+  unfold intComposable.
+  cut (¬ (✓ intUndef)); intros.
+  rewrite LeftAbsorb_instance_0.
+  trivial.
+  unfold valid; unfold flowint_valid.
+  auto.
+Qed.
+
+Hypothesis intComp_unit : ∀ (I: flowintT), ✓ I → I ⋅ I_empty ≡ I.
 
 Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 
 Hypothesis intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
 
-Hypothesis intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
-
 Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
 
-Hypothesis intComp_dom : ∀ I1 I2 I, ✓ I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
+Hypothesis intComp_dom : ∀ I1 I2 I, ✓ I → I = I1 ⋅ I2 → domm I = domm I1 ∪ domm I2.
 
 Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -279,7 +244,7 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
 Hypothesis flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
 
-Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
-Proof.
-  apply intComp_dom.
-Qed.
+(* Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2. *)
+(* Proof. *)
+  (* apply intComp_dom. *)
+(* Qed. *)
