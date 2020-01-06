@@ -113,7 +113,7 @@ Instance intComp : Op flowintT :=
                  | _, _ => None
                  end
              in
-             let inf12 := gmap_imerge flowdom flowdom flowdom f_inf (inf_map I1) (inf_map I2) in
+             let inf12 := gmap_imerge f_inf (inf_map I1) (inf_map I2) in
              let f_out n o1 o2 : option flowdom :=
                  match o1, o2 with
                  | Some m1, None =>
@@ -124,7 +124,7 @@ Instance intComp : Op flowintT :=
                  | _, _ => None
                  end
              in
-             let out12 := gmap_imerge flowdom flowdom flowdom f_out (out_map I1) (out_map I2) in
+             let out12 := gmap_imerge f_out (out_map I1) (out_map I2) in
              int {| infR := inf12; outR := out12 |}
            else if decide (I1 = ∅) then I2
            else if decide (I2 = ∅) then I1
@@ -140,6 +140,9 @@ Proof.
   refine (map_disjoint_empty_l _).
   trivial.
 Qed.
+
+Lemma intUndef_not_valid : ¬ ✓ intUndef.
+Proof. unfold valid, flowint_valid; auto. Qed.
 
 Lemma intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
 Proof.
@@ -231,127 +234,61 @@ Proof.
   unfold domm.
   set_unfold.
   intros.
-  split.
-  - case_eq (decide (intComposable I1 I2)).
-    + intros H_comp _.
-      rewrite H_comp_eq.
-      unfold op, intComp.
-      unfold dom, flowint_dom; simpl.
-      rewrite elem_of_dom.
-      unfold gmap_imerge; simpl.
-      unfold lookup, gmap_lookup; simpl.
-      destruct (inf_map I1) as [m1 m1_wf], (inf_map I2) as [m2 m2_wf].
-      intros H_some.
-      rewrite decide_True in H_some. 2: auto.
-      simpl in H_some.
-      rewrite lookup_imerge in H_some.
-      set (pos := encode x) in H_some.
-      case_eq (m1 !! pos).
-      * intros.
-        left.
-        rewrite elem_of_dom.
-        unfold lookup, gmap_lookup.
-        rewrite H.
-        now apply (mk_is_Some (Some f)) with (x := f).
-      * case_eq (m2 !! pos).
-        intros.
-        right.
-        rewrite elem_of_dom.
-        unfold lookup, gmap_lookup.
-        rewrite H.
-        now apply (mk_is_Some (Some f)) with (x := f).
-        intros H1_none H2_none.
-        contradict H_some.
-        rewrite H1_none H2_none.
-        exact is_Some_None.
-      * auto.
-    + intros H_not_comp H_not_comp_dec.
-      unfold dom, flowint_dom; simpl.
-      rewrite elem_of_dom.
-      intros H_some.
-      unfold op, intComp in H_comp_eq.
-      rewrite H_not_comp_dec in H_comp_eq.
-      case_eq (decide (I1 = ∅)).
-      * intros H1_empty.
-        rewrite decide_True in H_comp_eq; last by assumption.
-        right.
-        rewrite elem_of_dom.
-        now rewrite <- H_comp_eq.
-      * intros.
-        rewrite decide_False in H_comp_eq; last by assumption.
-        case (decide (I2 = ∅)).
-        intros.
-        rewrite decide_True in H_comp_eq; last by assumption.
-        left.
-        rewrite elem_of_dom.
-        now rewrite <- H_comp_eq.
-        intros.
-        rewrite decide_False in H_comp_eq; last by assumption.
-        contradict H_some.
-        rewrite H_comp_eq.
-        simpl.
-        rewrite lookup_empty.
-        exact is_Some_None.
-    - intros.
-      rewrite H_comp_eq.
-      unfold op, intComp.
-      case_eq (decide (intComposable I1 I2)).
-      + intros H_comp H_comp_dec.
-        unfold dom, flowint_dom; simpl.
-        rewrite elem_of_dom.
-        unfold gmap_imerge; simpl.
-        unfold lookup, gmap_lookup; simpl.
-        destruct (inf_map I1) as [m1 m1_wf] eqn:H1_rem, (inf_map I2) as [m2 m2_wf] eqn:H2_rem.
-        rewrite lookup_imerge; last auto.
-        set (pos := encode x).
-        case_eq (m1 !! pos).
-        intros.
-        rewrite is_Some_alt; auto.
-        case_eq (m2 !! pos).
-        intros.
-        rewrite is_Some_alt; auto.
-        intros.
-        contradict H.
-        unfold not.
-        rewrite Decidable.not_or_iff.
+  unfold dom.
+  rewrite ?elem_of_dom.
+  rewrite H_comp_eq.
+  unfold op, intComp.
+  case_eq (decide (intComposable I1 I2)).
+  - intros H_comp H_comp_dec.
+    rewrite gmap_imerge_prf; auto.
+    case_eq (inf_map I1 !! x).
+    + intros ? H1.
+      rewrite H1.
+      rewrite ?is_Some_alt; simpl.
+      naive_solver.
+    + intros H1.
+      rewrite H1.
+      case_eq (inf_map I2 !! x).
+      * intros ? H2.
+        rewrite H2.
+        rewrite ?is_Some_alt; simpl.
+        naive_solver.
+      * intros H2.
+        rewrite H2.
         split.
-        all: intros tmp; contradict tmp.
-        all: unfold dom, flowint_dom; rewrite elem_of_dom.
-        all: try rewrite H1_rem; try rewrite H2_rem.
-        all: unfold lookup, gmap_lookup.
-        rewrite H1; exact is_Some_None.
-        rewrite H0; exact is_Some_None.
-      + intros H_not_comp H_not_comp_dec.
-        case_eq (decide (I1 = ∅)).
-        intros H1_empty.
+        apply or_introl.
+        intros.
         destruct H.
-        contradict H.
-        rewrite H1_empty.
-        unfold dom, flowint_dom; simpl.
-        rewrite elem_of_dom.
+        all: auto.
+  - intros.
+    case_eq (decide (I1 = ∅)).
+    + intros H1 H1_dec.
+      rewrite H1.
+      simpl.
+      rewrite lookup_empty.
+      split.
+      apply or_intror.
+      intros H_or; destruct H_or as [H_false | H2].
+      contradict H_false.
+      exact is_Some_None.
+      exact H2.
+    + intros H1 H1_dec.
+      case_eq (decide (I2 = ∅)).
+      * intros H2 H2_dec.
+        rewrite H2; simpl.
         rewrite lookup_empty.
+        split.
+        apply or_introl.
+        intros H_or; destruct H_or.
+        assumption.
+        contradict H0.
         exact is_Some_None.
-        intros _; assumption.
-        intros H1_not_empty H1_not_empty_dec.
-        case_eq (decide (I2 = ∅)).
-        intros H2_empty.
-        destruct H.
-        intros; assumption.
-        intros _.
-        contradict H.
-        rewrite H2_empty.
-        unfold dom, flowint_dom; simpl.
-        rewrite elem_of_dom.
-        rewrite lookup_empty.
-        exact is_Some_None.
-        intros H2_not_empty H2_not_empty_dec.
+      * intros H2 H2_dec.
         contradict H_valid.
         rewrite H_comp_eq.
         unfold op, intComp.
-        rewrite H_not_comp_dec.
-        rewrite H1_not_empty_dec.
-        rewrite H2_not_empty_dec.
-        now unfold valid, flowint_valid.
+        rewrite H. rewrite H1_dec. rewrite H2_dec.
+        exact intUndef_not_valid.
 Qed.
 
 Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
@@ -440,7 +377,6 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
 
 Hypothesis flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
-
 Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → domm I = domm I1 ∪ domm I2.
 Proof.
   apply intComp_dom.
