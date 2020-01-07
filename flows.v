@@ -291,9 +291,100 @@ Proof.
         exact intUndef_not_valid.
 Qed.
 
-Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
+Lemma intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
+Proof.
+  intros.
+  cut (∀ I, intUndef ⋅ I ≡ I ⋅ intUndef).
+  intros H_undef_comm.
+  destruct I1 as [ir1|] eqn:H_eq1, I2 as [ir2|] eqn:H_eq2; revgoals.
+  all: try rewrite H_undef_comm; auto.
+  unfold op, intComp; simpl.
+  case_eq (decide (intComposable (int ir1) (int ir2))).
+  - (* if composable *)
+    intros H_comp H_comp_dec.
+    rewrite decide_True; last rewrite intComposable_comm; auto.
+    f_equal.
+    f_equal.
+    + (* infR equality *)
+      rewrite map_eq_iff.
+      intros.
+      repeat rewrite gmap_imerge_prf; auto.
+      case_eq (infR ir1 !! i).
+      all: case_eq (infR ir2 !! i).
+      * (* i in both *)
+        intros f1 H_lookup2 f2 H_lookup1.
+        exfalso.
+        generalize H_comp.
+        unfold intComposable.
+        intros (_ & _ & H_false & _).
+        unfold domm, dom, flowint_dom in H_false.
+        simpl in *.
+        rewrite <- map_disjoint_dom in H_false.
+        generalize H_false. clear H_false.
+        rewrite map_disjoint_alt.
+        intros H_false.
+        assert (H_contra := H_false i).
+        destruct H_contra.
+        contradict H.
+        now rewrite H_lookup1.
+        contradict H.
+        now rewrite H_lookup2.
+      * (* in I1 but not in I2 *)
+        intros H_lookup2 f1 H_lookup1.
+        rewrite H_lookup1. rewrite H_lookup2.
+        auto.
+      * (* in I2 but not in I1 *)
+        intros f2 H_lookup2 H_lookup1.
+        rewrite H_lookup1. rewrite H_lookup2.
+        auto.
+      * (* in neither *)
+        intros H_lookup2 H_lookup1.
+        rewrite H_lookup1. rewrite H_lookup2.
+        auto.
+    + (* outR equality *)
+      rewrite map_eq_iff.
+      intros.
+      rewrite ?gmap_imerge_prf.
+      case_eq (outR ir1 !! i).
+      all: auto.
+      * intros f1 H_lookup1.
+        rewrite H_lookup1.
+        case_eq (outR ir2 !! i).
+        intros f2 H_lookup2.
+        rewrite H_lookup2.
+        f_equal.
+        apply ccm_comm.
+        intros H_lookup2.
+        rewrite H_lookup2.
+        auto.
+      * intros H_lookup1. rewrite H_lookup1.
+        intuition.
+  - (* if not composable *)
+    intros H_not_comp H_not_comp_dec.
+    symmetry.
+    rewrite decide_False; last by rewrite intComposable_comm.
+    case_eq (decide (int ir2 = ∅)).
+    case_eq (decide (int ir1 = ∅)).
+    all: auto.
+    intros.
+    now rewrite e e0.
+  - (* proof of H_undef_comm *)
+    intros.
+    rewrite intComp_undef_op.
+    unfold op, flowint_valid, intComp.
+    rewrite decide_False.
+    case (decide (I = ∅)).
+    all: auto.
+    intros _.
+    rewrite decide_False.
+    all: auto.
+    unfold intComposable.
+    rewrite ?not_and_l.
+    right. left.
+    exact intUndef_not_valid.
+Qed.
 
-Hypothesis intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
+Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
 
 Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 
