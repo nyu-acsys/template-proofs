@@ -189,7 +189,7 @@ Proof.
   auto.
 Qed.
 
-Lemma intComp_unit : ∀ (I: flowintT), ✓ I → I ⋅ I_empty ≡ I.
+Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 Proof.
   intros.
   unfold op, intComp.
@@ -212,6 +212,8 @@ Proof.
     rewrite decide_False.
     rewrite decide_True.
     all: auto.
+    unfold not; intros (H_false & _).
+    contradict H_false.
   - intros.
     case y.
     2: auto.
@@ -458,7 +460,7 @@ Proof.
     unfold Comm. eauto using intComp_comm.
   - (* Core-ID *)
     intros x cx.
-    destruct cx; unfold pcore, flowintRAcore; destruct x;
+    destruct cx eqn:?; unfold pcore, flowintRAcore; destruct x eqn:?;
       try (intros H; inversion H).
     + rewrite intComp_comm. apply intComp_unit.
     + apply intComp_undef_op.
@@ -480,7 +482,7 @@ Proof.
       rewrite <- H0 in H.
       inversion H.
   - (* Valid-Op *)
-    intros x y. unfold valid. apply intComp_valid2.
+    intros x y. unfold valid. apply intComp_valid_proj1.
 Qed.
 
 
@@ -499,11 +501,11 @@ Qed.
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof.
   split; try apply _; try done.
-  - unfold ε, flowintRAunit, valid. apply intEmp_valid.
-  - unfold LeftId. intros x. unfold ε, flowintRAunit. simpl.
-    destruct x.
-    + rewrite intComp_comm. by rewrite intComp_unit.
-    + rewrite intComp_comm. by rewrite intComp_unit.
+  unfold ε, flowintRAunit, valid.
+  unfold LeftId.
+  intros I.
+  rewrite intComp_comm.
+  apply intComp_unit.
 Qed.
 
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
