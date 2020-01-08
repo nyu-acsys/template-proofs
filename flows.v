@@ -144,6 +144,32 @@ Qed.
 Lemma intUndef_not_valid : ¬ ✓ intUndef.
 Proof. unfold valid, flowint_valid; auto. Qed.
 
+Lemma intComposable_invalid : ∀ I1 I2, ¬ ✓ I1 → ¬ (intComposable I1 I2).
+Proof.
+  intros.
+  unfold intComposable.
+  unfold not.
+  intros H_false.
+  destruct H_false as [H_false _].
+  now contradict H_false.
+Qed.
+
+Lemma intComp_invalid : ∀ I1 I2: flowintT, ¬ ✓ I1 → ¬ ✓ (I1 ⋅ I2).
+Proof.
+  intros.
+  unfold op, intComp.
+  rewrite decide_False; last by apply intComposable_invalid.
+  rewrite decide_False; last first.
+  unfold not; intros H_false.
+  contradict H.
+  rewrite H_false.
+  apply intEmp_valid.
+  destruct (decide (I2 = ∅)).
+  auto.
+  apply intUndef_not_valid.
+Qed.
+
+
 Lemma intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
 Proof.
   intros.
@@ -384,7 +410,32 @@ Proof.
     exact intUndef_not_valid.
 Qed.
 
-Hypothesis intComp_valid2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
+Lemma intComp_unit2 : ∀ I : flowintT, ✓ I → I_empty ⋅ I ≡ I.
+Proof.
+  intros.
+  rewrite intComp_comm.
+  now apply intComp_unit.
+Qed.
+
+Lemma intComp_valid_proj1 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
+Proof.
+  intros I1 I2.
+  rewrite <- Decidable.contrapositive.
+  apply intComp_invalid.
+  unfold Decidable.decidable.
+  generalize (flowint_valid_dec I1).
+  unfold Decision.
+  intros.
+  destruct H.
+  all: auto.
+Qed.
+
+Lemma intComp_valid_proj2 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I2.
+Proof.
+  intros I1 I2.
+  rewrite intComp_comm.
+  apply intComp_valid_proj1.
+Qed.
 
 Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 
