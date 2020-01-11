@@ -1,4 +1,4 @@
-Add LoadPath "/home/nisarg/Academics/templates".
+(* Add LoadPath "/home/nrp364/academics/templates-iris". *)
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import tactics.
 Set Default Proof Using "All".

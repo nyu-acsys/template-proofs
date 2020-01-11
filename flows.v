@@ -148,8 +148,10 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
   | _ => False
   end.
 
-Hypothesis flowint_update : ∀ I I_n I_n',
+Lemma flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
+Proof.
+Admitted.
 
 Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → dom I = dom I1 ∪ dom I2.
 Proof.
