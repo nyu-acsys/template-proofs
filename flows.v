@@ -17,7 +17,9 @@ Require Import Coq.Setoids.Setoid.
 
 Definition Node := positive.
 
-Parameter FlowDom: CCM.
+Section flowint.
+
+Variable FlowDom: CCM.
 
 Definition flowdom := @ccm_car FlowDom.
 Local Notation "x + y" := (@ccm_op FlowDom x y).
@@ -459,7 +461,9 @@ Proof.
   apply intComp_valid_proj1.
 Qed.
 
-Hypothesis intComp_assoc : ∀ (I1 I2 I3: flowintT), I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
+Lemma intComp_assoc : Assoc (≡) intComp.
+Proof.
+Admitted.
 
 Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -475,7 +479,7 @@ Proof.
   - (* Core is unique? *)
     intros ? ? cx -> ?. exists cx. done.
   - (* Associativity *)
-    unfold Assoc. eauto using intComp_assoc.
+    eauto using intComp_assoc.
   - (* Commutativity *)
     unfold Comm. eauto using intComp_comm.
   - (* Core-ID *)
@@ -544,3 +548,6 @@ Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → domm I = domm I1
 Proof.
   apply intComp_dom.
 Qed.
+
+End flowint.
+

@@ -96,7 +96,7 @@ Proof.
   lia.
 Qed.
 
-Instance NatCCM : CCM := { ccm_car := nat }.
+Instance nat_ccm : CCM := { ccm_car := nat }.
 
 (** * Products of CCMs are CCMs *)
 
@@ -212,7 +212,7 @@ End product.
 (** * Lifting any CCM A to functions f: K → A yields a CCM. Here, we assume that f k ≠ 0 for finitely many k. Moreover, K must be countable. *)
 
 Section lifting.
-  Context `{Countable K} (C : CCM).
+  Context K `{Countable K} (C : CCM).
 
   Local Definition A := @ccm_car C.
   
