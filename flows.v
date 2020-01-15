@@ -502,7 +502,7 @@ Proof.
       rewrite <- H0 in H.
       inversion H.
   - (* Valid-Op *)
-    intros x y. unfold valid. apply intComp_valid2.
+    intros x y. unfold valid. apply intComp_valid_proj1.
 Qed.
 
 
@@ -521,7 +521,6 @@ Qed.
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof.
   split; try apply _; try done.
-  - unfold ε, flowintRAunit, valid. apply intEmp_valid.
   - unfold LeftId. intros x. unfold ε, flowintRAunit. simpl.
     destruct x.
     + rewrite intComp_comm. by rewrite intComp_unit.
