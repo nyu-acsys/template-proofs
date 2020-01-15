@@ -189,7 +189,7 @@ Proof.
   auto.
 Qed.
 
-Lemma intComp_unit : ∀ (I: flowintT), ✓ I → I ⋅ I_empty ≡ I.
+Lemma intComp_unit_valid : ∀ (I: flowintT), ✓ I → I ⋅ I_empty ≡ I.
 Proof.
   intros.
   unfold op, intComp.
@@ -237,6 +237,28 @@ Proof.
     rewrite ccm_pinv_unit.
     all: easy.
 Qed.
+
+Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
+Proof.
+  intros.
+  assert (✓ I ∨ ¬ ✓ I).
+  destruct (decide (✓ I)); auto.
+  case H; intro.
+  - apply intComp_unit_valid. auto.
+  - unfold op, intComp.
+    destruct (decide (intComposable _ _)).
+    * unfold intComposable in i.
+      destruct i.
+      contradiction.
+    * destruct (decide _).
+      trivial.
+      destruct (decide _).
+      trivial.
+      assert (I_empty = ∅).
+      trivial.
+      contradiction.
+Qed.
+    
 
 Lemma intComposable_comm_1 : ∀ (I1 I2 : flowintT), intComposable I1 I2 → intComposable I2 I1.
 Proof.
