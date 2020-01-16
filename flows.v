@@ -1,14 +1,8 @@
-From iris.program_logic Require Export weakestpre.
-From iris.base_logic.lib Require Export invariants.
-From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode.
-From iris.heap_lang Require Import notation lang.
-From iris.heap_lang.lib Require Import par.
-From iris.algebra Require Export auth agree.
+From iris.algebra Require Export auth.
 
 From stdpp Require Export gmap.
-From stdpp Require Import mapset.
-From stdpp Require Import finite.
+From stdpp Require Import mapset finite.
 Require Export ccm gmap_more.
 
 Require Import Coq.Setoids.Setoid.
