@@ -19,12 +19,14 @@ Definition Node := positive.
 
 Section flowint.
 
-Variable FlowDom: CCM.
+Context `{CCM flowdom}.
 
-Definition flowdom := @ccm_car FlowDom.
+Open Scope ccm_scope.
+
+(*Definition flowdom := @ccm_car FlowDom.
 Local Notation "x + y" := (@ccm_op FlowDom x y).
 Local Notation "x - y" := (@ccm_opinv FlowDom x y).
-Local Notation "0" := (@ccm_unit FlowDom).
+Local Notation "0" := (@ccm_unit FlowDom).*)
 
 
 Record flowintR :=
@@ -68,7 +70,7 @@ Instance flowint_elem_of : ElemOf Node flowintT :=
 
 Instance flowdom_eq_dec: EqDecision flowdom.
 Proof.
-  apply (@ccm_eq FlowDom).
+  apply ccm_eq.
 Qed.
 
 Canonical Structure flowintRAC := leibnizO flowintT.
@@ -162,8 +164,8 @@ Proof.
   unfold op, intComp.
   rewrite decide_False; last by apply intComposable_invalid.
   rewrite decide_False; last first.
-  unfold not; intros H_false.
-  contradict H.
+  unfold not. intros H_false.
+  contradict H0.
   rewrite H_false.
   apply intEmp_valid.
   destruct (decide (I2 = ∅)).
@@ -245,7 +247,7 @@ Proof.
   intros.
   assert (✓ I ∨ ¬ ✓ I).
   destruct (decide (✓ I)); auto.
-  case H; intro.
+  case H0; intro.
   - apply intComp_unit_valid. auto.
   - unfold op, intComp.
     destruct (decide (intComposable _ _)).
@@ -268,8 +270,8 @@ Proof.
   unfold intComposable.
   repeat split.
   3: apply disjoint_intersection; rewrite intersection_comm_L; apply disjoint_intersection.
-  unfold intComposable in H.
-  all: try apply H.
+  unfold intComposable in H0.
+  all: try apply H0.
 Qed.
 
 Lemma intComposable_comm : ∀ (I1 I2 : flowintT), intComposable I1 I2 ↔ intComposable I2 I1.
@@ -293,23 +295,23 @@ Proof.
     rewrite gmap_imerge_prf; auto.
     case_eq (inf_map I1 !! x).
     + intros ? H1.
-      rewrite H1.
+      (*rewrite H1.*)
       rewrite ?is_Some_alt; simpl.
       naive_solver.
     + intros H1.
-      rewrite H1.
+      (*rewrite H1.*)
       case_eq (inf_map I2 !! x).
       * intros ? H2.
-        rewrite H2.
+        (*rewrite H2.*)
         rewrite ?is_Some_alt; simpl.
         naive_solver.
       * intros H2.
-        rewrite H2.
+        (*rewrite H2.*)
         split.
         apply or_introl.
         intros.
         destruct H.
-        all: auto.
+        all: clear - H0; firstorder.
   - intros.
     case_eq (decide (I1 = ∅)).
     + intros H1 H1_dec.
@@ -331,13 +333,13 @@ Proof.
         apply or_introl.
         intros H_or; destruct H_or.
         assumption.
-        contradict H0.
+        contradict H3.
         exact is_Some_None.
       * intros H2 H2_dec.
         contradict H_valid.
         rewrite H_comp_eq.
         unfold op, intComp.
-        rewrite H. rewrite H1_dec. rewrite H2_dec.
+        rewrite H0. rewrite H1_dec. rewrite H2_dec.
         exact intUndef_not_valid.
 Qed.
 
@@ -375,21 +377,21 @@ Proof.
         intros H_false.
         assert (H_contra := H_false i).
         destruct H_contra.
-        contradict H.
+        contradict H0.
         now rewrite H_lookup1.
-        contradict H.
+        contradict H0.
         now rewrite H_lookup2.
       * (* in I1 but not in I2 *)
         intros H_lookup2 f1 H_lookup1.
-        rewrite H_lookup1. rewrite H_lookup2.
+        (*rewrite H_lookup1. rewrite H_lookup2.*)
         auto.
       * (* in I2 but not in I1 *)
         intros f2 H_lookup2 H_lookup1.
-        rewrite H_lookup1. rewrite H_lookup2.
+        (*rewrite H_lookup1. rewrite H_lookup2.*)
         auto.
       * (* in neither *)
         intros H_lookup2 H_lookup1.
-        rewrite H_lookup1. rewrite H_lookup2.
+        (*rewrite H_lookup1. rewrite H_lookup2.*)
         auto.
     + (* outR equality *)
       rewrite map_eq_iff.
@@ -398,17 +400,15 @@ Proof.
       case_eq (outR ir1 !! i).
       all: auto.
       * intros f1 H_lookup1.
-        rewrite H_lookup1.
+        (*rewrite H_lookup1.*)
         case_eq (outR ir2 !! i).
         intros f2 H_lookup2.
-        rewrite H_lookup2.
+        (*rewrite H_lookup2.*)
         f_equal.
         apply ccm_comm.
         intros H_lookup2.
-        rewrite H_lookup2.
+        (*rewrite H_lookup2.*)
         auto.
-      * intros H_lookup1. rewrite H_lookup1.
-        intuition.
   - (* if not composable *)
     intros H_not_comp H_not_comp_dec.
     symmetry.
@@ -450,7 +450,7 @@ Proof.
   generalize (flowint_valid_dec I1).
   unfold Decision.
   intros.
-  destruct H.
+  destruct H0.
   all: auto.
 Qed.
 
@@ -464,6 +464,31 @@ Qed.
 Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
 Admitted.
+
+Lemma intComp_unfold_inf_1 : ∀ (I1 I2: flowintT),
+    ✓ (I1 ⋅ I2) → 
+    ∀ n, n ∈ domm I1 → inf I1 n = inf (I1 ⋅ I2) n + out I2 n.
+Proof.
+Admitted.
+
+Lemma intComp_unfold_inf_2 : ∀ (I1 I2: flowintT),
+    ✓ (I1 ⋅ I2) → 
+    ∀ n, n ∈ domm I2 → inf I2 n = inf (I1 ⋅ I2) n + out I1 n.
+Proof.
+  intros.
+  rewrite intComp_comm.
+  apply intComp_unfold_inf_1.
+  rewrite intComp_comm.
+  trivial.
+  exact H1.
+Qed.
+
+Lemma intComp_unfold_out : ∀ (I1 I2: flowintT),
+    ✓ (I1 ⋅ I2) → 
+    ∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n.
+Proof.
+Admitted.
+
 
 Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -485,26 +510,26 @@ Proof.
   - (* Core-ID *)
     intros x cx.
     destruct cx; unfold pcore, flowintRAcore; destruct x;
-      try (intros H; inversion H).
+    try (intros H0; inversion H0).
     + rewrite intComp_comm. apply intComp_unit.
     + apply intComp_undef_op.
   - (* Core-Idem *)
     intros x cx.
     destruct cx; unfold pcore, flowintRAcore; destruct x;
-      try (intros H; inversion H); try done.
+      try (intros H0; inversion H0); try done.
   - (* Core-Mono *)
     intros x y cx.
-    destruct cx; unfold pcore, flowintRAcore; destruct x; intros H;
+    destruct cx; unfold pcore, flowintRAcore; destruct x; intros H0;
       intros H1; inversion H1; destruct y; try eauto.
     + exists I_empty. split; try done.
       exists (int I_emptyR). by rewrite intComp_unit.
     + exists intUndef. split; try done. exists intUndef.
       rewrite intComp_comm. by rewrite intComp_unit.
     + exists I_empty. split; try done.
-      destruct H as [a H].
+      destruct H0 as [a H0].
       assert (intUndef ≡ intUndef ⋅ a); first by rewrite intComp_undef_op.
-      rewrite <- H0 in H.
-      inversion H.
+      rewrite <- H0 in H2.
+      inversion H2.
   - (* Valid-Op *)
     intros x y. unfold valid. apply intComp_valid_proj1.
 Qed.
@@ -531,7 +556,13 @@ Proof.
     + rewrite intComp_comm. by rewrite intComp_unit.
 Qed.
 
-Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
+End flowint.
+
+Section cmra.
+
+Context (flowdom: Type) `{CCM flowdom}.
+
+Canonical Structure flowintUR : ucmraT := UcmraT (@flowintT flowdom) flowint_ucmra_mixin.
 
 Parameter contextualLeq : flowintUR → flowintUR → Prop.
 
@@ -549,5 +580,4 @@ Proof.
   apply intComp_dom.
 Qed.
 
-End flowint.
-
+End cmra.
