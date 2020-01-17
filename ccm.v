@@ -39,9 +39,9 @@ Open Scope ccm_scope.
 Class CCM (M: Type) :=
   {
     ccm_eq : EqDecision M;
-    ccm_unit : CcmUnit M;
-    ccm_op: CcmOp M;
-    ccm_opinv: CcmOpInv M;
+    ccm_unit : CcmUnit M; (* 0 *)
+    ccm_op: CcmOp M; (* (+) *)
+    ccm_opinv: CcmOpInv M; (* (-) *)
     ccm_assoc : Assoc (=) (+);
     ccm_comm : Comm (=) (+);
     ccm_left_id : LeftId (=) 0 (+);
@@ -219,8 +219,9 @@ Section lifting.
   Context K `{Countable K} A `{CCM A}.
 
   Open Scope ccm_scope.
+
   (* To obtain unique representations, we represent functions f: K → A
-  as gmaps g where f k = 0 ↔ g !! k = None *)
+   * as g: gmap K A where f k = 0 ↔ g !! k = None *)
 
   Definition nzmap_wf : gmap K A → Prop :=
     map_Forall (λ _ x, ¬ (x = 0)).
@@ -260,11 +261,33 @@ Section lifting.
   Defined.
 
   Global Instance nzmap_lookup : Lookup K A nzmap := λ i m,
-  let (m,_) := m in m !! i.
+  let (m, _) := m in m !! i.
 
   Global Instance nzmap_dom : Dom nzmap (gset K) :=
-  λ m, dom (gset K) (nzmap_car m).
+    λ m, dom (gset K) (nzmap_car m).
+
+  Lemma nzmap_is_wf m : nzmap_wf (nzmap_car m).
+  Proof.
+    destruct m.
+    simpl.
+    unfold bool_decide, nzmap_wf_decision in nzmap_prf0.
+    unfold nzmap_wf.
+    destruct map_Forall_dec.
+    trivial.
+    contradiction.
+  Qed.    
   
+  (** TODO: The following lemma should really not be needed. *)
+  Lemma nzmap_elem_of_dom (m : nzmap) i : i ∈ dom (gset K) m ↔ is_Some (m !! i).
+  Proof.
+    unfold lookup.
+    unfold nzmap_lookup, nzmap_dom.
+    destruct m.
+    simpl.
+    rewrite elem_of_dom.
+    reflexivity.
+  Qed.
+
   Lemma nzmap_lookup_wf m i : nzmap_wf m → m !! i <> Some 0.
   Proof.
     intros.

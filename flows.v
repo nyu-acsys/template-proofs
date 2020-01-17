@@ -477,9 +477,9 @@ Proof.
   exact H1.
 Qed.
 
-Lemma intComp_unfold_out : ∀ (I1 I2: flowintT),
-    ✓ (I1 ⋅ I2) → 
-    ∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n.
+Lemma intComp_unfold_out I1 I2 :
+  ✓ (I1 ⋅ I2) → 
+  (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
 Proof.
 Admitted.
 
@@ -566,6 +566,22 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
                         ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
   | _ => False
   end.
+
+Lemma flowint_valid_unfold (I : flowintUR) : ✓ I → ∃ Ir, I = int Ir ∧ infR Ir ##ₘ outR Ir
+                                                      ∧ (infR Ir = ∅ → outR Ir = ∅).
+Proof.
+  intros.
+  unfold valid, cmra_valid in H0.
+  simpl in H0.
+  unfold ucmra_valid in H0.
+  simpl in H0.
+  unfold flowint_valid in H0.
+  destruct I.
+  - exists f.
+    naive_solver.
+  - contradiction.
+Qed.
+
 
 Hypothesis flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
