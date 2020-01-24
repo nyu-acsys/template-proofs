@@ -9,7 +9,7 @@ Require Import Coq.Setoids.Setoid.
 
 (* ---------- Flow Interface encoding and camera definitions ---------- *)
 
-Definition Node := positive.
+Definition Node := nat.
 
 Section flowint.
 

@@ -266,6 +266,12 @@ Section lifting.
   Global Instance nzmap_dom : Dom nzmap (gset K) :=
     λ m, dom (gset K) (nzmap_car m).
 
+  Definition nzmap_unit := NZMap ∅ I.
+  
+  Instance lift_unit : CcmUnit nzmap := nzmap_unit.
+    
+  Instance nzmap_empty : Empty nzmap := nzmap_unit.
+
   Lemma nzmap_is_wf m : nzmap_wf (nzmap_car m).
   Proof.
     destruct m.
@@ -294,12 +300,62 @@ Section lifting.
     unfold nzmap_wf, map_Forall in H0.
     firstorder.
   Qed.
+
+  Definition nzmap_total_lookup i (m : nzmap) := default 0 (m !! i).
+
+  Notation "m ! i" := (nzmap_total_lookup i m) (at level 20).
   
   Instance op_zero_dec `(x1 : A, x2 : A) : Decision (x1 + x2 = 0).
   Proof.
     apply ccm_eq.
   Defined.
 
+  Lemma nzmap_elem_of_dom_total (m : nzmap) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
+  Proof.
+    pose proof (nzmap_is_wf m) as m_wf.
+    unfold nzmap_total_lookup, default.
+    split.
+    - intro.
+      apply nzmap_elem_of_dom in H1.
+      unfold is_Some in H1.
+      destruct H1 as [x ?].
+      rewrite H1.
+      apply (nzmap_lookup_wf (nzmap_car m) i) in m_wf.
+      unfold lookup, nzmap_lookup in H1.
+      destruct m. simpl in m_wf.
+      unfold id.
+      rewrite H1 in m_wf.
+      naive_solver.
+    - intros.
+      rewrite nzmap_elem_of_dom.
+      destruct (m !! i).
+      naive_solver.
+      contradiction.
+  Qed.      
+
+  Lemma nzmap_empty_lookup (m: nzmap) : m <> ∅ ↔ ∃ i, m ! i <> 0.
+  Proof.
+    pose proof (nzmap_is_wf m).
+    split.
+    - intros.
+      destruct m.
+      rewrite nzmap_eq in H2 *; intros; simpl in H1.
+      unfold empty in H2.
+      Transparent nzmap_empty.
+      unfold nzmap_empty, nzmap_unit in H2.
+      simpl in H2.
+      apply map_choose in H2.
+      destruct H2 as [i [x H2]].
+      pose proof (nzmap_lookup_wf nzmap_car0 i).
+      apply H3 in H1.
+      exists i.
+      unfold nzmap_total_lookup.
+      unfold default, lookup, nzmap_lookup.
+      rewrite H2.
+      naive_solver.
+    - naive_solver.
+  Qed.
+  
   Definition merge_op (o1: option A) (o2: option A) :=
     match o1, o2 with
     | Some x1, Some x2 =>
@@ -468,12 +524,6 @@ Section lifting.
     - apply ccm_assoc.
   Defined.
 
-  Definition nzmap_unit := NZMap ∅ I.
-  
-  Instance nzmap_empty : Empty nzmap := nzmap_unit.
-  Global Opaque nzmap_empty.
-
-  Instance lift_unit : CcmUnit nzmap := nzmap_unit.
   
   Instance lift_leftid: LeftId (=) 0 lift_op.
   Proof.
@@ -623,7 +673,42 @@ Section lifting.
   Defined.
 
   Program Instance lift_ccm : CCM nzmap := { }.
-                                
+
+  Lemma lookup_plus m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
+  Proof.
+    unfold ccm_op,ccmop at 1.
+    unfold lift_op.
+    pose proof (nzmap_is_wf m1).
+    pose proof (nzmap_is_wf m2).
+    destruct m1.
+    destruct m2.
+    simpl in H1.
+    simpl in H2.
+    unfold nzmap_total_lookup.
+    unfold lookup.
+    unfold nzmap_lookup.
+    rewrite lookup_merge.
+    unfold merge_op.
+    case_eq (nzmap_car0 !! i); intros; case_eq (nzmap_car1 !! i); intros;
+    pose proof (nzmap_lookup_wf nzmap_car0 i H1);
+    pose proof (nzmap_lookup_wf nzmap_car1 i H2);
+    rewrite H3 in H5;
+    rewrite H4 in H6;
+    try destruct decide;
+    unfold default, id;
+    try rewrite ccm_right_id;
+    try rewrite ccm_left_id;
+    eauto.
+  Qed.
+
+  Lemma lift_lookup_empty i : (0 : nzmap) !! i = None.
+  Proof.
+    unfold ccmunit, ccm_unit, lift_unit, nzmap_unit.
+    unfold lookup, nzmap_lookup.
+    apply lookup_empty.
+  Qed.
+
+  Global Opaque nzmap_empty.
 End lifting.
 
 Arguments NZMap {_ _ _ _ _} _ _ : assert.

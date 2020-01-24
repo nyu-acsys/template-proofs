@@ -2,14 +2,18 @@ Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
 Require Export flows ccm.
 
-(** CCM of multisets over natural numbers *)
-Definition int_multiset := nzmap Z nat.
+Section inset_flows.
 
-Instance int_multiset_ccm : CCM int_multiset := lift_ccm Z nat.
+Context `{Countable K}.
+  
+(** CCM of multisets over keys numbers *)
+Definition K_multiset := nzmap K nat.
 
-Definition dom_ms (m : int_multiset) := nzmap_dom Z nat m.
+Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
-Canonical Structure inset_flowint_ur : ucmraT := flowintUR int_multiset.
+Definition dom_ms (m : K_multiset) := nzmap_dom K nat m.
+
+Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
 
 Implicit Type I : inset_flowint_ur.
 
@@ -27,24 +31,28 @@ Definition in_outsets k In := ∃ n, in_outset k In n.
 
 Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
 Proof.
-  intros.
+  intros ? ? ? k_in_inset k_not_in_outsets.
   unfold keyset.
-  unfold inset in H.
-  unfold in_outsets in H0.
+  unfold inset in k_in_inset.
+  unfold in_outsets in k_not_in_outsets.
   rewrite elem_of_difference.
   naive_solver.
 Qed.
 
-Definition globalinv root I : Prop := ✓I ∧ (root ∈ domm I) ∧ (∀ k n, k ∉ outset I n) 
-                                      ∧ ∀ n, ((n = root) → (∀ k, k ∈ inset I n))
-                                             ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).  
+Definition globalinv root I :=
+  ✓I
+  ∧ (root ∈ domm I)
+  ∧ (∀ k n, k ∉ outset I n) 
+  ∧ ∀ n, ((n = root) → (∀ k, k ∈ inset I n))
+         ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).  
 
 Lemma flowint_step :
-  ∀ I I1 I2 k n root, globalinv root I → I = I1 ⋅ I2 → k ∈ outset I1 n → n ∈ domm I2.
+  ∀ I I1 I2 k n root,
+    globalinv root I → I = I1 ⋅ I2 → k ∈ outset I1 n → n ∈ domm I2.
 Proof.
   intros I I1 I2 k n r gInv dI kOut.
   unfold globalinv in gInv.
-  destruct gInv as [vI [rI [cI H]]].
+  destruct gInv as [vI [rI [cI globalInf]]].
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
   eauto using intComp_dom.
@@ -60,19 +68,15 @@ Proof.
   
   assert (is_Some (out I1 n !! k)) as out1nk.
   unfold outset, dom_ms, nzmap_dom in kOut.
-  by rewrite nzmap_elem_of_dom in kOut *.
-
+    by rewrite nzmap_elem_of_dom in kOut *.
   assert (is_Some (outR Ir1 !! n)) as out1n.
   unfold out, out_map in out1nk.
   rewrite dI1 in out1nk.
-  destruct (outR Ir1 !! n).
-  eauto.
-  lazy in out1nk.
+  destruct (outR Ir1 !! n); eauto.
+  unfold default in out1nk.
+  rewrite lift_lookup_empty in out1nk.
+  unfold is_Some in out1nk.
   destruct out1nk.
-  Transparent gmap_empty.
-  unfold gmap_empty in H0.
-  unfold empty in H0.
-  simpl in H0.
   inversion H0.
 
   assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
@@ -102,7 +106,7 @@ Proof.
   rewrite dI. reflexivity.
   rewrite n0 in H1.
   unfold ccmop, ccm_op in H1.
-  unfold int_multiset_ccm in H1.
+  unfold K_multiset_ccm in H1.
   unfold lift_ccm in H1.
   unfold lift_op in H1.
   case_eq (out I1 n).
@@ -165,3 +169,17 @@ Proof.
   rewrite elem_of_union in dom_I_n *.
   naive_solver.
 Qed.
+
+End inset_flows.
+
+Check inset_flowint_ur.
+
+Arguments inset_flowint_ur _ {_ _} : assert.
+Arguments inset _ {_ _} _ _ : assert.
+Arguments outset _ {_ _} _ _ : assert.
+Arguments keyset _ {_ _} _ _ : assert.
+Arguments in_inset _ {_ _} _ _ _ : assert.
+Arguments in_outset _ {_ _} _ _ _ : assert.
+Arguments in_outsets _ {_ _} _ _ : assert.
+Arguments globalinv _ {_ _} _ _ : assert.
+
