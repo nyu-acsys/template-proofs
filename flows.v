@@ -490,20 +490,20 @@ Proof.
   intros Ir Idef. rewrite Idef in V.
   unfold op, intComp in Idef.
   destruct (decide (intComposable I1 I2)).
-  unfold inf.
-  rewrite <- Idef.
-  unfold inf_map at 1; simpl.
-  rewrite gmap_imerge_prf.
-  rewrite D.
-  unfold default, id.
-  rewrite ccm_comm in H1.
-  trivial.
-  intro.
-  trivial.
-  contradiction.
-  intros.
-  rewrite H2 in V.
-  contradiction.
+  - unfold inf.
+    rewrite <- Idef.
+    unfold inf_map at 1; simpl.
+    rewrite gmap_imerge_prf.
+    + rewrite D.
+      unfold default, id.
+      rewrite ccm_comm in H1.
+      trivial.
+    + intro.
+      trivial.
+  - contradiction.
+  - intros.
+    rewrite H2 in V.
+    contradiction.
 Qed.
 
 Lemma intComp_unfold_inf_2 : ∀ (I1 I2: flowintT),
