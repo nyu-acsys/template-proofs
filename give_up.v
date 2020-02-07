@@ -7,7 +7,7 @@ From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
-Require Export flows keyset_ra.
+Require Export keyset_ra inset_flows.
 
 (* ---------- The program ---------- *)
 
@@ -54,9 +54,15 @@ Definition CCSOp (Ψ: dOp) (root: Node) : val :=
 
 (* ---------- Cameras used in the following proofs ---------- *)
 
+Definition K := Z.
+
+Section give_up_cameras.
+
+(*Context `{Countable K}.*)
+  
 (* RA for authoritative flow interfaces *)
-Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR flowintUR) }.
-Definition flowintΣ : gFunctors := #[GFunctor (authR flowintUR)].
+Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
+Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
 
 Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
 Proof. solve_inG. Qed.
@@ -69,11 +75,13 @@ Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
 Proof. solve_inG. Qed.
 
 (* RA for pair of keysets and contents *)
-Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR)) }.
-Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR))].
+Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
+Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
 
 Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
 Proof. solve_inG. Qed.
+
+End give_up_cameras.
 
 Section Give_Up_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
@@ -83,40 +91,39 @@ Section Give_Up_Template.
   
 
   (* The following parameters are defined in the GRASShopper file give-up.spl *)
-  Parameter in_inset : key → flowintUR → Node → Prop.
-  Parameter in_outset : key → flowintUR → Node → Prop.
-  Parameter keyset : flowintUR → Node → gset key.
+  (*Parameter in_inset : K → flowintUR K → Node → Prop.
+  Parameter in_outset : K → flowintUR K → Node → Prop.
+  Parameter keyset : flowintUR → Node → gset K.*)
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
-  Parameter node : Node → flowintUR → gset key → iProp.
+  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a first-order separation logic. *)
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
-  Definition in_outsets k In := ∃ n, in_outset k In n.
 
   (* The global invariant ϕ.
    * See also give-up.spl for the matching GRASShopper definition *)
-  Definition globalinv root I : Prop := ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
-                                  ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n))
-                                      ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n)).  
+  (*Definition globalinv root I : Prop := ✓I ∧ (root ∈ domm I) ∧ (∀ k n, ¬ (in_outset K k I n)) 
+                                  ∧ ∀ n, ((n = root) → (∀ k, in_inset K k I n))
+                                      ∧ ((n ≠ root) → (∀ k, ¬ in_inset K k I n)).  *)
 
   (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
-  Hypothesis keyset_def : ∀ k I_n n, in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
+  (*Hypothesis keyset_def : ∀ k I_n n, in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.*)
 
   (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
-  Hypothesis flowint_step :
-    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.
+  (*Hypothesis flowint_step :
+    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.*)
   
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
 
   (** Coarse-grained specification *)
 
-  Definition Ψ dop k (C: gsetO key) (C': gsetO key) (res: bool) : iProp :=
+  Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp :=
     match dop with
     | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
@@ -137,50 +144,50 @@ Section Give_Up_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl *)
 
-  Parameter inRange_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
+  Parameter inRange_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
       ({{{ node n I_n C }}}
            inRange #n #k
-       {{{ (b: bool), RET #b; node n I_n C ∗ (match b with true => ⌜in_inset k I_n n⌝ |
+       {{{ (b: bool), RET #b; node n I_n C ∗ (match b with true => ⌜in_inset K k I_n n⌝ |
                                     false => ⌜True⌝ end) }}})%I.
 
   (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
-  Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
-      ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝ }}}
+  Parameter findNext_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
+      ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
            findNext #n #k
        {{{ (b: bool) (n': Node), 
               RET (match b with true => (SOMEV #n') | false => NONEV end); 
-               node n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
-                                          false => ⌜¬in_outsets k I_n⌝ end) }}})%I.
+               node n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
+                                          false => ⌜¬in_outsets K k I_n⌝ end) }}})%I.
 
-  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: key) (I_n: flowintUR) (C: gset key),
-      ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝
-                    ∗ ⌜¬in_outsets k I_n⌝ ∗ ⌜dom I_n = {[n]}⌝ }}}
+  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K) (I_n: inset_flowint_ur K) (C: gset K),
+      ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝
+                    ∗ ⌜¬in_outsets K k I_n⌝ ∗ ⌜domm I_n = {[n]}⌝ }}}
            decisiveOp dop #n #k
-       {{{ (b: bool) (C': gset key) (res: bool),
+       {{{ (b: bool) (C': gset K) (res: bool),
                   RET (match b with false => NONEV | true => (SOMEV #res) end);
                   match b with false => node n I_n C |
-                              true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset I_n n⌝ end }}})%I.
+                              true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset K I_n n⌝ end }}})%I.
 
   (** The concurrent search structure invariant *)
 
-  Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset key)
+  Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset K)
     : iProp :=
-       ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv root I⌝
-        ∗ ([∗ set] n ∈ (dom I), (∃ b: bool, (lockLoc n) ↦ #b ∗ if b then True
-                                 else (∃ (I_n: flowintUR) (C_n: gset key), own γ (◯ I_n) ∗ node n I_n C_n 
-                                                ∗ ⌜dom I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset I_n n, C_n)))))
-        ∗ own γ_fp (● dom I)
+       ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv K root I⌝
+        ∗ ([∗ set] n ∈ (domm I), (∃ b: bool, (lockLoc n) ↦ #b ∗ if b then True
+                                 else (∃ (I_n: inset_flowint_ur K) (C_n: gset K), own γ (◯ I_n) ∗ node n I_n C_n 
+                                                ∗ ⌜domm I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset K I_n n, C_n)))))
+        ∗ own γ_fp (● domm I)
     )%I.
 
   Definition is_CCS γ γ_fp γ_k root C := (∃ I, (main_CCS γ γ_fp γ_k root I C))%I.
 
   (* ---------- Assorted useful lemmas ---------- *)
 
-  Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ dom I.
+  Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
   Proof. 
     intros I root Hglob. unfold globalinv in Hglob.
     destruct Hglob as [H1 [H2 H3]]. done.
-  Qed.    
+  Qed.
 
   Lemma auth_set_incl γ_fp Ns Ns' :
     own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.
@@ -192,13 +199,7 @@ Section Give_Up_Template.
     apply to_agree_inj in H1. set_solver.
   Qed.
 
-  Lemma auth_own_incl γ (x y: flowintUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    apply auth_both_valid.
-  Qed.
-
-  Lemma auth_own_incl_ks γ (x y: keysetUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Lemma auth_own_incl_ks γ (x y: keysetUR K) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
     simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
@@ -207,6 +208,13 @@ Section Give_Up_Template.
     { rewrite /(⋅) /=. destruct y; try done. }
     rewrite Hy in Hb. rewrite <- Ha in Hb. done.
   Qed.
+  
+  Lemma auth_own_incl γ (x y: inset_flowint_ur K) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Proof.
+    rewrite -own_op. rewrite own_valid. iPureIntro.
+    apply auth_both_valid.
+  Qed.
+
   
   (* ---------- Lock module proofs ---------- *)
 
