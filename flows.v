@@ -238,7 +238,7 @@ Proof.
     all: easy.
 Qed.
 
-Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
+(*Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 Proof.
   intros.
   assert (✓ I ∨ ¬ ✓ I).
@@ -257,7 +257,7 @@ Proof.
       assert (I_empty = ∅).
       trivial.
       contradiction.
-Qed.
+Qed.*)
 
 
 Lemma intComposable_comm_1 : ∀ (I1 I2 : flowintT), intComposable I1 I2 → intComposable I2 I1.
@@ -457,6 +457,10 @@ Proof.
   apply intComp_valid_proj1.
 Qed.
 
+Lemma intComposable_valid : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → intComposable I1 I2.
+Proof.
+Admitted.
+
 Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
 Admitted.
@@ -465,7 +469,42 @@ Lemma intComp_unfold_inf_1 : ∀ (I1 I2: flowintT),
     ✓ (I1 ⋅ I2) →
     ∀ n, n ∈ domm I1 → inf I1 n = inf (I1 ⋅ I2) n + out I2 n.
 Proof.
-Admitted.
+  intros I1 I2 V n D.
+  unfold domm, dom, flowint_dom in D.
+  apply elem_of_dom in D.
+  unfold is_Some in D.
+  destruct D as [x D].
+  pose proof (intComposable_valid I1 I2 V).
+  assert (IC := H0).
+  unfold intComposable in H0.
+  destruct H0 as [I1v [I2v [Disjoint [I1inf I2inf]]]].
+  unfold map_Forall in I1inf.
+  pose proof (I1inf n (inf I1 n)).
+  unfold inf in H0.
+  rewrite D in H0.
+  unfold default, id in H0.
+  assert (Some x = Some x) by reflexivity.
+  apply H0 in H1.
+  unfold valid, flowint_valid in V.
+  case_eq (I1 ⋅ I2).
+  intros Ir Idef. rewrite Idef in V.
+  unfold op, intComp in Idef.
+  destruct (decide (intComposable I1 I2)).
+  unfold inf.
+  rewrite <- Idef.
+  unfold inf_map at 1; simpl.
+  rewrite gmap_imerge_prf.
+  rewrite D.
+  unfold default, id.
+  rewrite ccm_comm in H1.
+  trivial.
+  intro.
+  trivial.
+  contradiction.
+  intros.
+  rewrite H2 in V.
+  contradiction.
+Qed.
 
 Lemma intComp_unfold_inf_2 : ∀ (I1 I2: flowintT),
     ✓ (I1 ⋅ I2) →
