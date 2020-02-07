@@ -461,10 +461,6 @@ Lemma intComposable_valid : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → intCompos
 Proof.
 Admitted.
 
-Lemma intComp_assoc : Assoc (≡) intComp.
-Proof.
-Admitted.
-
 Lemma intComp_unfold_inf_1 : ∀ (I1 I2: flowintT),
     ✓ (I1 ⋅ I2) →
     ∀ n, n ∈ domm I1 → inf I1 n = inf (I1 ⋅ I2) n + out I2 n.
@@ -521,6 +517,10 @@ Qed.
 Lemma intComp_unfold_out I1 I2 :
   ✓ (I1 ⋅ I2) →
   (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
+Proof.
+Admitted.
+
+Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
 Admitted.
 
