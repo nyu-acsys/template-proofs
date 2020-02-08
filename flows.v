@@ -115,9 +115,9 @@ Instance intComp : Op flowintT :=
              let f_out n o1 o2 : option flowdom :=
                  match o1, o2 with
                  | Some m1, None =>
-                   if gset_elem_of_dec n (domm I2) then None else Some m1
+                   if decide (n ∈ (domm I2)) then None else Some m1
                  | None, Some m2 =>
-                   if gset_elem_of_dec n (domm I1) then None else Some m2
+                   if decide (n ∈ (domm I1)) then None else Some m2
                  | Some m1, Some m2 => Some (m1 + m2)
                  | _, _ => None
                  end
@@ -473,7 +473,7 @@ Proof.
   pose proof (intComposable_valid I1 I2 V).
   assert (IC := H0).
   unfold intComposable in H0.
-  destruct H0 as [I1v [I2v [Disjoint [I1inf I2inf]]]].
+  destruct H0 as (I1v & I2v & Disjoint & I1inf & I2inf).
   unfold map_Forall in I1inf.
   pose proof (I1inf n (inf I1 n)).
   unfold inf in H0.
@@ -483,20 +483,20 @@ Proof.
   apply H0 in H1.
   unfold valid, flowint_valid in V.
   case_eq (I1 ⋅ I2).
-  intros Ir Idef. rewrite Idef in V.
-  unfold op, intComp in Idef.
-  destruct (decide (intComposable I1 I2)).
-  - unfold inf.
-    rewrite <- Idef.
-    unfold inf_map at 1; simpl.
-    rewrite gmap_imerge_prf.
-    + rewrite D.
-      unfold default, id.
-      rewrite ccm_comm in H1.
-      trivial.
-    + intro.
-      trivial.
-  - contradiction.
+  - intros Ir Idef. rewrite Idef in V.
+    unfold op, intComp in Idef.
+    destruct (decide (intComposable I1 I2)).
+    + unfold inf.
+      rewrite <- Idef.
+      unfold inf_map at 1; simpl.
+      rewrite gmap_imerge_prf.
+      * rewrite D.
+        unfold default, id.
+        rewrite ccm_comm in H1.
+        trivial.
+      * intro.
+        trivial.
+    + contradiction.
   - intros.
     rewrite H2 in V.
     contradiction.
@@ -518,7 +518,68 @@ Lemma intComp_unfold_out I1 I2 :
   ✓ (I1 ⋅ I2) →
   (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
 Proof.
-Admitted.
+  intros V n D.
+  pose proof (intComposable_valid I1 I2 V).        
+  case_eq (I1 ⋅ I2).
+  - intros Ir Idef.
+    assert (IC := H0).
+    unfold intComposable in H0.
+    destruct H0 as (I1v & I2v & Disjoint & I1inf & I2inf).
+    unfold valid, flowint_valid in I1v.
+    case_eq I1; intros; rewrite H0 in I1v; try contradiction.
+    case_eq I2; intros; rewrite H1 in I2v; try contradiction.
+    unfold op, intComp, domm, dom, flowint_dom, inf_map in D.
+    rewrite <- Idef.
+    unfold op, intComp.
+    destruct (decide (intComposable I1 I2)).
+    + unfold out.
+      unfold out_map at 1. simpl.
+      simpl in D.
+      apply not_elem_of_dom in D.
+      rewrite gmap_imerge_prf in D.
+      * rewrite H0 in D.
+        rewrite H1 in D.
+        case_eq (infR f !! n).
+        intros x1 I1x1.
+        rewrite I1x1 in D.
+        inversion D.
+        intros I1_in_n.
+        rewrite I1_in_n in D.
+        case_eq (infR f0 !! n).
+        intros x2 I2x2.
+        rewrite I2x2 in D.
+        inversion D.
+        intros I2_in_n.
+        assert (n ∉ dom (gset Node) (infR f0)) as f0_empty.
+        apply not_elem_of_dom.
+        trivial.
+        assert (n ∉ dom (gset Node) (infR f)) as f_empty.
+        apply not_elem_of_dom.
+        trivial.
+        rewrite gmap_imerge_prf.
+        unfold out_map.
+        rewrite H0.
+        rewrite H1.
+        destruct (outR f !! n), (outR f0 !! n).
+        ** unfold default, id. reflexivity.
+        ** unfold domm, dom, flowint_dom, inf_map.
+           destruct (decide (n ∈ dom (gset Node) (infR f0))); try contradiction.
+           unfold default, id.
+           auto using ccm_right_id.
+        ** unfold domm, dom, flowint_dom, inf_map.
+           destruct (decide (n ∈ dom (gset Node) (infR f))); try contradiction.
+           unfold default, id.
+           auto using ccm_left_id.
+        ** unfold default, id.
+           auto using ccm_left_id.
+        ** auto.
+      * auto.
+    + contradiction.
+  - intros.
+    unfold valid, flowint_valid in V.
+    rewrite H1 in V.
+    contradiction.
+Qed.
 
 Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
@@ -545,8 +606,9 @@ Proof.
   - (* Core-ID *)
     intros x cx.
     destruct cx eqn:?; unfold pcore, flowintRAcore; destruct x eqn:?;
-      try (intros H; inversion H).
-    + rewrite intComp_comm. apply intComp_unit.
+      try (intros H1; inversion H1).
+    + rewrite intComp_comm.
+      apply intComp_unit.
     + apply intComp_undef_op.
   - (* Core-Idem *)
     intros x cx.
