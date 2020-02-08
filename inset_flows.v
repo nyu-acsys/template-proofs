@@ -172,8 +172,6 @@ Qed.
 
 End inset_flows.
 
-Check inset_flowint_ur.
-
 Arguments inset_flowint_ur _ {_ _} : assert.
 Arguments inset _ {_ _} _ _ : assert.
 Arguments outset _ {_ _} _ _ : assert.
