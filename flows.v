@@ -17,12 +17,6 @@ Context `{CCM flowdom}.
 
 Open Scope ccm_scope.
 
-(*Definition flowdom := @ccm_car FlowDom.
-Local Notation "x + y" := (@ccm_op FlowDom x y).
-Local Notation "x - y" := (@ccm_opinv FlowDom x y).
-Local Notation "0" := (@ccm_unit FlowDom).*)
-
-
 Record flowintR :=
   {
     infR : gmap Node flowdom;
