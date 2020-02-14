@@ -42,11 +42,11 @@ Class CCM (M: Type) :=
     ccm_unit : CcmUnit M; (* 0 *)
     ccm_op: CcmOp M; (* (+) *)
     ccm_opinv: CcmOpInv M; (* (-) *)
-    ccm_assoc : Assoc (=) (+);
-    ccm_comm : Comm (=) (+);
+    ccm_assoc : Assoc (=) ((+) : M → M → M);
+    ccm_comm : Comm (=) ((+) : M → M → M);
     ccm_left_id : LeftId (=) 0 (+);
-    ccm_cancel : Cancelative (=) (+);
-    ccm_pinv : PartialInv (=) (+) (-);
+    ccm_cancel : Cancelative (=) ((+) : M → M → M);
+    ccm_pinv : PartialInv (=) ((+) : M → M → M) (-);
   }.
 
 Arguments ccm_op : simpl never.
@@ -411,7 +411,7 @@ Section lifting.
     | None, None => None
     end.
 
-  Instance diag_opinv : DiagNone merge_opinv := _.
+  Instance diag_opinv : DiagNone merge_opinv.
   Proof.
     unfold DiagNone.
     auto.

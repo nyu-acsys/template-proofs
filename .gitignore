@@ -2,7 +2,11 @@
 *.aux
 *.glob
 *.vo
+*.vos
+*.vok
+.lia.cache
 .coqdeps.d
 *.v.d
 Makefile
 Makefile.conf
+.Makefile.d

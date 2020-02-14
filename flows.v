@@ -175,7 +175,7 @@ Proof.
   discriminate.
   unfold intComposable.
   cut (¬ (✓ intUndef)); intros.
-  rewrite LeftAbsorb_instance_0.
+  rewrite stdpp.base.LeftAbsorb_instance_0.
   trivial.
   unfold valid; unfold flowint_valid.
   auto.

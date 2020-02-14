@@ -290,8 +290,8 @@ Lemma gmap_imerge_wf `{Countable K} {A B C}
   in
   gmap_wf K m1 → gmap_wf K m2 → gmap_wf K (imerge f' m1 m2).
 Proof.
-  intros f' Hm1 Hm2 p z.
-  unfold imerge; simpl.
+  intros f'; unfold gmap_wf; rewrite !bool_decide_spec.
+  intros Hm1 Hm2 p z. unfold imerge; simpl.
   rewrite Pimerge_prf by done; intros.
   destruct (m1 !! _) eqn:?, (m2 !! _) eqn:?; naive_solver.
 Qed.
@@ -307,8 +307,7 @@ Definition gmap_imerge `{Countable K} {A B C}
                       decode i ≫= (λ k, f k o1 o2)
                     end
   in
-  GMap (imerge f' m1 m2) (bool_decide_pack _ (gmap_imerge_wf f _ _
-    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
+  GMap (imerge f' m1 m2) (gmap_imerge_wf f m1 m2 Hm1 Hm2).
 
 Lemma gmap_imerge_prf `{Countable K} {A B C} (f : K → option A → option B → option C)
     (m1 : gmap K A) (m2 : gmap K B) i (Hf : ∀ i, f i None None = None) :
