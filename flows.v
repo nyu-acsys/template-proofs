@@ -136,6 +136,17 @@ Qed.
 Lemma intUndef_not_valid : ¬ ✓ intUndef.
 Proof. unfold valid, flowint_valid; auto. Qed.
 
+Lemma int_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
+Proof.
+  intros IV.
+  destruct I.
+  - exists f.
+    reflexivity.
+  - apply intUndef_not_valid in IV.
+    contradiction.
+Qed.
+  
+
 Lemma intComposable_invalid : ∀ I1 I2, ¬ ✓ I1 → ¬ (intComposable I1 I2).
 Proof.
   intros.

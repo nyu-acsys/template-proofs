@@ -126,7 +126,7 @@ Qed.
 
 Instance nat_ccm : CCM nat := { }.
 
-(** * Products of CCMs are CCMs *)
+(** Products of CCMs are CCMs *)
 
 Section product.
   Context A1 A2 `{CCM A1} `{CCM A2}.
@@ -674,7 +674,7 @@ Section lifting.
 
   Program Instance lift_ccm : CCM nzmap := { }.
 
-  Lemma lookup_plus m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
+  Lemma lookup_op m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
   Proof.
     unfold ccm_op,ccmop at 1.
     unfold lift_op.

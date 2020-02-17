@@ -44,7 +44,7 @@ Definition globalinv root I :=
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
   ∧ ∀ n, ((n = root) → (∀ k, k ∈ inset I n))
-         ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).  
+         ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).
 
 Lemma flowint_step :
   ∀ I I1 I2 k n root,
