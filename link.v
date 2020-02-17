@@ -141,7 +141,7 @@ Section Link_Template.
   Hypothesis outset_distinct : ∀ I n, (∃ k, in_outset k I n) → n ∉ dom I. 
   
   (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis flowint_inreach_step : 
+  Hypothesis flowint_linkset_step : 
     ∀ I I1 I2 k n1 n2, ✓ I → I = I1⋅I2 → in_outset k I1 n2 → k ∈ linkset I1 n1 → k ∈ linkset I2 n2.
 
   (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
@@ -411,7 +411,7 @@ Section Link_Template.
       iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H7.
       assert (✓ (In ⋅ In')). { apply (auth_frag_valid (◯ (In ⋅ In'))). done. }
       iDestruct "HNds'" as %HNds'. assert (k ∈ linkset In' n').
-      { apply (flowint_inreach_step (In⋅In') In In' k n n'); try done. }
+      { apply (flowint_linkset_step (In⋅In') In In' k n n'); try done. }
       assert (root ∈ dom I1). { apply globalinv_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
       iMod (own_update (γ_inr n') (● linkset In' n') (● linkset In' n' ⋅ ◯ linkset In' n') with "Hks1'") as "HNs".
       apply auth_update_core_id. apply gset_core_id. done. iDestruct "HNs" as "(Hks1' & #Hinr1')".
