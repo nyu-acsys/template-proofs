@@ -110,10 +110,10 @@ Proof.
   intros Link.
   unfold inf, inf_map in Dom.
   pose proof (intComp_valid_proj1 I1 I2 VI) as VI1.
-  apply int_valid_defined in VI1.
+  apply flowint_valid_defined in VI1.
   destruct VI1 as [I1r I1D].
 
-  apply int_valid_defined in VI.
+  apply flowint_valid_defined in VI.
   destruct VI as [I12r I12D].
 
   rewrite I1D in Dom.
@@ -133,6 +133,7 @@ Proof.
   rewrite I12D in Link.
   rewrite Link.
   simpl.
+  
   assert (x <> 0).
   unfold linkset, dom_ms in Link1.
   rewrite nzmap_elem_of_dom_total in Link1 *.
@@ -157,11 +158,11 @@ Proof.
   intros ? ? ? ? I12V Out Link.
   pose proof (intComp_valid_proj1 I1 I2 I12V) as I1V.
   pose proof (intComp_valid_proj2 I1 I2 I12V) as I2V.
-  apply int_valid_defined in I1V.
+  apply flowint_valid_defined in I1V.
   destruct I1V as [I1r I1Def].
-  apply int_valid_defined in I2V.
+  apply flowint_valid_defined in I2V.
   destruct I2V as [I2r I2Def].
-  pose proof (int_valid_defined _ I12V) as I12Def.
+  pose proof (flowint_valid_defined _ I12V) as I12Def.
   destruct I12Def as [I12r I12Def].
 
   pose proof (intComp_unfold_inf_2 I1 I2 I12V n Out) as Inf2.
@@ -206,14 +207,9 @@ Proof.
   destruct vI1 as [Ir1 [dI1 [disj1 _]]].
 
   (* First, prove n ∉ domm I1 *)
-  
-  assert (is_Some ((out I1 n).1 !! k) ∨ is_Some ((out I1 n).2 !! k)) as out1nk. 
-  unfold outset, dom_ms, nzmap_dom in kOut.
-  rewrite elem_of_union in kOut *.
-  intros kOut.
-  repeat (rewrite nzmap_elem_of_dom in kOut *; intros kOut).
-  trivial.
-  assert (is_Some (outR Ir1 !! n)) as out1n.
+  assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
+  apply elem_of_dom.
+
   unfold outset, dom_ms, nzmap_dom in kOut.
   rewrite elem_of_union in kOut *.
   intros kOut.
@@ -228,9 +224,6 @@ Proof.
   destruct kOut as [[x H0] | [x H0]].
   all: try inversion H0.
 
-  assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
-  by apply elem_of_dom.
-
   assert (dom (gset Node) (infR Ir1) ## dom (gset Node) (outR Ir1)) as domDisj1.
   by apply map_disjoint_dom.
 
@@ -238,12 +231,7 @@ Proof.
   set_solver.
 
   (* Now, prove n ∈ domm I *)
-
-  assert (vI' := vI).
-  apply flowint_valid_unfold in vI'.
-  destruct vI' as [Ir [dI' [disj' _]]].
-
-  assert (n ∈ dom (gset Node) (infR Ir)) as in_Inf_n.  
+  assert (n ∈ domm I) as in_Inf_n. 
   rewrite dI in vI.
   pose proof (intComp_unfold_out I1 I2 vI n).
   destruct (decide (n ∉ domm (I1 ⋅ I2))).
@@ -273,9 +261,7 @@ Proof.
   apply dec_stable in not_k_out2.
   destruct kOut as [kOut | kOut]; unfold ccmunit, ccm_unit, nat_ccm, nat_unit in kOut; lia.
   
-  unfold domm, dom, flowint_dom, inf_map in n0.
-  rewrite <- dI in n0.
-  rewrite dI' in n0.
+  rewrite dI.
   apply dec_stable in n0.
   trivial.
   
@@ -283,8 +269,6 @@ Proof.
   
   unfold domm, dom, flowint_dom.
   unfold domm, dom, flowint_dom in disj.
-  unfold inf_map at 1 in disj; rewrite dI' in disj.
-  unfold inf_map at 1 in disj; rewrite dI1 in disj.
   rewrite elem_of_equiv_L in disj *.
   intro dom_I.
   pose proof (dom_I n) as dom_I_n.

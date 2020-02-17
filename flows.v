@@ -136,7 +136,7 @@ Qed.
 Lemma intUndef_not_valid : ¬ ✓ intUndef.
 Proof. unfold valid, flowint_valid; auto. Qed.
 
-Lemma int_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
+Lemma flowint_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
 Proof.
   intros IV.
   destruct I.
