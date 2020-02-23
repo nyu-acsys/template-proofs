@@ -133,19 +133,30 @@ Proof.
   trivial.
 Qed.
 
+Lemma intEmp_unique I : ✓ I → domm I ≡ ∅ → I = ∅.
+Proof.
+  intros V D.
+  unfold valid, flowint_valid in V.
+  destruct I as [Ir | _].
+  destruct V as (? & V).
+  unfold domm, dom, flowint_dom, inf_map in D.
+  unfold empty, flowint_empty, I_empty.
+  apply f_equal.
+  unfold I_emptyR.
+  destruct Ir as [Iinf Iout].
+  simpl in V.
+  simpl in D.
+  apply (dom_empty_inv Iinf) in D.
+  pose proof (V D) as O.
+  rewrite D.
+  rewrite O.
+  reflexivity.
+  contradiction.
+Qed.
+
+
 Lemma intUndef_not_valid : ¬ ✓ intUndef.
 Proof. unfold valid, flowint_valid; auto. Qed.
-
-Lemma flowint_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
-Proof.
-  intros IV.
-  destruct I.
-  - exists f.
-    reflexivity.
-  - apply intUndef_not_valid in IV.
-    contradiction.
-Qed.
-  
 
 Lemma intComposable_invalid : ∀ I1 I2, ¬ ✓ I1 → ¬ (intComposable I1 I2).
 Proof.
@@ -462,6 +473,57 @@ Proof.
   apply intComp_valid_proj1.
 Qed.
 
+Lemma intComp_positive_1 : ∀ (I1 I2: flowintT), I1 ⋅ I2 = ∅ → I1 = ∅.
+Proof.
+  intros ? ? C.
+  pose proof intEmp_valid as V.
+  unfold empty, flowint_empty in C.
+  rewrite <- C in V.
+  pose proof (intComp_valid_proj1 _ _ V) as V1.
+  pose proof (intComp_valid_proj2 _ _ V) as V2.
+  assert (inf_map I1 = ∅) as D1.
+  apply map_eq.
+  intros n.
+  assert (inf_map (I1 ⋅ I2) !! n = inf_map (I_empty) !! n) as CL.
+    by rewrite C; reflexivity.
+  unfold op, intComp in CL.
+  unfold op, intComp in C.
+  destruct (decide (intComposable I1 I2)).
+  - unfold inf_map at 1 in CL. simpl in CL.
+    rewrite gmap_imerge_prf in CL.
+    rewrite lookup_empty.
+    rewrite lookup_empty in CL.
+    destruct (inf_map I1 !! n);
+      destruct (inf_map I2 !! n);
+      inversion CL.
+    reflexivity.
+    trivial.
+  - destruct (decide (I1 = ∅)).
+    * rewrite e.
+      unfold inf_map, empty at 1, flowint_empty, I_empty, I_emptyR.
+      simpl.
+      reflexivity.
+    * destruct (decide (I2 = ∅)).
+      + unfold empty, flowint_empty in n1.
+        contradiction.
+      + unfold I_empty in C.
+        inversion C.
+  - assert (domm I1 ≡ ∅).
+    unfold domm, dom, flowint_dom.
+    rewrite D1.
+    rewrite dom_empty.
+    reflexivity.
+    pose proof (intEmp_unique _ V1 H0).
+    trivial.
+Qed.
+
+Lemma intComp_positive_2 : ∀ (I1 I2: flowintT), I1 ⋅ I2 = ∅ → I2 = ∅.
+Proof.
+  intros ? ? C.
+  rewrite intComp_comm in C *.
+  apply intComp_positive_1.
+Qed.
+
 Lemma intComposable_empty : ∀ I: flowintT, ✓ I → intComposable ∅ I.
 Proof.
   intros I IV.
@@ -523,6 +585,157 @@ Proof.
     contradiction.
 Qed.
 
+Lemma intValid_composable : ∀ (I1 I2: flowintT), intComposable I1 I2 → ✓ (I1 ⋅ I2).
+Proof.
+  intros ? ? V.
+  unfold op, intComp.
+  destruct (decide (intComposable I1 I2)).
+  unfold valid, flowint_valid.
+  simpl.
+  split.
+  rewrite map_disjoint_spec.
+  intros.
+  rewrite gmap_imerge_prf in H0.
+  rewrite gmap_imerge_prf in H1.
+  unfold intComposable in V.
+  destruct V as (V1 & V2 & Dom12 & _).
+  unfold valid, flowint_valid in V1.
+  destruct I1 as [I1r |].
+  destruct V1 as (D1 & IO1).
+  rewrite map_disjoint_alt in D1 *.
+  intros D1.
+  pose proof (D1 i0) as D1i0.
+  
+  unfold valid, flowint_valid in V2.
+  destruct I2 as [I2r |].
+  destruct V2 as (D2 & IO2).
+  rewrite map_disjoint_alt in D2 *.
+  intros D2.
+  pose proof (D2 i0) as D2i0.
+  rewrite elem_of_disjoint in Dom12 *.
+  intros Dom12.
+  pose proof (Dom12 i0) as Dom12i0.
+  (*unfold domm, dom, flowint_dom in Dom12i0.*)
+  (*repeat (rewrite elem_of_dom in Dom12i0 *;
+          intros Dom12i0).*)
+  unfold inf_map in Dom12i0.
+  unfold inf_map in H0.
+  (*unfold domm, dom, flowint_dom in H1.*)
+  unfold out_map, inf_map in H1.
+  destruct (decide (i0 ∈ domm (int I1r))) as [e | e];
+  destruct (decide (i0 ∈ domm (int I2r))) as [n | n].
+  pose proof Dom12i0 e n; trivial.
+  all: try (unfold domm, dom, flowint_dom, inf_map in e).
+  all: try (unfold domm, dom, flowint_dom, inf_map in n).
+  all: try (rewrite elem_of_dom in e *; intros e).
+  all: try (rewrite elem_of_dom in n *; intros n).
+  all: try (unfold is_Some in e).
+  all: try (unfold is_Some in n).
+    
+  all: try (destruct (outR I1r !! i0);
+    destruct (outR I2r !! i0);
+    destruct (infR I1r !! i0);
+    destruct (infR I2r !! i0);
+    first [destruct D2i0; inversion H2; destruct D1i0; inversion H1; inversion H2; inversion H3; inversion H0
+           ; try apply Dom12i0 in e; trivial]).
+  all: try (destruct e as [? e]; inversion e).
+  all: try (destruct n as [? n]; inversion n).
+  all: try (assert (∃ x, Some f0 = Some x); try (exists f0; reflexivity); try contradiction).
+  contradiction.
+  contradiction.
+  trivial.
+  trivial.
+
+  intros.
+  apply map_eq.
+  intros n.
+  rewrite gmap_imerge_prf.
+  rewrite lookup_empty.
+
+  assert (∀ x, inf_map (I1 ⋅ I2) !! x = None).
+  intros x.
+  unfold inf_map, op, intComp.
+  destruct (decide (intComposable I1 I2)).
+  simpl.
+  rewrite H0.
+  rewrite lookup_empty.
+  reflexivity.
+  contradiction.
+
+  
+  assert (domm I1 ≡ ∅) as DI1.
+  unfold domm, dom, flowint_dom.
+  rewrite elem_of_equiv.
+  intros.
+  rewrite elem_of_empty.
+  split.
+  intro D.
+  pose proof (H1 x).
+  unfold inf_map, op, intComp in H2.
+  destruct (decide (intComposable I1 I2)).
+  simpl in H1.
+  rewrite gmap_imerge_prf in H2.
+  rewrite elem_of_dom in D *.
+  intros D.
+  unfold is_Some in D.
+  destruct D as [y D].
+  rewrite D in H2.
+  inversion H2.
+  trivial.
+  contradiction.
+  contradiction.
+
+  assert (domm I2 ≡ ∅) as DI2.
+  unfold domm, dom, flowint_dom.
+  rewrite elem_of_equiv.
+  intros.
+  rewrite elem_of_empty.
+  split.
+  intro D.
+  pose proof (H1 x).
+  unfold inf_map, op, intComp in H2.
+  destruct (decide (intComposable I1 I2)).
+  simpl in H1.
+  rewrite gmap_imerge_prf in H2.
+  rewrite elem_of_dom in D *.
+  intros D.
+  unfold is_Some in D.
+  destruct D as [y D].
+  rewrite D in H2.
+  inversion H2.
+  destruct (inf_map I1 !! x); inversion H2.
+  trivial.
+  contradiction.
+  contradiction.
+  
+  unfold intComposable in V.
+  destruct V as (V1 & V2 & _).
+  unfold valid, flowint_valid in V1.
+  destruct I1.
+  destruct V1 as (Disj1 & E1).
+  unfold domm, dom, flowint_dom in DI1.
+  apply dom_empty_inv in DI1.
+  unfold inf_map in DI1.
+  apply E1 in DI1.
+  unfold out_map.
+  rewrite DI1.
+  rewrite lookup_empty.
+  unfold valid, flowint_valid in V2.
+  destruct I2.
+  destruct V2 as (Disj2 & E2).
+  unfold domm, dom, flowint_dom in DI2.
+  apply dom_empty_inv in DI2.
+  unfold inf_map in DI2.
+  apply E2 in DI2.
+  rewrite DI2.
+  rewrite lookup_empty.
+  reflexivity.
+  contradiction.
+  contradiction.
+  trivial.
+  contradiction.
+Qed.
+  
 Lemma intComp_unfold_inf_1 : ∀ (I1 I2: flowintT),
     ✓ (I1 ⋅ I2) →
     ∀ n, n ∈ domm I1 → inf I1 n = inf (I1 ⋅ I2) n + out I2 n.
@@ -643,9 +856,83 @@ Proof.
     contradiction.
 Qed.
 
+Lemma intComp_assoc_valid (I1 I2 I3 : flowintT) : ✓ (I1 ⋅ (I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
+Proof.
+  intros V.
+Admitted.
+
+Lemma intComp_assoc_invalid (I1 I2 I3 : flowintT) : ¬(✓ (I1 ⋅ (I2 ⋅ I3))) → ¬(✓ (I1 ⋅ I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
+Proof.
+  intros IV1 IV2.
+  pose proof (intValid_composable I1 (I2 ⋅ I3)) as NC1.
+  rewrite <- Decidable.contrapositive in NC1.
+  pose proof (NC1 IV1).
+  pose proof (intValid_composable (I1 ⋅ I2) I3) as NC2.
+  rewrite <- Decidable.contrapositive in NC2.
+  pose proof (NC2 IV2).
+  all: try (unfold Decidable.decidable; auto).
+
+  destruct (decide (I1 = ∅)).
+  - rewrite e.
+    rewrite intComp_comm.
+    rewrite intComp_unit.
+    rewrite (intComp_comm _ I2).
+    rewrite intComp_unit.
+    reflexivity.
+  - destruct (decide (I2 = ∅)).
+    + rewrite e.
+      rewrite (intComp_comm _ I3).
+      repeat rewrite intComp_unit.
+      reflexivity.
+    + destruct (decide ((I1 ⋅ I2) = ∅)).
+      apply intComp_positive_1 in e.
+      contradiction.
+      * destruct (decide ((I2 ⋅ I3) = ∅)).
+        ** apply intComp_positive_1 in e.
+           contradiction.
+        ** destruct (decide (I3 = empty)).
+           rewrite e.
+           repeat rewrite intComp_unit.
+           reflexivity.
+           unfold op at 1, intComp at 1.
+           destruct (decide (intComposable I1 (I2 ⋅ I3))).
+           apply H0 in i.
+           contradiction.
+           unfold op at 8, intComp.
+           destruct (decide (intComposable (I1 ⋅ I2) I3)).
+           apply H1 in i.
+           contradiction.
+           destruct (decide (I1 = ∅)); try contradiction.
+           destruct (decide (I2 ⋅ I3 = ∅)); try contradiction.
+           destruct (decide (I1 ⋅ I2 = ∅)); try contradiction.
+           destruct (decide (I3 = ∅)); try contradiction.
+           reflexivity.
+Qed.
+
 Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
-Admitted.
+  unfold Assoc.
+  intros I1 I2 I3.
+  destruct (decide (✓ (I1 ⋅ (I2 ⋅ I3)))).
+  - apply intComp_assoc_valid in v.
+    trivial.
+  - destruct (decide (✓ (I1 ⋅ I2 ⋅ I3))).
+    * rewrite (intComp_comm I1) in v *.
+      intros v.
+      rewrite (intComp_comm _ I3) in v *.
+      intros v.
+      apply intComp_assoc_valid in v.
+      rewrite intComp_comm in v *.
+      intros v.
+      rewrite (intComp_comm I3) in v *.
+      intros v.
+      rewrite (intComp_comm I2) in v *.
+      intros v.
+      rewrite (intComp_comm _ I1) in v *.
+      trivial.
+    * apply intComp_assoc_invalid.
+      all: trivial.
+Qed.
 
 
 Instance flowintRAcore : PCore flowintT :=
@@ -732,6 +1019,16 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
                         ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
   | _ => False
   end.
+
+Lemma flowint_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
+Proof.
+  intros IV.
+  destruct I.
+  - exists f.
+    reflexivity.
+  - apply intUndef_not_valid in IV.
+    contradiction.
+Qed.
 
 Lemma flowint_valid_unfold (I : flowintUR) : ✓ I → ∃ Ir, I = int Ir ∧ infR Ir ##ₘ outR Ir
                                                       ∧ (infR Ir = ∅ → outR Ir = ∅).
