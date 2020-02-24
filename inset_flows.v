@@ -55,7 +55,10 @@ Proof.
   destruct gInv as [vI [rI [cI globalInf]]].
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
-  eauto using intComp_dom.
+  rewrite dI in vI.
+  pose proof (intComp_dom _ _ vI).
+  rewrite dI.
+  trivial.
 
   assert (✓ I1) as vI1.
   rewrite dI in vI.
