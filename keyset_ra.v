@@ -14,7 +14,7 @@ Inductive prodT :=
 
 Canonical Structure prodRAC := leibnizO prodT.
 
-Instance prodOp : Op prodT :=
+Global Instance prodOp : Op prodT :=
   λ p1 p2,
   match p1, p2 with
   | prod (K1, C1), prod (K2, C2) => if (decide(C1 ⊆ K1)) then
@@ -29,16 +29,17 @@ Instance prodOp : Op prodT :=
   | _, prodTop => prodTop
   | p1, prodBot => p1
   | prodBot, p2 => p2 end.
-Instance prodValid : Valid prodT :=
+  
+Global Instance prodValid : Valid prodT :=
 λ p, match p with
        | prod (K, C) => C ⊆ K
        | prodTop => False
        | prodBot => True end.
 
-Instance prodCore : PCore prodT :=
+Global Instance prodCore : PCore prodT :=
   λ p, Some prodBot.
 
-Instance prodUnit : Unit prodT := prodBot.
+Global Instance prodUnit : Unit prodT := prodBot.
 
 Definition prodRA_mixin : RAMixin prodT.
 Proof.
@@ -112,7 +113,7 @@ Qed.
 
 Canonical Structure KsetRA := discreteR prodT prodRA_mixin.
 
-Instance prodRA_cmra_discrete : CmraDiscrete KsetRA.
+Global Instance prodRA_cmra_discrete : CmraDiscrete KsetRA.
 Proof. apply discrete_cmra_discrete. Qed.
 
 Lemma prod_ucmra_mixin : UcmraMixin prodT.

@@ -29,7 +29,7 @@ Inductive flowintT :=
 
 Definition I_emptyR := {| infR := ∅; outR := ∅ |}.
 Definition I_empty := int I_emptyR.
-Instance flowint_empty : Empty flowintT := I_empty.
+Global Instance flowint_empty : Empty flowintT := I_empty.
 
 
 Definition out_map (I: flowintT) :=
@@ -47,23 +47,23 @@ Definition inf_map (I: flowintT) :=
 Definition inf (I: flowintT) (n: Node) := default 0 (inf_map I !! n).
 Definition out (I: flowintT) (n: Node) := default 0 (out_map I !! n).
 
-Instance flowint_dom : Dom flowintT (gset Node) :=
+Global Instance flowint_dom : Dom flowintT (gset Node) :=
   λ I, dom (gset Node) (inf_map I).
 Definition domm (I : flowintT) := dom (gset Node) I.
 
-Instance flowint_elem_of : ElemOf Node flowintT :=
+Global Instance flowint_elem_of : ElemOf Node flowintT :=
   λ n I, n ∈ domm I.
 
 (* Composition and proofs - some of these have counterparts in flows.spl in GRASShopper *)
 
-Instance flowdom_eq_dec: EqDecision flowdom.
+Global Instance flowdom_eq_dec: EqDecision flowdom.
 Proof.
   apply ccm_eq.
 Qed.
 
 Canonical Structure flowintRAC := leibnizO flowintT.
 
-Instance int_eq_dec: EqDecision flowintT.
+Global Instance int_eq_dec: EqDecision flowintT.
 Proof.
   unfold EqDecision.
   unfold Decision.
@@ -71,7 +71,7 @@ Proof.
   all: apply gmap_eq_eq.
 Qed.
 
-Instance flowint_valid : Valid flowintT :=
+Global Instance flowint_valid : Valid flowintT :=
   λ I, match I with
        | int Ir =>
          infR Ir ##ₘ outR Ir
@@ -79,7 +79,7 @@ Instance flowint_valid : Valid flowintT :=
        | intUndef => False
        end.
 
-Instance flowint_valid_dec : ∀ I: flowintT, Decision (✓ I).
+Global Instance flowint_valid_dec : ∀ I: flowintT, Decision (✓ I).
 Proof.
   intros.
   unfold valid; unfold flowint_valid.
@@ -93,7 +93,7 @@ Definition intComposable (I1: flowintT) (I2: flowintT) :=
   map_Forall (λ (n: Node) (m: flowdom), m = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
   map_Forall (λ (n: Node) (m: flowdom), m = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
 
-Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
+Global Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
 Proof. solve_decision. Qed.
 
 Definition outComp I1 I2 :=
@@ -124,8 +124,7 @@ Proof.
   all: auto using ccm_right_id, ccm_left_id.
 Qed.
 
-
-Instance intComp : Op flowintT :=
+Global Instance intComp : Op flowintT :=
   λ I1 I2, if decide (intComposable I1 I2) then
              let f_inf n o1 o2 :=
                  match o1, o2 with
@@ -1432,13 +1431,13 @@ Proof.
 Qed.
 
 
-Instance flowintRAcore : PCore flowintT :=
+Global Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
        | int Ir => Some I_empty
        | intUndef => Some intUndef
        end.
 
-Instance flowintRAunit : cmra.Unit flowintT := I_empty.
+Global Instance flowintRAunit : cmra.Unit flowintT := I_empty.
 
 Definition flowintRA_mixin : RAMixin flowintT.
 Proof.
@@ -1480,10 +1479,10 @@ Qed.
 
 Canonical Structure flowintRA := discreteR flowintT flowintRA_mixin.
 
-Instance flowintRA_cmra_discrete : CmraDiscrete flowintRA.
+Global Instance flowintRA_cmra_discrete : CmraDiscrete flowintRA.
 Proof. apply discrete_cmra_discrete. Qed.
 
-Instance flowintRA_cmra_total : CmraTotal flowintRA.
+Global Instance flowintRA_cmra_total : CmraTotal flowintRA.
 Proof.
   rewrite /CmraTotal. intros. destruct x.
   - exists I_empty. done.
@@ -1517,7 +1516,7 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
   | _ => False
   end.
 
-Lemma flowint_valid_defined I : ✓ I → ∃ Ir, I = int Ir.
+Lemma flowint_valid_defined (I: flowintUR) : ✓ I → ∃ Ir, I = int Ir.
 Proof.
   intros IV.
   destruct I.
