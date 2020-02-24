@@ -112,6 +112,9 @@ Proof.
   pose proof (intComp_valid_proj1 I1 I2 VI) as VI1.
   apply flowint_valid_defined in VI1.
   destruct VI1 as [I1r I1D].
+  pose proof (intComp_valid_proj2 I1 I2 VI) as VI2.
+  apply flowint_valid_defined in VI2.
+  destruct VI2 as [I2r I2D].
 
   apply flowint_valid_defined in VI.
   destruct VI as [I12r I12D].
@@ -147,9 +150,10 @@ Proof.
   simpl in xDef.
   trivial.
   
-  unfold ccmop, ccm_op, nat_ccm, nat_op.
+  unfold ccmop, ccm_op, nat_ccm, nat_op, out, out_map.
   unfold ccmunit, nat_unit.
   lia.
+  all: apply K_multiset_pair_ccm.
 Qed.
 
 Lemma flowint_linkset_step : ∀ I1 I2 k n,
@@ -162,7 +166,7 @@ Proof.
   destruct I1V as [I1r I1Def].
   apply flowint_valid_defined in I2V.
   destruct I2V as [I2r I2Def].
-  pose proof (flowint_valid_defined _ I12V) as I12Def.
+  pose proof (flowint_valid_defined _ _ I12V) as I12Def.
   destruct I12Def as [I12r I12Def].
 
   pose proof (intComp_unfold_inf_2 I1 I2 I12V n Out) as Inf2.
@@ -185,7 +189,9 @@ Proof.
   unfold ccmunit, ccm_unit, nat_unit, K_multiset_pair_ccm, prod_ccm.
   unfold ccmunit, ccm_unit, nat_unit, K_multiset_pair_ccm, prod_ccm in Link.
   destruct Link as [Link1 | Link2].
-  all: lia.
+  lia.
+  lia.
+  all: apply K_multiset_pair_ccm.
 Qed.
 
 Lemma flowint_step :
@@ -197,14 +203,23 @@ Proof.
   destruct gInv as [vI [rI [cI globalInf]]].
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
-  eauto using intComp_dom.
+  rewrite dI in vI.
+  pose proof (intComp_dom _ _ vI).
+  rewrite dI.
+  trivial.
 
   assert (✓ I1) as vI1.
   rewrite dI in vI.
   eauto using intComp_valid_proj1.
 
+  assert (✓ I2) as vI2.
+  rewrite dI in vI.
+  eauto using intComp_valid_proj2.
+
   apply flowint_valid_unfold in vI1.
   destruct vI1 as [Ir1 [dI1 [disj1 _]]].
+  apply flowint_valid_unfold in vI2.
+  destruct vI2 as [Ir2 [dI2 [disj2 _]]].
 
   (* First, prove n ∉ domm I1 *)
   assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
