@@ -90,11 +90,40 @@ Qed.
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
   ✓ I1 ∧ ✓ I2 ∧
   domm I1 ## domm I2 ∧
-  map_Forall (λ (n: Node) (m: flowdom), inf I1 n = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
-  map_Forall (λ (n: Node) (m: flowdom), inf I2 n = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
+  map_Forall (λ (n: Node) (m: flowdom), m = out I2 n + (inf I1 n - out I2 n)) (inf_map I1) ∧
+  map_Forall (λ (n: Node) (m: flowdom), m = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
 
 Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
 Proof. solve_decision. Qed.
+
+Definition outComp I1 I2 :=
+  let f_out n o1 o2 : option flowdom :=
+      match o1, o2 with
+      | Some m1, None =>
+        if decide (n ∈ (domm I2)) then None else Some m1
+      | None, Some m2 =>
+        if decide (n ∈ (domm I1)) then None else Some m2
+      | Some m1, Some m2 => Some (m1 + m2)
+      | _, _ => None
+      end
+  in
+  gmap_imerge f_out (out_map I1) (out_map I2).
+
+Lemma outComp_inv I1 I2 :
+  ∀ n, n ∉ domm I1 ∪ domm I2 → default 0 (outComp I1 I2 !! n) = out I1 n + out I2 n.
+Proof.
+  intros n D.
+  unfold outComp.
+  rewrite gmap_imerge_prf.
+  unfold out.
+  destruct (decide (n ∈ domm I2)).
+  set_solver.
+  destruct (decide (n ∈ domm I1)).
+  set_solver.
+  destruct (out_map I1 !! n); destruct (out_map I2 !! n); simpl.
+  all: auto using ccm_right_id, ccm_left_id.
+Qed.
+
 
 Instance intComp : Op flowintT :=
   λ I1 I2, if decide (intComposable I1 I2) then
@@ -106,18 +135,7 @@ Instance intComp : Op flowintT :=
                  end
              in
              let inf12 := gmap_imerge f_inf (inf_map I1) (inf_map I2) in
-             let f_out n o1 o2 : option flowdom :=
-                 match o1, o2 with
-                 | Some m1, None =>
-                   if decide (n ∈ (domm I2)) then None else Some m1
-                 | None, Some m2 =>
-                   if decide (n ∈ (domm I1)) then None else Some m2
-                 | Some m1, Some m2 => Some (m1 + m2)
-                 | _, _ => None
-                 end
-             in
-             let out12 := gmap_imerge f_out (out_map I1) (out_map I2) in
-             int {| infR := inf12; outR := out12 |}
+             int {| infR := inf12; outR := outComp I1 I2 |}
            else if decide (I1 = ∅) then I2
            else if decide (I2 = ∅) then I1
            else intUndef.
@@ -137,7 +155,7 @@ Lemma intEmp_unique I : ✓ I → domm I ≡ ∅ → I = ∅.
 Proof.
   intros V D.
   unfold valid, flowint_valid in V.
-  destruct I as [Ir | _].
+  destruct I as [Ir |].
   destruct V as (? & V).
   unfold domm, dom, flowint_dom, inf_map in D.
   unfold empty, flowint_empty, I_empty.
@@ -206,7 +224,7 @@ Qed.
 Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 Proof.
   intros.
-  unfold op, intComp.
+  unfold op, intComp, outComp.
   simpl.
   repeat rewrite gmap_imerge_empty.
   destruct I as [Ir|].
@@ -292,15 +310,14 @@ Proof.
   all: refine (intComposable_comm_1 _ _).
 Qed.
 
-Lemma intComp_dom : ∀ I1 I2 I, ✓ I → I = I1 ⋅ I2 → domm I = domm I1 ∪ domm I2.
+Lemma intComp_dom : ∀ I1 I2, ✓ (I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
 Proof.
-  intros I1 I2 I H_valid H_comp_eq.
+  intros I1 I2 H_valid.
   unfold domm.
   set_unfold.
   intros.
   unfold dom.
   rewrite ?elem_of_dom.
-  rewrite H_comp_eq.
   unfold op, intComp.
   case_eq (decide (intComposable I1 I2)).
   - intros H_comp H_comp_dec.
@@ -349,7 +366,6 @@ Proof.
         exact is_Some_None.
       * intros H2 H2_dec.
         contradict H_valid.
-        rewrite H_comp_eq.
         unfold op, intComp.
         rewrite H0. rewrite H1_dec. rewrite H2_dec.
         exact intUndef_not_valid.
@@ -362,7 +378,7 @@ Proof.
   intros H_undef_comm.
   destruct I1 as [ir1|] eqn:H_eq1, I2 as [ir2|] eqn:H_eq2; revgoals.
   all: try rewrite H_undef_comm; auto.
-  unfold op, intComp; simpl.
+  unfold op, intComp, outComp; simpl.
   case_eq (decide (intComposable (int ir1) (int ir2))).
   - (* if composable *)
     intros H_comp H_comp_dec.
@@ -553,9 +569,12 @@ Proof.
     rewrite lookup_empty.
     unfold default.
     rewrite ccm_left_id.
-    rewrite <- (ccm_right_id (inf I n)) at 2.
+    unfold inf.
+    rewrite H0.
+    simpl.
+    rewrite <- (ccm_right_id x) at 2.
     auto using ccm_pinv.
-Qed.    
+Qed.
 
 Lemma intComposable_valid : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → intComposable I1 I2.
 Proof.
@@ -790,76 +809,554 @@ Proof.
 Qed.
 
 Lemma intComp_unfold_out I1 I2 :
-  ✓ (I1 ⋅ I2) →
-  (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
+  ✓ (I1 ⋅ I2) → (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
+Proof.
+  intros.
+  apply intComp_dom in H0 as D.
+  rewrite D in H1.
+  pose proof (outComp_inv I1 I2 n H1).
+  apply intComposable_valid in H0.
+  unfold op, intComp, out at 1, out_map at 1.
+  destruct (decide (intComposable I1 I2)); last first.
+  contradiction.
+  simpl.
+  trivial.
+Qed.
+
+Lemma intComp_inf_1 I1 I2 :
+  ✓ (I1 ⋅ I2) → (∀ n, n ∈ domm I1 → inf (I1 ⋅ I2) n = inf I1 n - out I2 n).
 Proof.
   intros V n D.
-  pose proof (intComposable_valid I1 I2 V).        
-  case_eq (I1 ⋅ I2).
-  - intros Ir Idef.
-    assert (IC := H0).
-    unfold intComposable in H0.
-    destruct H0 as (I1v & I2v & Disjoint & I1inf & I2inf).
-    unfold valid, flowint_valid in I1v.
-    case_eq I1; intros; rewrite H0 in I1v; try contradiction.
-    case_eq I2; intros; rewrite H1 in I2v; try contradiction.
-    unfold op, intComp, domm, dom, flowint_dom, inf_map in D.
-    rewrite <- Idef.
-    unfold op, intComp.
-    destruct (decide (intComposable I1 I2)).
-    + unfold out.
-      unfold out_map at 1. simpl.
-      simpl in D.
-      apply not_elem_of_dom in D.
-      rewrite gmap_imerge_prf in D.
-      * rewrite H0 in D.
-        rewrite H1 in D.
-        case_eq (infR f !! n).
-        intros x1 I1x1.
-        rewrite I1x1 in D.
-        inversion D.
-        intros I1_in_n.
-        rewrite I1_in_n in D.
-        case_eq (infR f0 !! n).
-        intros x2 I2x2.
-        rewrite I2x2 in D.
-        inversion D.
-        intros I2_in_n.
-        assert (n ∉ dom (gset Node) (infR f0)) as f0_empty.
-        apply not_elem_of_dom.
-        trivial.
-        assert (n ∉ dom (gset Node) (infR f)) as f_empty.
-        apply not_elem_of_dom.
-        trivial.
-        rewrite gmap_imerge_prf.
-        unfold out_map.
-        rewrite H0.
-        rewrite H1.
-        destruct (outR f !! n), (outR f0 !! n).
-        ** unfold default, id. reflexivity.
-        ** unfold domm, dom, flowint_dom, inf_map.
-           destruct (decide (n ∈ dom (gset Node) (infR f0))); try contradiction.
-           unfold default, id.
-           auto using ccm_right_id.
-        ** unfold domm, dom, flowint_dom, inf_map.
-           destruct (decide (n ∈ dom (gset Node) (infR f))); try contradiction.
-           unfold default, id.
-           auto using ccm_left_id.
-        ** unfold default, id.
-           auto using ccm_left_id.
-        ** auto.
-      * auto.
-    + contradiction.
-  - intros.
-    unfold valid, flowint_valid in V.
-    rewrite H1 in V.
-    contradiction.
+  apply intComposable_valid in V.
+  unfold op, intComp.
+  destruct (decide (intComposable I1 I2)); last first.
+  contradiction.
+  unfold inf at 1, inf_map at 1.
+  simpl.
+  rewrite gmap_imerge_prf.
+  unfold domm, dom, flowint_dom in D.
+  apply elem_of_dom in D.
+  unfold is_Some in D.
+  destruct D as [x D].
+  unfold inf at 1.
+  rewrite D.
+  simpl.
+  reflexivity.
+  trivial.
 Qed.
+
+Lemma intComp_inf_2 I1 I2 :
+  ✓ (I1 ⋅ I2) → (∀ n, n ∈ domm I2 → inf (I1 ⋅ I2) n = inf I2 n - out I1 n).
+Proof.
+  intros.
+  rewrite intComp_comm.
+  generalize H1.
+  generalize n.
+  rewrite intComp_comm in H0 *.
+  apply intComp_inf_1.
+Qed.
+
+
+Lemma intComp_fold I1 I2 I :
+  I ≠ intUndef → ✓ I1 → ✓ I2 →
+  domm I1 ## domm I2 →
+  domm I = domm I1 ∪ domm I2 →
+  (∀ n, n ∈ domm I1 → inf I1 n = out I2 n + inf I n) →
+  (∀ n, n ∈ domm I2 → inf I2 n = out I1 n + inf I n) →
+  out_map I = outComp I1 I2 →
+  I = I1 ⋅ I2 ∧ ✓ (I1 ⋅ I2).
+Proof.
+  intros Iint V1 V2 Disj D Inf1 Inf2 Out.
+  assert (intComposable I1 I2) as C.
+  { unfold intComposable.
+    repeat split; try trivial.
+    - unfold map_Forall.
+      intros n x xDef.
+      unfold domm, dom, flowint_dom in Inf1.
+      pose proof (Inf1 n).
+      rewrite elem_of_dom in H0 *.
+      intro.
+      apply mk_is_Some in xDef as H1.
+      apply H0 in H1.
+      rewrite H1.
+      rewrite (ccm_comm _ (inf I n)).
+      rewrite ccm_pinv.
+      unfold inf at 1 in H1.
+      rewrite xDef in H1.
+      simpl in H1.
+      rewrite H1.
+      reflexivity.
+    - unfold map_Forall.
+      intros n x xDef.
+      unfold domm, dom, flowint_dom in Inf2.
+      pose proof (Inf2 n).
+      rewrite elem_of_dom in H0 *.
+      intro.
+      apply mk_is_Some in xDef as H1.
+      apply H0 in H1.
+      rewrite H1.
+      rewrite (ccm_comm _ (inf I n)).
+      rewrite ccm_pinv.
+      unfold inf at 1 in H1.
+      rewrite xDef in H1.
+      simpl in H1.
+      rewrite H1.
+      reflexivity.
+  }
+  split.
+  apply intValid_composable in C.
+  destruct I as [Ir |].
+  unfold op, intComp.
+  destruct (decide (intComposable I1 I2)).
+  f_equal.
+  case_eq Ir.
+  intros.
+  f_equal.
+  - apply map_eq.
+    intros n.
+    rewrite gmap_imerge_prf.
+    case_eq (inf_map I1 !! n).
+    + intros x xDef.
+      assert (n ∈ domm I1) as nI1.
+      apply mk_is_Some in xDef.
+      unfold domm, dom, flowint_dom.
+      apply elem_of_dom.
+      trivial.
+      assert (n ∈ domm (int Ir)) as nI.
+      set_solver.
+      unfold domm, dom, flowint_dom in nI.
+      apply elem_of_dom in nI.
+      unfold is_Some in nI.
+      destruct nI as [y nI].
+      unfold inf_map in nI.
+      rewrite H0 in nI.
+      simpl in nI.
+      rewrite nI.
+      f_equal.
+      pose proof (Inf1 _ nI1) as In1n.
+      unfold inf in In1n.
+      rewrite xDef in In1n.
+      simpl in In1n.
+      rewrite ccm_comm in In1n.
+      rewrite In1n.
+      rewrite H0.
+      simpl.
+      rewrite nI.
+      auto using ccm_pinv.
+    + intros.
+      assert (n ∉ domm I1).
+      unfold domm, dom, flowint_dom.
+      rewrite elem_of_dom.
+      rewrite H1.
+      apply is_Some_None.
+      case_eq (inf_map I2 !! n).
+      * intros x xDef.
+        assert (n ∈ domm I2) as nI2.
+        apply mk_is_Some in xDef.
+        unfold domm, dom, flowint_dom.
+        apply elem_of_dom.
+        trivial.
+        assert (n ∈ domm (int Ir)) as nI.
+        set_solver.
+        unfold domm, dom, flowint_dom in nI.
+        apply elem_of_dom in nI.
+        unfold is_Some in nI.
+        destruct nI as [y nI].
+        unfold inf_map in nI.
+        rewrite H0 in nI.
+        simpl in nI.
+        rewrite nI.
+        f_equal.
+        pose proof (Inf2 _ nI2) as In2n.
+        unfold inf in In2n.
+        rewrite xDef in In2n.
+        simpl in In2n.
+        rewrite ccm_comm in In2n.
+        rewrite In2n.
+        rewrite H0.
+        simpl.
+        rewrite nI.
+        auto using ccm_pinv.
+      * intros.
+        assert (n ∉ domm I2).
+        unfold domm, dom, flowint_dom.
+        rewrite elem_of_dom.
+        rewrite H3.
+        apply is_Some_None.
+        assert (n ∉ domm (int Ir)).
+        set_solver.
+        unfold domm, dom, flowint_dom, inf_map in H5.
+        rewrite elem_of_dom in H5 *.
+        intros.
+        rewrite H0 in H5.
+        simpl in H5.
+        rewrite <- eq_None_not_Some in H5.
+        trivial.
+    + trivial.
+  - unfold out_map in Out.
+    rewrite H0 in Out.
+    simpl in Out.
+    trivial.
+  - apply intComposable_valid in C.
+    contradiction.
+  - contradiction.
+  - apply intValid_composable in C. trivial.
+Qed.
+
+(*
+Lemma intComp_out_None I1 I2 : ✓ (I1 ⋅ I2) → ∀ n, out_map (I1 ⋅ I2) !! n = None → out_map I1 !! n = None ∨ out_map I2 !! n = None.
+Proof.
+  intros.
+  apply intComposable_valid in H0.
+  unfold op, intComp in H1.
+  destruct (decide (intComposable I1 I2)).
+  unfold out_map in H1.
+  simpl in H1.
+  unfold outComp in H1.
+  rewrite gmap_imerge_prf in H1.
+  unfold intComposable in H0.
+  destruct H0 as (_ & _ & Disj & _).
+  case_eq (out_map I1 !! n);
+    try intros x1 x1Def; try intros x1Def;
+      case_eq (out_map I2 !! n);
+      try intros x2 x2Def; try intros x2Def;
+  rewrite x1Def in H1;
+    rewrite x2Def in H1;
+    destruct (decide (n ∈ domm I2)); 
+    destruct (decide (n ∈ domm I1)); 
+    try inversion H1.
+  all: try (right; reflexivity).
+  all: try (left; reflexivity).
+  trivial.
+  contradiction.
+Qed.
+
+Lemma intValid_out_not_dom I : ✓ I → ∀ n, is_Some (out_map I !! n) → n ∉ domm I.
+Proof.
+  intros V ? O.
+  unfold valid, flowint_valid in V.
+  destruct I.
+  destruct V as (D & _).
+  assert (dom (gset Node) (infR f) ## dom (gset Node) (outR f)).
+  apply map_disjoint_dom.
+  trivial.
+  assert (n ∈ dom (gset Node) (outR f)).
+  rewrite elem_of_dom.
+  unfold out_map in O.
+  trivial.
+  set_solver.
+  contradiction.
+Qed.
+ *)
 
 Lemma intComp_assoc_valid (I1 I2 I3 : flowintT) : ✓ (I1 ⋅ (I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 Proof.
   intros V.
-Admitted.
+  remember (I1 ⋅ (I2 ⋅ I3)) as I.
+  remember (I2 ⋅ I3) as I23.
+  remember (outComp I1 I2) as out12.
+  remember (gmap_imerge (λ n o1 o2,
+                         match o1, o2 with
+                         | Some _, _ => Some (inf I n + out I3 n)
+                         | _, Some _ => Some (inf I n + out I3 n)
+                         | None, None => None
+                         end)
+                        (inf_map I1) (inf_map I2)) as inf12.
+  remember (int {| infR := inf12; outR := out12 |}) as I12.
+  rewrite HeqI in V.
+  apply intComp_valid_proj1 in V as V1.
+  apply intComp_valid_proj2 in V as V23.
+  rewrite HeqI23 in V23.
+  apply intComp_valid_proj1 in V23 as V2.
+  apply intComp_valid_proj2 in V23 as V3.
+  apply intComposable_valid in V as C.
+  apply intComposable_valid in V23 as C23.
+  assert (CU := C).
+  unfold intComposable in CU.
+  destruct CU as (_ & _ & Disj & Inf1 & Inf23).
+  assert (CU23 := C23).
+  unfold intComposable in CU23.
+  destruct CU23 as (_ & _ & Disj23 & Inf2 & Inf3).
+  apply intComp_dom in V as D.
+  apply intComp_dom in V23 as D23.
+  rewrite HeqI23 in Disj.
+  rewrite D23 in Disj.
+  unfold map_Forall in Inf1.
+  unfold map_Forall in Inf23.
+  unfold map_Forall in Inf2.
+  unfold map_Forall in Inf3.
+  assert (I12 ≡ I1 ⋅ I2 ∧ ✓ (I1 ⋅ I2)) as I12Def.
+  { apply intComp_fold.
+    - rewrite HeqI12. auto.
+    - trivial.
+    - trivial.
+    - set_solver.
+    - rewrite elem_of_equiv_L.
+      intros n.
+      rewrite elem_of_union.
+      split.
+      * intros nD.
+        unfold domm, dom, flowint_dom, inf_map in nD.
+        rewrite HeqI12 in nD.
+        simpl in nD.
+        rewrite Heqinf12 in nD.
+        rewrite elem_of_dom in nD *.
+        intros nD.
+        rewrite gmap_imerge_prf in nD.
+        unfold domm, dom, flowint_dom.
+        repeat rewrite elem_of_dom.
+        destruct (inf_map I1 !! n).
+        unfold is_Some.
+        left.
+        exists f.
+        reflexivity.
+        destruct (inf_map I2 !! n).
+        right.
+        exists f.
+        reflexivity.
+        apply is_Some_None in nD.
+        contradiction.
+        trivial.
+      * intros nD.
+        unfold domm, dom, flowint_dom, inf_map.
+        rewrite HeqI12.
+        simpl.
+        rewrite Heqinf12.
+        rewrite elem_of_dom.
+        rewrite gmap_imerge_prf.
+        destruct nD as [nD | nD];
+        unfold domm, dom, flowint_dom in nD;
+        rewrite elem_of_dom in nD *;
+        intros nD;
+        unfold is_Some in nD;
+        destruct nD as [x nD];
+        rewrite nD;
+        destruct (inf_map I1 !! n);
+        apply not_eq_None_Some;
+        auto.
+        trivial.
+    - intros ? n_in_I1.
+      assert (n_in_I11 := n_in_I1).
+      unfold domm, dom, flowint_dom in n_in_I11.
+      apply elem_of_dom in n_in_I11.
+      unfold is_Some in n_in_I11.
+      destruct n_in_I11 as [x n_inf].
+      apply Inf1 in n_inf as xDef.
+      unfold inf at 2.
+      rewrite HeqI12.
+      unfold inf_map.
+      simpl.
+      rewrite Heqinf12.
+      rewrite gmap_imerge_prf.
+      rewrite n_inf.
+      simpl.
+      rewrite HeqI.
+      pose proof (intComp_inf_1 _ _ V _ n_in_I1).
+      rewrite H0.
+      unfold inf at 2.
+      rewrite n_inf.
+      simpl.
+      rewrite xDef.
+      rewrite (ccm_comm (out I23 n)).
+      rewrite ccm_pinv.
+      rewrite ccm_comm.
+      rewrite <- ccm_assoc.
+      rewrite (ccm_comm (out I3 n)).
+      assert (n ∉ domm (I2 ⋅ I3)).
+      rewrite D23.
+      set_solver.
+      apply intComp_unfold_out in H1.
+      unfold inf at 1.
+      rewrite n_inf.
+      simpl.
+      rewrite xDef.
+      rewrite ccm_comm.
+      rewrite <- H1.
+      rewrite <- HeqI23.
+      reflexivity.
+      trivial.
+      trivial.
+    - intros ? n_in_I2.
+      assert (n_in_I21 := n_in_I2).
+      unfold domm, dom, flowint_dom in n_in_I21.
+      apply elem_of_dom in n_in_I21.
+      unfold is_Some in n_in_I21.
+      destruct n_in_I21 as [x n_inf].
+      apply Inf2 in n_inf as xDef.
+      unfold inf at 2.
+      rewrite HeqI12.
+      unfold inf_map.
+      simpl.
+      rewrite Heqinf12.
+      rewrite gmap_imerge_prf.
+      rewrite n_inf.
+      simpl.
+      rewrite HeqI.
+      assert (n ∈ domm I2 ∪ domm I3) as n_in_I23.
+      set_solver.
+      rewrite <- D23 in n_in_I23.
+      rewrite <- HeqI23 in n_in_I23.
+      unfold inf at 2.
+      assert (n ∉ domm I1) as n_nin_I1.
+      set_solver.
+      unfold domm, dom, flowint_dom in n_nin_I1.
+      rewrite elem_of_dom in n_nin_I1 *.
+      intros n_nin_I1.
+      rewrite <- eq_None_not_Some in n_nin_I1.
+      rewrite n_nin_I1.
+      simpl.
+      rewrite ccm_comm.
+      rewrite <- ccm_assoc.
+      rewrite (ccm_comm (out I3 n)).
+      rewrite ccm_assoc.
+      pose proof (intComp_unfold_inf_2 I1 I23 V n n_in_I23).
+      rewrite <- H0.
+      pose proof (intComp_unfold_inf_1 I2 I3 V23 n n_in_I2).
+      rewrite H1.
+      rewrite HeqI23.
+      reflexivity.
+      trivial.
+    - rewrite HeqI12.
+      unfold out_map.
+      auto. }
+  destruct I12Def as (I12Def & V12).
+  assert (I ≡ I12 ⋅ I3) as IDef.
+  { apply intComp_fold.
+    - rewrite HeqI.
+      destruct (I1 ⋅ I23).
+      * auto.
+      * apply intUndef_not_valid in V.
+        contradiction.
+    - rewrite <- I12Def in V12.
+      trivial.
+    - trivial.
+    - rewrite I12Def.
+      rewrite intComp_dom.
+      set_solver.
+      trivial.
+    - rewrite I12Def.
+      rewrite intComp_dom.
+      rewrite HeqI.
+      rewrite D.
+      rewrite HeqI23.
+      rewrite D23.
+      set_solver.
+      trivial.
+    - intros n nI12.
+      rewrite HeqI12.
+      unfold inf at 1, inf_map.
+      simpl.
+      rewrite Heqinf12.
+      rewrite gmap_imerge_prf.
+      rewrite I12Def in nI12 *.
+      intro nI12.
+      rewrite intComp_dom in nI12.
+      rewrite elem_of_union in nI12 *.
+      intro nI12.
+      destruct nI12 as [nI1 | nI2].
+      * unfold domm, dom, flowint_dom in nI1.
+        apply elem_of_dom in nI1.
+        unfold is_Some in nI1.
+        destruct nI1 as [x nI1].
+        rewrite nI1.
+        simpl.
+        auto using ccm_comm.
+      * destruct (inf_map I1 !! n).
+        ** simpl.
+           auto using ccm_comm.
+        ** unfold domm, dom, flowint_dom in nI2.
+           apply elem_of_dom in nI2.
+           unfold is_Some in nI2.
+           destruct nI2 as [x nI2].
+           rewrite nI2.
+           simpl.
+           auto using ccm_comm.
+      * trivial.
+      * trivial.
+    - intros n nI3.
+      assert (n ∉ domm I1 ∪ domm I2) as n_not_I12.
+      set_solver.
+      rewrite <- intComp_dom in n_not_I12.
+      pose proof (intComp_unfold_out I1 I2 V12 n n_not_I12).
+      rewrite I12Def.
+      rewrite H0.
+      assert (n ∈ domm I23) as nI23.
+      set_solver.
+      pose proof (intComp_unfold_inf_2 I1 I23 V n nI23).
+      rewrite <- HeqI in H1.
+      rewrite ccm_comm.
+      rewrite ccm_assoc.
+      rewrite <- H1.
+      pose proof (intComp_unfold_inf_2 I2 I3 V23 n nI3).
+      rewrite <- HeqI23 in H2.
+      rewrite <- H2.
+      reflexivity.
+      trivial.
+    - rewrite HeqI.
+      unfold op, intComp.
+      destruct (decide (intComposable I1 I23)); last first.
+      contradiction.
+      simpl.
+      unfold outComp.
+      apply map_eq.
+      intros n.
+      repeat rewrite gmap_imerge_prf.
+      pose proof (intComp_unfold_out I1 I2 V12 n).
+      rewrite <- I12Def in H0.
+      pose proof (intComp_unfold_out I2 I3 V23 n).
+      rewrite <- HeqI23 in H1.
+      unfold out in H0.
+      unfold out in H1.
+      rewrite HeqI23.
+      rewrite D23.
+      assert (I12 = I1 ⋅ I2) as I12def.
+      rewrite I12Def; reflexivity.
+      rewrite I12def.
+      pose proof (intComp_dom _ _ V12) as D12.
+      rewrite D12.
+      
+      unfold op, intComp.
+      destruct (decide (intComposable I2 I3)); last first.
+      contradiction.
+      unfold out_map at 2. simpl.
+      destruct (decide (intComposable I1 I2)); last first.
+      apply intComposable_valid in V12.
+      contradiction.
+      unfold out_map at 2. simpl.
+      unfold outComp.
+      repeat rewrite gmap_imerge_prf.
+      
+      destruct (decide (n ∈ domm I1 ∪ domm I2)) as [n_in_I12 | n_nin_I12];      
+      try (rewrite not_elem_of_union in n_nin_I12 *;
+           intros n_nin_I12;
+           destruct n_nin_I12 as (n_nin_I1 & n_nin_I2));
+      try (rewrite elem_of_union in n_in_I12 *;
+           intros n_in_I12;
+           destruct n_in_I12 as [n_in_I1 | n_in_I2]);
+      destruct (decide (n ∈ domm I1));
+      destruct (decide (n ∈ domm I2));
+      try contradiction;
+      destruct (decide (n ∈ domm I2 ∪ domm I3)) as [n_in_I23 | n_nin_I23];      
+      try (rewrite not_elem_of_union in n_nin_I23 *;
+           intros n_nin_I23;
+           destruct n_nin_I23 as (n_nin_I2_2 & n_nin_I3));
+      try (rewrite elem_of_union in n_in_I23 *;
+           intros n_in_I23;
+           destruct n_in_I23 as [n_in_I2_2 | n_in_I3]);
+      destruct (decide (n ∈ domm I3));
+      try contradiction;
+      destruct (out_map I1 !! n);
+        destruct (out_map I2 !! n);
+        destruct (out_map I3 !! n);
+      try rewrite ccm_assoc;
+      try reflexivity.
+      all: trivial.
+  }
+
+  rewrite I12Def in IDef *.
+  intros.
+  trivial.
+Qed.
 
 Lemma intComp_assoc_invalid (I1 I2 I3 : flowintT) : ¬(✓ (I1 ⋅ (I2 ⋅ I3))) → ¬(✓ (I1 ⋅ I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 Proof.
@@ -1048,7 +1545,7 @@ Qed.
 
 Hypothesis flowint_update : ∀ I I_n I_n',
   contextualLeq I_n I_n' → (● I ⋅ ◯ I_n) ~~>: (flowint_update_P I I_n I_n').
-Lemma flowint_comp_fp : ∀ I1 I2 I, ✓I → I = I1 ⋅ I2 → domm I = domm I1 ∪ domm I2.
+Lemma flowint_comp_fp : ∀ I1 I2, ✓(I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
 Proof.
   apply intComp_dom.
 Qed.
