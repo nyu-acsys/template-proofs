@@ -312,8 +312,9 @@ Section Give_Up_Template.
           iAssert (⌜n' ∈ domm I1⌝)%I as "%".
           { iPureIntro. assert (n' ∈ domm I2).
             { apply (flowint_step I1 In I2 k n' root); try done. }  
-            unfold globalinv in H0.
-            apply flowint_comp_fp in H3. set_solver. apply H0. }
+            unfold globalinv in H0. destruct H0 as [HI1 H0]. apply leibniz_equiv in H3. rewrite H3 in HI1.
+            assert (domm (In⋅I2) = domm (In) ∪ domm (I2)). { apply intComp_dom. done. } rewrite H3.
+            rewrite H6. set_solver. }
             iFrame. iPureIntro. split; try done. apply globalinv_root_fp. auto. }
         iDestruct "Hghost" as "(% & % & HAIn & HAfp & HIn)".
         iMod (own_update γ_fp (● (domm I1)) (● (domm I1) ⋅ ◯ (domm I1)) with "HAfp") as "HNs".
