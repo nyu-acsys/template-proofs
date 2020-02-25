@@ -52,7 +52,7 @@ Lemma flowint_step :
 Proof.
   intros I I1 I2 k n r gInv dI kOut.
   unfold globalinv in gInv.
-  destruct gInv as [vI [rI [cI globalInf]]].
+  destruct gInv as (vI & rI & cI & _).
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
   rewrite dI in vI.
@@ -171,6 +171,117 @@ Proof.
   pose proof (dom_I n) as dom_I_n.
   rewrite elem_of_union in dom_I_n *.
   naive_solver.
+Qed.
+
+Lemma outset_distinct : ∀ I n, ✓ I ∧ (∃ k, k ∈ outset I n) → n ∉ domm I.
+Proof.
+  intros.
+  destruct H0 as (VI & Out).
+  destruct Out as [k Out].
+
+  apply flowint_valid_unfold in VI.
+  destruct VI as (Ir & dI & disj & _).
+
+  rewrite map_disjoint_spec in disj *.
+  intros disj.
+  
+  assert (is_Some (outR Ir !! n)).
+  * unfold outset, out in Out.
+    case_eq (out_map I !! n).
+    - intros.
+      unfold out_map in H0.
+      rewrite dI in H0.
+      unfold is_Some.
+      exists k0.
+      trivial.
+
+    - intros.
+      rewrite H0 in Out.
+      unfold default, dom_ms, nzmap_dom, ccmunit, lift_unit, nzmap_unit in Out.
+      simpl in Out.
+      rewrite dom_empty in Out *. intros Out.
+      apply elem_of_empty in Out.
+      contradiction.
+
+  * case_eq (infR Ir !! n).
+    - intros.
+      unfold is_Some in H0.
+      destruct H0.
+      pose proof (disj n k0 x H1 H0).
+      contradiction.
+
+    - intros.
+      unfold domm.
+      unfold dom, flowint_dom.
+      rewrite elem_of_dom.
+      unfold not.
+      intro.
+      unfold is_Some in H2.
+      destruct H2.
+      rewrite dI in H2.
+      unfold inf_map in H2.
+      rewrite H2 in H1.
+      inversion H1.
+Qed.
+
+
+Lemma inset_monotone : ∀ I I1 I2 k n,
+    ✓ I → I = I1 ⋅ I2 → k ∈ inset I n → n ∈ domm I1 → k ∈ inset I1 n.
+Proof.
+  intros ? ? ? ? ? VI ID Inset Dom.
+  rewrite ID in VI.
+  pose proof (intComp_unfold_inf_1 I1 I2 VI n) as Inf1.
+  apply Inf1 in Dom.
+  assert (Inset1 := Inset).
+  unfold inset, dom_ms, nzmap_dom in Inset.
+  rewrite nzmap_elem_of_dom in Inset *.
+  intros Inset.
+  unfold inf, inf_map in Dom.
+  pose proof (intComp_valid_proj1 I1 I2 VI) as VI1.
+  apply flowint_valid_defined in VI1.
+  destruct VI1 as [I1r I1D].
+  pose proof (intComp_valid_proj2 I1 I2 VI) as VI2.
+  apply flowint_valid_defined in VI2.
+  destruct VI2 as [I2r I2D].
+
+  apply flowint_valid_defined in VI.
+  destruct VI as [I12r I12D].
+
+  rewrite I1D in Dom.
+  rewrite I1D in I12D.
+  rewrite I12D in Dom.
+
+  unfold inset, inf, dom_ms, inf_map.
+  rewrite I1D.
+  rewrite Dom.
+  rewrite nzmap_elem_of_dom_total.
+  rewrite lookup_op.
+  unfold nzmap_total_lookup.
+  unfold inf, is_Some, inf_map in Inset.
+  destruct Inset as [x Inset].
+  rewrite ID in Inset.
+  rewrite I1D in Inset.
+  rewrite I12D in Inset.
+  rewrite Inset.
+  simpl.
+  
+  assert (x <> 0).
+  unfold inset, dom_ms in Inset1.
+  rewrite nzmap_elem_of_dom_total in Inset1 *.
+  intros xDef.
+  rewrite ID in xDef.
+  rewrite I1D in xDef.
+  rewrite I12D in xDef.
+  unfold inf, inf_map in xDef.
+  unfold nzmap_total_lookup in xDef.
+  rewrite Inset in xDef.
+  simpl in xDef.
+  trivial.
+  
+  unfold ccmop, ccm_op, nat_ccm, nat_op, out, out_map.
+  unfold ccmunit, nat_unit.
+  lia.
+  all: apply K_multiset_ccm.
 Qed.
 
 End inset_flows.

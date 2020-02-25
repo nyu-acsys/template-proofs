@@ -1345,8 +1345,8 @@ Proof.
       destruct (decide (n ∈ domm I3));
       try contradiction;
       destruct (out_map I1 !! n);
-        destruct (out_map I2 !! n);
-        destruct (out_map I3 !! n);
+      destruct (out_map I2 !! n);
+      destruct (out_map I3 !! n);
       try rewrite ccm_assoc;
       try reflexivity.
       all: trivial.
