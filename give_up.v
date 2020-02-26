@@ -17,24 +17,25 @@ Definition K := Z.
 (** Definitions of cameras used in the template verification *)
 Section Give_Up_Cameras.
 
-  (* RA for authoritative flow interfaces over multisets over keys *)
-  Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
+  (* RA for authoritative flow interfaces over multisets of keys *)
+  Class flowintG Σ :=
+    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
   Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
-  
+
   (* RA for authoritative set of nodes *)
   Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
   Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
 
   Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
   Proof. solve_inG. Qed.
-  
+
   (* RA for pair of keysets and contents *)
   Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
   Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
-  
+
   Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
   Proof. solve_inG. Qed.
   
@@ -50,8 +51,9 @@ Section Give_Up_Template.
 
   Inductive dOp := memberOp | insertOp | deleteOp.
 
-  (* The following parameters are the implementation-specific helper functions assumed by the template.
-   * See GRASShopper files b+-tree.spl and hashtbl-give-up.spl for the concrete implementations. *)
+  (* The following parameters are the implementation-specific helper functions
+   * assumed by the template. See GRASShopper files b+-tree.spl and
+   * hashtbl-give-up.spl for the concrete implementations. *)
 
   Parameter findNext : val.
   Parameter inRange : val.
@@ -98,13 +100,16 @@ Section Give_Up_Template.
      b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
   Parameter node : Node → inset_flowint_ur K → gset K → iProp.
 
-  (* The following assumption is justified by the fact that GRASShopper uses a first-order separation logic. *)
+  (* The following assumption is justified by the fact that GRASShopper uses a
+   * first-order separation logic. *)
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
-  
-  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
-  Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
+
+  (* The following hypothesis is proved as GRASShopper lemmas in
+   * hashtbl-give-up.spl and b+-tree.spl *)
+  Hypothesis node_sep_star: ∀ n I_n I_n' C C',
+    node n I_n C ∗ node n I_n' C' -∗ False.
 
   (** Coarse-grained specification *)
 
@@ -122,9 +127,9 @@ Section Give_Up_Template.
 
   (* Todo: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
   Parameter getLockLoc_spec : ∀ (n: Node),
-      ({{{ True }}}
-           getLockLoc #n
-       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+    ({{{ True }}}
+      getLockLoc #n
+    {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
   (* The following functions are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl) *)

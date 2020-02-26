@@ -1,4 +1,5 @@
-Add LoadPath "/home/nisarg/Academics/templates".
+(** Verification of Give-up template algorithm *)
+
 From iris.algebra Require Import excl auth gmap agree gset frac.
 From iris.heap_lang Require Export lifting notation locations lang.
 From iris.base_logic.lib Require Export invariants.
@@ -7,150 +8,132 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
-Require Export flows keyset_ra.
 Set Default Proof Using "All".
+Require Export keyset_ra linkset_flows.
 
-(* ---------- The program ---------- *)
+(** We use integers as keys. *)
+Definition K := Z.
 
-Inductive dOp := memberOp | insertOp | deleteOp.
+(** Definitions of cameras used in the template verification *)
+Section Link_Cameras.
 
-Variable findNext : val.
-Variable decisiveOp : (dOp → val).
-Variable CCSSpec : (dOp → val).
-Variable lockLoc : Node → loc.
-Variable getLockLoc : val.
+  (* RA for authoritative flow interfaces over pairs of multisets of keys *)
+  Class flowintG Σ :=
+    FlowintG { flowint_inG :> inG Σ (authR (linkset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (linkset_flowint_ur K))].
 
-Definition lockNode : val :=
-  rec: "lockN" "x" :=
-    let: "l" := getLockLoc "x" in
-    if: CAS "l" #false #true
-    then #()
-    else "lockN" "x".
+  Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
+  Proof. solve_inG. Qed.
 
-Definition unlockNode : val :=
-  λ: "x",
-  let: "l" := getLockLoc "x" in
-  "l" <- #false.
+  (* RA for authoritative set of nodes *)
+  Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
+  Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
 
-Definition traverse : val :=
-  rec: "tr" "n" "k" :=
-    lockNode "n";;
-    match: (findNext "n" "k") with
-      NONE => "n"
-    | SOME "n'" => unlockNode "n";; "tr" "n'" "k"
-    end.
+  Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
+  Proof. solve_inG. Qed.
 
-Definition CCSOp (Ψ: dOp) (root: Node) : val :=
-  rec: "dictOp" "k" :=
-    let: "n" := traverse #root "k" in
-    match: ((decisiveOp Ψ) "n" "k") with
-      NONE => unlockNode "n";; "dictOp" "k"
-    | SOME "res" => unlockNode "n";; "res"
-    end.
+  (* RA for pair of keysets and contents *)
+  Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
+  Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
 
-(* ---------- Cameras used in the following proofs ---------- *)
+  Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
+  Proof. solve_inG. Qed.
 
-(* RA for authoritative flow interfaces *)
-Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR flowintUR) }.
-Definition flowintΣ : gFunctors := #[GFunctor (authR flowintUR)].
+  (* RA for authoritative inreach sets *)
+  Class inreachG Σ := InreachG { inreach_inG :> inG Σ (authR (gsetUR K)) }.
+  Definition inreachΣ : gFunctors := #[GFunctor (authR (gsetUR K))].
 
-Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
-Proof. solve_inG. Qed.
+  Instance subG_inreachΣ {Σ} : subG inreachΣ Σ → inreachG Σ.
+  Proof. solve_inG. Qed.
 
-(* RA for authoritative set of nodes *)
-Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
-Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
+  (* RA for fractional interfaces *)
+  Class fracintG Σ :=
+    FracinthG { fracint_inG :> inG Σ (authR (linkset_flowint_ur K)) }.
+  Definition fracintΣ : gFunctors := #[GFunctor (authR (linkset_flowint_ur K))].
 
-Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
-Proof. solve_inG. Qed.
+  Instance subG_fracintΣ {Σ} : subG fracintΣ Σ → fracintG Σ.
+  Proof. solve_inG. Qed.
 
-(* RA for pair of keysets and contents *)
-Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR)) }.
-Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR))].
+End Link_Cameras.
 
-Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
-Proof. solve_inG. Qed.
-
-(* RA for authoritative inreach sets *)
-Class inreachG Σ := InreachG { inreach_inG :> inG Σ (authR (gsetUR key)) }.
-Definition inreachΣ : gFunctors := #[GFunctor (authR (gsetUR key))].
-
-Instance subG_inreachΣ {Σ} : subG inreachΣ Σ → inreachG Σ.
-Proof. solve_inG. Qed.
-
-(* RA for fractional interfaces *)
-Class fracintG Σ := FracinthG { fracint_inG :> inG Σ (authR flowintUR) }.
-Definition fracintΣ : gFunctors := #[GFunctor (authR flowintUR)].
-
-Instance subG_fracintΣ {Σ} : subG fracintΣ Σ → fracintG Σ.
-Proof. solve_inG. Qed.
-
+(** Verification of the template *)
 Section Link_Template.
-  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ, !inreachG Σ, !fracintG Σ}.
+  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ, !inreachG Σ,
+    !fracintG Σ}.
   Notation iProp := (iProp Σ).
 
-  (** Flow interface set-up specific to this proof *)
-  
-  (* The following parameters are defined in the GRASShopper file link.spl *)
-  Parameter in_inset : key → flowintUR → Node → Prop.
-  Parameter in_outset : key → flowintUR → Node → Prop.      
-  Parameter linkset : flowintUR → Node → gset key.               (*inreach → linkset*)
-  Parameter keyset : flowintUR → Node → gset key.                 (* define as a lemma keyset I_n n *)
+  (** The code of the link template. *)
 
+  Inductive dOp := memberOp | insertOp | deleteOp.
+
+  (* The following parameters are the implementation-specific helper functions
+   * assumed by the template. See GRASShopper files b-link.spl and
+   * hashtbl-link.spl for the concrete implementations. *)
+
+  Parameter findNext : val.
+  Parameter decisiveOp : (dOp → val).
+  Parameter CCSSpec : (dOp → val).
+  Parameter lockLoc : Node → loc.
+  Parameter getLockLoc : val.
+
+  Definition lockNode : val :=
+    rec: "lockN" "x" :=
+      let: "l" := getLockLoc "x" in
+      if: CAS "l" #false #true
+      then #()
+      else "lockN" "x".
+
+  Definition unlockNode : val :=
+    λ: "x",
+    let: "l" := getLockLoc "x" in
+    "l" <- #false.
+
+  Definition traverse : val :=
+    rec: "tr" "n" "k" :=
+      lockNode "n";;
+      match: (findNext "n" "k") with
+        NONE => "n"
+      | SOME "n'" => unlockNode "n";; "tr" "n'" "k"
+      end.
+
+  Definition CCSOp (Ψ: dOp) (root: Node) : val :=
+    rec: "dictOp" "k" :=
+      let: "n" := traverse #root "k" in
+      match: ((decisiveOp Ψ) "n" "k") with
+        NONE => unlockNode "n";; "dictOp" "k"
+      | SOME "res" => unlockNode "n";; "res"
+      end.
+
+  (** Assumptions on the implementation made by the template proofs. *)
+  
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b-link.spl and hashtbl-link.spl for the concrete definitions. *)
-  Parameter node : Node → flowintUR → gset key → iProp.
+  Parameter node : Node → linkset_flowint_ur K → gset K → iProp.
 
-  (* The following assumption is justified by the fact that GRASShopper uses a first-order separation logic. *)
+  (* The following assumption is justified by the fact that GRASShopper uses a
+   * first-order separation logic. *)
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
-  Definition in_outsets k In := ∃ n, in_outset k In n.
+  (* The following hypothesis is proved as GRASShopper lemmas in
+   * hashtbl-link.spl and b-link.spl *)
+  Hypothesis node_sep_star: ∀ n I_n I_n' C C',
+    node n I_n C ∗ node n I_n' C' -∗ False.
 
-  (* The global invariant ϕ.
-   * See also link.spl for the matching GRASShopper definition *)
-  Definition globalinv root I : Prop :=
-    ✓I ∧ (root ∈ dom I) ∧ (∀ k n, ¬ (in_outset k I n)) 
-    ∧ ∀ n, ((n = root) → (∀ k, in_inset k I n ∧ k ∈ linkset I n))
-    ∧ ((n ≠ root) → (∀ k, ¬ in_inset k I n ∧ k ∉ linkset I n)).
-
-  (* The node-level invariant γ.
+  (* The node-level invariant (γ in the paper).
    * See also link.spl for the matching GRASShopper definition *)
   Definition nodeinv I_n n: Prop :=
     (∀ k, k ∈ linkset I_n n ∧ ¬ in_outsets k I_n → in_inset k I_n n).    
 
-  (* ---------- Proved in GRASShopper for each implementation: ---------- *)
-
-  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis keyset_def : ∀ k I_n n,
-    in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
-
-  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
-  Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
-
-  (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-link.spl and b-link.spl *)
+  (* The following hypothesis is proved as GRASShopper lemmas in 
+   * hashtbl-link.spl and b-link.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I. 
    
-  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis linkset_monotone :
-    ∀ I I1 I2 k n,  ✓ I → I = I1⋅I2 → n ∈ dom I1 → k ∈ linkset I n → k ∈ linkset I1 n.
-      
-  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis outset_distinct : ∀ I n, (∃ k, in_outset k I n) → n ∉ dom I. 
-  
-  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis flowint_linkset_step : 
-    ∀ I I1 I2 k n1 n2, ✓ I → I = I1⋅I2 → in_outset k I1 n2 → k ∈ linkset I1 n1 → k ∈ linkset I2 n2.
-
-  (* The following hypothesis is proved as a GRASShopper lemma in link.spl *)
-  Hypothesis flowint_step :
-    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.
-  
   (** Coarse-grained specification *)
 
-  Definition Ψ dop k (C: gset key) (C': gset key) (res: bool) : iProp :=
+  Definition Ψ dop k (C: gset K) (C': gset K) (res: bool) : iProp :=
     match dop with
     | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
@@ -160,8 +143,7 @@ Section Link_Template.
   Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
   Proof. destruct dop; apply _. Qed.
 
-
-  (* ---------- Helper functions specs ---------- *)
+  (** Helper functions specs *)
   (* These are proved for each implementation in GRASShopper *)
 
   Parameter getLockLoc_spec : ∀ (n: Node),
@@ -169,10 +151,10 @@ Section Link_Template.
       getLockLoc #n
     {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
-  (* The following functions are proved for each implementation in GRASShopper 
+  (* The following functions are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
-  
-  Parameter findNext_spec : ∀ (n: Node) (I_n : flowintUR) (C: gset key) (k: key),
+
+  Parameter findNext_spec : ∀ (n: Node) (I_n : linkset_flowint_ur K) (C: gset K) (k: K),
     ({{{ node n I_n C ∗ ⌜k ∈ linkset I_n n ∨ in_inset k I_n n⌝ }}}
       findNext #n #k
     {{{ (b: bool) (n': Node), 
@@ -180,10 +162,10 @@ Section Link_Template.
         node n I_n C ∗ (match b with true => ⌜in_outset k I_n n'⌝ |
                                     false => ⌜¬in_outsets k I_n⌝ end) }}})%I.
 
-  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: key) (I_n: flowintUR) (C: gset key),
+  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K) (I_n: linkset_flowint_ur K) (C: gset K),
     ({{{ node n I_n C ∗ ⌜in_inset k I_n n⌝ ∗ ⌜¬in_outsets k I_n⌝ }}}
       decisiveOp dop #n #k
-    {{{ (b: bool) (C': gset key) (res: bool),
+    {{{ (b: bool) (C': gset K) (res: bool),
         RET (match b with false => NONEV | true => (SOMEV #res) end);
         match b with false => node n I_n C |
                       true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset I_n n⌝
@@ -193,7 +175,7 @@ Section Link_Template.
   
   Definition CCS γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=                             
     (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● dom I) ∗ ⌜globalinv root I⌝
-    ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: flowintUR),
+    ∗ ([∗ set] n ∈ (dom I), (∃ (b: bool) (I_n: linkset_flowint_ur K),
       (lockLoc n) ↦ #b
       ∗ (if b then True
         else (∃ C_n, node n I_n C_n ∗ own (γ_fi n) ((●{1/2} I_n)) ∗ own γ_k (◯ prod (keyset I_n n, C_n))))
@@ -209,7 +191,7 @@ Section Link_Template.
   Proof. 
     intros I root Hglob. unfold globalinv in Hglob.
     destruct Hglob as [H1 [H2 H3]]. done.
-  Qed.    
+  Qed.
 
   Lemma globalinv_root_inr : ∀ I Ir root k,
     globalinv root I ∧ Ir ≼ I ∧ dom Ir = {[root]} → k ∈ linkset Ir root.
@@ -221,7 +203,7 @@ Section Link_Template.
      apply (linkset_monotone I Ir I2 k root); try done. set_solver.
   Qed. 
 
-  Lemma auth_own_incl γ (x y: flowintUR) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Lemma auth_own_incl γ (x y: linkset_flowint_ur K) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro.
     apply auth_both_valid.
@@ -348,12 +330,12 @@ Section Link_Template.
 
   (* ---------- Proofs of traverse and CCSOp ---------- *)
 
-  Lemma traverse_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (n: Node) (Ns: gset Node) (I_n:flowintUR) :
+  Lemma traverse_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: K) (n: Node) (Ns: gset Node) (I_n:linkset_flowint_ur K) :
     ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
     ∗ own (γ_inr n) (◯ (linkset I_n n)) ∗ ⌜k ∈ linkset I_n n⌝ -∗ 
     <<< ∀ C, is_CCS γ γ_fp γ_k γ_inr γ_fi root C >>>
       traverse #n #k @ ⊤
-    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': flowintUR) (Cn': gset key),
+    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': linkset_flowint_ur K) (Cn': gset K),
         is_CCS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
         ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
         ∗ own γ_k (◯ prod (keyset I_n' n', Cn')) ∗ ⌜dom I_n' = {[n']}⌝
@@ -435,7 +417,7 @@ Section Link_Template.
       apply Hninv. try done. iModIntro. wp_pures. done.
   Qed.
 
-  Theorem CCSOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: key) (dop: dOp):
+  Theorem CCSOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: K) (dop: dOp):
     ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k γ_inr γ_fi root C >>>
       CCSOp dop root #k @ ⊤
     <<< ∃ C' (res: bool), is_CCS γ γ_fp γ_k γ_inr γ_fi root C' 
