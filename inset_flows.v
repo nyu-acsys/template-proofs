@@ -2,11 +2,13 @@ Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
 Require Export flows ccm.
 
+(** Flow interface cameras and auxiliary lemmas for inset flows (used in give-up template proofs) *)
+
 Section inset_flows.
 
 Context `{Countable K}.
   
-(** CCM of multisets over keys numbers *)
+(** CCM of multisets over keys *)
 Definition K_multiset := nzmap K nat.
 
 Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
@@ -16,6 +18,8 @@ Definition dom_ms (m : K_multiset) := nzmap_dom K nat m.
 Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
 
 Implicit Type I : inset_flowint_ur.
+
+(** Insets, outsets, and keysets of flow interfaces *)
 
 Definition inset I n := dom_ms (inf I n).
 
@@ -39,12 +43,15 @@ Proof.
   naive_solver.
 Qed.
 
+(* The global invariant ϕ. *)
 Definition globalinv root I :=
   ✓I
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
   ∧ ∀ n, ((n = root) → (∀ k, k ∈ inset I n))
          ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).
+
+(** Assorted lemmas about inset flows used in the template proofs *)
 
 Lemma flowint_step :
   ∀ I I1 I2 k n root,

@@ -1,3 +1,5 @@
+(** Camera definitions and proofs for the keyset RA *)
+
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import tactics.
 Set Default Proof Using "All".
@@ -5,7 +7,11 @@ Require Export flows.
 
 Section keyset_ra.
 
+(* The set of keys. *)
 Context `{Countable K}.
+
+(* The keyspace is some arbitrary finite subset of K. *)
+Parameter KS : gset K.
 
 Inductive prodT :=
   prod : gset K*gset K → prodT
@@ -17,14 +23,15 @@ Canonical Structure prodRAC := leibnizO prodT.
 Global Instance prodOp : Op prodT :=
   λ p1 p2,
   match p1, p2 with
-  | prod (K1, C1), prod (K2, C2) => if (decide(C1 ⊆ K1)) then
-                                       (if (decide(C2 ⊆ K2)) then
-                                           (if (decide (K1 ## K2)) then
-                                               (if (decide (C1 ## C2)) then (prod (K1 ∪ K2, C1 ∪ C2))
-                                                else prodTop)
-                                            else prodTop)
-                                        else prodTop)
-                                    else prodTop
+  | prod (K1, C1), prod (K2, C2) =>
+    if (decide(C1 ⊆ K1)) then
+      (if (decide(C2 ⊆ K2)) then
+         (if (decide (K1 ## K2)) then
+            (if (decide (C1 ## C2)) then (prod (K1 ∪ K2, C1 ∪ C2))
+             else prodTop)
+          else prodTop)
+       else prodTop)
+    else prodTop
   | prodTop, _ => prodTop
   | _, prodTop => prodTop
   | p1, prodBot => p1
@@ -123,8 +130,6 @@ Proof.
 Qed.
 
 Canonical Structure keysetUR : ucmraT := UcmraT prodT prod_ucmra_mixin.
-
-Parameter KS : gset K.
 
 Lemma auth_ks_included (a1 a2 b1 b2: gset K) :
            ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)

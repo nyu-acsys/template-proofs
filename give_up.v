@@ -1,3 +1,5 @@
+(** Verification of Give-up template algorithm *)
+
 From iris.algebra Require Import excl auth gmap agree gset.
 From iris.heap_lang Require Export lifting notation locations lang.
 From iris.base_logic.lib Require Export invariants.
@@ -9,92 +11,89 @@ From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
 Require Export keyset_ra inset_flows.
 
-(* ---------- The program ---------- *)
-
-Inductive dOp := memberOp | insertOp | deleteOp.
-
-Variable findNext : val.
-Variable inRange : val.
-Variable decisiveOp : (dOp → val).
-Variable CCSSpec : (dOp → val).
-Variable lockLoc : Node → loc.
-Variable getLockLoc : val.
-
-Definition lockNode : val :=
-  rec: "lockN" "x" :=
-    let: "l" := getLockLoc "x" in
-    if: CAS "l" #false #true
-    then #()
-    else "lockN" "x".
-
-Definition unlockNode : val :=
-  λ: "x",
-  let: "l" := getLockLoc "x" in
-  "l" <- #false.
-
-Definition traverse (root: Node) : val :=
-  rec: "tr" "n" "k"  :=
-    lockNode "n";;
-    if: inRange "n" "k" then
-      match: (findNext "n" "k") with
-        NONE => "n"
-      | SOME "n'" => unlockNode "n";; "tr" "n'" "k" 
-      end
-    else
-      unlockNode "n";;
-      "tr" #root "k".
-
-Definition CCSOp (Ψ: dOp) (root: Node) : val :=
-  rec: "dictOp" "k" :=
-    let: "n" := (traverse root) #root "k" in
-    match: ((decisiveOp Ψ) "n" "k") with
-      NONE => unlockNode "n";; "dictOp" "k"
-    | SOME "res" => unlockNode "n";; "res"
-    end.
-
-(* ---------- Cameras used in the following proofs ---------- *)
-
+(** We use integers as keys. *)
 Definition K := Z.
 
-Section give_up_cameras.
+(** Definitions of cameras used in the template verification *)
+Section Give_Up_Cameras.
 
-(*Context `{Countable K}.*)
+  (* RA for authoritative flow interfaces over multisets over keys *)
+  Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+
+  Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
+  Proof. solve_inG. Qed.
   
-(* RA for authoritative flow interfaces *)
-Class flowintG Σ := FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+  (* RA for authoritative set of nodes *)
+  Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
+  Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
 
-Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
-Proof. solve_inG. Qed.
+  Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
+  Proof. solve_inG. Qed.
+  
+  (* RA for pair of keysets and contents *)
+  Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
+  Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
+  
+  Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
+  Proof. solve_inG. Qed.
+  
+End Give_Up_Cameras.
 
-(* RA for authoritative set of nodes *)
-Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
-Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
-
-Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
-Proof. solve_inG. Qed.
-
-(* RA for pair of keysets and contents *)
-Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
-Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
-
-Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
-Proof. solve_inG. Qed.
-
-End give_up_cameras.
-
+(** Verification of the template *)
 Section Give_Up_Template.
+
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
   Notation iProp := (iProp Σ).
 
-  (** Flow interface set-up specific to this proof *)
+  (** The code of the give-up template. *)
+
+  Inductive dOp := memberOp | insertOp | deleteOp.
+
+  (* The following parameters are the implementation-specific helper functions assumed by the template.
+   * See GRASShopper files b+-tree.spl and hashtbl-give-up.spl for the concrete implementations. *)
+
+  Parameter findNext : val.
+  Parameter inRange : val.
+  Parameter decisiveOp : (dOp → val).
+  Parameter CCSSpec : (dOp → val).
+  Parameter lockLoc : Node → loc.
+  Parameter getLockLoc : val.
+
+  Definition lockNode : val :=
+    rec: "lockN" "x" :=
+      let: "l" := getLockLoc "x" in
+      if: CAS "l" #false #true
+      then #()
+      else "lockN" "x".
+
+  Definition unlockNode : val :=
+    λ: "x",
+    let: "l" := getLockLoc "x" in
+    "l" <- #false.
+
+  Definition traverse (root: Node) : val :=
+    rec: "tr" "n" "k"  :=
+      lockNode "n";;
+      if: inRange "n" "k" then
+        match: (findNext "n" "k") with
+          NONE => "n"
+        | SOME "n'" => unlockNode "n";; "tr" "n'" "k" 
+        end
+      else
+        unlockNode "n";;
+        "tr" #root "k".
+
+  Definition CCSOp (Ψ: dOp) (root: Node) : val :=
+    rec: "dictOp" "k" :=
+      let: "n" := (traverse root) #root "k" in
+      match: ((decisiveOp Ψ) "n" "k") with
+        NONE => unlockNode "n";; "dictOp" "k"
+      | SOME "res" => unlockNode "n";; "res"
+      end.
+
+  (** Assumptions on the implementation made by the template proofs. *)
   
-
-  (* The following parameters are defined in the GRASShopper file give-up.spl *)
-  (*Parameter in_inset : K → flowintUR K → Node → Prop.
-  Parameter in_outset : K → flowintUR K → Node → Prop.
-  Parameter keyset : flowintUR → Node → gset K.*)
-
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
   Parameter node : Node → inset_flowint_ur K → gset K → iProp.
@@ -103,20 +102,6 @@ Section Give_Up_Template.
   Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
-
-
-  (* The global invariant ϕ.
-   * See also give-up.spl for the matching GRASShopper definition *)
-  (*Definition globalinv root I : Prop := ✓I ∧ (root ∈ domm I) ∧ (∀ k n, ¬ (in_outset K k I n)) 
-                                  ∧ ∀ n, ((n = root) → (∀ k, in_inset K k I n))
-                                      ∧ ((n ≠ root) → (∀ k, ¬ in_inset K k I n)).  *)
-
-  (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
-  (*Hypothesis keyset_def : ∀ k I_n n, in_inset k I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.*)
-
-  (* The following hypothesis is proved as a GRASShopper lemma in give-up.spl *)
-  (*Hypothesis flowint_step :
-    ∀ I I1 I2 k n root, I = I1 ⋅ I2 → ✓I → in_outset k I1 n → globalinv root I → n ∈ dom I2.*)
   
   (* The following hypothesis is proved as GRASShopper lemmas in hashtbl-give-up.spl and b+-tree.spl *)
   Hypothesis node_sep_star: ∀ n I_n I_n' C C', node n I_n C ∗ node n I_n' C' -∗ False.
@@ -142,7 +127,7 @@ Section Give_Up_Template.
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
   (* The following functions are proved for each implementation in GRASShopper
-   * (see b+-tree.spl and hashtbl-give-up.spl *)
+   * (see b+-tree.spl and hashtbl-give-up.spl) *)
 
   Parameter inRange_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
       ({{{ node n I_n C }}}
@@ -168,7 +153,7 @@ Section Give_Up_Template.
                   match b with false => node n I_n C |
                               true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset K I_n n⌝ end }}})%I.
 
-  (** The concurrent search structure invariant *)
+  (* The concurrent search structure invariant *)
 
   Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset K)
     : iProp :=
@@ -181,7 +166,7 @@ Section Give_Up_Template.
 
   Definition is_CCS γ γ_fp γ_k root C := (∃ I, (main_CCS γ γ_fp γ_k root I C))%I.
 
-  (* ---------- Assorted useful lemmas ---------- *)
+  (* Assorted useful lemmas *)
 
   Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
   Proof. 
@@ -216,7 +201,7 @@ Section Give_Up_Template.
   Qed.
 
   
-  (* ---------- Lock module proofs ---------- *)
+  (** Lock module proofs *)
 
   Lemma lockNode_spec (n: Node):
     <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
@@ -256,7 +241,8 @@ Section Give_Up_Template.
     iModIntro. done.
   Qed.
 
-  (* ---------- Proofs of traverse and CCSOp ---------- *)
+  
+  (** Proofs of traverse and CCSOp *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
        ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
@@ -346,7 +332,7 @@ Section Give_Up_Template.
   Qed.
 
 
-  (* ---------- Ghost state manipulation to make final proof cleaner ---------- *)
+  (* Ghost state manipulation to make final proof cleaner *)
 
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
           Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
@@ -403,7 +389,8 @@ Section Give_Up_Template.
         * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H13) in "Hf".
           iFrame. unfold Ψ. iPureIntro. set_solver.
   Qed.
-  
+
+  (** Verification of abstract specification of the search structure operation. *)
   Theorem CCSOp_spec (γ γ_fp γ_k: gname) root (dop: dOp) (k: K):
       ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
             CCSOp dop root #k
