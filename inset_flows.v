@@ -304,4 +304,3 @@ Arguments in_inset _ {_ _} _ _ _ : assert.
 Arguments in_outset _ {_ _} _ _ _ : assert.
 Arguments in_outsets _ {_ _} _ _ : assert.
 Arguments globalinv _ {_ _} _ _ : assert.
-

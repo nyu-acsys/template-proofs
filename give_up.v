@@ -135,43 +135,49 @@ Section Give_Up_Template.
    * (see b+-tree.spl and hashtbl-give-up.spl) *)
 
   Parameter inRange_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-      ({{{ node n I_n C }}}
-           inRange #n #k
-       {{{ (b: bool), RET #b; node n I_n C ∗ (match b with true => ⌜in_inset K k I_n n⌝ |
-                                    false => ⌜True⌝ end) }}})%I.
+    ({{{ node n I_n C }}}
+      inRange #n #k
+    {{{ (b: bool), RET #b; node n I_n C
+      ∗ (match b with true => ⌜in_inset K k I_n n⌝ |
+                     false => ⌜True⌝ end) }}})%I.
 
   (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
   Parameter findNext_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-      ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
-           findNext #n #k
-       {{{ (b: bool) (n': Node), 
-              RET (match b with true => (SOMEV #n') | false => NONEV end); 
-               node n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
-                                          false => ⌜¬in_outsets K k I_n⌝ end) }}})%I.
+    ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
+      findNext #n #k
+    {{{ (b: bool) (n': Node), 
+        RET (match b with true => (SOMEV #n') | false => NONEV end); 
+        node n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
+                                    false => ⌜¬in_outsets K k I_n⌝ end) }}})%I.
 
-  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K) (I_n: inset_flowint_ur K) (C: gset K),
-      ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝
-                    ∗ ⌜¬in_outsets K k I_n⌝ ∗ ⌜domm I_n = {[n]}⌝ }}}
-           decisiveOp dop #n #k
-       {{{ (b: bool) (C': gset K) (res: bool),
-                  RET (match b with false => NONEV | true => (SOMEV #res) end);
-                  match b with false => node n I_n C |
-                              true => node n I_n C' ∗ Ψ dop k C C' res ∗ ⌜ C' ⊆ keyset K I_n n⌝ end }}})%I.
+  Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
+      (I_n: inset_flowint_ur K) (C: gset K),
+    ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝
+        ∗ ⌜¬in_outsets K k I_n⌝ ∗ ⌜domm I_n = {[n]}⌝ }}}
+      decisiveOp dop #n #k
+    {{{ (b: bool) (C': gset K) (res: bool),
+        RET (match b with false => NONEV | true => (SOMEV #res) end);
+        match b with false => node n I_n C |
+                      true => node n I_n C' ∗ Ψ dop k C C' res
+                              ∗ ⌜ C' ⊆ keyset K I_n n⌝
+        end }}})%I.
 
-  (* The concurrent search structure invariant *)
+  (** The concurrent search structure invariant *)
 
-  Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset K)
-    : iProp :=
-       ( own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv K root I⌝
-        ∗ ([∗ set] n ∈ (domm I), (∃ b: bool, (lockLoc n) ↦ #b ∗ if b then True
-                                 else (∃ (I_n: inset_flowint_ur K) (C_n: gset K), own γ (◯ I_n) ∗ node n I_n C_n 
-                                                ∗ ⌜domm I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset K I_n n, C_n)))))
-        ∗ own γ_fp (● domm I)
+  Definition main_CCS (γ γ_fp γ_k : gname) root I (C: gset K) : iProp :=
+    (own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv K root I⌝
+    ∗ ([∗ set] n ∈ (domm I), (∃ b: bool, (lockLoc n) ↦ #b
+      ∗ if b then True
+        else (∃ (I_n: inset_flowint_ur K) (C_n: gset K),
+              own γ (◯ I_n) ∗ node n I_n C_n 
+              ∗ ⌜domm I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset K I_n n, C_n)))))
+    ∗ own γ_fp (● domm I)
     )%I.
 
-  Definition is_CCS γ γ_fp γ_k root C := (∃ I, (main_CCS γ γ_fp γ_k root I C))%I.
+  Definition is_CCS γ γ_fp γ_k root C :=
+    (∃ I, (main_CCS γ γ_fp γ_k root I C))%I.
 
-  (* Assorted useful lemmas *)
+  (** Assorted useful lemmas *)
 
   Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
   Proof. 
@@ -179,7 +185,7 @@ Section Give_Up_Template.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.
 
-  Lemma auth_set_incl γ_fp Ns Ns' :
+  Lemma auth_set_incl (γ_fp: gname) (Ns: gsetUR Node) Ns' :
     own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro.
@@ -189,7 +195,15 @@ Section Give_Up_Template.
     apply to_agree_inj in H1. set_solver.
   Qed.
 
-  Lemma auth_own_incl_ks γ (x y: keysetUR K) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Lemma auth_own_incl γ (x y: inset_flowint_ur K) :
+    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Proof.
+    rewrite -own_op. rewrite own_valid. iPureIntro.
+    apply auth_both_valid.
+  Qed.
+
+  Lemma auth_own_incl_ks γ (x y: keysetUR K) :
+    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
     simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
@@ -198,20 +212,14 @@ Section Give_Up_Template.
     { rewrite /(⋅) /=. destruct y; try done. }
     rewrite Hy in Hb. rewrite <- Ha in Hb. done.
   Qed.
-  
-  Lemma auth_own_incl γ (x y: inset_flowint_ur K) : own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    apply auth_both_valid.
-  Qed.
 
-  
+
   (** Lock module proofs *)
 
-  Lemma lockNode_spec (n: Node):
+  Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
     <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
-        lockNode #n    @ ⊤
-    <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>. (* rewrite if then else *)
+      lockNode #n    @ ⊤
+    <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
@@ -231,9 +239,9 @@ Section Give_Up_Template.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-          <<< lockLoc n ↦ #true >>>
-                unlockNode #n    @ ⊤
-          <<< lockLoc n ↦ #false, RET #() >>>.
+    <<< lockLoc n ↦ #true >>>
+      unlockNode #n    @ ⊤
+    <<< lockLoc n ↦ #false, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". wp_lam. wp_bind(getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
@@ -250,13 +258,14 @@ Section Give_Up_Template.
   (** Proofs of traverse and CCSOp *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
-       ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗ <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
-                traverse root #n #k
-                    @ ⊤
-          <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K), is_CCS γ γ_fp γ_k root C
-                      ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns') ∗ own γ (◯ I_n') ∗ node n' I_n' C_n' 
-                      ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝ ∗ ⌜in_inset K k I_n' n'⌝
-                      ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
+    ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
+    <<< ∀ C, is_CCS γ γ_fp γ_k root C >>>
+      traverse root #n #k @ ⊤
+    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
+        is_CCS γ γ_fp γ_k root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
+        ∗ own γ (◯ I_n') ∗ node n' I_n' C_n' 
+        ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝
+        ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
     iLöb as "IH" forall (n Ns). iIntros "(#Hinn & #Hfp & #Hroot)".
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.

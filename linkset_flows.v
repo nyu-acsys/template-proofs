@@ -33,6 +33,7 @@ Definition linkset I n := dom_ms (snd (inf I n)).
 
 Definition outset I n := dom_ms (fst (out I n)) ∪ dom_ms (snd (out I n)).
 
+(* TODO these are no longer needed, just use the definition instead *)
 Definition in_inset k I n := k ∈ inset I n.
 
 Definition in_linkset k I n := k ∈ linkset I n.
@@ -317,3 +318,14 @@ Proof.
 Qed.
 
 End linkset_flows.
+
+Arguments linkset_flowint_ur _ {_ _} : assert.
+Arguments inset _ {_ _} _ _ : assert.
+Arguments linkset _ {_ _} _ _ : assert.
+Arguments outset _ {_ _} _ _ : assert.
+Arguments keyset _ {_ _} _ _ : assert.
+Arguments in_inset _ {_ _} _ _ _ : assert.
+Arguments in_linkset _ {_ _} _ _ _ : assert.
+Arguments in_outset _ {_ _} _ _ _ : assert.
+Arguments in_outsets _ {_ _} _ _ : assert.
+Arguments globalinv _ {_ _} _ _ : assert.
