@@ -2,13 +2,15 @@ Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
 Require Export flows ccm.
 
-(** Flow interface cameras and auxiliary lemmas for inset flows (used in give-up template proofs) *)
+(** Flow interface cameras and auxiliary lemmas for inset flows
+  (used in the give-up template proof) *)
 
 Section inset_flows.
 
 Context `{Countable K}.
   
 (** CCM of multisets over keys *)
+
 Definition K_multiset := nzmap K nat.
 
 Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
@@ -26,14 +28,15 @@ Definition inset I n := dom_ms (inf I n).
 Definition outset I n := dom_ms (out I n).
 
 Definition in_inset k I n := k ∈ dom_ms (inf I n).
-  
-Definition in_outset k I n := k ∈ dom_ms (out I n).
 
-Definition keyset I n := dom_ms (inf I n) ∖ dom_ms (out I n).
+Definition in_outset k I n := k ∈ dom_ms (out I n).
 
 Definition in_outsets k In := ∃ n, in_outset k In n.
 
-Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n → k ∈ keyset I_n n.
+Definition keyset I n := dom_ms (inf I n) ∖ dom_ms (out I n).
+
+Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n
+  → k ∈ keyset I_n n.
 Proof.
   intros ? ? ? k_in_inset k_not_in_outsets.
   unfold keyset.
