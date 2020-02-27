@@ -275,10 +275,6 @@ Proof.
   all: apply K_multiset_pair_ccm.
 Qed.
 
-(* TODO this is what link.v was using:
-  Hypothesis flowint_linkset_step : 
-    ∀ I I1 I2 k n1 n2, ✓ I → I = I1⋅I2 → in_outset k I1 n2 → k ∈ linkset I1 n1 → k ∈ linkset I2 n2.
-*)
 Lemma flowint_linkset_step : ∀ I1 I2 k n,
     ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ linkset I2 n ∨ k ∈ inset I2 n.
 Proof.
