@@ -713,4 +713,5 @@ End lifting.
 
 Arguments NZMap {_ _ _ _ _} _ _ : assert.
 Arguments nzmap_car {_ _ _ _ _} _ : assert.
+Arguments nzmap_total_lookup {_ _ _ _ _} _ _ : assert.
 

@@ -139,8 +139,8 @@ Proof.
   rewrite elem_of_union in kOut *.
   intros kOut.
   repeat (rewrite nzmap_elem_of_dom_total in kOut *; intros kOut).
-  remember (nzmap_total_lookup K nat k (out I1 n).1) as x1.
-  remember (nzmap_total_lookup K nat k (out I1 n).2) as x2.
+  remember (nzmap_total_lookup k (out I1 n).1) as x1.
+  remember (nzmap_total_lookup k (out I1 n).2) as x2.
   unfold ccmop, ccm_op, nat_ccm, nat_op, ccmunit, nat_unit in not_k_out.
   destruct not_k_out as (not_k_out1 & not_k_out2).
   apply dec_stable in not_k_out1.
