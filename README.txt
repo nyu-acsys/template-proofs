@@ -48,7 +48,7 @@ grasshopper hashtbl-link.spl
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
 
-You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands, or procedures/lemmas with no bodies.
+You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. Note that there are some procedures/lemmas without bodies in ccm.spl as we use this mechanism to specify axioms of a theory (the bodies and proofs are then provided in multiset_ccm.spl and multipair_ccm.spl for the specific instantiations).
 
 
 Linking Templates and Implementations
