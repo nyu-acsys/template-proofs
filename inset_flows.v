@@ -328,6 +328,94 @@ Proof.
   lia.
 Qed.
 
+(*Instance empty_K_multiset : Empty K_multiset := nzmap_empty K nat.*)
+
+Instance a : Singleton K (gset K) := _.
+Instance b : Union (gset K) := _.
+Instance c : SemiSet K (gset K) := _.
+(*Instance d : Dom (gset K) K := _.*)
+
+Lemma contextualLeq_impl_globalinv : ∀ I I' root,
+    globalinv root I →
+    contextualLeq K_multiset I I' →
+    (∀ n, n ∈ domm I' ∖ domm I → inset I' n = ∅) →
+    globalinv root I'.
+Proof.
+  intros ? ? ? GI CLeq InfI'.
+  unfold contextualLeq in CLeq.
+  unfold globalinv in GI.
+  destruct GI as (_ & DomR & OutI & InfI).
+  destruct CLeq as (VI & VI' & DS & InfR & OutR).
+  unfold globalinv.
+  repeat split.
+  - trivial.
+  - set_solver.
+  - intros.
+    destruct (decide (n ∈ domm I')).
+    * apply flowint_valid_unfold in VI'.
+      destruct VI' as [Ir' (I'_def & I'_disj & _)].
+      assert (dom (gset Node) (inf_map I') ## dom (gset Node) (out_map I')).
+      { apply map_disjoint_dom_1.
+        unfold inf_map, out_map.
+        rewrite I'_def.
+        trivial. }
+      assert (out_map I' !! n = None).
+      { unfold out_map. rewrite I'_def.
+        assert (¬ (n ∈ dom (gset Node) (out_map I'))).
+        { unfold domm, dom, flowint_dom in e.
+          set_solver.
+        }
+        unfold out_map in H1.
+        rewrite I'_def in H1.
+        apply not_elem_of_dom in H1.
+        trivial.
+      }
+      unfold outset, dom_ms, nzmap_dom, out.
+      rewrite H1. simpl.
+      rewrite dom_empty.
+      apply not_elem_of_empty.
+    * assert (n ∉ domm I) by set_solver.
+      pose proof (OutR n n0).
+      unfold outset. rewrite <- H1.
+      pose proof (OutI k n).
+      unfold outset in H2.
+      trivial.
+  - intros.
+    pose proof (InfI n).
+    destruct H1 as (H1 & _).
+    pose proof (H1 H0 k).
+    rewrite <- H0 in DomR.
+    pose proof (InfR n DomR).
+    unfold inset.
+    unfold inset in H2.
+    rewrite <- H3.
+    trivial.
+  - intros.
+    destruct (decide (n ∈ domm I)).
+    * pose proof (InfI n).
+      destruct H1 as (_ & H1).
+      pose proof (H1 H0 k).
+      pose proof (InfR n e).
+      unfold inset.
+      rewrite <- H3.
+      unfold inset in H2.
+      trivial.
+    * destruct (decide (n ∈ domm I')).
+      + assert (n ∈ domm I' ∖ domm I) by set_solver.
+        pose proof (InfI' n H1).
+        rewrite H2.
+        apply not_elem_of_empty.
+      + unfold domm, dom_ms, dom, flowint_dom in n1.
+        apply not_elem_of_dom in n1.
+        unfold inset, dom_ms, inf.
+        rewrite n1. simpl.
+        unfold nzmap_dom.
+        rewrite nzmap_elem_of_dom.
+        unfold ccmunit, lift_unit, nzmap_unit, lookup, nzmap_lookup.
+        rewrite lookup_empty.
+        apply is_Some_None.
+Qed.
+
 End inset_flows.
 
 Arguments inset_flowint_ur _ {_ _} : assert.
