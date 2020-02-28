@@ -87,15 +87,15 @@ Section Coupling_Template.
         lockNode "n'";; unlockNode "p";; "tr" "n" "n'" "k"
       end.
 
-  Definition CSSOp (Ψ: dOp) (first: Node) : val :=
+  Definition CSSOp (Ψ: dOp) (root: Node) : val :=
     λ: "k",
-    lockNode #first;;
-    let: "n0" := (findNext #first "k") in
+    lockNode #root;;
+    let: "n0" := (findNext #root "k") in
     match: "n0" with
       NONE => ""
     | SOME "n0" =>
       lockNode "n0";;
-      let: "pn" := traverse #first "n0" "k" in
+      let: "pn" := traverse #root "n0" "k" in
       let: "p" := Fst "pn" in
       let: "n" := Snd "pn" in
       let: "m" := alloc #() in
@@ -108,11 +108,12 @@ Section Coupling_Template.
 
   (* The node predicate is specific to each template implementation. *)
   Parameter node : Node → Node → inset_flowint_ur K → gset K → iProp.
+  (* TODO change node n root I C → node root n I C*)
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
-  Parameter node_timeless_proof : ∀ n first I C, Timeless (node n first I C).
-  Instance node_timeless n first I C: Timeless (node n first I C).
+  Parameter node_timeless_proof : ∀ n root I C, Timeless (node n root I C).
+  Instance node_timeless n root I C: Timeless (node n root I C).
   Proof. apply node_timeless_proof. Qed.
 
   (* Spatial part of node predicate. *)
@@ -122,29 +123,29 @@ Section Coupling_Template.
   (* TODO: can we get rid of the following? *)
   Instance ccm_ms : CCM (@K_multiset K _ _) := @K_multiset_ccm K _ _.
 
-
-  (* The node-local invariant. See list-coupling.spl for the corresponding GRASShopper definition.*)
-  (*Definition nodeinv n first I_n  C_n : Prop :=
-    C_n = keyset K I_n n ∧ (n = first → ∀ k, k ∈ KS → in_outsets K k I_n).    *)
+  (* The node-local invariant. 
+   * See list-coupling.spl for the corresponding GRASShopper definition.*)
+  (* TODO there's a slight discrepancy between this and grasshopper. *)
   Definition nodeinv root n (I_n : inset_flowint_ur K) C_n : Prop :=
     n ∈ domm I_n
     ∧ C_n = keyset K I_n n
     ∧ (∀ k : K, default 0 (inf I_n n !! k) ≤ 1)
     ∧ (n = root → ∀ k : K, k ∈ KS → in_outsets K k I_n).
 
-  (* The following hypotheses are proved as GRASShopper lemmas in list-coupling.spl *)
-  Hypothesis node_implies_nodeinv : ∀ n I_n C first,
-    (⌜✓I_n⌝)%I ∗ node n first I_n C
-    -∗ node n first I_n C ∗ (⌜nodeinv first n I_n C⌝)%I.
+  (* The following hypotheses are proved as GRASShopper lemmas in
+   * list-coupling.spl *)
+  Hypothesis node_implies_nodeinv : ∀ n I_n C root,
+    (⌜✓I_n⌝)%I ∗ node n root I_n C
+    -∗ node n root I_n C ∗ (⌜nodeinv root n I_n C⌝)%I.
 
-  Hypothesis node_sep_star: ∀ n I_n I_n' C C' first,
-      node n first I_n C ∗ node n first I_n' C' -∗ False.
-  (* TODO change node n first I C → node first n I C*)
+  Hypothesis node_sep_star: ∀ n I_n I_n' C C' root,
+    node n root I_n C ∗ node n root I_n' C' -∗ False.
 
   Hypothesis contextualLeq_impl_globalinv :
-    ∀ I I' first, globalinv K first I → contextualLeq K_multiset I I' → globalinv K first I'.
+    ∀ I I' root, globalinv K root I → contextualLeq K_multiset I I'
+    → globalinv K root I'.
 
-  Lemma successor_not_first : ∀ (I I1 I2 I3 : flowintT) C root n k,
+  Lemma successor_not_root : ∀ (I I1 I2 I3 : flowintT) C root n k,
       globalinv K root I →
       I = I1 ⋅ I2 ⋅ I3 →
       k ∈ outset K I1 n →
@@ -258,20 +259,20 @@ Section Coupling_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see list-coupling.spl) *)
 
-  Parameter findNext_spec : ∀ first (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-      ({{{ node n first I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
+  Parameter findNext_spec : ∀ root (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
+      ({{{ node n root I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
            findNext #n #k
        {{{ (b: bool) (n': Node),
               RET (match b with true => (SOMEV #n') | false => NONEV end);
-               node n first I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
-                                          false => ⌜¬in_outsets K k I_n⌝ ∗ ⌜n ≠ first⌝ end) }}})%I.
+               node n root I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
+                                          false => ⌜¬in_outsets K k I_n⌝ ∗ ⌜n ≠ root⌝ end) }}})%I.
 
-  Parameter decisiveOp_insert_spec : ∀ dop first (p n m: Node) (k: K) (I_p I_n: inset_flowint_ur K) (C_p C_n: gset K),
-      ({{{ node p first I_p C_p ∗ node n first I_n C_n ∗ hrep_spatial m ∗ ⌜n ≠ first⌝ ∗ ⌜m ≠ first⌝
+  Parameter decisiveOp_insert_spec : ∀ dop root (p n m: Node) (k: K) (I_p I_n: inset_flowint_ur K) (C_p C_n: gset K),
+      ({{{ node p root I_p C_p ∗ node n root I_n C_n ∗ hrep_spatial m ∗ ⌜n ≠ root⌝ ∗ ⌜m ≠ root⌝
                           ∗ ⌜in_inset K k I_p p⌝ ∗ ⌜in_outset K k I_p n ⌝ ∗ ⌜¬in_outsets K k I_n⌝ }}}
            decisiveOp dop #p #n #k
        {{{ (C_p' C_n' C_m': gset K) (I_p' I_n' I_m': flowintUR K_multiset) (res: bool), RET  #res;
-                           node p first I_p' C_p' ∗ node n first I_n' C_n' ∗ node m first I_m' C_m'
+                           node p root I_p' C_p' ∗ node n root I_n' C_n' ∗ node m root I_m' C_m'
                          ∗ ⌜Ψ dop k (C_p ∪ C_n) (C_p' ∪ C_n' ∪ C_m') res⌝
                          ∗ ⌜contextualLeq _ (I_p ⋅ I_n) (I_p' ⋅ I_n' ⋅ I_m')⌝
                          ∗ ⌜domm I_p' = {[p]}⌝ ∗ ⌜domm I_n' = {[n]}⌝ ∗ ⌜domm I_m' = {[m]}⌝
@@ -451,18 +452,18 @@ Section Coupling_Template.
 
   (** Proof of the lock-coupling template *)
 
-  Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) (first: Node) (k: K) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
-    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c first -∗
-    {{{ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
-        ∗ node p first I_p C_p ∗ own γ (◯ I_p) ∗ ⌜domm I_p = {[p]}⌝ ∗  ⌜in_inset K k I_p p⌝ ∗ ⌜in_outset K k I_p n⌝
-        ∗ own γ_k (◯ prod (keyset K I_p p, C_p)) ∗ node n first I_n C_n ∗ own γ (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝
+  Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) (root: Node) (k: K) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
+    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c root -∗
+    {{{ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜root ∈ Ns⌝ ∗ ⌜n ≠ root⌝
+        ∗ node p root I_p C_p ∗ own γ (◯ I_p) ∗ ⌜domm I_p = {[p]}⌝ ∗  ⌜in_inset K k I_p p⌝ ∗ ⌜in_outset K k I_p n⌝
+        ∗ own γ_k (◯ prod (keyset K I_p p, C_p)) ∗ node n root I_n C_n ∗ own γ (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝
         ∗ own γ_k (◯ prod (keyset K I_n n, C_n))
     }}}
       traverse #p #n #k @ ⊤
     {{{ (p' n': Node) (Ns': gsetUR Node) (I_p' I_n': inset_flowint_ur K) (C_p' C_n': gset K),
         RET (#p', #n');
         own γ_fp (◯ Ns') ∗ ⌜p' ∈ Ns'⌝ ∗ ⌜n' ∈ Ns'⌝ ∗ own γ (◯ I_p') ∗ ⌜domm I_p' = {[p']}⌝ ∗ own γ (◯ I_n')
-        ∗ ⌜domm I_n' = {[n']}⌝ ∗ node p' first I_p' C_p' ∗ node n' first I_n' C_n' ∗ ⌜n' ≠ first⌝
+        ∗ ⌜domm I_n' = {[n']}⌝ ∗ node p' root I_p' C_p' ∗ node n' root I_n' C_n' ∗ ⌜n' ≠ root⌝
         ∗ own γ_k (◯ prod (keyset K I_p' p', C_p'))
         ∗ own γ_k (◯ prod (keyset K I_n' n', C_n'))
         ∗ ⌜in_inset K k I_p' p'⌝ ∗ ⌜in_outset K k I_p' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝
@@ -478,7 +479,7 @@ Section Coupling_Template.
     { unfold in_inset. fold (inset K I_n n).
       apply (outset_impl_inset I_p I_n k n); try done. set_solver. }
     iDestruct "H" as "(HIp & HIn)".
-    wp_apply ((findNext_spec first n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #".
+    wp_apply ((findNext_spec root n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #".
     iIntros (b n') "(Hnoden & Hb)". destruct b.
     - iDestruct "Hb" as "%". wp_pures.
       wp_bind (lockNode _)%E.
@@ -489,7 +490,7 @@ Section Coupling_Template.
       iPoseProof (own_valid with "HInt") as "%".
       assert (✓ I_n) as HInv. { apply (auth_frag_valid (◯ I_n)). done. }
       assert (✓ I0) as HI0. { apply (auth_auth_valid (I0)). done. }
-      assert (n' ∈ domm I2). { apply (flowint_step I0 I_n I2 k n' first); try done. }
+      assert (n' ∈ domm I2). { apply (flowint_step I0 I_n I2 k n' root); try done. }
       assert (n' ∈ domm I0).
       { rewrite H13. rewrite flowint_comp_fp. set_solver. rewrite <-H13. done. }
       iMod (own_update γ_fp (● (domm I0)) (● (domm I0) ⋅ ◯ (domm I0)) with "HFP") as "H".
@@ -508,11 +509,11 @@ Section Coupling_Template.
       assert (✓ (I_n ⋅ I_n')). { apply (auth_frag_valid (◯ (I_n ⋅ I_n'))). done. }
       iEval (rewrite -auth_frag_op) in "H".
       iPoseProof (auth_own_incl with "[$HInt $H]") as (I3)"%".
-      iAssert (node n' first I_n' C_n' ∗ ⌜nodeinv first n' I_n' C_n'⌝)%I with "[Hnoden']" as "(Hnoden' & %)".
+      iAssert (node n' root I_n' C_n' ∗ ⌜nodeinv root n' I_n' C_n'⌝)%I with "[Hnoden']" as "(Hnoden' & %)".
       { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". iPureIntro.
         apply cmra_valid_op_r in H20. done. }
-      assert (n' ≠ first) as Hnotf'.
-      { apply (successor_not_first I0 I_n I_n' I3 C_n' first n' k); try done. }
+      assert (n' ≠ root) as Hnotf'.
+      { apply (successor_not_root I0 I_n I_n' I3 C_n' root n' k); try done. }
       iModIntro. iSplitL "HKS HInt HFP Hcont Hstar Hlock".
       { iNext. iExists I0, C0. iFrame "∗ # %". iApply "Hstar".
       iExists true. iFrame. } iDestruct "H" as "(HIn & HIn')". iIntros "Hc".
@@ -527,11 +528,11 @@ Section Coupling_Template.
       iAssert (⌜n' ∈ domm I1⌝)%I with "[HFP]" as "%".
       { iPoseProof ((auth_set_incl γ_fp (domm I0) (domm I1)) with "[$]") as "%".
         iPureIntro. set_solver. }
-      assert (first ∈ domm I1). { apply globalinv_root_fp. done. }
+      assert (root ∈ domm I1). { apply globalinv_root_fp. done. }
       rewrite (big_sepS_elem_of_acc _ (domm I1) p); last by eauto.
       iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
       destruct b; last first. { iDestruct "Hb" as (In1 Cn1) "(_ & _ & Hrep' & _)".
-      iAssert (⌜False⌝)%I with "[Hrep' Hnodep]" as %Hf. { iApply (node_sep_star p In1 I_p _ _ first).
+      iAssert (⌜False⌝)%I with "[Hrep' Hnodep]" as %Hf. { iApply (node_sep_star p In1 I_p _ _ root).
       iFrame. } exfalso. done. }
       iAaccIntro with "Hlock". { iIntros. iModIntro. iFrame "∗ # %". iNext. iExists I1, C1.
       iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
@@ -553,20 +554,20 @@ Section Coupling_Template.
   Proof.
   Admitted.
 
-  Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) first (k: K) (dop: dOp):
-    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c first -∗
+  Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) root (k: K) (dop: dOp):
+    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c root -∗
     <<< ∀ (C: gset K), css_cont γ_c C >>>
-      CSSOp dop first #k @ ⊤ ∖ ↑N
+      CSSOp dop root #k @ ⊤ ∖ ↑N
     <<< ∃ C' (res: bool), css_cont γ_c C' ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
   Proof.
     iIntros "(% & #HInv)". iIntros (Φ) "AU". wp_lam. wp_bind (lockNode _)%E.
-    awp_apply (lockNode_spec first). iInv "HInv" as ">H".
+    awp_apply (lockNode_spec root). iInv "HInv" as ">H".
     iDestruct "H" as (I0 C0) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iMod (own_update γ_fp (● (domm I0)) (● (domm I0) ⋅ ◯ (domm I0)) with "HFP") as "H".
     apply auth_update_core_id. apply gset_core_id. done.
     iDestruct "H" as "(HFP & #Hfp)".
-    assert (first ∈ domm I0). { apply globalinv_root_fp. done. }
-    rewrite (big_sepS_elem_of_acc _ (domm I0) first); last by eauto.
+    assert (root ∈ domm I0). { apply globalinv_root_fp. done. }
+    rewrite (big_sepS_elem_of_acc _ (domm I0) root); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]".
     iDestruct "Hb" as (b) "[Hlock Hb]".
     iAaccIntro with "Hlock". { iIntros "H". iModIntro. iSplitR "AU".
@@ -578,9 +579,9 @@ Section Coupling_Template.
     iModIntro. iSplitR "AU HIf Hnodef HCf". iNext. iExists I0, C0. iFrame "∗ # %".
     iApply "Hstar". iExists true. iFrame "∗ # %".
     wp_pures. wp_bind(findNext _ _)%E.
-    assert (in_inset K k If first). { unfold globalinv in H0. destruct H0 as [? [? [? ?]]].
-    specialize (H6 first). destruct H6 as [H6 _]. apply (inset_monotone I0 If Io k first); try done; set_solver. }
-    wp_apply ((findNext_spec first first If Cf k) with "[Hnodef]").
+    assert (in_inset K k If root). { unfold globalinv in H0. destruct H0 as [? [? [? ?]]].
+    specialize (H6 root). destruct H6 as [H6 _]. apply (inset_monotone I0 If Io k root); try done; set_solver. }
+    wp_apply ((findNext_spec root root If Cf k) with "[Hnodef]").
     { iFrame "∗ # %". } iIntros (b n) "(Hnodef & Hb)".
     destruct b; last first. wp_pures. iDestruct "Hb" as "(% & %)".
     exfalso. apply H5. done. iDestruct "Hb" as "%". wp_pures.
@@ -590,7 +591,7 @@ Section Coupling_Template.
     assert (✓ I2) as HI2. { apply (auth_auth_valid (I2)). done. }
     iPoseProof (auth_own_incl with "[$HInt $HIf]") as (Io')"%". assert (n ∈ domm I2).
     { assert (n ∈ domm Io').
-      { apply (flowint_step I2 If Io' k n first); try done. }
+      { apply (flowint_step I2 If Io' k n root); try done. }
       rewrite H7. rewrite flowint_comp_fp. set_solver. rewrite <-H7. done. }
     rewrite (big_sepS_elem_of_acc _ (domm I2) n); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]".
@@ -599,7 +600,7 @@ Section Coupling_Template.
     iNext. iExists I2, C2. iFrame "∗ # %". iApply "Hstar".
     iExists b. iFrame "∗ # %". iFrame "∗ # %". }
     iIntros "(Hlock & H)". destruct b. { iExFalso. done. } iClear "H".
-    assert (first ∈ domm I2). { apply globalinv_root_fp. done. }
+    assert (root ∈ domm I2). { apply globalinv_root_fp. done. }
     iMod (own_update γ_fp (● (domm I2)) (● (domm I2) ⋅ ◯ (domm I2)) with "HFP") as "H".
     apply auth_update_core_id. apply gset_core_id. done.
     iDestruct "H" as "(HFP & #Hfp2)".
@@ -609,15 +610,15 @@ Section Coupling_Template.
     assert (✓ (If ⋅ In)). { apply (auth_frag_valid (◯ (If ⋅ In))). done. }
     iEval (rewrite -auth_frag_op) in "H".
     iPoseProof (auth_own_incl with "[$HInt $H]") as (Iu)"%".
-    iAssert (node n first In Cn ∗ ⌜nodeinv first n In Cn⌝)%I with "[Hnoden]" as "(Hnoden & %)".
-    { iApply (node_implies_nodeinv n In Cn first). iFrame "∗ # %". iPureIntro.
+    iAssert (node n root In Cn ∗ ⌜nodeinv root n In Cn⌝)%I with "[Hnoden]" as "(Hnoden & %)".
+    { iApply (node_implies_nodeinv n In Cn root). iFrame "∗ # %". iPureIntro.
       apply cmra_valid_op_r in H12. done. }  iDestruct "H" as "(HIf & HIn)".
-    assert (n ≠ first).
-    { apply (successor_not_first I2 If In Iu Cn first n k); try done. }
+    assert (n ≠ root).
+    { apply (successor_not_root I2 If In Iu Cn root n k); try done. }
     iModIntro. iSplitR "AU HIf HCf Hnodef HIn Hnoden HCn". { iNext. iExists I2, C2.
     iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
     wp_pures. wp_bind (traverse _ _ _)%E.
-    wp_apply ((traverse_spec γ γ_fp γ_k γ_c first k first n (domm I2) If Cf In Cn)
+    wp_apply ((traverse_spec γ γ_fp γ_k γ_c root k root n (domm I2) If Cf In Cn)
                  with "[] [HIf HCf Hnodef HIn HCn Hnoden]").
     iFrame "∗ # %". iFrame "∗ # %".
     iIntros (p' n' Ns Ip' In' Cp' Cn') "(#HNs & % & % & HIp' & % & HIn' & % & Hnodep' & Hnoden'
@@ -630,11 +631,11 @@ Section Coupling_Template.
     iDestruct "Hstar" as "(Hm & Hstar)". iDestruct "Hm" as (b) "(Hlockm & Hb)".
     iEval (rewrite H24) in "Hlockm". iDestruct (mapsto_valid_2 with "Hlm Hlockm") as "%".
     exfalso. done. }
-    assert (first ∈ domm I3). { apply globalinv_root_fp. done. }
-    assert (m ≠ first). { set_solver. }
+    assert (root ∈ domm I3). { apply globalinv_root_fp. done. }
+    assert (m ≠ root). { set_solver. }
     iModIntro. iSplitL "HKS HInt HFP Hcont Hstar". iNext.
     iExists I3, C3. iFrame "∗ # %". iModIntro.
-    wp_apply ((decisiveOp_insert_spec dop first p' n' m k Ip' In' Cp' Cn')
+    wp_apply ((decisiveOp_insert_spec dop root p' n' m k Ip' In' Cp' Cn')
           with "[Hnodep' Hnoden' Hrepm]"). { iFrame "∗ % #". }
     iIntros (Cp'' Cn'' Cm'' Ip'' In'' Im'' res) "(Hnodep' & Hnoden' & Hnodem' & % & % & % & H)".
     iDestruct "H" as "(% & % & % & % & % & % & % & % & % & % & % & %)".
@@ -730,7 +731,7 @@ Section Coupling_Template.
       admit.
     }
     
-    assert (globalinv K first I'). { by apply (contextualLeq_impl_globalinv I4 I'). }
+    assert (globalinv K root I'). { by apply (contextualLeq_impl_globalinv I4 I'). }
     iEval (rewrite <-H65) in "HFP". assert (domm I'∖ {[m]} = domm I4). { set_solver. }
 
     (* ------ updates over -------*)
