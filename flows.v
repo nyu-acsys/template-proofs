@@ -1,5 +1,5 @@
 From iris.heap_lang Require Import proofmode.
-From iris.algebra Require Export auth.
+From iris.algebra Require Export auth updates local_updates.
 
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
@@ -1546,19 +1546,105 @@ Proof.
   - contradiction.
 Qed.
 
-Lemma flowint_inflow_contains I Ir n (m: flowdom) : I = int Ir → infR Ir !! n = Some m → n ∈ domm I.
+Lemma flowint_contains I Ir n (m: flowdom) : I = int Ir → infR Ir !! n = Some m → n ∈ domm I.
 Proof.
   intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. exists m. unfold inf_map.
   rewrite HI. done.
 Qed.
 
-Lemma flowint_inflow_contains_not (I: flowintUR) Ir n :  I = int Ir → infR Ir !! n = None → n ∉ domm I.
+Lemma flowint_contains_not (I: flowintUR) Ir n :  I = int Ir → infR Ir !! n = None → n ∉ domm I.
 Proof.
   intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. unfold not.
   intros Hcon. destruct Hcon as [m Hcon]. unfold inf_map in Hcon. rewrite HI in Hcon. 
   rewrite Hinf in Hcon. inversion Hcon.
 Qed.
 
+Lemma lemma_replacement I1 I2 J1 : ✓ (I1 ⋅ I2) ∧ contextualLeq I1 J1 ∧ (domm I2 ## domm J1) ∧
+            (∀ n, n ∈ domm J1 ∖ domm I1 → default 0 (out_map I2 !! n) = 0) → contextualLeq (I1 ⋅ I2) (J1 ⋅ I2).
+Proof.
+  intros (Hv12 & Hcon & Hdomm & Hcond). destruct Hcon as (Hv1 & Hv2 & Hsub & Hinf & Hout).
+  unfold contextualLeq. assert (intComposable J1 I2). { unfold intComposable. repeat split; try trivial.
+  apply cmra_valid_op_r in Hv12. done. unfold map_Forall. intros n x xDef. destruct (decide (n ∈ domm I1)).
+  assert (e0 := e). assert (Hvv := Hv12). apply intComposable_valid in Hvv. unfold intComposable in Hvv.
+  destruct Hvv as (_ & _ & Hdomm12 & Hinf1 & Hout1). unfold map_Forall in Hinf1. 
+  apply Hinf in e. destruct I1 as [Ir1 | ]. unfold inf in e. simpl in e. case_eq (infR Ir1 !! n).
+  intros mr HI1in. apply Hinf in e0. rewrite <-e0. apply Hinf1. rewrite xDef in e. rewrite HI1in in e.
+  simpl in e. simpl. rewrite HI1in. rewrite e. done. intros H1inf. assert (n ∉ domm (int Ir1)).
+  apply (flowint_contains_not _ Ir1 _); try done. contradiction.
+  unfold valid, cmra_valid in Hv1. simpl in Hv1. done.
+  assert (n ∈ domm J1). destruct J1 as [Ij | ]. apply (flowint_contains _ Ij _ x); try done.
+  unfold valid, cmra_valid in Hv2. simpl in Hv2. done. assert (n ∈ domm J1 ∖ domm I1). set_solver.
+  unfold out. apply Hcond in H1. rewrite H1. unfold inf. rewrite xDef. simpl. 
+  rewrite <- (ccm_right_id x); rewrite ccm_pinv. rewrite ccm_comm. done.
+  unfold map_Forall. intros n x xDef. destruct (decide (n ∈ domm J1)).
+  assert (n ∈ domm I2). { destruct I2. apply (flowint_contains _ f _ x); try done. done. }
+  assert (¬ domm I2 ## domm J1). set_solver. contradiction.
+  assert (n1 := n0). apply Hout in n0. rewrite <-n0. assert (Hvv := Hv12). apply intComposable_valid in Hvv.
+  unfold intComposable in Hvv. destruct Hvv as (_ & _ & Hdomm12 & Hinf1 & Hout1). unfold map_Forall in Hout1.
+  apply Hout1 in xDef. done. } assert (✓ (J1 ⋅ I2)). apply intValid_composable; done. repeat split; try done.
+  - assert (domm (I1 ⋅ I2) = domm I1 ∪ domm I2). apply intComp_dom; try done.
+    assert (domm (J1 ⋅ I2) = domm J1 ∪ domm I2). apply intComp_dom; try done.
+    rewrite H2. rewrite H3. set_solver.
+  - intros n Hdomm12. assert (domm (I1 ⋅ I2) = domm I1 ∪ domm I2). apply intComp_dom; try done.
+    rewrite H2 in Hdomm12. assert (n ∈ domm I1 ∨ n ∈ domm I2). set_solver. destruct H3.
+    assert (inf (I1 ⋅ I2) n = inf I1 n - out I2 n). apply intComp_inf_1; try done.
+    assert (inf (J1 ⋅ I2) n = inf J1 n - out I2 n). apply intComp_inf_1; try done. set_solver.
+    rewrite H4. rewrite H5. assert (inf I1 n = inf J1 n). apply Hinf; try done. by rewrite H6.
+    assert (inf (I1 ⋅ I2) n = inf I2 n - out I1 n). apply intComp_inf_2; try done.
+    assert (inf (J1 ⋅ I2) n = inf I2 n - out J1 n). apply intComp_inf_2; try done.
+    rewrite H4. rewrite H5. assert (out I1 n = out J1 n). assert (n ∉ domm J1). set_solver.
+    apply Hout; try done. by rewrite H6.
+  - intros n Hdomm12. assert (out (J1 ⋅ I2) n = out J1 n + out I2 n). apply intComp_unfold_out; try done.
+    assert (out (I1 ⋅ I2) n = out I1 n + out I2 n). apply intComp_unfold_out; try done. 
+    assert (domm (I1 ⋅ I2) = domm I1 ∪ domm I2). apply intComp_dom; try done.
+    assert (domm (J1 ⋅ I2) = domm J1 ∪ domm I2). apply intComp_dom; try done.
+    rewrite H4 in Hdomm12. rewrite H3. set_solver. rewrite H2. rewrite H3. 
+    assert (domm (J1 ⋅ I2) = domm J1 ∪ domm I2). apply intComp_dom; try done.
+    rewrite H4 in Hdomm12. assert (n ∉ domm J1). set_solver. apply Hout in H5. by rewrite H5.
+Qed.   
+         
+Lemma flowint_local_update I I1 J J1 : contextualLeq I1 J1 ∧ contextualLeq I J 
+                   ∧ domm J1 ∩ domm I = domm I1 ∧ (∀ Io, I = I1 ⋅ Io → 
+                                                        ∀ n, n ∈ domm J1 ∖ domm I1 → out Io n = 0)
+                   → (I, I1) ~l~> (J, J1).
+Proof.
+  intros (Hcont1 & Hcont & Hsub & Hcond). destruct Hcont as (Hvi & Hvj & Hdomm & Hinf & Hout).  
+  destruct Hcont1 as (Hvi1 & Hvj1 & Hdomm1 & Hinf1 & Hout1). apply local_update_discrete.
+  intros z. destruct z as [Iz |]. intros Hv. unfold opM.
+  - intros H12. split; try done. assert (I = I1 ⋅ Iz). apply leibniz_equiv. done.
+    assert (domm I = domm I1 ∪ domm Iz). admit.
+    rewrite H0 in Hv. case_eq J. intros fj Hj. case_eq J1. intros fj1 Hj1. case_eq Iz. intros fz Hz.
+    unfold op, cmra_op. simpl. unfold ucmra_op. simpl. unfold intComp. destruct (decide (intComposable (int fj1) (int fz))).
+    case_eq fj. intros fjin fjout Hfj. f_equal. f_equal. rewrite map_eq_iff. intros n. rewrite gmap_imerge_prf; try done.
+    unfold inf_map. case_eq (infR fj1 !! n). intros mj1 Hmj1. case_eq fj1. intros fj1in fj1out Hfj1. simpl.
+    case_eq (fjin !! n). intros mj Hmj. simpl. case_eq I. intros fi Hi. case_eq I1. intros fi1 Hi1.
+    rewrite Hi in H0. rewrite Hz in H0. rewrite Hi1 in H0.
+    unfold op, cmra_op in H0. simpl in H0. unfold ucmra_op in H0. simpl in H0. unfold intComp in H0.
+    assert (Hv' := Hv). apply intComposable_valid in Hv'. rewrite Hi1 in Hv'. rewrite Hz in Hv'. 
+    destruct (decide (intComposable (int fi1) (int fz))); try contradiction. simpl in H0. case_eq fi. intros fiin fiout Hfi.
+    rewrite Hfi in H0. inversion H0. case_eq (fiin !! n). intros mi Hmi. assert (Hs := Hmi).
+    rewrite H3 in Hs. rewrite gmap_imerge_prf in Hs. case_eq fi1. intros fi1in fi1out Hfi1. rewrite Hfi1 in Hs. simpl in Hs.
+    case_eq (fi1in !! n). intros mi1 Hmi1. rewrite Hmi1 in Hs. assert (n ∈ domm I1). admit.
+    assert (n ∈ domm I). set_solver. apply Hinf1 in H2. unfold inf in H2. rewrite Hi1 in H2. simpl in H2.
+    rewrite Hj1 in H2. simpl in H2. rewrite Hfi1 in H2. rewrite Hfj1 in H2. simpl in H2.
+    rewrite Hmi1 in H2. rewrite Hfj1 in Hmj1. simpl in Hmj1. rewrite Hmj1 in H2. simpl in H2.
+    apply Hinf in H5. unfold inf in H5. rewrite Hi in H5. simpl in H5.
+    rewrite Hj in H5. simpl in H5. rewrite Hfi in H5. rewrite Hfj in H5. simpl in H5.
+    rewrite Hmi in H5. rewrite Hmj in H5. simpl in H5. rewrite H2 in Hs. rewrite H5 in Hs. done.
+    intros Hmi1. assert (n ∉ domm I1). admit. assert (n ∈ domm J1). admit. assert (n ∈ domm I). admit.
+    assert (n ∈ domm J1 ∩ domm I). set_solver. rewrite Hsub in H7. contradiction. done.
+    intros Hmi. assert (Hs := Hmi). rewrite H3 in Hmi. rewrite gmap_imerge_prf in Hmi; try done.
+    case_eq fi1. intros fi1in fi1out Hfi1. rewrite Hfi1 in Hmi. simpl in Hmi.
+    case_eq (fi1in !! n). intros mi1 Hmi1. rewrite Hmi1 in Hmi. inversion Hmi.
+    intros Hmi1. rewrite Hmi1 in Hmi. case_eq fz. intros fzin fzout Hfz. rewrite Hfz in Hmi.
+    simpl in Hmi. case_eq (fzin !! n). intros mz Hmz. rewrite Hmz in Hmi. inversion Hmi.
+    intros Hmz. rewrite Hmz in Hmi.   
+  
+  
+  case_eq fj. intros fjin fjout Hfj. f_equal. f_equal. rewrite map_eq_iff. intros n. rewrite gmap_imerge_prf; try done.
+  unfold inf_map. case_eq (infR fj1 !! n). intros mj1 Hmj1. case_eq fj1. intros fj1in fj1out Hfj1. simpl.
+  case_eq (fjin !! n). intros mj Hmj. simpl.
+    
 Lemma flowint_update : ∀ (Io I_n I_n': flowintUR),
   contextualLeq I_n I_n' ∧ (domm I_n' ∩ domm Io = ∅) ∧ (∀ n, n ∈ domm I_n'∖domm I_n → (out_map Io) !! n = Some 0)
        → (● (I_n ⋅ Io) ⋅ ◯ I_n)  ~~>: (flowint_update_P (I_n ⋅ Io) I_n I_n').
@@ -1589,7 +1675,7 @@ Proof.
     destruct Hv as [Hcompz HI]. destruct Hcompz as [Iy Hcompz].
     unfold contextualLeq in conteq. destruct conteq as (Hn & Hn' & Hsub & Hinf & Hout).
     exists (● (In'⋅Io) ⋅ ◯ In'). split; last first.
-    + assert (Iz ≼ Io). exists Iy. admit. unfold op, cmra_op; simpl. unfold auth_op; simpl. 
+    + assert (Iz ≼ Io). exists Iy. apply (f_equal ⋅ In). admit. unfold op, cmra_op; simpl. unfold auth_op; simpl. 
       unfold op, cmra_op; simpl. apply auth_valid_discrete. simpl. split; try done.
       exists (In' ⋅ Io). split; try done. split.
       * assert (ucmra_op flowintUR (ucmra_op flowintUR ε In') Iz = (ε ⋅ In') ⋅ Iz). unfold op, cmra_op; simpl.
