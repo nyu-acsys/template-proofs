@@ -452,7 +452,7 @@ Section Coupling_Template.
   (** Proof of the lock-coupling template *)
 
   Lemma traverse_spec (γ γ_fp γ_k γ_c: gname) (first: Node) (k: K) (p n: Node) (Ns: gset Node) I_p C_p I_n C_n:
-    css γ γ_fp γ_k γ_c first -∗
+    ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c first -∗
     {{{ own γ_fp (◯ Ns) ∗ ⌜p ∈ Ns⌝ ∗ ⌜n ∈ Ns⌝ ∗ ⌜first ∈ Ns⌝ ∗ ⌜n ≠ first⌝
         ∗ node p first I_p C_p ∗ own γ (◯ I_p) ∗ ⌜domm I_p = {[p]}⌝ ∗  ⌜in_inset K k I_p p⌝ ∗ ⌜in_outset K k I_p n⌝
         ∗ own γ_k (◯ prod (keyset K I_p p, C_p)) ∗ node n first I_n C_n ∗ own γ (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝
@@ -468,17 +468,14 @@ Section Coupling_Template.
         ∗ ⌜in_inset K k I_p' p'⌝ ∗ ⌜in_outset K k I_p' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝
     }}}.
   Proof.
-    iIntros "#HInv". iIntros (Φ) "!# H HCont". iLöb as "IH" forall (Ns p n I_p I_n C_p C_n).
+    iIntros "(% & #HInv)". iIntros (Φ) "!# H HCont". iLöb as "IH" forall (Ns p n I_p I_n C_p C_n).
     iDestruct "H" as "(#Hfp & % & % & % & % & Hnodep & HIp & % & % & % & Hksp & Hnoden & HIn & % & Hksn)".
     wp_lam. wp_pures. wp_bind (findNext _ _)%E.
     iPoseProof ((own_op γ (◯ I_p) (◯ I_n)) with "[HIp HIn]") as "H"; first by eauto with iFrame.
-    iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H7.
+    iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H8.
     assert (✓ (I_p ⋅ I_n)). { apply (auth_frag_valid (◯ (I_p ⋅ I_n))). done. }
     assert (in_inset K k I_n n).
     { unfold in_inset. fold (inset K I_n n).
-      assert (∀ I1 I2 k n, ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset K I1 n → k ∈ inset K I2 n)
-        as outset_impl_inset.
-      { admit. }                (* Need to prove this like flowint_linkset_step in linkset_flows.v *)
       apply (outset_impl_inset I_p I_n k n); try done. set_solver. }
     iDestruct "H" as "(HIp & HIn)".
     wp_apply ((findNext_spec first n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #".
@@ -494,7 +491,7 @@ Section Coupling_Template.
       assert (✓ I0) as HI0. { apply (auth_auth_valid (I0)). done. }
       assert (n' ∈ domm I2). { apply (flowint_step I0 I_n I2 k n' first); try done. }
       assert (n' ∈ domm I0).
-      { rewrite H12. rewrite flowint_comp_fp. set_solver. rewrite <-H12. done. }
+      { rewrite H13. rewrite flowint_comp_fp. set_solver. rewrite <-H13. done. }
       iMod (own_update γ_fp (● (domm I0)) (● (domm I0) ⋅ ◯ (domm I0)) with "HFP") as "H".
       apply auth_update_core_id. apply gset_core_id. done.
       iDestruct "H" as "(HFP & #Hfp0)".
@@ -507,17 +504,15 @@ Section Coupling_Template.
       iIntros "(Hlock & H)". destruct b. { iExFalso. done. } iClear "H".
       iDestruct "Hb" as (I_n' C_n') "(HIn' & % & Hnoden' & Hksn')".
       iPoseProof ((own_op γ (◯ I_n) (◯ I_n' )) with "[HIn HIn']") as "H"; first by eauto with iFrame.
-      iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H18.
+      iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H19.
       assert (✓ (I_n ⋅ I_n')). { apply (auth_frag_valid (◯ (I_n ⋅ I_n'))). done. }
       iEval (rewrite -auth_frag_op) in "H".
       iPoseProof (auth_own_incl with "[$HInt $H]") as (I3)"%".
       iAssert (node n' first I_n' C_n' ∗ ⌜nodeinv first n' I_n' C_n'⌝)%I with "[Hnoden']" as "(Hnoden' & %)".
       { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". iPureIntro.
-        apply cmra_valid_op_r in H19. done. }
+        apply cmra_valid_op_r in H20. done. }
       assert (n' ≠ first) as Hnotf'.
-      { apply (successor_not_first I0 I_n I_n' I3 C_n' first n' k); try done.
-        admit.                  (* TODO how to prove k ∈ KS? *)
-      }
+      { apply (successor_not_first I0 I_n I_n' I3 C_n' first n' k); try done. }
       iModIntro. iSplitL "HKS HInt HFP Hcont Hstar Hlock".
       { iNext. iExists I0, C0. iFrame "∗ # %". iApply "Hstar".
       iExists true. iFrame. } iDestruct "H" as "(HIn & HIn')". iIntros "Hc".
@@ -549,12 +544,12 @@ Section Coupling_Template.
       iApply ("IH" with "[-Hc]"). iFrame "∗ # %". iNext. done.
     - wp_pures. iDestruct "Hb" as "(% & %)". iSpecialize ("HCont" $! p n Ns I_p I_n C_p C_n).
       iApply "HCont". iFrame "∗ # %".
-  Admitted.
+  Qed.
 
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
-          ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
-                             ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝  ==∗
-                 ∃ C', ⌜Ψ dop k C C' res⌝ ∗ own γ_k (● prod (KS, C')) ∗ own γ_k (◯ prod (K1, Cn')).
+    ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
+    ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
+    ==∗ ∃ C', ⌜Ψ dop k C C' res⌝ ∗ own γ_k (● prod (KS, C')) ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
   Admitted.
 
@@ -624,7 +619,7 @@ Section Coupling_Template.
     wp_pures. wp_bind (traverse _ _ _)%E.
     wp_apply ((traverse_spec γ γ_fp γ_k γ_c first k first n (domm I2) If Cf In Cn)
                  with "[] [HIf HCf Hnodef HIn HCn Hnoden]").
-    done. iFrame "∗ # %".
+    iFrame "∗ # %". iFrame "∗ # %".
     iIntros (p' n' Ns Ip' In' Cp' Cn') "(#HNs & % & % & HIp' & % & HIn' & % & Hnodep' & Hnoden'
                         & % & Hksp' & Hksn' & % & % & %)".
     wp_pures. wp_apply (alloc_spec); first done.
@@ -674,9 +669,6 @@ Section Coupling_Template.
     iPoseProof (own_valid with "H'") as "%". rewrite -auth_frag_op in H54.
     assert (✓ (Ip' ⋅ In')). { apply (auth_frag_valid (◯ (Ip' ⋅ In'))). done. }
     assert (in_inset K k In' n'). {
-      assert (∀ I1 I2 k n, ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset K I1 n → k ∈ inset K I2 n)
-        as outset_impl_inset.
-      { admit. }                (* Need to prove this like flowint_linkset_step in linkset_flows.v *)
       apply (outset_impl_inset Ip' In' k n'); try done. set_solver. }
     assert (k ∈ keyset K In' n'). { apply keyset_def; try done. }
     iMod ((ghost_update_keyset γ_k dop k (Cp' ∪ Cn') (Cp'' ∪ Cn'' ∪ Cm'') res

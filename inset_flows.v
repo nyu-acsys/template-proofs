@@ -294,105 +294,11 @@ Proof.
   all: apply K_multiset_ccm.
 Qed.
 
-(*
-Parameter KS : gset K.
-
-Definition nodeinv root n I_n  C_n : Prop :=
-  n ∈ domm I_n
-  ∧ C_n = keyset I_n n
-  ∧ (∀ k, default 0 (inf I_n n !! k) ≤ 1)
-  ∧ (n = root → ∀ k, k ∈ KS → in_outsets k I_n).
-
-Lemma successor_not_first : ∀ (I I1 I2 I3 : flowintT) C root n k,
-    globalinv root I →
-    I = I1 ⋅ I2 ⋅ I3 →
-    k ∈ outset I1 n →
-    k ∈ KS →
-    nodeinv root n I2 C →
-    n ≠ root.
+Lemma outset_impl_inset : ∀ I1 I2 k n,
+    ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ inset I2 n.
 Proof.
-  intros ? ? ? ? ? ? ? ? GI IDef k_in_out1 k_in_KS NI.
-  destruct (decide (n = root)).
-  destruct GI as (VI & root_in_I & I_closed & I_inf_out).
-  rewrite <- cmra_assoc in IDef.
-  (*unfold op, cmra_op, ucmra_cmraR, inset_flowint_ur, flowintUR, ucmra_op in IDef.*)
-  rewrite IDef in VI.
-  pose proof (intComp_valid_proj1 _ _ VI) as V1.
-  pose proof (intComp_valid_proj2 _ _ VI) as V23.
-  pose proof (intComp_unfold_inf_1 _ _ VI n) as inf_I1.
-  pose proof (intComp_unfold_inf_1 _ _ V23) as inf_I2.
-  destruct NI as (n_in_I2 & _ & inf_bound & _).
-  assert (n ∈ domm I2 ∪ domm I3) as n_in_I23 by set_solver.
-  pose proof (intComp_unfold_inf_2 _ _ VI n) as inf_I23.
-  rewrite intComp_dom in inf_I23.
-  apply inf_I23 in n_in_I23 as n_inf_I23.
-  unfold cmra_op, flowintRA, cmra_car, K_multiset at 5, K_multiset at 5, K_multiset_ccm at 3 in n_inf_I23.
-  pose proof (I_inf_out root) as (root_out & _).
-  assert (root = root) by reflexivity.
-  pose proof (root_out H0 k) as root_out_k.
-  
-  assert (default 0 (inf I n !! k) <> 0).
-  rewrite e.
-  unfold inset, dom_ms, nzmap_dom in root_out_k.
-  apply elem_of_dom in root_out_k.
-  unfold lookup, nzmap_lookup.
-  pose proof (nzmap_is_wf _ _ (inf I root)) as inf_root_wf.
-  pose proof (nzmap_lookup_wf _ _ _ k inf_root_wf).
-  destruct (inf I root).
-  simpl in root_out_k.
-  unfold is_Some in root_out_k.
-  destruct root_out_k as [x root_out_k].
-  rewrite root_out_k.
-  simpl in H1.
-  simpl.
-  naive_solver.
-  pose proof (lookup_op _ _ (inf I n) (out I1 n) k) as inf_I23_def.
-  
-  rewrite IDef in inf_I23_def.
-  unfold cmra_op, flowintRA, cmra_car, nzmap_total_lookup in inf_I23_def.
-  unfold ccm_op, lift_ccm in n_inf_I23.
-  rewrite <- n_inf_I23 in inf_I23_def.
-  unfold cmra_op, flowintRA, cmra_car in IDef.
-  rewrite <- IDef in inf_I23_def.
-  
-  pose proof (inf_I2 n n_in_I2) as n_inf_I2.
-  pose proof (lookup_op _ _ (inf (I2 ⋅ I3) n) (out I3 n) k) as inf_I2_def.
-  unfold cmra_op, flowintRA, cmra_car, nzmap_total_lookup in inf_I2_def.
-  unfold cmra_op, flowintRA, cmra_car, K_multiset at 3, K_multiset_ccm at 2 in n_inf_I2.
-  unfold ccm_op, lift_ccm in n_inf_I2.
-  rewrite <- n_inf_I2 in inf_I2_def.
-  rewrite inf_I23_def in inf_I2_def.
-  
-  assert (default 0 (out I1 n !! k) ≠ 0).
-  unfold outset, dom_ms, nzmap_dom in k_in_out1.
-  apply elem_of_dom in k_in_out1.
-  unfold lookup, nzmap_lookup.
-  pose proof (nzmap_is_wf _ _ (out I1 n)) as out_n_wf.
-  pose proof (nzmap_lookup_wf _ _ _ k out_n_wf).
-  destruct (out I1 n).
-  simpl in k_in_out1.
-  unfold is_Some in k_in_out1.
-  destruct k_in_out1 as [x k_in_out1].
-  rewrite k_in_out1.
-  simpl in H2.
-  simpl.
-  naive_solver.
-  unfold ccmunit, ccmop, ccm_unit, ccm_op, nat_ccm, nat_unit, nat_op in inf_I23_def.
-  unfold ccmunit, ccmop, ccm_unit, ccm_op, nat_ccm, nat_unit, nat_op in inf_I2_def.
-  pose proof (inf_bound k).
-  remember (inf I2 n !! k) as x2.
-  unfold K_multiset at 1, nat_ccm, nat_unit, nat_op in Heqx2.
-  rewrite <- Heqx2 in inf_I2_def.
-  remember (inf I n !! k) as x.
-  unfold K_multiset at 1, nat_ccm, nat_unit, nat_op in Heqx.
-  rewrite <- Heqx in inf_I2_def.
-  remember (out I1 n !! k) as x1.
-  unfold K_multiset at 1, nat_ccm, nat_unit, nat_op in Heqx1.
-  rewrite <- Heqx1 in inf_I2_def.
-  lia.
-  all: trivial.
-Qed.
- *)
+Admitted.
+
 End inset_flows.
 
 Arguments inset_flowint_ur _ {_ _} : assert.
