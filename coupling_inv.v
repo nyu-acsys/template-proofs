@@ -477,7 +477,7 @@ Section Coupling_Template.
     assert (✓ (I_p ⋅ I_n)). { apply (auth_frag_valid (◯ (I_p ⋅ I_n))). done. }
     assert (in_inset K k I_n n).
     { unfold in_inset. fold (inset K I_n n).
-      apply (outset_impl_inset I_p I_n k n); try done. set_solver. }
+      apply (flowint_inset_step I_p I_n k n); try done. set_solver. }
     iDestruct "H" as "(HIp & HIn)".
     wp_apply ((findNext_spec root n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #".
     iIntros (b n') "(Hnoden & Hb)". destruct b.
@@ -670,7 +670,7 @@ Section Coupling_Template.
     iPoseProof (own_valid with "H'") as "%". rewrite -auth_frag_op in H54.
     assert (✓ (Ip' ⋅ In')). { apply (auth_frag_valid (◯ (Ip' ⋅ In'))). done. }
     assert (in_inset K k In' n'). {
-      apply (outset_impl_inset Ip' In' k n'); try done. set_solver. }
+      apply (flowint_inset_step Ip' In' k n'); try done. set_solver. }
     assert (k ∈ keyset K In' n'). { apply keyset_def; try done. }
     iMod ((ghost_update_keyset γ_k dop k (Cp' ∪ Cn') (Cp'' ∪ Cn'' ∪ Cm'') res
                  (keyset K Ip' p' ∪ keyset K In' n') C4) with "[HKS H]") as "Hgks".
