@@ -294,10 +294,46 @@ Proof.
   all: apply K_multiset_ccm.
 Qed.
 
+<<<<<<< HEAD
 Lemma outset_impl_inset : ∀ I1 I2 k n,
     ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ inset I2 n.
 Proof.
 Admitted.
+=======
+Lemma flowint_inset_step : ∀ I1 I2 k n,
+    ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ inset I2 n.
+Proof.
+  intros ? ? ? ? I12V Out Inset.
+
+  pose proof (intComp_valid_proj1 I1 I2 I12V) as I1V.
+  pose proof (intComp_valid_proj2 I1 I2 I12V) as I2V.
+  apply flowint_valid_defined in I1V.
+  destruct I1V as [I1r I1Def].
+  apply flowint_valid_defined in I2V.
+  destruct I2V as [I2r I2Def].
+  pose proof (flowint_valid_defined _ _ I12V) as I12Def.
+  destruct I12Def as [I12r I12Def].
+
+  pose proof (intComp_unfold_inf_2 I1 I2 I12V n Out) as Inf2.
+
+  unfold outset in Inset.
+  unfold inset, dom_ms.
+  rewrite Inf2.
+  unfold out, out_map.
+  rewrite I1Def.
+  repeat rewrite nzmap_elem_of_dom_total.
+  repeat rewrite lookup_op.
+
+  unfold dom_ms, out, out_map in Inset.
+  rewrite I1Def in Inset.
+  repeat (rewrite nzmap_elem_of_dom_total in Inset *; intros Inset).
+  unfold ccmop, ccm_op, nat_ccm, nat_op.
+  unfold ccmop, ccm_op, nat_ccm, nat_op in Inset.
+  unfold ccmunit, ccm_unit, nat_unit, K_multiset_ccm, prod_ccm.
+  unfold ccmunit, ccm_unit, nat_unit, K_multiset_ccm, prod_ccm in Inset.
+  lia.
+Qed.
+>>>>>>> add one more lemma
 
 End inset_flows.
 
