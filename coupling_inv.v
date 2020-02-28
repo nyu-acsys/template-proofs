@@ -751,21 +751,6 @@ Section Coupling_Template.
 
     (* ------ linearization over -------*)
 
-    awp_apply (unlockNode_spec p') without "HΦ".
-    iInv "HInv" as ">H". iDestruct "H" as (I5 C5) "(HKS & HInt & % & HFP & Hcont & Hstar)".
-    iAssert (⌜n' ∈ domm I5⌝)%I with "[HFP]" as "%".
-    { iPoseProof ((auth_set_incl γ_fp Ns (domm I5)) with "[$]") as "%".
-      iPureIntro. set_solver. }
-    rewrite (big_sepS_elem_of_acc _ (domm I5) n'); last by eauto.
-    iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
-    destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
-    iAssert (⌜False⌝)%I with "[Hnoden' Hrep']" as %Hf. { iApply (node_sep_star n' In'' In0 _ _ _).
-    iFrame. } exfalso. done. }
-    iAaccIntro with "Hlock". { iIntros. iModIntro. iFrame "∗ # %". iNext. iExists I5, C5.
-    iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
-    iIntros. iModIntro. iSplitR "Hnodep' Hksp' HIp''". iNext. iExists I5, C5.
-    iFrame "∗ # %". iApply "Hstar". iExists false. iFrame. iExists In'', Cn''. iFrame "∗ %".
-    iIntros "HΦ". wp_pures. wp_bind (unlockNode _)%E.
     awp_apply (unlockNode_spec p') without "HΦ". iInv "HInv" as ">H".
     iDestruct "H" as (I6 C6) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iAssert (⌜p' ∈ domm I6⌝)%I with "[HFP]" as "%".
@@ -776,9 +761,31 @@ Section Coupling_Template.
     destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
     iAssert (⌜False⌝)%I with "[Hnodep' Hrep']" as %Hf. { iApply (node_sep_star p' Ip'' In0 _ _ _).
     iFrame. } exfalso. done. }
-    iAaccIntro with "Hlock". { iIntros. iModIntro. iFrame "∗". iNext. iExists I6, C6.
-    iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
-    iIntros. iModIntro. iSplitL. iNext. iExists I6, C6.
+    iAaccIntro with "Hlock". 
+    { iIntros. iModIntro. iFrame "∗". iNext. iExists I6, C6.
+      iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
+    iIntros. iModIntro.
+    iSplitR "Hnoden' Hksn' HIn''". iNext. iExists I6, C6.
     iFrame "∗ # %". iApply "Hstar". iExists false. iFrame. iExists Ip'', Cp''. iFrame "∗ %".
+
+    iIntros "HΦ".
+    wp_pures. wp_bind (unlockNode _)%E.
+    awp_apply (unlockNode_spec n') without "HΦ".
+    iInv "HInv" as ">H". iDestruct "H" as (I5 C5) "(HKS & HInt & % & HFP & Hcont & Hstar)".
+    iAssert (⌜n' ∈ domm I5⌝)%I with "[HFP]" as "%".
+    { iPoseProof ((auth_set_incl γ_fp Ns (domm I5)) with "[$]") as "%".
+      iPureIntro. set_solver. }
+    rewrite (big_sepS_elem_of_acc _ (domm I5) n'); last by eauto.
+    iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
+    destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
+    iAssert (⌜False⌝)%I with "[Hnoden' Hrep']" as %Hf. { iApply (node_sep_star n' In'' In0 _ _ _).
+    iFrame. } exfalso. done. }
+    iAaccIntro with "Hlock".
+    { iIntros. iModIntro. iFrame "∗ # %". iNext. iExists I5, C5.
+      iFrame "∗ # %". iApply "Hstar". iExists true. iFrame. }
+    iIntros. iModIntro.
+    iSplitL. iNext. iExists I5, C5.
+    iFrame "∗ # %". iApply "Hstar". iExists false. iFrame. iExists In'', Cn''. iFrame "∗ %".
+
     iIntros "HΦ". wp_pures. done.
-  Qed.
+  Admitted.
