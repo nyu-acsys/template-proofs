@@ -294,12 +294,6 @@ Proof.
   all: apply K_multiset_ccm.
 Qed.
 
-<<<<<<< HEAD
-Lemma outset_impl_inset : ∀ I1 I2 k n,
-    ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ inset I2 n.
-Proof.
-Admitted.
-=======
 Lemma flowint_inset_step : ∀ I1 I2 k n,
     ✓ (I1 ⋅ I2) → n ∈ domm I2 → k ∈ outset I1 n → k ∈ inset I2 n.
 Proof.
@@ -333,7 +327,6 @@ Proof.
   unfold ccmunit, ccm_unit, nat_unit, K_multiset_ccm, prod_ccm in Inset.
   lia.
 Qed.
->>>>>>> add one more lemma
 
 End inset_flows.
 
