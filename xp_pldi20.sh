@@ -3,6 +3,7 @@
 FILES1="ccm flows inset_flows linkset_flows keyset_ra"
 FILES2="give_up"
 FILES3="link"
+FILES4="coupling_inv"
 
 timesfile=/tmp/times-iris
 timestotalfile=/tmp/times-total-iris
@@ -29,6 +30,7 @@ run()
     awk '{sum+=$1;} END{printf("%d\n", int(sum+0.5));}' $timesfile >> $timestotalfile
 }
 
+coq_makefile -f _CoqProject -o Makefile
 make clean
 rm -f $loctotalfile $timestotalfile
 
@@ -36,6 +38,7 @@ echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time"
 run "Flow library" $FILES1
 run "Link template" $FILES3
 run "Give-up template" $FILES2
+run "Lock-coupling template" $FILES4
 
 echo -n -e "Total\t\t"
 awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $loctotalfile
