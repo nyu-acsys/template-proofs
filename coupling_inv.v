@@ -727,8 +727,7 @@ Section Coupling_Template.
         by apply (auth_auth_valid).
       }
       rewrite H67.
-      (* TODO HELP: how do I ask Coq to use Commutativity? rewrite union_comm. doesn't seem to work. *)
-      admit.
+      clear. set_solver.
     }
     
     assert (globalinv K root I'). { by apply (contextualLeq_impl_globalinv I4 I'). }
