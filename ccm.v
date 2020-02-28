@@ -270,7 +270,7 @@ Section lifting.
   
   Instance lift_unit : CcmUnit nzmap := nzmap_unit.
     
-  Instance nzmap_empty : Empty nzmap := nzmap_unit.
+  Global Instance nzmap_empty : Empty nzmap := nzmap_unit.
 
   Lemma nzmap_is_wf m : nzmap_wf (nzmap_car m).
   Proof.
