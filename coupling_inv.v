@@ -128,7 +128,7 @@ Section Coupling_Template.
   (* TODO there's a slight discrepancy between this and grasshopper. *)
   Definition nodeinv root n (I_n : inset_flowint_ur K) C_n : Prop :=
     n ∈ domm I_n
-    ∧ C_n = keyset K I_n n
+    ∧ C_n ⊆ keyset K I_n n
     ∧ (∀ k : K, default 0 (inf I_n n !! k) ≤ 1)
     ∧ (n = root → ∀ k : K, k ∈ KS → in_outsets K k I_n).
 
