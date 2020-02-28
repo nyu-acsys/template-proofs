@@ -141,10 +141,6 @@ Section Coupling_Template.
   Hypothesis node_sep_star: ∀ n I_n I_n' C C' root,
     node n root I_n C ∗ node n root I_n' C' -∗ False.
 
-  Hypothesis contextualLeq_impl_globalinv :
-    ∀ I I' root, globalinv K root I → contextualLeq K_multiset I I'
-    → globalinv K root I'.
-
   Lemma successor_not_root : ∀ (I I1 I2 I3 : flowintT) C root n k,
       globalinv K root I →
       I = I1 ⋅ I2 ⋅ I3 →
@@ -730,7 +726,13 @@ Section Coupling_Template.
       clear. set_solver.
     }
     
-    assert (globalinv K root I'). { by apply (contextualLeq_impl_globalinv I4 I'). }
+    assert (globalinv K root I'). {
+      apply (contextualLeq_impl_globalinv I4 I').
+      all: try trivial.
+      intros.
+      assert (n2 = m). { clear - H65 H66. set_solver. }
+      rewrite H67. admit.
+    }
     iEval (rewrite <-H65) in "HFP". assert (domm I'∖ {[m]} = domm I4). { set_solver. }
 
     (* ------ updates over -------*)
