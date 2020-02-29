@@ -5,25 +5,22 @@ Artifact for paper #756: Verifying Concurrent Search Structure Templates.
 Getting Started Guide
 =====================
 
-TODO: how to run experiments. This will depend on VM.
+Our artifact is a VirtualBox VM distributed as a zip file (756.zip). To get started, unzip the file and import the enclosed ova file into VirtualBox. Boot up the VM, and use the following credentials to log in:
 
-PLDI20-756
 username: templates
 password: templates
 
+Once in the home directory, you can run all the experiments and reproduce the results of the paper by running the following scripts:
 
-TODO script to pull repos, copy correct files to top-level directories, build grasshopper, make alias/add to path, and maybe even run experiments.
+./update_files.sh  # optional; this updates proof scripts from our repository
 
+./run_experiments.sh
 
 Warning: line counts and times may differ because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq.
 
 
-Step-by-Step Evaluation Instructions
-====================================
-
-Our artifact consists of two parts: the proofs of template algorithms, to be verified by Iris/Coq, and the proofs of implementations, to be verified by GRASShopper.
-
-Here is the file tree of this VM:
+Contents of the VM
+------------------
 
 + templates/:
      The Iris proofs of template algorithms
@@ -45,12 +42,12 @@ Here is the file tree of this VM:
         The give-up template algorithm and proof
   - coupling_inv.v:
         The lock-coupling template algorithm and proof
-+ implementations/:
++ implementations/: (this is a symlink)
      The GRASShopper proofs of implementations
   - ccm.spl, multiset-ccm.spl, multipair-ccm.spl:
         CCM definition, and CCM instances used in implementations
   - flows.spl:
-        TODO still needed?
+        Flow framework and flow interfaces definitions
   - ordered_type.spl:
         An ordered type, used for the type of keys
   - array_util.spl:
@@ -71,18 +68,24 @@ Here is the file tree of this VM:
         The hash table implementation of the link template
   - list-coupling.spl:
         The linked-list implementation of the lock-coupling template
-+ README.txt:
-     This file
-+ update_files.sh
-+ run_experiments.sh
++ update_files.sh:
+     A script to update the above proof scripts from our repository
++ run_experiments.sh:
+     The script to re-run the experiments reported in our paper
++ grasshopper/:
+     GRASShopper source files and proof scripts
 
 
-TODO directory/file structure with what's where
+Step-by-Step Evaluation Instructions
+====================================
+
+Our artifact consists of two parts: the proofs of template algorithms, to be verified by Iris/Coq, and the proofs of implementations, to be verified by GRASShopper.
+
 
 Template Proofs
 ---------------
 
-These proofs live in the templates/ directory and require Coq version >= TODO and Iris version >= TODO. The dependencies are already satisfied by this VM, but see file TODO for detailed installation instructions.
+These proofs live in the templates/ directory and were checked with Coq version 8.11 and Iris version dev.2020-02-28-0.a2f75cd0. These dependencies are already satisfied by the VM.
 
 From the templates/ directory, one can check individual files by running, for example:
 
@@ -101,7 +104,7 @@ node_timeless_proof,
 Implementation Proofs
 ---------------------
 
-These proofs live in the implementations/ directory and require GRASShopper compiled from source (commit hash TODO). Again, this VM has a built version of GRASShopper but see TODO for build instructions.
+These proofs live in the implementations/ directory and require GRASShopper compiled from source (branch pldi20). Again, the VM has a built version of GRASShopper but see ~/grasshopper/README.md for build instructions.
 
 From the implementations/ directory, one can check individual implementation files by running, for example:
 
