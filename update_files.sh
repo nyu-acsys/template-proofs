@@ -15,4 +15,5 @@ popd
 
 pushd ~/grasshopper/
 git pull
+./build.sh
 popd
