@@ -7,6 +7,13 @@ Getting Started Guide
 
 TODO: how to run experiments. This will depend on VM.
 
+PLDI20-756
+username: templates
+password: templates
+
+
+TODO script to pull repos, copy correct files to top-level directories, build grasshopper, make alias/add to path, and maybe even run experiments.
+
 
 Warning: line counts and times may differ because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq.
 
@@ -15,6 +22,60 @@ Step-by-Step Evaluation Instructions
 ====================================
 
 Our artifact consists of two parts: the proofs of template algorithms, to be verified by Iris/Coq, and the proofs of implementations, to be verified by GRASShopper.
+
+Here is the file tree of this VM:
+
++ templates/:
+     The Iris proofs of template algorithms
+  - ccm.v:
+        Commutative Cancelative Monoids, the basis for flow domains
+  - gmap_more.v:
+        Extension of maps
+  - flows.v:
+        The flow framework and flow interfaces camera definitions
+  - inset_flows.v:
+        Instantiation of flows used by give-up and coupling templates
+  - linkset_flows.v:
+        Instantiation of flows used by link template
+  - keyset_ra.v:
+        The Keyset RA from Sec 4.2 of the paper
+  - link.v:
+        The link template algorithm and proof
+  - give_up.v:
+        The give-up template algorithm and proof
+  - coupling_inv.v:
+        The lock-coupling template algorithm and proof
++ implementations/:
+     The GRASShopper proofs of implementations
+  - ccm.spl, multiset-ccm.spl, multipair-ccm.spl:
+        CCM definition, and CCM instances used in implementations
+  - flows.spl:
+        TODO still needed?
+  - ordered_type.spl:
+        An ordered type, used for the type of keys
+  - array_util.spl:
+        Library of basic manipulations of arrays
+  - give-up.spl:
+        Common definitions across all give-up template implementations
+  - link.spl:
+        Common definitions across all link template implementations
+  - lock-coupling.spl:
+        Common definitions across all lock-coupling template implementations
+  - b-link.spl:
+        The B-link tree implementation of the link template
+  - b+-tree.spl:
+        The B+ tree implementation of the give-up template
+  - hashtbl-give-up.spl:
+        The hash table implementation of the give-up template
+  - hashtbl-link.spl:
+        The hash table implementation of the link template
+  - list-coupling.spl:
+        The linked-list implementation of the lock-coupling template
++ README.txt:
+     This file
++ update_files.sh
++ run_experiments.sh
+
 
 TODO directory/file structure with what's where
 
@@ -44,7 +105,7 @@ These proofs live in the implementations/ directory and require GRASShopper comp
 
 From the implementations/ directory, one can check individual implementation files by running, for example:
 
-grasshopper hashtbl-link.spl
+grasshopper hashtbl-link.spl -module hashtbl-link
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
 
