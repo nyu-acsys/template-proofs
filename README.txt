@@ -92,7 +92,8 @@ You can prefix the make command with e.g. `TIMED=true` in order to time each che
 You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as either `Parameter` (for the helper function implementations) or `Hypothesis` (for an implementation-dependent lemma of the same name checked by GRASShopper). See below for a complete list of such assumptions.
 
 Apart from these, we make the following assumptions in our Iris proofs:
-lockLoc, getLockLoc, getLockLoc_spec node_timeless_proof. 
+lockLoc, getLockLoc, getLockLoc_spec, and node_timeless_proof. The first three assumptions are a way to talk about the lock field of each node that all GRASShopper implementations have, and the final one is justified because GRASShopper uses a first-order separation logic.
+
 
 Implementation Proofs
 ---------------------
