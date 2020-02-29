@@ -16,8 +16,7 @@ Once in the home directory, you can run all the experiments and reproduce the re
 
 ./run_experiments.sh
 
-Warning: line counts and times may differ because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq.
-
+Warning: line counts and times may differ from the original submission because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq.
 
 Contents of the VM
 ------------------
@@ -27,11 +26,11 @@ Contents of the VM
   - ccm.v:
         Commutative Cancelative Monoids, the basis for flow domains
   - gmap_more.v:
-        Extension of maps
+        Extension of gmaps in stdpp (Coq standard library used by Iris)
   - flows.v:
         The flow framework and flow interfaces camera definitions
   - inset_flows.v:
-        Instantiation of flows used by give-up and coupling templates
+        Instantiation of flows used by give-up template
   - linkset_flows.v:
         Instantiation of flows used by link template
   - keyset_ra.v:
@@ -40,8 +39,6 @@ Contents of the VM
         The link template algorithm and proof
   - give_up.v:
         The give-up template algorithm and proof
-  - coupling_inv.v:
-        The lock-coupling template algorithm and proof
 + implementations/: (this is a symlink)
      The GRASShopper proofs of implementations
   - ccm.spl, multiset-ccm.spl, multipair-ccm.spl:
@@ -56,8 +53,6 @@ Contents of the VM
         Common definitions across all give-up template implementations
   - link.spl:
         Common definitions across all link template implementations
-  - lock-coupling.spl:
-        Common definitions across all lock-coupling template implementations
   - b-link.spl:
         The B-link tree implementation of the link template
   - b+-tree.spl:
@@ -66,8 +61,6 @@ Contents of the VM
         The hash table implementation of the give-up template
   - hashtbl-link.spl:
         The hash table implementation of the link template
-  - list-coupling.spl:
-        The linked-list implementation of the lock-coupling template
 + update_files.sh:
      A script to update the above proof scripts from our repository
 + run_experiments.sh:
@@ -97,9 +90,9 @@ You can prefix the make command with e.g. `TIMED=true` in order to time each che
 You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as either `Parameter` (for the helper function implementations) or `Hypothesis` (for an implementation-dependent lemma of the same name checked by GRASShopper). See below for a complete list of such assumptions.
 
 Apart from these, we make the following assumptions in our Iris proofs:
-lockLoc, getLockLoc, getLockLoc_spec
-node_timeless_proof, 
+lockLoc, getLockLoc, getLockLoc_spec node_timeless_proof. 
 
+The relevant rows for the template proofs in Table 1 (Section 4 of the paper) are generated using the script xp_pldi20.sh. Note that the line counts for the code of the templates are obtained manually. Hence the relevant entries are filled with ? in the table. Also, please note our earlier explanation for the difference in line counts compared to our submitted version of the paper.
 
 Implementation Proofs
 ---------------------
@@ -114,6 +107,7 @@ You can prefix the command with `time` in order to time each check, or append `-
 
 You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. Note that there are some procedures/lemmas without bodies in ccm.spl as we use this mechanism to specify axioms of a theory (the bodies and proofs are then provided in multiset_ccm.spl and multipair_ccm.spl for the specific instantiations).
 
+The relevant rows for the template proofs in Table 1 (Section 4 of the paper) are generated using the script bin/xp_pldi20.sh. Please note our earlier explanation for the difference in line counts compared to our submitted version of the paper.
 
 Linking Templates and Implementations
 -------------------------------------
