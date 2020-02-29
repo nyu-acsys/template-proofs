@@ -7,6 +7,8 @@ set -e
 
 pushd ~/templates/
 git pull
+cp update_files.sh ../
+cp run_experiments.sh ../
 popd
 
 # Assumes https://github.com/wies/grasshopper/ is in ~/grasshopper
