@@ -16,7 +16,9 @@ Once in the home directory, you can run all the experiments and reproduce the re
 
 ./run_experiments.sh
 
-Warning: line counts and times may differ from the original submission because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq.
+The script will generate the rows for Table 1 (Section 4 of the paper).
+
+Warning: line counts and times may differ from the original submission because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with ? in the generated rows.
 
 Contents of the VM
 ------------------
@@ -92,8 +94,6 @@ You can verify that our Coq proof scripts have no "holes" in them by checking th
 Apart from these, we make the following assumptions in our Iris proofs:
 lockLoc, getLockLoc, getLockLoc_spec node_timeless_proof. 
 
-The relevant rows for the template proofs in Table 1 (Section 4 of the paper) are generated using the script xp_pldi20.sh. Note that the line counts for the code of the templates are obtained manually. Hence the relevant entries are filled with ? in the table. Also, please note our earlier explanation for the difference in line counts compared to our submitted version of the paper.
-
 Implementation Proofs
 ---------------------
 
@@ -105,9 +105,7 @@ grasshopper hashtbl-link.spl -module hashtbl-link
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
 
-You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. Note that there are some procedures/lemmas without bodies in ccm.spl as we use this mechanism to specify axioms of a theory (the bodies and proofs are then provided in multiset_ccm.spl and multipair_ccm.spl for the specific instantiations).
-
-The relevant rows for the template proofs in Table 1 (Section 4 of the paper) are generated using the script bin/xp_pldi20.sh. Please note our earlier explanation for the difference in line counts compared to our submitted version of the paper.
+You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. Note that there are some procedures/lemmas without bodies in ccm.spl. These should be interpreted as forward declarations that serve as axioms of the theory of CCMs.  The bodies (i.e. proofs) of these lemmas are then provided in multiset_ccm.spl and multipair_ccm.spl for the specific instantiations of the CCM theory.
 
 Linking Templates and Implementations
 -------------------------------------
