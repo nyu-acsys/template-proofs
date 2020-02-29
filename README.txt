@@ -118,7 +118,7 @@ The link template proof (templates/link.v) makes the following assumptions on it
   - Parameters findNext and decisiveOp:
     These are GRASShopper procedures in the implementation files. Note that decisiveOp is a placeholder for each of the three search structure operations: search, insert, and delete.
   - Parameters findNext_spec and decisiveOp_spec:
-    These are the specifications (pre and post-conditions, denoted by requries and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
+    These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
   - Hypotheses node_sep_star and node_implies_nodeinv:
     These have GRASShopper lemmas of the same names, with proofs in each implementation file.
 
@@ -130,7 +130,7 @@ The give-up template proof (templates/give_up.v) makes the following assumptions
   - Parameters findNext, inRange, and decisiveOp:
     These are GRASShopper procedures in the implementation files. Note that decisiveOp is a placeholder for each of the three search structure operations: search, insert, and delete.
   - Parameters findNext_spec, inRange_spec, and decisiveOp_spec:
-    These are the specifications (pre and post-conditions, denoted by requries and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
+    These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
   - Hypothesis node_sep_star:
     This has a GRASShopper lemmas of the same name, with a proof in each implementation file.
 
