@@ -15,7 +15,7 @@ Definition K_multiset := nzmap K nat.
 
 Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
-Definition dom_ms (m : K_multiset) := nzmap_dom K nat m.
+Definition dom_ms (m : K_multiset) := nzmap_dom m.
 
 Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
 
@@ -63,124 +63,51 @@ Proof.
   intros I I1 I2 k n r gInv dI kOut.
   unfold globalinv in gInv.
   destruct gInv as (vI & rI & cI & _).
+  rewrite dI in vI.
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
-  rewrite dI in vI.
   pose proof (intComp_dom _ _ vI).
   rewrite dI.
   trivial.
 
-  assert (✓ I1) as vI1.
-  rewrite dI in vI.
-  eauto using intComp_valid_proj1.
-
-  apply flowint_valid_unfold in vI1.
-  destruct vI1 as [Ir1 [dI1 [disj1 _]]].
-
   (* First, prove n ∉ domm I1 *)
-  
-  assert (is_Some (out I1 n !! k)) as out1nk.
-  unfold outset, dom_ms, nzmap_dom in kOut.
-    by rewrite nzmap_elem_of_dom in kOut *.
-  assert (is_Some (outR Ir1 !! n)) as out1n.
-  unfold out, out_map in out1nk.
-  rewrite dI1 in out1nk.
-  destruct (outR Ir1 !! n); eauto.
-  unfold default in out1nk.
-  rewrite lift_lookup_empty in out1nk.
-  unfold is_Some in out1nk.
-  destruct out1nk.
-  inversion H0.
-
-  assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
-  by apply elem_of_dom.
-
-  assert (dom (gset Node) (infR Ir1) ## dom (gset Node) (outR Ir1)) as domDisj1.
-  by apply map_disjoint_dom.
-
-  assert (n ∉ dom (gset Node) (infR Ir1)) as not_in_Inf1_n.
-  set_solver.
-
-  (* Now, prove n ∈ domm I *)
-
-  assert (vI' := vI).
-  apply flowint_valid_unfold in vI'.
-  destruct vI' as [Ir [dI' [disj' _]]].
-
-  assert (n ∈ dom (gset Node) (infR Ir)) as in_Inf_n.
-  rewrite dI in vI.
+  destruct (decide (n ∈ domm I1)).
+  pose proof (intComp_valid_proj1 I1 I2 vI) as vI1.
+  pose proof (intValid_in_dom_not_out I1 n vI1 e).
+  unfold outset, dom_ms in kOut.
+  rewrite nzmap_elem_of_dom_total in kOut *.
+  intros.
+  unfold ccmunit, ccm_unit, K_multiset_ccm, lift_ccm, lift_unit in H0.
+  rewrite H0 in H1.
+  rewrite nzmap_lookup_empty in H1.
+  contradiction.
+    
+  (* Now, prove n ∈ domm I *)    
+  assert (n ∈ domm (I1 ⋅ I2)) as in_Inf_n.
   pose proof (intComp_unfold_out I1 I2 vI n).
   destruct (decide (n ∉ domm (I1 ⋅ I2))).
-  apply H0 in n0.
+  apply H0 in n1.
   pose proof (cI k n) as not_k_out.
-  unfold outset, dom_ms, nzmap_dom in not_k_out.
-  apply not_elem_of_dom in not_k_out.
-  assert (out I n !! k = out (I1 ⋅ I2) n !! k).
+  unfold outset, dom_ms in not_k_out.
+  rewrite nzmap_elem_of_dom_total in not_k_out *.
+  intros not_k_out.
+  apply dec_stable in not_k_out.
+  unfold outset, dom_ms in kOut.
+  rewrite nzmap_elem_of_dom_total in kOut *.
+  intros kOut.
+  assert (out I n ! k = out (I1 ⋅ I2) n ! k).
   rewrite dI. reflexivity.
-  rewrite n0 in H1.
+  rewrite n1 in H1.
+  rewrite lookup_op in H1.
   unfold ccmop, ccm_op in H1.
-  unfold K_multiset_ccm in H1.
-  unfold lift_ccm in H1.
-  unfold lift_op in H1.
-  case_eq (out I1 n).
-  intros ? ? out1.
-  rewrite out1 in H1.
-  case_eq (out I2 n).
-  intros ? ? out2.
-  rewrite out2 in H1.
-  unfold lookup at 2 in H1.
-  unfold nzmap_lookup in H1.
-  rewrite lookup_merge in H1.
-  unfold merge_op in H1.
-  assert (out I1 n !! k = nzmap_car !! k).
-  rewrite out1. unfold lookup at 1. by unfold nzmap_lookup.
-  rewrite <- H2 in H1.
-  unfold is_Some in out1nk.
-  destruct out1nk as [x1 out1nk].
-  rewrite out1nk in H1.
-  assert (x1 <> 0) as x1_pos.
-  pose proof (nzmap_is_wf _ _ (out I1 n)).
-  rewrite out1 in H3. simpl in H3.
-  pose proof (nzmap_lookup_wf _ _ _ k H3).
-  rewrite <- H2 in H4.
-  rewrite out1nk in H4.
-  clear - H4.
-  firstorder.
-
-  destruct (nzmap_car0 !! k);
-  try destruct decide in H1;
-  first [
-         clear - e x1_pos;
-         (* TODO: There must be a better way of doing this... *)
-         unfold ccm_unit, ccmunit, nat_ccm, nat_unit, ccm_op, ccmop, nat_op in e; simpl;
-         lia |
-         unfold ccm.nzmap_car in not_k_out;
-           unfold lookup in H1;
-           case_eq (out I n);
-           intros;
-           rewrite H3 in H1;
-           rewrite H3 in not_k_out;
-           unfold lookup in not_k_out;
-           rewrite not_k_out in H1;
-           inversion H1].
-
-  unfold domm, dom, flowint_dom, inf_map in n0.
-  rewrite <- dI in n0.
-  rewrite dI' in n0.
-  apply dec_stable in n0.
-  trivial.
-  
+  unfold K_multiset_ccm,ccmunit,ccm_unit,nat_ccm,nat_unit,nat_op in kOut, not_k_out, H1.
+  lia.
+  apply dec_stable in n1. trivial.
+    
   (* Finally, prove n ∈ domm I2 *)
-  
-  unfold domm, dom, flowint_dom.
-  unfold domm, dom, flowint_dom in disj.
-  unfold inf_map at 1 in disj; rewrite dI' in disj.
-  unfold inf_map at 1 in disj; rewrite dI1 in disj.
-  rewrite elem_of_equiv_L in disj *.
-  intro dom_I.
-  pose proof (dom_I n) as dom_I_n.
-  rewrite elem_of_union in dom_I_n *.
-  naive_solver.
+  apply intComp_dom in vI.
+  rewrite vI in in_Inf_n.
+  set_solver.
 Qed.
 
 Lemma outset_distinct : ∀ I n, ✓ I ∧ (∃ k, k ∈ outset I n) → n ∉ domm I.
@@ -192,46 +119,23 @@ Proof.
   apply flowint_valid_unfold in VI.
   destruct VI as (Ir & dI & disj & _).
 
-  rewrite map_disjoint_spec in disj *.
+  rewrite (@map_disjoint_dom Node (gmap Node) (gset Node)) in disj *.
   intros disj.
+
+  unfold outset, dom_ms, nzmap_dom, out, out_map in Out.
+  rewrite dI in Out.
+  rewrite nzmap_elem_of_dom_total in Out *.
+  intros Out.
+  destruct (decide (outR Ir ! n = ∅)).
+  rewrite e in Out.
+  rewrite nzmap_lookup_empty in Out.
+  contradiction.
+  rewrite <- nzmap_elem_of_dom_total in n0.
+  unfold dom, nzmap_dom in n0.
   
-  assert (is_Some (outR Ir !! n)).
-  * unfold outset, out in Out.
-    case_eq (out_map I !! n).
-    - intros.
-      unfold out_map in H0.
-      rewrite dI in H0.
-      unfold is_Some.
-      exists k0.
-      trivial.
-
-    - intros.
-      rewrite H0 in Out.
-      unfold default, dom_ms, nzmap_dom, ccmunit, lift_unit, nzmap_unit in Out.
-      simpl in Out.
-      rewrite dom_empty in Out *. intros Out.
-      apply elem_of_empty in Out.
-      contradiction.
-
-  * case_eq (infR Ir !! n).
-    - intros.
-      unfold is_Some in H0.
-      destruct H0.
-      pose proof (disj n k0 x H1 H0).
-      contradiction.
-
-    - intros.
-      unfold domm.
-      unfold dom, flowint_dom.
-      rewrite elem_of_dom.
-      unfold not.
-      intro.
-      unfold is_Some in H2.
-      destruct H2.
-      rewrite dI in H2.
-      unfold inf_map in H2.
-      rewrite H2 in H1.
-      inversion H1.
+  unfold domm, dom, flowint_dom, inf_map.
+  rewrite dI.
+  set_solver.
 Qed.
 
 
@@ -328,13 +232,6 @@ Proof.
   lia.
 Qed.
 
-(*Instance empty_K_multiset : Empty K_multiset := nzmap_empty K nat.*)
-
-Instance a : Singleton K (gset K) := _.
-Instance b : Union (gset K) := _.
-Instance c : SemiSet K (gset K) := _.
-(*Instance d : Dom (gset K) K := _.*)
-
 Lemma contextualLeq_impl_globalinv : ∀ I I' root,
     globalinv root I →
     contextualLeq K_multiset I I' →
@@ -354,21 +251,20 @@ Proof.
     destruct (decide (n ∈ domm I')).
     * apply flowint_valid_unfold in VI'.
       destruct VI' as [Ir' (I'_def & I'_disj & _)].
-      assert (dom (gset Node) (inf_map I') ## dom (gset Node) (out_map I')).
-      { apply map_disjoint_dom_1.
-        unfold inf_map, out_map.
-        rewrite I'_def.
-        trivial. }
-      assert (out_map I' !! n = None).
+      rewrite (@map_disjoint_dom Node (gmap Node) (gset Node)) in I'_disj *.
+      intros.
+      assert (out_map I' ! n = 0%CCM).
       { unfold out_map. rewrite I'_def.
         assert (¬ (n ∈ dom (gset Node) (out_map I'))).
         { unfold domm, dom, flowint_dom in e.
           set_solver.
         }
-        unfold out_map in H1.
         rewrite I'_def in H1.
-        apply not_elem_of_dom in H1.
-        trivial.
+        rewrite nzmap_elem_of_dom_total in H1 *.
+        intros.
+        apply dec_stable in H1.
+        unfold out_map in H1.
+        by rewrite H1.
       }
       unfold outset, dom_ms, nzmap_dom, out.
       rewrite H1. simpl.

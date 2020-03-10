@@ -7,6 +7,7 @@ From stdpp Require Export decidable.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset.
 From stdpp Require Import finite.
+Require Import gmap_more.
 
 (** * Commutative Cancelative Monoids (CCMs) *)
 
@@ -56,6 +57,11 @@ Hint Extern 0 (CcmOp _) => eapply (@ccm_op _) : typeclass_instances.
 Hint Extern 0 (CcmOpInv _) => eapply (@ccm_opinv _) : typeclass_instances.
 Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
+Instance ccm_eq_eq `{CCM A}: EqDecision A.
+Proof.
+  apply ccm_eq.
+Defined.
+  
 Lemma ccm_right_id `{CCM M} : RightId (=) 0 (+).
 Proof. intros x. etrans; [apply ccm_comm|apply ccm_left_id]. Qed.
 
@@ -69,13 +75,13 @@ Close Scope ccm_scope.
 
 (** * The CCM of natural numbers with addition *)
 
-Instance nat_eq: EqDecision nat.
+(*Instance nat_eq: EqDecision nat.
 Proof.
   unfold EqDecision.
   intros.
   unfold Decision.
   decide equality.
-Qed.
+Qed.*)
 
 Instance nat_op : CcmOp nat := plus.
 
@@ -125,6 +131,7 @@ Proof.
 Qed.
 
 Instance nat_ccm : CCM nat := { }.
+
 
 (** Products of CCMs are CCMs *)
 
@@ -213,7 +220,301 @@ Section product.
 
 End product.
 
-(** * Lifting any CCM A to functions f: K → A yields a CCM. Here, we assume that f k ≠ 0 for finitely many k. Moreover, K must be countable. *)
+(** Unique representations of non-zero maps over CCMs *)
+
+Open Scope ccm_scope.
+
+
+Definition nzmap_wf `{Countable K} `{CCM A} : gmap K A → Prop :=
+  map_Forall (λ _ x, ¬ (x = 0)).
+  
+Instance nzmap_wf_decision K `{Countable K} `{CCM A} (m: gmap K A) : Decision (nzmap_wf m).
+Proof.
+  solve_decision.
+Qed.
+
+Lemma empty_nzmap_wf `{Countable K} `{CCM A} : nzmap_wf (∅ : gmap K A).
+Proof.
+  unfold nzmap_wf, map_Forall.
+  intros.
+  rewrite lookup_empty in H1.
+  inversion H1.
+Qed.
+
+Record nzmap K `{Countable K} A `{CCM A} :=
+  NZMap {
+      nzmap_car : gmap K A;
+      nzmap_prf : bool_decide (nzmap_wf nzmap_car)
+    }.
+
+Arguments NZMap {_ _ _ _ _} _ _ : assert.
+Arguments nzmap_car {_ _ _ _ _} _ : assert.
+
+Instance nzmap_lookup `{Countable K} `{CCM A} : Lookup K A (nzmap K A) :=
+  λ i m, let (m, _) := m in m !! i.
+
+Definition nzmap_total_lookup `{Countable K} `{CCM A} i (m : nzmap K A) := default 0 (m !! i).
+
+Notation "m ! i" := (nzmap_total_lookup i m) (at level 20).
+
+Instance nzmap_dom `{Countable K} `{CCM A} : Dom (nzmap K A) (gset K) :=
+  λ m, dom (gset K) (nzmap_car m).
+
+Definition nzmap_unit `{Countable K} `{CCM A} := NZMap (∅ : gmap K A) (bool_decide_pack _ empty_nzmap_wf).
+  
+Instance nzmap_empty `{Countable K} `{CCM A} : Empty (nzmap K A) := nzmap_unit.
+
+Lemma nzmap_is_wf `{Countable K} `{CCM A} (m : nzmap K A) : nzmap_wf (nzmap_car m).
+Proof.
+  destruct m.
+  simpl.
+  unfold bool_decide in nzmap_prf0.
+  destruct nzmap_wf_decision eqn:?.
+  all: naive_solver.
+Qed.
+
+Lemma nzmap_eq `{Countable K} `{CCM A} (m1 m2 : nzmap K A) :
+  m1 = m2 ↔ ∀ k, m1 ! k = m2 ! k.
+Proof.
+  split; [by intros ->|intros].
+  assert (nzmap_car m1 = nzmap_car m2).
+  { pose proof (nzmap_is_wf m1) as Hm1_wf.
+    pose proof (nzmap_is_wf m2) as Hm2_wf.
+    destruct m1, m2; simplify_eq/=.
+    apply map_eq.
+    intros k.
+    pose proof (H1 k) as Hk.
+    unfold nzmap_wf, map_Forall in Hm1_wf, Hm2_wf.
+    pose proof (Hm1_wf k) as Hm1_wf.
+    pose proof (Hm2_wf k) as Hm2_wf.
+    unfold nzmap_total_lookup, lookup, nzmap_lookup in Hk.
+    destruct (nzmap_car0 !! k) eqn:?, (nzmap_car1 !! k) eqn:?; simplify_eq/=;
+             try reflexivity.
+    - pose proof (Hm1_wf 0) as Hm1_wf.
+      naive_solver.
+    - pose proof (Hm2_wf 0) as Hm2_wf.
+      naive_solver.
+  }
+  destruct m1, m2; simplify_eq/=.
+  f_equal.
+  apply proof_irrel.
+Qed.  
+
+Lemma nzmap_gmap_eq `{Countable K} `{CCM A} (m1 m2 : nzmap K A) :
+  m1 = m2 ↔ nzmap_car m1 = nzmap_car m2.
+Proof.
+  split; [by intros ->|intros]. destruct m1, m2; simplify_eq/=.
+  f_equal. apply proof_irrel.
+Qed.
+
+Instance nzmap_eq_eq `{Countable K} `{CCM A} : EqDecision (nzmap K A).
+Proof.
+  refine (λ m1 m2, cast_if (decide (nzmap_car m1 = nzmap_car m2)));
+  try abstract (by rewrite nzmap_gmap_eq). 
+Defined.
+
+Definition nzmap_merge_op `{CCM A} (f : A → A → A) :=
+  λ (o1 o2 : option A),
+  match o1, o2 with
+    None, None => None
+  | _, _ =>
+    let r := f (default 0 o1) (default 0 o2) in
+    if (decide (0 = r)) then None else Some r
+  end.
+
+Instance nzmap_diag_merge_op `{CCM A} (f : A → A → A) : DiagNone (nzmap_merge_op f).
+Proof.
+  unfold DiagNone.
+  auto.
+Defined.
+  
+Lemma nzmap_merge_wf `{Countable K} `{CCM A}
+      (f : A → A → A) (m1 m2 : gmap K A) :
+  nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (merge (nzmap_merge_op f) m1 m2).
+Proof.
+  unfold nzmap_wf. unfold map_Forall.
+  intros Hm1 Hm2 k x Hm.
+  rewrite lookup_merge in Hm.
+  unfold nzmap_merge_op in Hm.
+  destruct (m1 !! _), (m2 !! _);
+    try destruct (decide (0 = _)) eqn:?;
+        naive_solver.
+Qed.
+
+Definition nzmap_merge `{Countable K} `{CCM A} :=
+  λ (f : A → A → A)  (m1 m2 : nzmap K A),
+    let (m1, Hm1) := m1 in
+    let (m2, Hm2) := m2 in
+    NZMap (merge (nzmap_merge_op f) m1 m2) (bool_decide_pack _ (nzmap_merge_wf f _ _
+    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
+
+
+Definition nzmap_imerge_op `{Countable K} `{CCM A} (f : K → A → A → A) :=
+  λ k (o1 o2 : option A),
+  match o1, o2 with
+    None, None => None
+  | _, _ =>
+    let r := f k (default 0 o1) (default 0 o2) in
+    if (decide (0 = r)) then None else Some r
+  end.
+
+Instance nzmap_diag_imerge_op `{Countable K} `{CCM A} (k: K) (f : K → A → A → A) : DiagNone (nzmap_imerge_op f k).
+Proof.
+  unfold DiagNone.
+  auto.
+Defined.
+
+Lemma nzmap_imerge_wf `{Countable K} `{CCM A}
+      (f : K → A → A → A) (m1 m2 : gmap K A) :
+  nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (imerge (nzmap_imerge_op f) m1 m2).
+Proof.
+  unfold nzmap_wf. unfold map_Forall.
+  intros Hm1 Hm2 k x Hm.
+  rewrite gmap_imerge_prf in Hm.
+  unfold nzmap_imerge_op in Hm.
+  destruct (m1 !! _), (m2 !! _);
+    try destruct (decide (0 = _)) eqn:?;
+        naive_solver.
+Qed. 
+
+Definition nzmap_imerge `{Countable K} `{CCM A} :=
+  λ (f : K → A → A → A)  (m1 m2 : nzmap K A),
+    let (m1, Hm1) := m1 in
+    let (m2, Hm2) := m2 in
+    NZMap (imerge (nzmap_imerge_op f) m1 m2) (bool_decide_pack _ (nzmap_imerge_wf f _ _
+    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
+
+
+Lemma nzmap_lookup_wf `{Countable K} `{CCM A} (m : gmap K A) i : nzmap_wf m → m !! i <> Some 0.
+Proof.
+  intros.
+  unfold nzmap_wf, map_Forall in H0.
+  firstorder.
+Qed.
+
+
+Lemma nzmap_elem_of_dom `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ is_Some (m !! i).
+Proof.
+  unfold dom, nzmap_dom.
+  rewrite elem_of_dom.
+  unfold lookup at 2, nzmap_lookup.
+  unfold nzmap_car.
+  destruct m.
+  naive_solver.
+Qed.
+
+Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
+Proof.
+  pose proof (nzmap_is_wf m) as m_wf.
+  unfold nzmap_total_lookup, default.
+  split.
+  - intro.
+    apply nzmap_elem_of_dom in H1.
+    unfold is_Some in H1.
+    destruct H1 as [x ?].
+    rewrite H1.
+    apply (nzmap_lookup_wf (nzmap_car m) i) in m_wf.
+    unfold lookup, nzmap_lookup in H1.
+    destruct m. simpl in m_wf.
+    unfold id.
+    rewrite H1 in m_wf.
+    naive_solver.
+  - intros.
+    rewrite nzmap_elem_of_dom.
+    destruct (m !! i).
+    naive_solver.
+    contradiction.
+Qed.
+
+Lemma nzmap_empty_lookup `{Countable K} `{CCM A} (m: nzmap K A) : m <> ∅ ↔ ∃ i, m ! i <> 0.
+Proof.
+  pose proof (nzmap_is_wf m).
+  split.
+  - intros.
+    destruct m.
+    rewrite nzmap_gmap_eq in H2 *; intros; simpl in H1.
+    unfold empty in H2.
+    unfold nzmap_empty, nzmap_unit in H2.
+    simpl in H2.
+    apply map_choose in H2.
+    destruct H2 as [i [x H2]].
+    pose proof (nzmap_lookup_wf nzmap_car0 i).
+    apply H3 in H1.
+    exists i.
+    unfold nzmap_total_lookup.
+    unfold default, lookup, nzmap_lookup.
+    rewrite H2.
+    naive_solver.
+  - naive_solver.
+Qed.
+
+Lemma nzmap_lookup_empty `{Countable K} `{CCM A} i : (∅ : nzmap K A) ! i = 0.
+Proof.
+  unfold empty, nzmap_empty, nzmap_unit.
+  unfold nzmap_total_lookup, lookup, nzmap_lookup.
+  rewrite lookup_empty.
+  auto.
+Qed.
+
+
+Class UnitId A `(CCM A) (f : A → A → A) : Prop :=
+  unit_id : f 0 0 = 0.
+
+Lemma nzmap_lookup_merge `{Countable K} `{UnitId A f} (m1 m2 : nzmap K A) (k : K) :
+  nzmap_merge f m1 m2 ! k = f (m1 ! k) (m2 ! k).
+Proof.
+  unfold nzmap_merge, nzmap_total_lookup, lookup, nzmap_lookup.
+  destruct m1, m2.
+  unfold nzmap_merge_op.
+  rewrite lookup_merge.
+  destruct (nzmap_car0 !! _) eqn:?,
+           (nzmap_car1 !! _) eqn:?;
+           simpl;
+    try destruct (decide (0 = _));
+    try rewrite <- e;
+    simpl;
+    try reflexivity.
+  unfold UnitId in H1.
+  rewrite H1.
+  reflexivity.
+Qed.
+
+Lemma nzmap_lookup_imerge `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)} (m1 m2 : nzmap K A) (k : K) :
+  nzmap_imerge f m1 m2 ! k = f k (m1 ! k) (m2 ! k).
+Proof.
+  unfold nzmap_imerge, nzmap_total_lookup, lookup, nzmap_lookup.
+  destruct m1, m2.
+  unfold nzmap_imerge_op.
+  rewrite gmap_imerge_prf.
+  destruct (nzmap_car0 !! _) eqn:?,
+           (nzmap_car1 !! _) eqn:?;
+           simpl;
+    try destruct (decide (0 = _));
+    try rewrite <- e;
+    simpl;
+    try reflexivity.
+  unfold UnitId in H1.
+  rewrite H1.
+  reflexivity.
+Qed.
+
+Lemma nzmap_imerge_empty {A} `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)}
+      : (∀ i y, f i y 0 = y) -> ∀ m, nzmap_imerge f m ∅ = m.
+Proof.
+  intros.
+  apply nzmap_eq.
+  intros.
+  rewrite nzmap_lookup_imerge.
+  unfold nzmap_total_lookup at 2.
+  unfold lookup, nzmap_lookup, empty, nzmap_empty, nzmap_unit.
+  rewrite lookup_empty. simpl.
+  auto.
+Qed.
+  
+
+Close Scope ccm_scope.
+
+(** Lifting any CCM A to functions f: K → A yields a CCM. Here, we assume that f k ≠ 0 for finitely many k. Moreover, K must be countable. *)
 
 Section lifting.
   Context K `{Countable K} A `{CCM A}.
@@ -223,305 +524,63 @@ Section lifting.
   (* To obtain unique representations, we represent functions f: K → A
    * as g: gmap K A where f k = 0 ↔ g !! k = None *)
 
-  Definition nzmap_wf : gmap K A → Prop :=
-    map_Forall (λ _ x, ¬ (x = 0)).
-  
-  Instance nzmap_wf_decision m : Decision (nzmap_wf m).
-  Proof.
-    apply map_Forall_dec.
-    intros.
-    apply not_dec.
-    apply ccm_eq.
-  Defined.
-  
-  Record nzmap :=
-    NZMap {
-        nzmap_car : gmap K A;
-        nzmap_prf : bool_decide (nzmap_wf nzmap_car)
-      }.
-  
-  Arguments NZMap _ _ : assert.
-  Arguments nzmap_car _ : assert.
-
-  Instance c_eq: EqDecision A.
-  Proof.
-    apply ccm_eq.
-  Defined.
-  
-  Lemma nzmap_eq m1 m2 :
-    m1 = m2 ↔ nzmap_car m1 = nzmap_car m2.
-  Proof.
-    split; [by intros ->|intros]. destruct m1, m2; simplify_eq/=.
-    f_equal. apply proof_irrel.
-  Qed.
-  Instance nzmap_eq_eq : EqDecision nzmap.
-  Proof.
-    refine (λ m1 m2, cast_if (decide (nzmap_car m1 = nzmap_car m2)));
-      abstract (by rewrite nzmap_eq).
-  Defined.
-
-  Global Instance nzmap_lookup : Lookup K A nzmap := λ i m,
-  let (m, _) := m in m !! i.
-
-  Global Instance nzmap_dom : Dom nzmap (gset K) :=
-    λ m, dom (gset K) (nzmap_car m).
-
-  Definition nzmap_unit := NZMap ∅ I.
-  
-  Instance lift_unit : CcmUnit nzmap := nzmap_unit.
+  Instance lift_unit : CcmUnit (nzmap K A) := nzmap_unit.
     
-  Global Instance nzmap_empty : Empty nzmap := nzmap_unit.
-
-  Lemma nzmap_is_wf m : nzmap_wf (nzmap_car m).
-  Proof.
-    destruct m.
-    simpl.
-    unfold bool_decide, nzmap_wf_decision in nzmap_prf0.
-    unfold nzmap_wf.
-    destruct map_Forall_dec.
-    trivial.
-    contradiction.
-  Qed.    
-  
-  (** TODO: The following lemma should really not be needed. *)
-  Lemma nzmap_elem_of_dom (m : nzmap) i : i ∈ dom (gset K) m ↔ is_Some (m !! i).
-  Proof.
-    unfold lookup.
-    unfold nzmap_lookup, nzmap_dom.
-    destruct m.
-    simpl.
-    rewrite elem_of_dom.
-    reflexivity.
-  Qed.
-
-  Lemma nzmap_lookup_wf m i : nzmap_wf m → m !! i <> Some 0.
-  Proof.
-    intros.
-    unfold nzmap_wf, map_Forall in H0.
-    firstorder.
-  Qed.
-
-  Definition nzmap_total_lookup i (m : nzmap) := default 0 (m !! i).
-
-  Notation "m ! i" := (nzmap_total_lookup i m) (at level 20).
-  
   Instance op_zero_dec `(x1 : A, x2 : A) : Decision (x1 + x2 = 0).
   Proof.
     apply ccm_eq.
   Defined.
 
-  Lemma nzmap_elem_of_dom_total (m : nzmap) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
-  Proof.
-    pose proof (nzmap_is_wf m) as m_wf.
-    unfold nzmap_total_lookup, default.
-    split.
-    - intro.
-      apply nzmap_elem_of_dom in H1.
-      unfold is_Some in H1.
-      destruct H1 as [x ?].
-      rewrite H1.
-      apply (nzmap_lookup_wf (nzmap_car m) i) in m_wf.
-      unfold lookup, nzmap_lookup in H1.
-      destruct m. simpl in m_wf.
-      unfold id.
-      rewrite H1 in m_wf.
-      naive_solver.
-    - intros.
-      rewrite nzmap_elem_of_dom.
-      destruct (m !! i).
-      naive_solver.
-      contradiction.
-  Qed.      
+  Definition lift_merge_op (x y : A) := x + y.
 
-  Lemma nzmap_empty_lookup (m: nzmap) : m <> ∅ ↔ ∃ i, m ! i <> 0.
+  Instance lift_op_unit_id : UnitId A _ lift_merge_op.
   Proof.
-    pose proof (nzmap_is_wf m).
-    split.
-    - intros.
-      destruct m.
-      rewrite nzmap_eq in H2 *; intros; simpl in H1.
-      unfold empty in H2.
-      Transparent nzmap_empty.
-      unfold nzmap_empty, nzmap_unit in H2.
-      simpl in H2.
-      apply map_choose in H2.
-      destruct H2 as [i [x H2]].
-      pose proof (nzmap_lookup_wf nzmap_car0 i).
-      apply H3 in H1.
-      exists i.
-      unfold nzmap_total_lookup.
-      unfold default, lookup, nzmap_lookup.
-      rewrite H2.
-      naive_solver.
-    - naive_solver.
-  Qed.
+    unfold UnitId, lift_merge_op.
+      by rewrite ccm_left_id.
+  Defined.
   
-  Definition merge_op (o1: option A) (o2: option A) :=
-    match o1, o2 with
-    | Some x1, Some x2 =>
-      if decide (x1 + x2 = 0)
-      then None 
-      else Some (x1 + x2)
-    | None, Some x2 => Some x2
-    | Some x1, None => Some x1
-    | None, None => None
-    end.
-
-  Lemma lift_op_wf m1 m2 : nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (merge merge_op m1 m2).
-  Proof.
-    intros.
-    unfold nzmap_wf.
-    unfold map_Forall.
-    intros.
-    assert ((m1 !! i) <> Some 0) as Hm1i.
-    apply nzmap_lookup_wf. trivial.
-    assert ((m2 !! i) <> Some 0) as Hm2i.
-    apply nzmap_lookup_wf. trivial.
-    rewrite lookup_merge in H3.
-    unfold merge_op in H3.
-    repeat destruct (_ !! _);
-    try destruct (decide _);
-    first [discriminate |
-           inversion H3; trivial; congruence ].
-  Qed.
-  
-  Instance lift_op : CcmOp nzmap := λ m1 m2,
-    let (m1, Hm1) := m1 in
-    let (m2, Hm2) := m2 in
-    NZMap (merge merge_op m1 m2) (bool_decide_pack _ (lift_op_wf _ _
-    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
-
+  Instance lift_op : CcmOp (nzmap K A) := λ m1 m2,
+    nzmap_merge lift_merge_op m1 m2.
 
   Instance opinv_zero_dec `(x1 : A, x2 : A) : Decision (x1 - x2 = 0).
   Proof.
     apply ccm_eq.
   Defined.
 
-  Definition merge_opinv (o1: option A) (o2: option A) :=
-    match o1, o2 with
-    | Some x1, Some x2 =>
-      if decide (x1 - x2 = 0)
-      then None 
-      else Some (x1 - x2)
-    | None, Some x2 =>
-      if decide (0 - x2 = 0)
-      then None
-      else Some (0 - x2)
-    | Some x1, None => Some x1
-    | None, None => None
-    end.
+  Definition lift_merge_opinv (x y : A) := x - y.
 
-  Instance diag_opinv : DiagNone merge_opinv.
+  Instance lift_opinv_unit_id : UnitId A _ lift_merge_opinv.
   Proof.
-    unfold DiagNone.
-    auto.
+    unfold UnitId, lift_merge_opinv.
+    rewrite <- (ccm_right_id 0) at 1.
+      by rewrite ccm_pinv.
   Defined.
-  
-  Lemma lift_opinv_wf m1 m2 : nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (merge merge_opinv m1 m2).
-  Proof.
-    intros.
-    unfold nzmap_wf.
-    unfold map_Forall.
-    intros.
-    assert ((m1 !! i) <> Some 0) as Hm1i.
-    apply nzmap_lookup_wf. trivial.
-    assert ((m2 !! i) <> Some 0) as Hm2i.
-    apply nzmap_lookup_wf. trivial.
-    rewrite lookup_merge in H3.
-    unfold merge_opinv in H3.
-    repeat destruct (_ !! _);
-    try destruct (decide _);
-    first [discriminate |
-           inversion H3; trivial; congruence ].
-  Qed.
 
-  Instance lift_opinv : CcmOpInv nzmap := λ m1 m2,
-    let (m1, Hm1) := m1 in
-    let (m2, Hm2) := m2 in
-    NZMap (merge merge_opinv m1 m2) (bool_decide_pack _ (lift_opinv_wf _ _
-    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
+  Instance lift_opinv : CcmOpInv (nzmap K A) := λ m1 m2,
+    nzmap_merge lift_merge_opinv m1 m2.
 
-  Implicit Types m : nzmap.
+  Implicit Types m : nzmap K A.
 
   Instance lift_comm: Comm (=) lift_op.
   Proof.
     unfold Comm, lift_op.
     intros.
-    destruct x as [m1].
-    destruct y as [m2].
     apply nzmap_eq.
-    simpl.
-    apply map_eq.
     intros.
-    repeat rewrite lookup_merge.
-
-    repeat destruct (_ !! i);
-    simpl;
-    repeat destruct (decide _);
-    first [try rewrite ccm_comm; reflexivity |
-           try rewrite ccm_comm in n; contradiction].
-  Defined.
+    repeat rewrite nzmap_lookup_merge.
+    unfold lift_merge_op.
+    apply ccm_comm.
+  Qed.
 
   Instance lift_assoc: Assoc (=) lift_op.
   Proof.
     unfold Assoc, lift_op.
     intros.
-    destruct x as [m1].
-    destruct y as [m2].
-    destruct z as [m3].
     apply nzmap_eq.
-    simpl.
-    apply map_eq.
     intros.
-    assert ((m1 !! i) <> Some 0) as Hm1i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf0.
-    destruct (nzmap_wf_decision m1).
-    apply n.
-    contradiction.
-    assert ((m3 !! i) <> Some 0) as Hm3i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf2.
-    destruct (nzmap_wf_decision m3).
-    apply n.
-    contradiction.
-    repeat rewrite lookup_merge.
-    repeat destruct (_ !! i);
-    simpl;
-    repeat destruct (decide _);
-    simpl;
-    repeat destruct (decide _);
-    f_equal.
-    - rewrite ccm_comm in e0.
-      assert (a1 + a = a1 + a0).
-      rewrite e.
-      apply e0.
-      generalize H1.
-      apply ccm_cancel.
-    - rewrite <- ccm_assoc in e0.
-      rewrite e in e0.
-      rewrite ccm_right_id in e0.
-      assert (a <> 0).
-      clear - Hm1i. firstorder.
-      contradiction.
-    - rewrite <- ccm_assoc.
-      rewrite e.
-        by rewrite ccm_right_id.
-    - rewrite ccm_assoc in e.
-      rewrite e0 in e.
-      rewrite ccm_left_id in e.
-      assert (a0 <> 0).
-      clear - Hm3i.
-      firstorder.
-      contradiction.
-    - rewrite ccm_assoc in e.
-      contradiction.
-    - rewrite ccm_assoc.
-      rewrite e.
-      apply ccm_left_id.
-    - rewrite ccm_assoc in n0.
-      contradiction.
-    - apply ccm_assoc.
+    repeat rewrite nzmap_lookup_merge.
+    unfold lift_merge_op.
+    apply ccm_assoc.
   Defined.
 
   
@@ -529,183 +588,46 @@ Section lifting.
   Proof.
     unfold LeftId, lift_op.
     intros.
-    destruct x as [m2].
-    unfold nzmap_unit.
-    apply nzmap_eq.
-    simpl.
-    apply map_eq.
+    rewrite nzmap_eq.
     intros.
-    simpl.
-    repeat rewrite lookup_merge.
-    rewrite lookup_empty.
-    repeat destruct (_ !! i);
-    unfold merge_op;
-      simpl;
-      reflexivity.
-  Qed.
+    rewrite nzmap_lookup_merge.
+    unfold lift_merge_op.
+    apply ccm_left_id.
+  Defined.
 
   Instance lift_cancel: Cancelative (=) lift_op.
   Proof.
     unfold Cancelative, lift_op.
     intros.
-    destruct x as [m1].
-    destruct y as [m2].
-    destruct z as [m3].
-    apply nzmap_eq in H1.
     apply nzmap_eq.
-    simpl in H1.
-    simpl.
-    apply map_eq.
     intros.
-    assert ((m1 !! i) <> Some 0) as Hm1i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf0.
-    destruct (nzmap_wf_decision m1).
-    apply n.
-    contradiction.
-    assert ((m2 !! i) <> Some 0) as Hm2i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf1.
-    destruct (nzmap_wf_decision m2).
-    apply n.
-    contradiction.
-    assert ((m3 !! i) <> Some 0) as Hm3i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf2.
-    destruct (nzmap_wf_decision m3).
-    apply n.
-    contradiction.
-    
-    assert (merge merge_op m1 m2 !! i = merge merge_op m1 m3 !! i).
-    rewrite H1.
-    reflexivity.
-    repeat rewrite lookup_merge in H2.
-    repeat unfold merge_op in H2.
-    
-    unfold bool_decide in nzmap_prf0.
-    destruct (m1 !! i);
-    destruct (m2 !! i);
-    destruct (m3 !! i);
-    repeat destruct (decide _);
-    simpl;
-    f_equal;
-    inversion H2;
-    first [try inversion H2; clear - H2; firstorder; done |
-           generalize H4; apply ccm_cancel; done | simpl].
-    
-    - assert (a + a0 = a + a1).
-      clear - e e0.
-      firstorder.
-      generalize H3.
-      apply ccm_cancel.
-    - inversion H2.
-      assert (a0 <> 0).
-      clear - Hm2i.
-      firstorder.
-      assert (a + 0 = a).
-      apply ccm_right_id.
-      assert (a + a0 = a + 0) as HC.
-      clear - H5 H6.
-      firstorder.
-      assert (a0 = 0).
-      generalize HC.
-      apply ccm_cancel.
-      contradiction.
-    - inversion H2.
-      assert (a0 <> 0).
-      clear - Hm3i.
-      firstorder.
-      assert (a + 0 = a).
-      apply ccm_right_id.
-      assert (a + a0 = a + 0) as HC.
-      clear - H5 H6.
-      firstorder.
-      assert (a0 = 0).
-      generalize HC.
-      apply ccm_cancel.
-      contradiction.
+    rewrite nzmap_eq in H1 *.
+    intros.
+    pose proof (H1 k).
+    repeat rewrite nzmap_lookup_merge in H2.
+    unfold lift_merge_op in H2.
+    apply ccm_cancel in H2.
+    trivial.
   Defined.
 
   Instance lift_pinv: PartialInv (=) lift_op lift_opinv.
   Proof.
-    unfold PartialInv, lift_op, lift_opinv.
+    unfold PartialInv.
     intros.
-    destruct x as [m1].
-    destruct y as [m2].
     apply nzmap_eq.
-    simpl.
-    apply map_eq.
     intros.
-    assert ((m1 !! i) <> Some 0) as Hm1i.
-    apply nzmap_lookup_wf.
-    unfold bool_decide in nzmap_prf0.
-    destruct (nzmap_wf_decision m1).
-    apply n.
-    contradiction.
-    repeat rewrite lookup_merge.
-    unfold merge_opinv, merge_op.
-    repeat destruct (_ !! i).
-    repeat destruct (decide _).
-    - rewrite <- e in e0 at 1.
-      rewrite ccm_pinv in e0.
-      assert (a <> 0).
-      clear - Hm1i.
-      firstorder.
-      contradiction.
-    - assert (a + a0 - a0 = a).
-      apply ccm_pinv.
-      rewrite e in H1.
-        by rewrite H1.
-    - rewrite ccm_pinv in e.
-      assert (a <> 0).
-      clear - Hm1i.
-      firstorder.
-      contradiction.
-    - by rewrite ccm_pinv.
-    - reflexivity.
-    - destruct (decide _).
-      reflexivity.
-      assert (0 + a = a) by apply ccm_left_id.
-      rewrite <- H1 in n at 1.
-      rewrite ccm_pinv in n.
-      contradiction.
-    - reflexivity.
+    repeat rewrite nzmap_lookup_merge.
+    unfold lift_merge_op, lift_merge_opinv.
+    apply ccm_pinv.
   Defined.
-
-  Program Instance lift_ccm : CCM nzmap := { }.
+  
+  Program Instance lift_ccm : CCM (nzmap K A) := { }.
 
   Lemma lookup_op m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
   Proof.
     unfold ccm_op,ccmop at 1.
     unfold lift_op.
-    pose proof (nzmap_is_wf m1).
-    pose proof (nzmap_is_wf m2).
-    destruct m1.
-    destruct m2.
-    simpl in H1.
-    simpl in H2.
-    unfold nzmap_total_lookup.
-    unfold lookup.
-    unfold nzmap_lookup.
-    rewrite lookup_merge.
-    unfold merge_op.
-    case_eq (nzmap_car0 !! i); intros; case_eq (nzmap_car1 !! i); intros;
-    pose proof (nzmap_lookup_wf nzmap_car0 i H1);
-    pose proof (nzmap_lookup_wf nzmap_car1 i H2);
-    rewrite H3 in H5;
-    rewrite H4 in H6;
-    try destruct decide;
-    unfold default, id;
-    try rewrite ccm_right_id;
-    try rewrite ccm_left_id;
-    eauto.
-  Qed.
-
-  Lemma lift_lookup_empty i : (0 : nzmap) !! i = None.
-  Proof.
-    unfold ccmunit, ccm_unit, lift_unit, nzmap_unit.
-    unfold lookup, nzmap_lookup.
-    apply lookup_empty.
+    apply nzmap_lookup_merge.
   Qed.
 
   Global Opaque nzmap_empty.
