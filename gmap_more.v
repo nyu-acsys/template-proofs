@@ -1,5 +1,6 @@
 From stdpp Require Export gmap pmap.
 From Coq Require Import PArith.
+Require Import Coq.Setoids.Setoid.
 
 Fixpoint Poimap_raw {A B} (f : positive → A → option B) (t : Pmap_raw A) : Pmap_raw B :=
   match t with
@@ -158,12 +159,12 @@ Proof.
                                 t1_2)).
     apply Poimap_wf.
     auto.
-    
+
     +  destruct (Poimap_raw ((λ i : positive, flip (f i) None ∘ Some) ∘ xO)
                             t1_1).
        destruct (o ≫= flip (f 1%positive) None ∘ Some);
          unfold Pmap_wf.
-       rewrite ?andb_True. 
+       rewrite ?andb_True.
        eauto using Poimap_wf.
        destruct (Poimap_raw ((λ i : positive, flip (f i) None ∘ Some) ∘ xI)
                             t1_2).
@@ -252,23 +253,34 @@ Qed.
 
 Arguments PMap {_} _ _ : assert.
 
-Class Imerge (M : Type → Type) K `{Countable K} :=
-  imerge: ∀ {A B C}, (K → option A → option B → option C) → M A → M B → M C.
+Class Imerge (M : Type → Type) K `{Countable K, (∀ (T: Type), Lookup K T (M T))} :=
+  IMerge
+  {
+    imerge {A B C} (f : K → option A → option B → option C) (m1 : M A) (m2 : M B) : M C;
+    imerge_prf {A B C} (f : K → option A → option B → option C) (m1 : M A) (m2 : M B) (i : K):
+      (∀ j, f j None None = None) -> imerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i)
+  }.
 
-Instance Pimerge : Imerge Pmap positive := λ A B C (f : positive -> option A -> option B -> option C) m1 m2,
+Definition Pimerge {A B C} (f : positive -> option A -> option B -> option C)
+           (m1 : Pmap A) (m2 : Pmap B) :=
   let (t1,Ht1) := m1 in let (t2,Ht2) := m2 in PMap _ (Pimerge_wf f _ _ Ht1 Ht2).
 
-
-Lemma lookup_imerge {A B C} (f : positive → option A → option B → option C)
-    (Hf : ∀ i, f i None None = None)  (m1 : Pmap A) (m2 : Pmap B) i :
-    imerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i).
+Lemma Pimerge_prf {A B C} (f : positive → option A → option B → option C)
+    (m1 : Pmap A) (m2 : Pmap B) i (Hf : ∀ i, f i None None = None) :
+    Pimerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i).
 Proof.
   destruct m1.
   destruct m2.
   apply Pimerge_lookup.
   apply Hf.
 Qed.
-  
+
+Instance pmap_positive_imerge : Imerge Pmap positive :=
+  {|
+    imerge {A B C} := Pimerge;
+    imerge_prf {A B C} := Pimerge_prf
+  |}.
+
 Lemma gmap_imerge_wf `{Countable K} {A B C}
     (f : K → option A → option B → option C) m1 m2 :
   let f' i o1 o2 := match o1, o2 with
@@ -278,13 +290,15 @@ Lemma gmap_imerge_wf `{Countable K} {A B C}
   in
   gmap_wf K m1 → gmap_wf K m2 → gmap_wf K (imerge f' m1 m2).
 Proof.
-  intros f' Hm1 Hm2 p z; rewrite lookup_imerge by done; intros.
+  intros f'; unfold gmap_wf; rewrite !bool_decide_spec.
+  intros Hm1 Hm2 p z. unfold imerge; simpl.
+  rewrite Pimerge_prf by done; intros.
   destruct (m1 !! _) eqn:?, (m2 !! _) eqn:?; naive_solver.
 Qed.
 
-
-Definition gmap_imerge `{Countable K} : Imerge (gmap K) K :=
-  λ A B C f m1 m2,
+Definition gmap_imerge `{Countable K} {A B C}
+           (f : K -> option A -> option B -> option C) (m1 : gmap K A) (m2 : gmap K B)
+           : gmap K C :=
   let (m1,Hm1) := m1 in
   let (m2,Hm2) := m2 in
   let f' i o1 o2 := match o1, o2 with
@@ -293,6 +307,48 @@ Definition gmap_imerge `{Countable K} : Imerge (gmap K) K :=
                       decode i ≫= (λ k, f k o1 o2)
                     end
   in
-  GMap (imerge f' m1 m2) (bool_decide_pack _ (gmap_imerge_wf f _ _
-    (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
+  GMap (imerge f' m1 m2) (gmap_imerge_wf f m1 m2 Hm1 Hm2).
 
+Lemma gmap_imerge_prf `{Countable K} {A B C} (f : K → option A → option B → option C)
+    (m1 : gmap K A) (m2 : gmap K B) i `{∀ i, DiagNone (f i)} :
+    gmap_imerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i).
+Proof.
+  destruct m1 as [p1 ?], m2 as [p2 ?].
+  unfold gmap_imerge.
+  unfold lookup; simpl.
+  unfold DiagNone in H0.
+  rewrite Pimerge_prf.
+  case (p1 !! encode i).
+  all: try rewrite decode_encode; auto.
+  case (p2 !! encode i).
+  all: auto.
+Qed.
+
+Instance gmap_Imerge `{Countable K} : Imerge (gmap K) K :=
+  {|
+    imerge {A B C} := gmap_imerge;
+    imerge_prf {A B C} := gmap_imerge_prf
+  |}.
+
+Lemma gmap_imerge_empty {A} `{Countable K}
+      (f : K → option A → option A → option A)
+      : (∀ i y, f i y None = y) -> ∀ m, gmap_imerge f m ∅ = m.
+Proof.
+  intros Hf m.
+  rewrite map_eq_iff.
+  intros i.
+  rewrite gmap_imerge_prf.
+  replace (empty !! i) with (None : option A).
+  all: auto.
+  unfold DiagNone.
+  auto.
+Qed.
+
+Lemma map_Forall_True {A} `{Countable K} (m : gmap K A) (p : K -> A -> Prop) :
+      (∀ (k : K) (a : A), p k a) → (map_Forall p m).
+Proof.
+  intros.
+  unfold map_Forall.
+  intros.
+  apply H0.
+Qed.
