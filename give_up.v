@@ -194,13 +194,6 @@ Section Give_Up_Template.
     apply to_agree_inj in H1. set_solver.
   Qed.
 
-  Lemma auth_own_incl γ (x y: inset_flowint_ur K) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    apply auth_both_valid.
-  Qed.
-
   Lemma auth_own_incl_ks γ (x y: keysetUR K) :
     own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
@@ -210,6 +203,34 @@ Section Give_Up_Template.
     assert (ε ⋅ y = y) as Hy.
     { rewrite /(⋅) /=. destruct y; try done. }
     rewrite Hy in Hb. rewrite <- Ha in Hb. done.
+  Qed.
+
+  Lemma auth_own_incl γ (x y: inset_flowint_ur K) :
+    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Proof.
+    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
+    simpl. intros H1. destruct H1 as [z H2]. destruct H2 as [a Ha]. destruct Ha as [Ha Hb].
+    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
+    assert (ε ⋅ y ≡ y) as Hy.
+    { rewrite intComp_comm.
+      unfold flowintRAunit.
+      rewrite intComp_unit.
+      done.
+    }
+    (*{ rewrite /(⋅) /=. destruct y; try done. }*)
+    rewrite Hy in Hb *. intros Hb. rewrite <- Ha in Hb. done.
+  Qed.
+  
+  (* Try generic version of this lemma... *)
+  Lemma auth_own_incl_gen `{authR A} `{inG Σ (authR A)} `{CmraDiscrete A} γ (x y: ucmra_car A) :
+    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
+  Proof.
+    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
+    simpl. intros H1. destruct H1. destruct H2 as [a Ha]. destruct Ha as [Ha Hb].
+    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
+    assert (ε ⋅ y ≡ y) as Hy by apply ucmra_unit_left_id.
+    (*{ rewrite /(⋅) /=. destruct y; try done. }*)
+    rewrite Hy in Hb *. intros Hb. rewrite <- Ha in Hb. done.
   Qed.
 
 

@@ -13,7 +13,7 @@ Context `{Countable K}.
 
 Definition K_multiset := nzmap K nat.
 
-Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
+Global Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
 Definition dom_ms (m : K_multiset) := nzmap_dom m.
 

@@ -1823,7 +1823,7 @@ Proof.
         intros Hon. rewrite Hon in Hn. unfold valid, flowint_valid in Hn. done. 
       * exists Io. split; try done.
 Admitted.
-
+*)
 Lemma flowint_comp_fp : ∀ I1 I2, ✓(I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
 Proof.
   apply intComp_dom.
@@ -1913,7 +1913,6 @@ Proof.
 Admitted.  
 *)
 
-*)
 Close Scope ccm_scope.
 
 End cmra.

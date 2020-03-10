@@ -216,7 +216,7 @@ Section product.
     all: simpl; apply ccm_pinv.
   Defined.
 
-  Instance prod_ccm : CCM (A1 * A2) := { }.
+  Global Instance prod_ccm : CCM (A1 * A2) := { }.
 
 End product.
 
@@ -524,7 +524,7 @@ Section lifting.
   (* To obtain unique representations, we represent functions f: K → A
    * as g: gmap K A where f k = 0 ↔ g !! k = None *)
 
-  Instance lift_unit : CcmUnit (nzmap K A) := nzmap_unit.
+  Global Instance lift_unit : CcmUnit (nzmap K A) := nzmap_unit.
     
   Instance op_zero_dec `(x1 : A, x2 : A) : Decision (x1 + x2 = 0).
   Proof.
@@ -621,7 +621,7 @@ Section lifting.
     apply ccm_pinv.
   Defined.
   
-  Program Instance lift_ccm : CCM (nzmap K A) := { }.
+  Global Program Instance lift_ccm : CCM (nzmap K A) := { }.
 
   Lemma lookup_op m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
   Proof.
