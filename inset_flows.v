@@ -17,7 +17,7 @@ Global Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
 Definition dom_ms (m : K_multiset) := nzmap_dom m.
 
-Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
+Global Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
 
 Implicit Type I : inset_flowint_ur.
 

@@ -222,7 +222,7 @@ Section Give_Up_Template.
   Qed.
   
   (* Try generic version of this lemma... *)
-  Lemma auth_own_incl_gen `{authR A} `{inG Σ (authR A)} `{CmraDiscrete A} γ (x y: ucmra_car A) :
+  Lemma auth_own_incl_gen `{inG Σ (authR A)} `{CmraDiscrete A} γ (x y: A) :
     own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
