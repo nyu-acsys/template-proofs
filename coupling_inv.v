@@ -318,12 +318,6 @@ Section Coupling_Template.
 
   (** Assorted useful lemmas *)
 
-  Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
-  Proof.
-    intros I root Hglob. unfold globalinv in Hglob.
-    destruct Hglob as [H1 [H2 H3]]. done.
-  Qed.
-
   Lemma auth_set_incl (γ_fp: gname) (Ns: gsetUR Node) Ns' :
     own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.
   Proof.

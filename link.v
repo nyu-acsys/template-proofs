@@ -192,22 +192,6 @@ Section Link_Template.
 
   (** Assorted useful lemmas *)
 
-  Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
-  Proof.
-    intros I root Hglob. unfold globalinv in Hglob.
-    destruct Hglob as [H1 [H2 H3]]. done.
-  Qed.
-
-  Lemma globalinv_root_inr : ∀ I Ir root k,
-    globalinv K root I ∧ Ir ≼ I ∧ domm Ir = {[root]}
-    → k ∈ inset K Ir root ∨ k ∈ linkset K Ir root.
-  Proof.
-    intros I Ir root k ((Hv & _ & _ & Hl & _) & [I2 Hincl] & Hdom).
-    right. specialize (Hl k). destruct Hl.
-    apply (linkset_monotone I Ir I2 k root); try done.
-    set_solver.
-  Qed.
-
   Lemma auth_set_incl {A: Type} `{Countable A} `{inG Σ (authR (gsetUR A))}
       (γ_fp: gname) (Ns Ns': gset A) :
     own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.

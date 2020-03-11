@@ -65,6 +65,12 @@ Definition globalinv root I :=
 
 (** Assorted lemmas about inset and linkset flows used in the template proofs *)
 
+Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ domm I.
+Proof.
+  intros I root Hglob. unfold globalinv in Hglob.
+  destruct Hglob as [H1 [H2 H3]]. done.
+Qed.
+
 Lemma flowint_step :
   ∀ I I1 I2 k n root,
     globalinv root I → I = I1 ⋅ I2 → k ∈ outset I1 n → n ∈ domm I2.
@@ -281,6 +287,16 @@ Proof.
   lia.
   lia.
   all: apply K_multiset_pair_ccm.
+Qed.
+
+Lemma globalinv_root_inr : ∀ I Ir root k,
+    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]}
+    → k ∈ inset Ir root ∨ k ∈ linkset Ir root.
+Proof.
+  intros I Ir root k ((Hv & _ & _ & Hl & _) & [I2 Hincl] & Hdom).
+  right. specialize (Hl k). destruct Hl.
+  apply (linkset_monotone I Ir I2 k root); try done.
+  set_solver.
 Qed.
 
 End linkset_flows.

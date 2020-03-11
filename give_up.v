@@ -178,12 +178,6 @@ Section Give_Up_Template.
 
   (** Assorted useful lemmas *)
 
-  Lemma globalinv_root_fp: ∀ I root, globalinv K root I → root ∈ domm I.
-  Proof.
-    intros I root Hglob. unfold globalinv in Hglob.
-    destruct Hglob as [H1 [H2 H3]]. done.
-  Qed.
-
   Lemma auth_own_incl `{inG Σ (authR A)} `{!CmraDiscrete A} γ (x y: A) :
     own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.

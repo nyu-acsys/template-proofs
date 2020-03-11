@@ -56,6 +56,13 @@ Definition globalinv root I :=
 
 (** Assorted lemmas about inset flows used in the template proofs *)
 
+Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ domm I.
+Proof.
+  intros I root Hglob. unfold globalinv in Hglob.
+  destruct Hglob as [H1 [H2 H3]]. done.
+Qed.
+
+
 Lemma flowint_step :
   ∀ I I1 I2 k n root,
     globalinv root I → I = I1 ⋅ I2 → k ∈ outset I1 n → n ∈ domm I2.
