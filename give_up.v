@@ -184,55 +184,15 @@ Section Give_Up_Template.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.
 
-  Lemma auth_set_incl (γ_fp: gname) (Ns: gsetUR Node) Ns' :
-    own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    rewrite auth_valid_discrete. simpl. rewrite ucmra_unit_right_id_L.
-    intros. destruct H. inversion H0 as [m H1].
-    destruct H1. destruct H2. apply gset_included in H2.
-    apply to_agree_inj in H1. set_solver.
-  Qed.
-
-  Lemma auth_own_incl_ks γ (x y: keysetUR K) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
-    simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
-    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
-    assert (ε ⋅ y = y) as Hy.
-    { rewrite /(⋅) /=. destruct y; try done. }
-    rewrite Hy in Hb. rewrite <- Ha in Hb. done.
-  Qed.
-
-  Lemma auth_own_incl γ (x y: inset_flowint_ur K) :
+  Lemma auth_own_incl `{inG Σ (authR A)} `{!CmraDiscrete A} γ (x y: A) :
     own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
   Proof.
     rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
     simpl. intros H1. destruct H1 as [z H2]. destruct H2 as [a Ha]. destruct Ha as [Ha Hb].
     destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
-    assert (ε ⋅ y ≡ y) as Hy.
-    { rewrite intComp_comm.
-      unfold flowintRAunit.
-      rewrite intComp_unit.
-      done.
-    }
-    (*{ rewrite /(⋅) /=. destruct y; try done. }*)
-    rewrite Hy in Hb *. intros Hb. rewrite <- Ha in Hb. done.
-  Qed.
-  
-  (* Try generic version of this lemma... *)
-  Lemma auth_own_incl_gen `{inG Σ (authR A)} `{CmraDiscrete A} γ (x y: A) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
-    simpl. intros H1. destruct H1. destruct H2 as [a Ha]. destruct Ha as [Ha Hb].
-    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
     assert (ε ⋅ y ≡ y) as Hy by apply ucmra_unit_left_id.
-    (*{ rewrite /(⋅) /=. destruct y; try done. }*)
     rewrite Hy in Hb *. intros Hb. rewrite <- Ha in Hb. done.
   Qed.
-
 
   (** Lock module proofs *)
 
@@ -292,7 +252,8 @@ Section Give_Up_Template.
     awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "Hst". iDestruct "Hst" as (I)"(H2 & H3 & H4 & H5 & H6)".
     iAssert (⌜n ∈ domm I⌝)%I with "[Hfp Hinn H6]" as "%".
-    { iPoseProof ((auth_set_incl γ_fp Ns (domm I)) with "[$]") as "%".
+    { iPoseProof ((auth_own_incl γ_fp (domm I) Ns) with "[$]") as "%".
+      apply gset_included in H.
       iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
     iDestruct "H5" as "[Hb H5]".
@@ -313,7 +274,8 @@ Section Give_Up_Template.
         iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
         iDestruct "Hst" as (I1)"(H1 & H2 & % & H5 & H6)".
         iAssert (⌜n ∈ domm I1⌝)%I with "[Hfp Hinn H6]" as "%".
-        { iPoseProof ((auth_set_incl γ_fp Ns (domm I1)) with "[$]") as "%".
+        { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
+          apply gset_included in H1.
           iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
         rewrite (big_sepS_elem_of_acc _ (domm I1) n); last by eauto.
         iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
@@ -326,8 +288,9 @@ Section Give_Up_Template.
         iDestruct "Hbb" as %Hbb.
         iAssert (⌜n' ∈ (domm I1)⌝ ∗ ⌜root ∈ (domm I1)⌝ ∗ own γ (● I1) ∗ own γ_fp (● (domm I1)) ∗ own γ (◯ In))%I
                 with "[HIn H2 H6]" as "Hghost".
-        { iPoseProof (auth_set_incl with "[$Hfp $H6]") as "%".
-          iPoseProof (auth_own_incl with "[$H2 $HIn]") as (I2)"%".
+        { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
+          apply gset_included in H2.
+          iPoseProof ((auth_own_incl γ I1 In) with "[$H2 $HIn]") as (I2)"%".
           iPoseProof (own_valid with "H2") as "%".
           iAssert (⌜n' ∈ domm I1⌝)%I as "%".
           { iPureIntro. assert (n' ∈ domm I2).
@@ -350,7 +313,8 @@ Section Give_Up_Template.
       iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
       iDestruct "Hst" as (I1)"(H1 & H2 & % & H5 & H6)".
       iAssert (⌜n ∈ domm I1⌝)%I with "[Hfp Hinn H6]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns (domm I1)) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
+        apply gset_included in H1.
         iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
       rewrite (big_sepS_elem_of_acc _ (domm I1) n); last by eauto.
       iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
@@ -374,7 +338,7 @@ Section Give_Up_Template.
     ==∗ ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C'))
       ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
-    iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl_ks γ_k (prod (KS, C)) (prod (K1, Cn))
+    iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl γ_k (prod (KS, C)) (prod (K1, Cn))
                 with "[$Ha $Hf]") as "%". iDestruct "HKS" as %HKS.
     iPoseProof ((own_valid γ_k (● prod (KS, C))) with "Ha") as "%".
     iPoseProof ((own_valid γ_k (◯ prod (K1, Cn))) with "Hf") as "%".
@@ -455,7 +419,8 @@ Section Give_Up_Template.
       iApply (aacc_aupd_commit with "AU"); first done. iIntros (C2) "Hst".
       iDestruct "Hst" as (I) "(H1 & H2 & % & H5 & H6)".
       iAssert (⌜n ∈ domm I⌝)%I with "[Hfp1 Hinn H6]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns1 (domm I)) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_fp (domm I) Ns1) with "[$]") as "%".
+        apply gset_included in H1.
         iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
       rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
       iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
@@ -476,7 +441,8 @@ Section Give_Up_Template.
       iApply (aacc_aupd_abort with "AU"); first done. iIntros (C2) "Hst".
       iDestruct "Hst" as (I1)"(H1 & H2 & % & H5 & H6)".
       iAssert (⌜n ∈ domm I1⌝)%I with "[Hfp1 Hinn H6]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns1 (domm I1)) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns1) with "[$]") as "%".
+        apply gset_included in H1.
         iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
       rewrite (big_sepS_elem_of_acc _ (domm I1) n); last by eauto.
       iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
