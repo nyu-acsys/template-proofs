@@ -10,6 +10,7 @@ From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
 Require Export keyset_ra inset_flows.
+Require Import auth_ext.
 
 (** We use integers as keys. *)
 Definition K := Z.
@@ -175,18 +176,6 @@ Section Give_Up_Template.
 
   Definition is_CSS γ γ_fp γ_k root C :=
     (∃ I, (CSS γ γ_fp γ_k root I C))%I.
-
-  (** Assorted useful lemmas *)
-
-  Lemma auth_own_incl `{inG Σ (authR A)} `{!CmraDiscrete A} γ (x y: A) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
-    simpl. intros H1. destruct H1 as [z H2]. destruct H2 as [a Ha]. destruct Ha as [Ha Hb].
-    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
-    assert (ε ⋅ y ≡ y) as Hy by apply ucmra_unit_left_id.
-    rewrite Hy in Hb *. intros Hb. rewrite <- Ha in Hb. done.
-  Qed.
 
   (** Lock module proofs *)
 
