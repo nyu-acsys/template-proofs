@@ -10,6 +10,7 @@ From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
 Require Export keyset_ra inset_flows ccm flows.
+Require Import auth_ext.
 
 (** We use integers as keys. *)
 Definition K := Z.
@@ -164,7 +165,7 @@ Section Coupling_Template.
     pose proof (intComp_unfold_inf_2 _ _ VI n) as inf_I23.
     rewrite intComp_dom in inf_I23.
     apply inf_I23 in n_in_I23 as n_inf_I23.
-    unfold cmra_op, flowintRA, cmra_car, K_multiset at 5, K_multiset at 5, ccm_ms at 3 in n_inf_I23.
+    unfold cmra_op, flowintRA, cmra_car, K_multiset at 5, K_multiset at 5 in n_inf_I23.
     pose proof (I_inf_out root) as (root_out & _).
     assert (root = root) by reflexivity.
     pose proof (root_out H k) as root_out_k.
@@ -174,8 +175,8 @@ Section Coupling_Template.
     unfold inset, dom_ms, nzmap_dom in root_out_k.
     apply elem_of_dom in root_out_k.
     unfold lookup, nzmap_lookup.
-    pose proof (nzmap_is_wf _ _ (inf I root)) as inf_root_wf.
-    pose proof (nzmap_lookup_wf _ _ _ k inf_root_wf).
+    pose proof (nzmap_is_wf (inf I root)) as inf_root_wf.
+    pose proof (nzmap_lookup_wf _ k inf_root_wf).
     destruct (inf I root).
     simpl in root_out_k.
     unfold is_Some in root_out_k.
@@ -190,7 +191,7 @@ Section Coupling_Template.
     unfold cmra_op, flowintRA, cmra_car, nzmap_total_lookup in inf_I23_def.
     unfold ccm_op, lift_ccm in n_inf_I23.
 
-    unfold K_multiset_ccm at 1, lift_ccm in n_inf_I23.
+    unfold K_multiset_ccm at 4, lift_ccm in n_inf_I23.
     rewrite <- n_inf_I23 in inf_I23_def.
     unfold cmra_op, flowintRA, cmra_car in IDef.
     rewrite <- IDef in inf_I23_def.
@@ -198,17 +199,16 @@ Section Coupling_Template.
     pose proof (inf_I2 n n_in_I2) as n_inf_I2.
     pose proof (lookup_op _ _ (inf (I2 ⋅ I3) n) (out I3 n) k) as inf_I2_def.
     unfold cmra_op, flowintRA, cmra_car, nzmap_total_lookup in inf_I2_def.
-    unfold cmra_op, flowintRA, cmra_car, K_multiset at 3, ccm_ms at 2 in n_inf_I2.
-    unfold K_multiset_ccm, ccm_op, lift_ccm in n_inf_I2.
-    rewrite <- n_inf_I2 in inf_I2_def.
-    rewrite inf_I23_def in inf_I2_def.
+    unfold K_multiset_ccm, ccmop, ccm_op, lift_ccm in n_inf_I2.    
+    setoid_rewrite <- n_inf_I2 in inf_I2_def.
+    setoid_rewrite inf_I23_def in inf_I2_def.
 
     assert (default 0 (out I1 n !! k) ≠ 0).
     unfold outset, dom_ms, nzmap_dom in k_in_out1.
     apply elem_of_dom in k_in_out1.
     unfold lookup, nzmap_lookup.
-    pose proof (nzmap_is_wf _ _ (out I1 n)) as out_n_wf.
-    pose proof (nzmap_lookup_wf _ _ _ k out_n_wf).
+    pose proof (nzmap_is_wf (out I1 n)) as out_n_wf.
+    pose proof (nzmap_lookup_wf _ k out_n_wf).
     destruct (out I1 n).
     simpl in k_in_out1.
     unfold is_Some in k_in_out1.
@@ -222,7 +222,7 @@ Section Coupling_Template.
     pose proof (inf_bound k).
     remember (inf I2 n !! k) as x2.
     unfold K_multiset at 1, nat_ccm, nat_unit, nat_op in Heqx2.
-    rewrite <- Heqx2 in inf_I2_def.
+    setoid_rewrite <- Heqx2 in inf_I2_def.
     remember (inf I n !! k) as x.
     unfold K_multiset at 1, nat_ccm, nat_unit, nat_op in Heqx.
     rewrite <- Heqx in inf_I2_def.
@@ -318,34 +318,6 @@ Section Coupling_Template.
 
   (** Assorted useful lemmas *)
 
-  Lemma auth_set_incl (γ_fp: gname) (Ns: gsetUR Node) Ns' :
-    own γ_fp (◯ Ns) ∗ own γ_fp (● Ns') -∗ ⌜Ns ⊆ Ns'⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    rewrite auth_valid_discrete. simpl. rewrite ucmra_unit_right_id_L.
-    intros. destruct H. inversion H0 as [m H1].
-    destruct H1. destruct H2. apply gset_included in H2.
-    apply to_agree_inj in H1. set_solver.
-  Qed.
-
-  Lemma auth_own_incl γ (x y: inset_flowint_ur K) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro.
-    apply auth_both_valid.
-  Qed.
-
-  Lemma auth_own_incl_ks γ (x y: keysetUR K) :
-    own γ (● x) ∗ own γ (◯ y) -∗ ⌜y ≼ x⌝.
-  Proof.
-    rewrite -own_op. rewrite own_valid. iPureIntro. rewrite auth_valid_discrete.
-    simpl. intros H. destruct H. destruct H0 as [a Ha]. destruct Ha as [Ha Hb].
-    destruct Hb as [Hb Hc]. apply to_agree_inj in Ha.
-    assert (ε ⋅ y = y) as Hy.
-    { rewrite /(⋅) /=. destruct y; try done. }
-    rewrite Hy in Hb. rewrite <- Ha in Hb. done.
-  Qed.
-
   Lemma auth_agree γ xs ys :
   own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
   Proof.
@@ -353,16 +325,6 @@ Section Coupling_Template.
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid.
   Qed.
 
-  Lemma auth_update γ ys xs1 xs2 :
-    own γ (● (Excl' xs1)) -∗ own γ (◯ (Excl' xs2)) ==∗
-      own γ (● (Excl' ys)) ∗ own γ (◯ (Excl' ys)).
-  Proof.
-    iIntros "Hγ● Hγ◯".
-    iMod (own_update_2 _ _ _ (● Excl' ys ⋅ ◯ Excl' ys)
-      with "Hγ● Hγ◯") as "[$$]".
-    { apply auth_update. apply option_local_update. apply exclusive_local_update. done. }
-    done.
-  Qed.
 
   Lemma flowint_update_result γ I I_n I_n' x :
     ⌜flowint_update_P K_multiset I I_n I_n' x⌝ ∧ own γ x -∗
@@ -475,7 +437,7 @@ Section Coupling_Template.
       wp_bind (lockNode _)%E.
       awp_apply (lockNode_spec n') without "HCont".
       iInv "HInv" as ">H". iDestruct "H" as (I0 C0) "(HKS & HInt & % & HFP & Hcont & Hstar)".
-      iPoseProof (auth_own_incl with "[$HInt $HIn]") as (I2)"%".
+      iPoseProof ((auth_own_incl _ I0 I_n) with "[$HInt $HIn]") as (I2)"%".
       iPoseProof (own_valid with "HIn") as "%".
       iPoseProof (own_valid with "HInt") as "%".
       assert (✓ I_n) as HInv. { apply (auth_frag_valid (◯ I_n)). done. }
@@ -498,7 +460,7 @@ Section Coupling_Template.
       iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H19.
       assert (✓ (I_n ⋅ I_n')). { apply (auth_frag_valid (◯ (I_n ⋅ I_n'))). done. }
       iEval (rewrite -auth_frag_op) in "H".
-      iPoseProof (auth_own_incl with "[$HInt $H]") as (I3)"%".
+      iPoseProof ((auth_own_incl _ I0 _) with "[$HInt $H]") as (I3)"%".
       iAssert (node n' root I_n' C_n' ∗ ⌜nodeinv root n' I_n' C_n'⌝)%I with "[Hnoden']" as "(Hnoden' & %)".
       { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". iPureIntro.
         apply cmra_valid_op_r in H20. done. }
@@ -510,13 +472,16 @@ Section Coupling_Template.
       wp_pures. wp_bind (unlockNode _)%E. awp_apply (unlockNode_spec p) without "Hc".
       iInv "HInv" as ">H". iDestruct "H" as (I1 C1) "(HKS & HInt & % & HFP & Hcont & Hstar)".
       iAssert (⌜p ∈ domm I1⌝)%I with "[HFP]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns (domm I1)) with "[$]") as "%".
-        iPureIntro. set_solver. }
+      { iPoseProof ((auth_own_incl γ_fp (domm I1) _) with "[$]") as "%".
+        apply gset_included in H24.
+        iPureIntro. admit. (*set_solver.*) }
       iAssert (⌜n ∈ domm I1⌝)%I with "[HFP]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp Ns (domm I1)) with "[$]") as "%".
-        iPureIntro. set_solver. }
+      { iPoseProof ((auth_own_incl γ_fp (domm I1) _) with "[$]") as "%".
+        apply gset_included in H25.
+        iPureIntro. admit. (*set_solver.*) }
       iAssert (⌜n' ∈ domm I1⌝)%I with "[HFP]" as "%".
-      { iPoseProof ((auth_set_incl γ_fp (domm I0) (domm I1)) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_fp (domm I1)) with "[$]") as "%".
+        apply gset_included in H26.
         iPureIntro. set_solver. }
       assert (root ∈ domm I1). { apply globalinv_root_fp. done. }
       rewrite (big_sepS_elem_of_acc _ (domm I1) p); last by eauto.
@@ -535,7 +500,7 @@ Section Coupling_Template.
       iApply ("IH" with "[-Hc]"). iFrame "∗ # %". iNext. done.
     - wp_pures. iDestruct "Hb" as "(% & %)". iSpecialize ("HCont" $! p n Ns I_p I_n C_p C_n).
       iApply "HCont". iFrame "∗ # %".
-  Qed.
+  Admitted.
 
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
     ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
@@ -543,7 +508,7 @@ Section Coupling_Template.
     ==∗ ∃ C', ⌜Ψ dop k C C' res⌝ ∗ own γ_k (● prod (KS, C')) ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
   Admitted.
-
+  
   Theorem searchStrOp_spec (γ γ_fp γ_k γ_c: gname) root (k: K) (dop: dOp):
     ⌜k ∈ KS⌝ ∗ css γ γ_fp γ_k γ_c root -∗
     <<< ∀ (C: gset K), css_cont γ_c C >>>
@@ -565,7 +530,7 @@ Section Coupling_Template.
     iExists b. iFrame "∗ # %". done. }
     iIntros "(Hlock & H)". destruct b. { iExFalso. done. } iClear "H".
     iDestruct "Hb" as (If Cf) "(HIf & % & Hnodef & HCf)".
-    iPoseProof (auth_own_incl with "[$HInt $HIf]") as (Io)"%".
+    iPoseProof ((auth_own_incl _ I0) with "[$HInt $HIf]") as (Io)"%".
     iModIntro. iSplitR "AU HIf Hnodef HCf". iNext. iExists I0, C0. iFrame "∗ # %".
     iApply "Hstar". iExists true. iFrame "∗ # %".
     wp_pures. wp_bind(findNext _ _)%E.
@@ -579,7 +544,7 @@ Section Coupling_Template.
     iDestruct "H" as (I2 C2) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iPoseProof (own_valid with "HInt") as "%". rename H7 into Hcheck.
     assert (✓ I2) as HI2. { apply (auth_auth_valid (I2)). done. }
-    iPoseProof (auth_own_incl with "[$HInt $HIf]") as (Io')"%". assert (n ∈ domm I2).
+    iPoseProof ((auth_own_incl _ I2) with "[$HInt $HIf]") as (Io')"%". assert (n ∈ domm I2).
     { assert (n ∈ domm Io').
       { apply (flowint_step I2 If Io' k n root); try done. }
       rewrite H7. rewrite flowint_comp_fp. set_solver. rewrite <-H7. done. }
@@ -599,7 +564,7 @@ Section Coupling_Template.
     iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H11.
     assert (✓ (If ⋅ In)). { apply (auth_frag_valid (◯ (If ⋅ In))). done. }
     iEval (rewrite -auth_frag_op) in "H".
-    iPoseProof (auth_own_incl with "[$HInt $H]") as (Iu)"%".
+    iPoseProof ((auth_own_incl _ I2) with "[$HInt $H]") as (Iu)"%".
     iAssert (node n root In Cn ∗ ⌜nodeinv root n In Cn⌝)%I with "[Hnoden]" as "(Hnoden & %)".
     { iApply (node_implies_nodeinv n In Cn root). iFrame "∗ # %". iPureIntro.
       apply cmra_valid_op_r in H12. done. }  iDestruct "H" as "(HIf & HIn)".
@@ -670,7 +635,7 @@ Section Coupling_Template.
     iAssert (own γ_k (◯ (prod (keyset K Ip'' p', Cp'') ⋅ prod (keyset K In'' n', Cn'') ⋅ prod (keyset K Im'' m, Cm''))))
           with "[H]" as "Hv". { iEval (rewrite H52). done. }
     iDestruct "Hv" as "((Hksp' & Hksn') & Hksm')".
-    iMod (auth_update γ_c (C4') with "Hcont Hc") as "[Hcont Hc]".
+    iMod (auth_excl_update γ_c (C4') with "Hcont Hc") as "[Hcont Hc]".
 
     (* ------ interface update -------*)
 
@@ -689,10 +654,12 @@ Section Coupling_Template.
     iPoseProof (own_valid with "HIpnm''") as "%".
     assert (✓ (Ip'' ⋅ In'' ⋅ Im'')) as HIpnmcheck.
     { apply (auth_frag_valid (◯ (Ip'' ⋅ In'' ⋅ Im''))). done. }
+    iEval (rewrite auth_frag_op) in "HIpnm''".
     iDestruct "HIpnm''" as "(HIpn'' & HIm'')".
     iPoseProof (own_valid with "HIpn''") as "%".
     assert (✓ (Ip'' ⋅ In'')) as HIpncheck.
     { apply (auth_frag_valid (◯ (Ip'' ⋅ In''))). done. }
+    iEval (rewrite auth_frag_op) in "HIpn''".
     iDestruct "HIpn''" as "(HIp'' & HIn'')".
     destruct (decide (m ∈ domm I4)). { rewrite (big_sepS_elem_of_acc _ (domm I4) m); last by eauto.
     iDestruct "Hstar" as "(Hm & Hstar)". iDestruct "Hm" as (b) "(Hlockm & Hb)".
@@ -742,8 +709,9 @@ Section Coupling_Template.
     awp_apply (unlockNode_spec p') without "HΦ". iInv "HInv" as ">H".
     iDestruct "H" as (I6 C6) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iAssert (⌜p' ∈ domm I6⌝)%I with "[HFP]" as "%".
-    { iPoseProof ((auth_set_incl γ_fp Ns (domm I6)) with "[$]") as "%".
-      iPureIntro. set_solver. }
+    { iPoseProof ((auth_own_incl γ_fp (domm I6)) with "[$]") as "%".
+      apply gset_included in H69.
+      iPureIntro. admit. (*set_solver.*) }
     rewrite (big_sepS_elem_of_acc _ (domm I6) p'); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
     destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
@@ -761,8 +729,9 @@ Section Coupling_Template.
     awp_apply (unlockNode_spec n') without "HΦ".
     iInv "HInv" as ">H". iDestruct "H" as (I5 C5) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iAssert (⌜n' ∈ domm I5⌝)%I with "[HFP]" as "%".
-    { iPoseProof ((auth_set_incl γ_fp Ns (domm I5)) with "[$]") as "%".
-      iPureIntro. set_solver. }
+    { iPoseProof ((auth_own_incl γ_fp (domm I5)) with "[$]") as "%".
+      apply gset_included in H71.
+      iPureIntro. admit. (*set_solver.*) }
     rewrite (big_sepS_elem_of_acc _ (domm I5) n'); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
     destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
@@ -777,3 +746,5 @@ Section Coupling_Template.
 
     iIntros "HΦ". wp_pures. done.
   Admitted.
+
+End Coupling_Template.

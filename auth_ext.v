@@ -28,10 +28,12 @@ Proof.
   done.
 Qed.
 
-(*Lemma auth_agree  `{inG Σ (authR (optionUR (exclR A)))} `{OfeDiscrete A} γ xs ys :
+(*
+Lemma auth_agree  `{inG Σ (authR (optionUR (exclR A)))} `{OfeDiscrete A} γ xs ys :
   own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
 Proof.
-  iIntros "Hγ● Hγ◯". iDestruct (own_valid_2 with "Hγ● Hγ◯") as "[$$]".
+  iIntros "Hγ● Hγ◯". iPoseProof (own_valid_2 with "Hγ● Hγ◯") as "H".
+  iEval (rewrite auth_both_valid) in "H".
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid.
 Qed.
 *)
