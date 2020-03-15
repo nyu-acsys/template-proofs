@@ -1,6 +1,8 @@
 Things to do
 ------------
 
+- Factor out the lock module.
+
 - Our definition of globalinv is technically inconsistent because we quantify over all k in K when we specify the global inflow. This should be restricted to KS (which is finite).
 
 - Get rid of `in_inset` etc. in `linkset_flows.v` and `inset_flows.v` and instead use `k ∈ inset`.
