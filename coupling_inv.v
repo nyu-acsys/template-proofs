@@ -172,8 +172,8 @@ Section Coupling_Template.
 
     assert (default 0 (inf I n !! k) ≠ 0).
     rewrite e.
-    unfold inset, dom_ms, nzmap_dom in root_out_k.
-    apply elem_of_dom in root_out_k.
+    unfold inset, dom_ms in root_out_k.
+    apply nzmap_elem_of_dom in root_out_k.
     unfold lookup, nzmap_lookup.
     pose proof (nzmap_is_wf (inf I root)) as inf_root_wf.
     pose proof (nzmap_lookup_wf _ k inf_root_wf).
@@ -181,6 +181,7 @@ Section Coupling_Template.
     simpl in root_out_k.
     unfold is_Some in root_out_k.
     destruct root_out_k as [x root_out_k].
+    unfold lookup, nzmap_lookup in root_out_k.
     rewrite root_out_k.
     simpl in H0.
     simpl.
@@ -204,9 +205,8 @@ Section Coupling_Template.
     setoid_rewrite inf_I23_def in inf_I2_def.
 
     assert (default 0 (out I1 n !! k) ≠ 0).
-    unfold outset, dom_ms, nzmap_dom in k_in_out1.
-    apply elem_of_dom in k_in_out1.
-    unfold lookup, nzmap_lookup.
+    unfold outset, dom_ms in k_in_out1.
+    apply nzmap_elem_of_dom in k_in_out1.
     pose proof (nzmap_is_wf (out I1 n)) as out_n_wf.
     pose proof (nzmap_lookup_wf _ k out_n_wf).
     destruct (out I1 n).
@@ -663,6 +663,15 @@ Section Coupling_Template.
     rewrite (flowint_comp_fp) in n. set_solver. apply leibniz_equiv_iff in H1.
     rewrite <-H1. done. }
     unfold globalinv in H43. destruct H43 as (Hv & H4root & H4out & H4in).
+    assert (out Iz m = 0%CCM).
+    { 
+      apply (intComp_out_zero (Ip'⋅In') Iz m). by rewrite <-H1.
+      rewrite <-H1. done. rewrite <-H1. apply nzmap_eq.
+      intros km. pose proof (H4out km m).
+      unfold outset, dom_ms in H5. rewrite (nzmap_elem_of_dom_total) in H5 *; intros.
+      apply dec_stable in H5. rewrite H5.
+      by rewrite nzmap_lookup_empty.
+    }    
     iMod (own_updateP (flowint_update_P K_multiset I4 (Ip' ⋅ In') (Ip'' ⋅ In'' ⋅ Im'')) γ
                           (● I4 ⋅ ◯ (Ip' ⋅ In')) with "[HInt H']") as (Io'') "H0".
     {
@@ -676,22 +685,7 @@ Section Coupling_Template.
       intros nf. rewrite flowint_comp_fp; try done. 
       repeat rewrite (flowint_comp_fp); last by apply cmra_valid_op_l in Hvldpnm.
       rewrite H30 H31 H32 H18 H19. intros Hnf. assert (nf = m). set_solver. replace nf.
-      assert (out Iz m = 0%CCM).
-      { 
-        apply (intComp_out_zero (Ip'⋅In') Iz m). by rewrite <-H1.
-        repeat rewrite flowint_comp_fp; try done. rewrite H18 H19. set_solver.
-        apply leibniz_equiv_iff in H1. rewrite <-H1. done. rewrite <-H1.
-        unfold out, nzmap_total_lookup. case_eq (out_map I4 !! m).
-        - intros Km HKm. simpl. apply nzmap_eq. intros i. 
-          unfold outset, out in H4out. unfold nzmap_total_lookup in H4out.
-          assert (i ∉ dom_ms (default 0%CCM (out_map I4 !! m))). apply H4out. 
-          rewrite HKm in H6. simpl in H6. case_eq (Km !! i).
-          + intros j Hj. (* get contradiction from H5 and Hj *) admit.
-          + intros Hj. rewrite nzmap_lookup_empty. 
-            unfold nzmap_total_lookup. rewrite Hj. simpl. done.
-        - intros _; by simpl.
-      }
-      unfold out in H6. done. done.
+      unfold out in H5. done. done.
     }
     { try repeat rewrite own_op; iFrame. }
     iPoseProof ((flowint_update_result γ I4 (Ip' ⋅ In') (Ip'' ⋅ In'' ⋅ Im''))
@@ -718,18 +712,18 @@ Section Coupling_Template.
     done. iDestruct "H" as "(HFP & #Hfp4)".
     assert (domm I' = domm I4 ∪ {[m]}).
     {
-      destruct H6 as [I_o H6]. destruct H6.
+      destruct H7 as [I_o H7]. destruct H7.
       assert (domm I' = {[p']} ∪ {[n']} ∪ {[m]} ∪ domm I_o).
       {
         subst I'. repeat rewrite flowint_comp_fp; try congruence; try done.
         by apply (auth_auth_valid).
       }
-      rewrite H11.
+      rewrite H12.
       assert (domm I4 = {[p']} ∪ {[n']} ∪ domm I_o).
       {
         subst I4. repeat rewrite flowint_comp_fp; try congruence; try done.
       }
-      rewrite H12.
+      rewrite H13.
       clear. set_solver.
     }
     
@@ -738,43 +732,31 @@ Section Coupling_Template.
       all : trivial.
       unfold globalinv. repeat split; try done. apply H4in. apply H4in.
       intros.
-      assert (n1 = m). { clear - H11 n0 H10. set_solver. }
-      rewrite H12. unfold inset. unfold inf. case_eq (inf_map I' !! m); last first.
-      - intros Hm. simpl. unfold ccmunit, lift_unit. admit.
-      - intros k0 Hk0. simpl. destruct H6 as [Iz' [H6 ?]]. 
-        rewrite H6 in H1. apply intComp_cancelable in H1; last by rewrite H6 in H2.
+      assert (n1 = m). { clear - H12 n0 H11. set_solver. } subst n1.
+      unfold inset. unfold dom_ms. unfold inf. case_eq (inf_map I' !! m); last first.
+      - intros Hm. unfold ccmunit, ccm_unit. simpl. unfold nzmap_dom. simpl. set_solver.
+      - intros k0 Hk0. simpl. destruct H7 as [Iz' [H7 ?]]. 
+        rewrite H7 in H1. apply intComp_cancelable in H1; last by rewrite H7 in H2.
         apply leibniz_equiv in H1. subst Iz'.
         assert (inf (Ip'' ⋅ In'' ⋅ Im'' ⋅ Iz) m = (inf (Ip'' ⋅ In''⋅ Im'') m) - (out Iz m))%CCM.
-        { apply intComp_inf_1. rewrite H13 in H7. by apply auth_auth_valid.
+        { apply intComp_inf_1. apply leibniz_equiv_iff in H13. rewrite <-H13.
+          by apply auth_auth_valid.
           assert (domm (Ip'' ⋅ In'' ⋅ Im'') = domm Ip'' ∪ domm In'' ∪ domm Im''). 
           repeat rewrite (flowint_comp_fp); try done. rewrite H1.
-          rewrite H32. clear. set_solver. }
-        rewrite Hminf in H1. rewrite <-H13 in H1.
-        assert (out Iz m = 0)%CCM.
-        { 
-          apply (intComp_out_zero (Ip'⋅In') Iz m). by rewrite H6 in H2.
-          apply leibniz_equiv_iff in H6. rewrite <-H6. done.
-          apply leibniz_equiv_iff in H6. rewrite <-H6.
-          unfold out, nzmap_total_lookup. case_eq (out_map I4 !! m).
-          - intros Km HKm. simpl. apply nzmap_eq. intros i. 
-            unfold outset, out in H4out. unfold nzmap_total_lookup in H4out.
-            assert (i ∉ dom_ms (default 0%CCM (out_map I4 !! m))). apply H4out. 
-            rewrite HKm in H14. simpl in H14. case_eq (Km !! i).
-            + intros j Hj. (* get contradiction from H5 and Hj *) admit.
-            + intros Hj. rewrite nzmap_lookup_empty. 
-              unfold nzmap_total_lookup. rewrite Hj. simpl. done.
-          - intros _; by simpl.
+          rewrite H32. clear. set_solver.
         }
-        rewrite H14 in H1. rewrite ccm_pinv_unit in H1. unfold inf in H1. rewrite Hk0 in H1.
-        simpl in H1. rewrite H1. unfold ccmunit, lift_unit. admit.
+        rewrite Hminf in H1. rewrite <-H13 in H1.
+        rewrite H5 in H1. rewrite ccm_pinv_unit in H1. unfold inf in H1. rewrite Hk0 in H1.
+        simpl in H1. rewrite H1. unfold ccmunit, lift_unit, nzmap_unit. simpl.
+        unfold nzmap_dom. simpl. set_solver.
     }
-    iEval (rewrite <-H10) in "HFP". assert (domm I'∖ {[m]} = domm I4). { set_solver. }
+    iEval (rewrite <-H11) in "HFP". assert (domm I'∖ {[m]} = domm I4). { set_solver. }
 
     (* ------ updates over -------*)
 
     iMod ("Hclose" with "[Hc]") as "HΦ". iFrame "∗ % #".
     iModIntro. iSplitL "Hstar Hlm Hnodem' HKS Hcont HI' HIm'' HFP Hksm'". iNext. iExists I', C4'.
-    iFrame "∗ # %". rewrite (big_sepS_delete _ (domm I') m); last set_solver. iEval (rewrite H12).
+    iFrame "∗ # %". rewrite (big_sepS_delete _ (domm I') m); last set_solver. iEval (rewrite H13).
     iFrame. iExists false. iEval (rewrite H24). iFrame. iExists Im'', Cm''. eauto with iFrame.
     iModIntro. wp_pures. wp_bind (unlockNode _)%E.
 
@@ -784,8 +766,8 @@ Section Coupling_Template.
     iDestruct "H" as (I6 C6) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iAssert (⌜p' ∈ domm I6⌝)%I with "[HFP]" as "%".
     { iPoseProof ((auth_own_incl γ_fp (domm I6) Ns) with "[$]") as "%".
-      apply gset_included in H14.
-      iPureIntro. set_solver. }
+      apply gset_included in H15.
+      iPureIntro. clear -H15 H16. set_solver. }
     rewrite (big_sepS_elem_of_acc _ (domm I6) p'); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
     destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
@@ -804,8 +786,8 @@ Section Coupling_Template.
     iInv "HInv" as ">H". iDestruct "H" as (I7 C7) "(HKS & HInt & % & HFP & Hcont & Hstar)".
     iAssert (⌜n' ∈ domm I7⌝)%I with "[HFP]" as "%".
     { iPoseProof ((auth_own_incl γ_fp (domm I7) Ns) with "[$]") as "%".
-      apply gset_included in H25.
-      iPureIntro. set_solver. }
+      apply gset_included in H26.
+      iPureIntro. clear -H26 H17. set_solver. }
     rewrite (big_sepS_elem_of_acc _ (domm I7) n'); last by eauto.
     iDestruct "Hstar" as "[Hb Hstar]". iDestruct "Hb" as (b) "[Hlock Hb]".
     destruct b; last first. { iDestruct "Hb" as (In0 Cn0) "(_ & _ & Hrep' & _)".
@@ -819,6 +801,6 @@ Section Coupling_Template.
     iFrame "∗ # %". iApply "Hstar". iExists false. iFrame. iExists In'', Cn''. iFrame "∗ %".
 
     iIntros "HΦ". wp_pures. done.
-  Admitted.
+  Qed.
 
 End Coupling_Template.

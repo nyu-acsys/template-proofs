@@ -15,7 +15,7 @@ Definition K_multiset := nzmap K nat.
 
 Global Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
-Definition dom_ms (m : K_multiset) := nzmap_dom m.
+Definition dom_ms (m : K_multiset) := dom (gset K) m.
 
 Global Canonical Structure inset_flowint_ur : ucmraT := flowintUR K_multiset.
 
@@ -322,43 +322,18 @@ Qed.
 Lemma intComp_out_zero I1 I2 n : 
         ✓ (I1 ⋅ I2) → n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = 0%CCM → out I2 n = 0%CCM.
 Proof.
-  intros Hvld Hn Hout.       
+  intros Hvld Hn Hout. apply nzmap_eq. intros k.       
   assert (out (I1 ⋅ I2) n = (out (I1) n) + (out I2 n))%CCM.
   { apply intComp_unfold_out; try done. }
-  unfold out. unfold nzmap_total_lookup. case_eq (out_map I2 !! n).
-  - intros K2 HK2. simpl.
-    unfold out, nzmap_total_lookup in H0.
-    unfold out in Hout. unfold nzmap_total_lookup in Hout.
-    rewrite Hout in H0. apply nzmap_eq.
-    intros k. unfold nzmap_total_lookup.
-    rewrite HK2 in H0. simpl in H0.
-    case_eq (K2 !! k).
-    + intros i2 Hi2. rewrite Hi2. simpl.
-      case_eq (out_map I1 !! n).
-      * intros K1 HK1. rewrite HK1 in H0. simpl in H0.
-        unfold ccmop, ccm_op in H0. simpl in H0. unfold lift_op in H0.
-        assert (nzmap_merge_op (lift_merge_op nat) (K1 !! k) (K2 !! k) = None).
-        {
-          admit.
-        }   
-        unfold nzmap_merge_op in H1. 
-        case_eq (K1 !! k).
-        ** intros i1 Hi1. rewrite Hi1 in H1. 
-           rewrite Hi2 in H1. simpl in H1.
-           destruct (decide (0%CCM = nat_op i1 i2)); last inversion H1.
-           unfold nat_op, ccmunit, nat_unit in e. assert (i2 = 0). lia.
-           rewrite H2. unfold ccmunit, nat_unit, lift_unit. admit.
-        ** intros Hi1. rewrite Hi1 in H1. rewrite Hi2 in H1. simpl in H1.
-           destruct (decide (0%CCM = i2)); last inversion H1.
-           rewrite <-e. unfold ccmunit, nat_unit, lift_unit. admit.
-      * intros Hi1. rewrite Hi1 in H0. simpl in H0. rewrite ccm_left_id in H0.
-        rewrite <-H0 in Hi2. 
-        (* contradiction from Hi2 *) 
-        unfold ccmunit, lift_unit in Hi2. admit.
-    + intros Hi2. rewrite Hi2. simpl. admit.
-  - intros _; by simpl.
-Admitted.        
-
+  assert (out (I1 ⋅ I2) n ! k = (out (I1) n) ! k + (out I2 n) ! k)%CCM.
+  { rewrite H0. by rewrite lookup_op. }
+  rewrite Hout in H1. rewrite nzmap_lookup_empty in H1.
+  unfold ccmunit,ccm_unit in H1. simpl in H1.
+  unfold nat_unit in H1. unfold ccmop, nat_op in H1.
+  assert (out I2 n ! k = 0). lia.
+  rewrite H2. rewrite nzmap_lookup_empty. unfold ccmunit, ccm_unit. 
+  simpl. by unfold nat_unit.
+Qed. 
 
 End inset_flows.
 
