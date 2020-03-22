@@ -2,6 +2,8 @@ From stdpp Require Export gmap pmap.
 From Coq Require Import PArith.
 Require Import Coq.Setoids.Setoid.
 
+(** Extend stdpp's gmap with a merge function where the merge operation also depends on the key and not just the merged values. *)
+
 Fixpoint Poimap_raw {A B} (f : positive → A → option B) (t : Pmap_raw A) : Pmap_raw B :=
   match t with
   | PLeaf => PLeaf

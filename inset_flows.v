@@ -3,7 +3,7 @@ Set Default Proof Using "All".
 Require Export flows ccm keyset_ra.
 
 (** Flow interface cameras and auxiliary lemmas for inset flows
-  (used in the give-up template proof) *)
+  (used in the give-up template proof). *)
 
 Section inset_flows.
 

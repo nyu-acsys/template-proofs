@@ -7,7 +7,12 @@ Require Export ccm gmap_more.
 
 Require Import Coq.Setoids.Setoid.
 
-(* ---------- Flow Interface encoding and camera definitions ---------- *)
+(** Flow Interface encoding and camera definitions *)
+
+(* This formalization builds on the paper:
+   
+   Local Reasoning for Global Graph Properties: Siddharth Krishna and Alexander J. Summers and Thomas Wies, ESOP'20.
+*)
 
 Definition Node := nat.
 
@@ -17,6 +22,8 @@ Context `{CCM flowdom}.
 
 Open Scope ccm_scope.
 
+
+(* Representation of flow interfaces. The domain of the interface is the domain of its inflow infR. The outflow function is defined to be non-zero in order to obtain a representation that yields a cancelable RA. *)
 Record flowintR :=
   {
     infR : gmap Node flowdom;
@@ -27,11 +34,12 @@ Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT.
 
+(* The empty interface *)
 Definition I_emptyR := {| infR := ∅; outR := ∅ |}.
 Definition I_empty := int I_emptyR.
 Global Instance flowint_empty : Empty flowintT := I_empty.
 
-
+(* Some auxiliary function for accessing the components of an interface *)
 Definition out_map (I: flowintT) :=
   match I with
     | int Ir => outR Ir
@@ -54,12 +62,7 @@ Definition domm (I : flowintT) := dom (gset Node) I.
 Global Instance flowint_elem_of : ElemOf Node flowintT :=
   λ n I, n ∈ domm I.
 
-(* Composition and proofs - some of these have counterparts in flows.spl in GRASShopper *)
-
-Global Instance flowdom_eq_dec: EqDecision flowdom.
-Proof.
-  apply ccm_eq.
-Qed.
+(* Some useful implicit type classes *)
 
 Canonical Structure flowintRAC := leibnizO flowintT.
 
@@ -72,10 +75,11 @@ Proof.
   - apply gmap_eq_eq.
 Qed.
 
+(** Interface validity *)
+
 Global Instance flowint_valid : Valid flowintT :=
   λ I, match I with
        | int Ir =>
-         (*dom (gset Node) (infR Ir) ## dom (gset Node) (outR Ir)*)
          infR Ir ##ₘ nzmap_car (outR Ir)
          ∧ (infR Ir = ∅ → outR Ir = ∅)
        | intUndef => False
@@ -89,6 +93,8 @@ Proof.
   all: solve_decision.
 Qed.
 
+(** Predicate that holds true iff two interfaces are composable *)
+                                                                  
 Definition intComposable (I1: flowintT) (I2: flowintT) :=
   ✓ I1 ∧ ✓ I2 ∧
   domm I1 ## domm I2 ∧
@@ -96,8 +102,13 @@ Definition intComposable (I1: flowintT) (I2: flowintT) :=
   map_Forall (λ (n: Node) (m: flowdom), m = out I1 n + (inf I2 n - out I1 n)) (inf_map I2).
 
 Global Instance intComposable_dec (I1 I2: flowintT) : Decision (intComposable I1 I2).
-Proof. solve_decision. Qed.
+Proof.
+  solve_decision.
+Qed.
 
+(** Interface composition *)
+
+(* Function to compute outflow of composite interface *)
 Definition outComp_op I1 I2 n (m1 m2 : flowdom) :=
   if decide (n ∈ domm I1 ∪ domm I2) then 0 else m1 + m2.
 
@@ -125,6 +136,7 @@ Proof.
     reflexivity.
 Qed.
 
+(* Function to compute inflow of composite interface *)
 Definition infComp_op I1 I2 n (o1 o2 : option flowdom) :=
   match o1, o2 with
   | Some m1, _ => Some (m1 - out I2 n)
@@ -141,6 +153,7 @@ Defined.
 
 Definition infComp I1 I2 := gmap_imerge (infComp_op I1 I2) (inf_map I1) (inf_map I2).
 
+(* The actual interface composition *)
 Global Instance intComp : Op flowintT :=
   λ I1 I2, if decide (intComposable I1 I2) then
              int {| infR := infComp I1 I2 ; outR := outComp I1 I2 |}
@@ -148,6 +161,9 @@ Global Instance intComp : Op flowintT :=
            else if decide (I2 = ∅) then I1
            else intUndef.
 
+(** Assorted auxiliary lemmas. These are used, in particular, to prove that flow interfaces form a camera. *)
+
+(* The empty interface has no outflow. *)
 Lemma intEmp_out : ∀ n, out I_empty n = 0.
 Proof.
   intros.
@@ -156,6 +172,7 @@ Proof.
   apply nzmap_lookup_empty.
 Qed.
 
+(* Valid interfaces don't give outflow to nodes in their domain. *)
 Lemma intValid_in_dom_not_out : ∀ I n, ✓ I → n ∈ domm I → out I n = 0.
 Proof.
   intros ? ? V D.
@@ -176,6 +193,7 @@ Proof.
   - contradiction.
 Qed.
 
+(* The empty interface is valid. *)
 Lemma intEmp_valid : ✓ I_empty.
 Proof.
   unfold valid.
@@ -187,6 +205,7 @@ Proof.
   trivial.
 Qed.
 
+(* The empty interface is the unique valid interface whose domain is empty. *)
 Lemma intEmp_unique I : ✓ I → domm I ≡ ∅ → I = ∅.
 Proof.
   intros V D.
@@ -209,9 +228,11 @@ Proof.
 Qed.
 
 
+(* The undefined interface is not valid. *)
 Lemma intUndef_not_valid : ¬ ✓ intUndef.
 Proof. unfold valid, flowint_valid; auto. Qed.
 
+(* Invalid interfaces are not composable. *)
 Lemma intComposable_invalid : ∀ I1 I2, ¬ ✓ I1 → ¬ (intComposable I1 I2).
 Proof.
   intros.
@@ -222,6 +243,7 @@ Proof.
   now contradict H_false.
 Qed.
 
+(* Composing with an invalid interface yields an invalid interface. *)
 Lemma intComp_invalid : ∀ I1 I2: flowintT, ¬ ✓ I1 → ¬ ✓ (I1 ⋅ I2).
 Proof.
   intros.
@@ -237,7 +259,7 @@ Proof.
   apply intUndef_not_valid.
 Qed.
 
-
+(* Composing with the undefined interface is undefined. *)
 Lemma intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
 Proof.
   intros.
@@ -257,6 +279,7 @@ Proof.
   auto.
 Qed.
 
+(* The empty interface is the right identity of interface composition. *)
 Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
 Proof.
   intros.
@@ -338,28 +361,7 @@ Proof.
     contradict H_false.
 Qed.
 
-(*Lemma intComp_unit : ∀ (I: flowintT), I ⋅ I_empty ≡ I.
-Proof.
-  intros.
-  assert (✓ I ∨ ¬ ✓ I).
-  destruct (decide (✓ I)); auto.
-  case H0; intro.
-  - apply intComp_unit_valid. auto.
-  - unfold op, intComp.
-    destruct (decide (intComposable _ _)).
-    * unfold intComposable in i.
-      destruct i.
-      contradiction.
-    * destruct (decide _).
-      trivial.
-      destruct (decide _).
-      trivial.
-      assert (I_empty = ∅).
-      trivial.
-      contradiction.
-Qed.*)
-
-
+(* The intComposable predicate is commutative. *)
 Lemma intComposable_comm_1 : ∀ (I1 I2 : flowintT), intComposable I1 I2 → intComposable I2 I1.
 Proof.
   intros.
@@ -376,6 +378,7 @@ Proof.
   all: refine (intComposable_comm_1 _ _).
 Qed.
 
+(* The domain of a composite interface is the union of the domain of its component interfaces. *)
 Lemma infComp_dom : ∀ I1 I2, dom (gset Node) (infComp I1 I2) = domm I1 ∪ domm I2.
 Proof.
   intros.
@@ -409,7 +412,6 @@ Proof.
         all: clear - H0; firstorder.
 Qed.
 
-  
 Lemma intComp_dom : ∀ I1 I2, ✓ (I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
 Proof.
   intros I1 I2 H_valid.
@@ -452,6 +454,7 @@ Proof.
         exact intUndef_not_valid.
 Qed.
 
+(* Interface composition is commutative. *)
 Lemma intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
 Proof.
   intros.
@@ -537,13 +540,15 @@ Proof.
     exact intUndef_not_valid.
 Qed.
 
-Lemma intComp_unit2 : ∀ I : flowintT, ✓ I → I_empty ⋅ I ≡ I.
+(* The empty interface is also a left identity of interface composition. *)
+Lemma intComp_left_unit : ∀ I : flowintT, I_empty ⋅ I ≡ I.
 Proof.
   intros.
   rewrite intComp_comm.
   now apply intComp_unit.
 Qed.
 
+(* The components of valid composite interfaces are valid. *)
 Lemma intComp_valid_proj1 : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → ✓ I1.
 Proof.
   intros I1 I2.
@@ -564,6 +569,7 @@ Proof.
   apply intComp_valid_proj1.
 Qed.
 
+(* If a composite interface is empty then its components must have been empty. *)
 Lemma intComp_positive_1 : ∀ (I1 I2: flowintT), I1 ⋅ I2 = ∅ → I1 = ∅.
 Proof.
   intros ? ? C.
@@ -614,6 +620,7 @@ Proof.
   apply intComp_positive_1.
 Qed.
 
+(* The empty interface is composable with any valid interface. *)
 Lemma intComposable_empty : ∀ I: flowintT, ✓ I → intComposable ∅ I.
 Proof.
   intros I IV.
@@ -648,6 +655,7 @@ Proof.
     auto.
 Qed.
 
+(* The components of valid composite interfaces are composable. *)
 Lemma intComposable_valid : ∀ (I1 I2: flowintT), ✓ (I1 ⋅ I2) → intComposable I1 I2.
 Proof.
   intros I1 I2 IV.
@@ -676,6 +684,7 @@ Proof.
     contradiction.
 Qed.
 
+(* The composition of composable interfaces is valid. *)
 Lemma intValid_composable : ∀ (I1 I2: flowintT), intComposable I1 I2 → ✓ (I1 ⋅ I2).
 Proof.
   intros ? ? V.
@@ -733,7 +742,8 @@ Proof.
       all: contradiction.
   - contradiction.
 Qed.
-  
+
+(* Characterization of inflows of composite interfaces. *)
 Lemma intComp_unfold_inf_1 : ∀ (I1 I2: flowintT),
     ✓ (I1 ⋅ I2) →
     ∀ n, n ∈ domm I1 → inf I1 n = inf (I1 ⋅ I2) n + out I2 n.
@@ -785,6 +795,7 @@ Proof.
   exact H1.
 Qed.
 
+(* Characterization of outflow of composed interfaces. *)
 Lemma intComp_unfold_out I1 I2 :
   ✓ (I1 ⋅ I2) → (∀ n, n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = out I1 n + out I2 n).
 Proof.
@@ -800,6 +811,7 @@ Proof.
   trivial.
 Qed.
 
+(* Characterization of inflow of composed interfaces. *)
 Lemma intComp_inf_1 I1 I2 :
   ✓ (I1 ⋅ I2) → (∀ n, n ∈ domm I1 → inf (I1 ⋅ I2) n = inf I1 n - out I2 n).
 Proof.
@@ -833,6 +845,7 @@ Proof.
 Qed.
 
 
+(* Characterization of interface composition as defined in ESOP'20. *)
 Lemma intComp_fold I1 I2 I :
   I ≠ intUndef → ✓ I1 → ✓ I2 →
   domm I1 ## domm I2 →
@@ -979,6 +992,7 @@ Proof.
   - apply intValid_composable in C. trivial.
 Qed.
 
+(* Interface composition is associative (valid case). *)
 Lemma intComp_assoc_valid (I1 I2 I3 : flowintT) : ✓ (I1 ⋅ (I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 Proof.
   intros V.
@@ -1270,6 +1284,7 @@ Proof.
   trivial.
 Qed.
 
+(* Interface composition is associative (invalid case). *)
 Lemma intComp_assoc_invalid (I1 I2 I3 : flowintT) : ¬(✓ (I1 ⋅ (I2 ⋅ I3))) → ¬(✓ (I1 ⋅ I2 ⋅ I3)) → I1 ⋅ (I2 ⋅ I3) ≡ I1 ⋅ I2 ⋅ I3.
 Proof.
   intros IV1 IV2.
@@ -1318,6 +1333,7 @@ Proof.
            reflexivity.
 Qed.
 
+(* Interface composition is associative. *)
 Lemma intComp_assoc : Assoc (≡) intComp.
 Proof.
   unfold Assoc.
@@ -1343,6 +1359,7 @@ Proof.
       all: trivial.
 Qed.
 
+(** Auxiliary definitions for setting up flow interface camera. *)
 
 Global Instance flowintRAcore : PCore flowintT :=
   λ I, match I with
@@ -1420,19 +1437,10 @@ Context (flowdom: Type) `{CCM flowdom}.
 
 Open Scope ccm_scope.
 
+(* The unital camera of flow interfaces. *)
 Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
 
-Definition contextualLeq (I1 I2: flowintUR) : Prop := 
-             ✓ I1 ∧ ✓ I2 ∧ domm I1 ⊆ domm I2 ∧
-             (∀ (n: Node), n ∈ domm(I1) → inf I1 n = inf I2 n) ∧
-             (∀ (n: Node), n ∉ domm(I2) → out I1 n = out I2 n).
-
-Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
-  match (auth_auth_proj x) with
-  | Some (q, z) => ∃ I', (z = to_agree(I')) ∧ q = 1%Qp ∧ (I_n' = auth_frag_proj x)
-                        ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
-  | _ => False
-  end.
+(** Assorted convenience lemmas. *)
 
 Lemma flowint_valid_defined (I: flowintUR) : ✓ I → ∃ Ir, I = int Ir.
 Proof.
@@ -1443,6 +1451,7 @@ Proof.
   - apply intUndef_not_valid in IV.
     contradiction.
 Qed.
+
 
 Lemma flowint_valid_unfold (I : flowintUR) : ✓ I → ∃ Ir, I = int Ir ∧ infR Ir ##ₘ nzmap_car (outR Ir)
                                                       ∧ (infR Ir = ∅ → outR Ir = ∅).
@@ -1459,6 +1468,24 @@ Proof.
   - contradiction.
 Qed.
 
+Lemma flowint_contains I n (m: flowdom) : ✓ I →  inf_map I !! n = Some m → n ∈ domm I.
+Proof.
+  intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. exists m. done.
+Qed.
+
+Lemma flowint_contains_not (I: flowintUR) n :  ✓ I → inf_map I !! n = None → n ∉ domm I.
+Proof.
+  intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. unfold not.
+  intros Hcon. destruct Hcon as [m Hcon]. rewrite Hinf in Hcon. inversion Hcon.
+Qed.
+
+(* Lift intComp_dom to flow interface camera. *)
+Lemma flowint_comp_fp : ∀ I1 I2, ✓(I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
+Proof.
+  apply intComp_dom.
+Qed.
+
+(* Flow interface composition is cancelable. *)
 Lemma intComp_cancelable (I1 I2 I3: flowintUR) : ✓ (I1 ⋅ I2) → (I1 ⋅ I2 ≡ I1 ⋅ I3) → (I2 ≡ I3).
 Proof.
   intros V12 Eq.
@@ -1652,6 +1679,7 @@ Proof.
         by rewrite Eqout.
 Qed.
 
+(* Flow interfaces form a cancelable camera. *)
 Instance flowint_cancelable (I: flowintUR) : Cancelable I.
 Proof.
   unfold Cancelable.
@@ -1660,18 +1688,24 @@ Proof.
   eauto.
 Qed.
   
-Lemma flowint_contains I n (m: flowdom) : ✓ I →  inf_map I !! n = Some m → n ∈ domm I.
-Proof.
-  intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. exists m. done.
-Qed.
 
-Lemma flowint_contains_not (I: flowintUR) n :  ✓ I → inf_map I !! n = None → n ∉ domm I.
-Proof.
-  intros HI Hinf. unfold domm, dom. rewrite elem_of_dom. unfold is_Some. unfold not.
-  intros Hcon. destruct Hcon as [m Hcon]. rewrite Hinf in Hcon. inversion Hcon.
-Qed.
-      
+(** Frame-preserving updates of flow interfaces. *)
 
+(* Contextual extension of flow interfaces. *)
+Definition contextualLeq (I1 I2: flowintUR) : Prop := 
+             ✓ I1 ∧ ✓ I2 ∧ domm I1 ⊆ domm I2 ∧
+             (∀ (n: Node), n ∈ domm(I1) → inf I1 n = inf I2 n) ∧
+             (∀ (n: Node), n ∉ domm(I2) → out I1 n = out I2 n).
+
+(* Frame-preserving updates of contextually-extended flow interfaces. *)
+Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop :=
+  match (auth_auth_proj x) with
+  | Some (q, z) => ∃ I', (z = to_agree(I')) ∧ q = 1%Qp ∧ (I_n' = auth_frag_proj x)
+                        ∧ contextualLeq I I' ∧ ∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o
+  | _ => False
+  end.
+
+(* Contextual extension allows frame-preserving updates. *)
 Lemma flowint_update : ∀ (Io I_n I_n': flowintUR),
   contextualLeq I_n I_n' ∧ (domm I_n' ∩ domm Io = ∅) ∧ (∀ n, n ∈ domm I_n'∖domm I_n → out_map Io ! n = 0)
        → (● (I_n ⋅ Io) ⋅ ◯ I_n)  ~~>: (flowint_update_P (I_n ⋅ Io) I_n I_n').
@@ -1794,11 +1828,6 @@ Proof.
         rewrite H6.
         done.
       * exists Io. split; try done.
-Qed.
-
-Lemma flowint_comp_fp : ∀ I1 I2, ✓(I1 ⋅ I2) → domm (I1 ⋅ I2) = domm I1 ∪ domm I2.
-Proof.
-  apply intComp_dom.
 Qed.
 
 Close Scope ccm_scope.

@@ -9,13 +9,15 @@ From stdpp Require Import mapset.
 From stdpp Require Import finite.
 Require Import gmap_more.
 
-(** * Commutative Cancelative Monoids (CCMs) *)
+(** Commutative Cancelative Monoids (CCMs) *)
 
 Delimit Scope ccm_scope with CCM.
 
+(* Cancelable operations. *)
 Class Cancelative {A} (R : relation A) (f : A → A → A) : Prop :=
   cancel x y z : R (f x y) (f x z) → R y z.
 
+(* Partial inverse of a monoid operation. *)
 Class PartialInv {A} (R: relation A) (f : A → A → A) (g : A → A → A) : Prop :=
   pinv x y : R (g (f x y) y) x.
 
@@ -37,6 +39,7 @@ Notation "0" := ccmunit : ccm_scope.
 
 Open Scope ccm_scope.
 
+(* Definition of CCMs *)
 Class CCM (M: Type) :=
   {
     ccm_eq : EqDecision M;
@@ -57,6 +60,8 @@ Hint Extern 0 (CcmOp _) => eapply (@ccm_op _) : typeclass_instances.
 Hint Extern 0 (CcmOpInv _) => eapply (@ccm_opinv _) : typeclass_instances.
 Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
+(** Auxiliary lemmas and type classes. *)
+
 Instance ccm_eq_eq `{CCM A}: EqDecision A.
 Proof.
   apply ccm_eq.
@@ -73,15 +78,7 @@ Qed.
 
 Close Scope ccm_scope.
 
-(** * The CCM of natural numbers with addition *)
-
-(*Instance nat_eq: EqDecision nat.
-Proof.
-  unfold EqDecision.
-  intros.
-  unfold Decision.
-  decide equality.
-Qed.*)
+(** The CCM of natural numbers with addition. *)
 
 Instance nat_op : CcmOp nat := plus.
 
@@ -223,7 +220,6 @@ End product.
 (** Unique representations of non-zero maps over CCMs *)
 
 Open Scope ccm_scope.
-
 
 Definition nzmap_wf `{Countable K} `{CCM A} : gmap K A → Prop :=
   map_Forall (λ _ x, ¬ (x = 0)).

@@ -1,4 +1,4 @@
-(** Camera definitions and proofs for the keyset RA *)
+(** Camera definitions and proofs for the keyset RA. *)
 
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import tactics.
@@ -132,9 +132,9 @@ Qed.
 Canonical Structure keysetUR : ucmraT := UcmraT prodT prod_ucmra_mixin.
 
 Lemma auth_ks_included (a1 a2 b1 b2: gset K) :
-           ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)
-              → (a1 = a2 ∧ b1 = b2) ∨
-                  (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
+  ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)
+  → (a1 = a2 ∧ b1 = b2) ∨
+    (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
 Proof.
   intros H1 H2 H0. destruct H0 as [z H0]. assert (✓ z). { apply (cmra_valid_op_r (prod (a1, b1))).
   rewrite <- H0. done. } rewrite /(✓ prod (a1, b1)) /= in H1. rewrite /(✓ prod (a2, b2)) /= in H2.
@@ -148,8 +148,8 @@ Proof.
 Qed.
 
 Lemma auth_ks_local_update_insert K1 C Cn k:
-            ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn ∧ k ∈ KS →
-           (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
+  ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn ∧ k ∈ KS →
+  (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
 Proof.
   intros [H1 [H2 [H3 [H4 HKS]]]]. apply local_update_discrete. intros z.
   intros _. intros. split. rewrite /(✓ prod (KS, C ∪ {[k]})) /=.
