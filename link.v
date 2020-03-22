@@ -9,7 +9,7 @@ From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
-Require Export keyset_ra linkset_flows.
+Require Export linkset_flows.
 Require Import auth_ext.
 
 (** We use integers as keys. *)

@@ -1,6 +1,6 @@
 Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
-Require Export flows ccm.
+Require Export flows ccm keyset_ra.
 
 (** Flow interface cameras and auxiliary lemmas for inset flows
   (used in the give-up template proof) *)
@@ -8,7 +8,9 @@ Require Export flows ccm.
 Section inset_flows.
 
 Context `{Countable K}.
-  
+
+Definition KS := @KS K _ _.
+
 (** CCM of multisets over keys *)
 
 Definition K_multiset := nzmap K nat.
@@ -46,12 +48,14 @@ Proof.
   naive_solver.
 Qed.
 
+Check KS.
+
 (* The global invariant ϕ. *)
 Definition globalinv root I :=
   ✓I
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
-  ∧ ∀ n, ((n = root) → (∀ k, k ∈ inset I n))
+  ∧ ∀ n, ((n = root) → (∀ k, k ∈ KS → k ∈ inset I n))
          ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).
 
 (** Assorted lemmas about inset flows used in the template proofs *)
@@ -285,13 +289,14 @@ Proof.
       trivial.
   - intros.
     pose proof (InfI n).
-    destruct H1 as (H1 & _).
-    pose proof (H1 H0 k).
+    destruct H2 as (H2 & _).
+    pose proof (H2 H0 k).
     rewrite <- H0 in DomR.
     pose proof (InfR n DomR).
     unfold inset.
-    unfold inset in H2.
-    rewrite <- H3.
+    unfold inset in H3.
+    rewrite <- H4.
+    apply H3 in H1.
     trivial.
   - intros.
     destruct (decide (n ∈ domm I)).

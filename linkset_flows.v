@@ -1,6 +1,6 @@
 Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
-Require Export flows ccm.
+Require Export flows ccm keyset_ra.
 
 (** Flow interface cameras and auxiliary lemmas for inset and linkset flows
   (used in the link template proof) *)
@@ -9,6 +9,8 @@ Section linkset_flows.
 
 Context `{Countable K}.
   
+Definition KS := @KS K _ _.
+
 (** CCM of pairs of multisets over keys *)
 
 Definition K_multiset := nzmap K nat.
@@ -60,7 +62,7 @@ Definition globalinv root I :=
   ✓I
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
-  ∧ (∀ k, k ∈ inset I root ∧ k ∈ linkset I root)
+  ∧ (∀ k, k ∈ KS → k ∈ inset I root ∧ k ∈ linkset I root)
   ∧ (∀ n, (n ≠ root) → (∀ k, ¬(k ∈ inset I n ∧ k ∉ linkset I n))).
 
 (** Assorted lemmas about inset and linkset flows used in the template proofs *)
@@ -290,11 +292,11 @@ Proof.
 Qed.
 
 Lemma globalinv_root_inr : ∀ I Ir root k,
-    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]}
+    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]} ∧ k ∈ KS
     → k ∈ inset Ir root ∨ k ∈ linkset Ir root.
 Proof.
-  intros I Ir root k ((Hv & _ & _ & Hl & _) & [I2 Hincl] & Hdom).
-  right. specialize (Hl k). destruct Hl.
+  intros I Ir root k ((Hv & _ & _ & Hl & _) & [I2 Hincl] & Hdom & kKS).
+  right. specialize (Hl k kKS). destruct Hl.
   apply (linkset_monotone I Ir I2 k root); try done.
   set_solver.
 Qed.

@@ -9,15 +9,16 @@ From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
-Require Export keyset_ra inset_flows.
+Require Export inset_flows.
 Require Import auth_ext.
 
 (** We use integers as keys. *)
 Definition K := Z.
 
+
 (** Definitions of cameras used in the template verification *)
 Section Give_Up_Cameras.
-
+  
   (* RA for authoritative flow interfaces over multisets of keys *)
   Class flowintG Σ :=
     FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
@@ -29,138 +30,32 @@ Section Give_Up_Cameras.
   (* RA for authoritative set of nodes *)
   Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
   Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
-
-  Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
-  Proof. solve_inG. Qed.
-
-  (* RA for pair of keysets and contents *)
-  Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
-  Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
-
-  Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
-  Proof. solve_inG. Qed.
-
-End Give_Up_Cameras.
-
-(** Verification of the template *)
-Section Give_Up_Template.
-
-  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
-  Notation iProp := (iProp Σ).
-
-  (** The code of the give-up template. *)
-
-  Inductive dOp := memberOp | insertOp | deleteOp.
-
-  (* The following parameters are the implementation-specific helper functions
-   * assumed by the template. See GRASShopper files b+-tree.spl and
-   * hashtbl-give-up.spl for the concrete implementations. *)
-
-  Parameter findNext : val.
-  Parameter inRange : val.
-  Parameter decisiveOp : (dOp → val).
-  Parameter lockLoc : Node → loc.
-  Parameter getLockLoc : val.
-
-  Definition lockNode : val :=
-    rec: "lockN" "x" :=
-      let: "l" := getLockLoc "x" in
-      if: CAS "l" #false #true
-      then #()
-      else "lockN" "x".
-
-  Definition unlockNode : val :=
-    λ: "x",
-    let: "l" := getLockLoc "x" in
-    "l" <- #false.
-
-  Definition traverse (root: Node) : val :=
-    rec: "tr" "n" "k"  :=
-      lockNode "n";;
-      if: inRange "n" "k" then
-        match: (findNext "n" "k") with
-          NONE => "n"
-        | SOME "n'" => unlockNode "n";; "tr" "n'" "k"
-        end
-      else
-        unlockNode "n";;
-        "tr" #root "k".
-
-  Definition CSSOp (Ψ: dOp) (root: Node) : val :=
-    rec: "dictOp" "k" :=
-      let: "n" := (traverse root) #root "k" in
-      match: ((decisiveOp Ψ) "n" "k") with
-        NONE => unlockNode "n";; "dictOp" "k"
-      | SOME "res" => unlockNode "n";; "res"
-      end.
-
-  (** Assumptions on the implementation made by the template proofs. *)
-
-  (* The node predicate is specific to each template implementation. See GRASShopper files
-     b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
-  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
-
-  (* The following assumption is justified by the fact that GRASShopper uses a
-   * first-order separation logic. *)
-  Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
-  Instance node_timeless n I C: Timeless (node n I C).
-  Proof. apply node_timeless_proof. Qed.
-
-  (* The following hypothesis is proved as GRASShopper lemmas in
-   * hashtbl-give-up.spl and b+-tree.spl *)
-  Hypothesis node_sep_star: ∀ n I_n I_n' C C',
-    node n I_n C ∗ node n I_n' C' -∗ False.
-
-  (** Coarse-grained specification *)
-
-  Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp :=
-    match dop with
-    | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
-    | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
-    | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
-    end.
-
-  Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
-  Proof. destruct dop; apply _. Qed.
-
-  (** Helper functions specs *)
-
-  (* Todo: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
-  Parameter getLockLoc_spec : ∀ (n: Node),
-    ({{{ True }}}
-      getLockLoc #n
-    {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
-
-  (* The following functions are proved for each implementation in GRASShopper
-   * (see b+-tree.spl and hashtbl-give-up.spl) *)
-
-  Parameter inRange_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-    ({{{ node n I_n C }}}
-      inRange #n #k
-    {{{ (b: bool), RET #b; node n I_n C
-      ∗ (match b with true => ⌜in_inset K k I_n n⌝ |
-                     false => ⌜True⌝ end) }}})%I.
+C }}}
+         inRange #n #k
+         {{{ (res: bool), RET #res; node n In C
+        ∗ (match res with true => ⌜in_inset K k In n⌝ |
+                   false => ⌜True⌝ end) }}})%I.
 
   (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
-  Parameter findNext_spec : ∀ (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-    ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝ }}}
-      findNext #n #k
-    {{{ (b: bool) (n': Node),
-        RET (match b with true => (SOMEV #n') | false => NONEV end);
-        node n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
-                                    false => ⌜¬in_outsets K k I_n⌝ end) }}})%I.
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+    ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ }}}
+         findNext #n #k
+       {{{ (succ: bool) (n': Node),
+           RET (match succ with true => (SOMEV #n') | false => NONEV end);
+           node n In C ∗ (match succ with true => ⌜in_outset K k In n'⌝ |
+                                  false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
-      (I_n: inset_flowint_ur K) (C: gset K),
-    ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝
-        ∗ ⌜¬in_outsets K k I_n⌝ ∗ ⌜domm I_n = {[n]}⌝ }}}
-      decisiveOp dop #n #k
-    {{{ (b: bool) (C': gset K) (res: bool),
-        RET (match b with false => NONEV | true => (SOMEV #res) end);
-        match b with false => node n I_n C |
-                      true => node n I_n C' ∗ Ψ dop k C C' res
-                              ∗ ⌜ C' ⊆ keyset K I_n n⌝
-        end }}})%I.
+      (In: inset_flowint_ur K) (C: gset K),
+      ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝
+             ∗ ⌜¬in_outsets K k In⌝ }}}
+           decisiveOp dop #n #k
+         {{{ (succ: bool) (res: bool) (C1: gset K),
+             RET (match succ with false => NONEV | true => (SOMEV #res) end);
+             match succ with false => node n In C |
+                     true => node n In C1 ∗ Ψ dop k C C1 res
+                                  (*∗ ⌜ C1 ⊆ keyset K In n⌝*)
+             end }}})%I.
 
   (** The concurrent search structure invariant *)
 
@@ -180,7 +75,7 @@ Section Give_Up_Template.
   (** Lock module proofs *)
 
   Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
-    <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
+    ⊢ <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
       lockNode #n    @ ⊤
     <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
   Proof.
@@ -202,7 +97,7 @@ Section Give_Up_Template.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-    <<< lockLoc n ↦ #true >>>
+    ⊢ <<< lockLoc n ↦ #true >>>
       unlockNode #n    @ ⊤
     <<< lockLoc n ↦ #false, RET #() >>>.
   Proof.
@@ -221,8 +116,8 @@ Section Give_Up_Template.
   (** Proofs of traverse and CSSOp *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
-    ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
-    <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
+   ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
+     <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
       traverse root #n #k @ ⊤
     <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
         is_CSS γ γ_fp γ_k root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
@@ -230,7 +125,7 @@ Section Give_Up_Template.
         ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝
         ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
-    iLöb as "IH" forall (n Ns). iIntros "(#Hinn & #Hfp & #Hroot)".
+    iLöb as "IH" forall (n Ns). iIntros "(#Hks & #Hinn & #Hfp & #Hroot)".
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
     awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "Hst". iDestruct "Hst" as (I)"(H2 & H3 & H4 & H5 & H6)".
@@ -248,10 +143,10 @@ Section Give_Up_Template.
     iSplitR "Hb". iExists I. iFrame "∗ % #". iApply "H5". iExists true.
     iFrame. iIntros "AU". iModIntro. wp_pures.
     iDestruct "Hb" as (In Cn) "(HIn & Hrep & #HNds & HKS)". iDestruct "HNds" as %HNds.
-    wp_bind (inRange _ _)%E. wp_apply ((inRange_spec n In Cn k) with "Hrep").
+    wp_bind (inRange _ _)%E. wp_apply ((inRange_spec n k In Cn) with "Hrep").
     iIntros (b) "(Hrep & Hb)". destruct b.
     - wp_pures. wp_bind (findNext _ _)%E. iDestruct "Hb" as %Hinset.
-      wp_apply ((findNext_spec n In Cn k) with "[Hrep]"). iFrame "∗ # %".
+      wp_apply ((findNext_spec n k In Cn) with "[Hrep]"). iFrame "∗ # %".
       iIntros (b n') "(Hrep & Hbb)". destruct b.
       + wp_pures. awp_apply (unlockNode_spec n).
         iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
@@ -316,7 +211,7 @@ Section Give_Up_Template.
   (* Ghost state manipulation to make final proof cleaner *)
 
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
-    Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
+    ⊢ Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
     ==∗ ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C'))
       ∗ own γ_k (◯ prod (K1, Cn')).
@@ -375,7 +270,7 @@ Section Give_Up_Template.
   (** Verification of abstract specification of the search structure operation. *)
 
   Theorem CSSOp_spec (γ γ_fp γ_k: gname) root (dop: dOp) (k: K):
-    ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
+   ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
       CSSOp dop root #k @ ⊤
     <<< ∃ C' (res: bool), is_CSS γ γ_fp γ_k root C'
         ∗ Ψ dop k C C' res, RET #res >>>.
@@ -395,8 +290,8 @@ Section Give_Up_Template.
     iIntros (n Ns1 In Cn) "(Hst & #Hinn & #Hfp1 & HIn & Hrepn & HKS & #HNdsn & #Hinset & #Hnotout)".
     iModIntro. iFrame. iIntros "AU". iModIntro. wp_pures. wp_bind (decisiveOp _ _ _)%E.
     wp_apply ((decisiveOp_spec dop n k In Cn) with "[Hrepn]"). eauto with iFrame.
-    iIntros (b Cn' res). iIntros "Hb". destruct b.
-    - iDestruct "Hb" as "(Hrep & #HΨ & #Hsub)".
+    iIntros (b res Cn'). iIntros "Hb". destruct b.
+    - iDestruct "Hb" as "(Hrep & #HΨ)".
       wp_pures. wp_bind(unlockNode _)%E.
       awp_apply (unlockNode_spec n).
       iApply (aacc_aupd_commit with "AU"); first done. iIntros (C2) "Hst".
