@@ -68,7 +68,7 @@ Section Link_Template.
   Inductive dOp := memberOp | insertOp | deleteOp.
 
   (* The following parameters are the implementation-specific helper functions
-   * assumed by the template. See GRASShopper files b-link.spl and
+   * assumed by the template. See GRASShopper files b-link-core.spl and
    * hashtbl-link.spl for the concrete implementations. *)
 
   Parameter findNext : val.

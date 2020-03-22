@@ -235,8 +235,8 @@ Section Give_Up_Template.
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
    ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
      <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
-      traverse root #n #k @ ⊤
-    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
+       traverse root #n #k @ ⊤
+     <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
         is_CSS γ γ_fp γ_k root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
         ∗ own γ (◯ I_n') ∗ node n' I_n' C_n'
         ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝
