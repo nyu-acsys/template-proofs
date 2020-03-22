@@ -48,8 +48,6 @@ Proof.
   naive_solver.
 Qed.
 
-Check KS.
-
 (* The global invariant ϕ. *)
 Definition globalinv root I :=
   ✓I
