@@ -30,11 +30,116 @@ Section Give_Up_Cameras.
   (* RA for authoritative set of nodes *)
   Class nodesetG Σ := NodesetG { nodeset_inG :> inG Σ (authR (gsetUR Node)) }.
   Definition nodesetΣ : gFunctors := #[GFunctor (authR (gsetUR Node))].
-C }}}
-         inRange #n #k
-         {{{ (res: bool), RET #res; node n In C
-        ∗ (match res with true => ⌜in_inset K k In n⌝ |
-                   false => ⌜True⌝ end) }}})%I.
+
+  Instance subG_nodesetΣ {Σ} : subG nodesetΣ Σ → nodesetG Σ.
+
+  Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
+  Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
+  Proof. solve_inG. Qed.
+
+  Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
+  Proof. solve_inG. Qed.
+
+End Give_Up_Cameras.
+
+(** Verification of the template *)
+Section Give_Up_Template.
+
+  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !keysetG Σ} (N : namespace).
+  Notation iProp := (iProp Σ).
+
+  (** The code of the give-up template. *)
+
+  Inductive dOp := memberOp | insertOp | deleteOp.
+
+  (* The following parameters are the implementation-specific helper functions
+   * assumed by the template. See GRASShopper files b+-tree.spl and
+   * hashtbl-give-up.spl for the concrete implementations. *)
+
+  Parameter findNext : val.
+  Parameter inRange : val.
+  Parameter decisiveOp : (dOp → val).
+  Parameter lockLoc : Node → loc.
+  Parameter getLockLoc : val.
+
+  Definition lockNode : val :=
+    rec: "lockN" "x" :=
+      let: "l" := getLockLoc "x" in
+      if: CAS "l" #false #true
+      then #()
+      else "lockN" "x".
+
+  Definition unlockNode : val :=
+    λ: "x",
+    let: "l" := getLockLoc "x" in
+    "l" <- #false.
+
+  Definition traverse (root: Node) : val :=
+    rec: "tr" "n" "k"  :=
+      lockNode "n";;
+      if: inRange "n" "k" then
+        match: (findNext "n" "k") with
+          NONE => "n"
+        | SOME "n'" => unlockNode "n";; "tr" "n'" "k"
+        end
+      else
+        unlockNode "n";;
+        "tr" #root "k".
+
+  Definition CSSOp (Ψ: dOp) (root: Node) : val :=
+    rec: "dictOp" "k" :=
+      let: "n" := (traverse root) #root "k" in
+      match: ((decisiveOp Ψ) "n" "k") with
+        NONE => unlockNode "n";; "dictOp" "k"
+      | SOME "res" => unlockNode "n";; "res"
+      end.
+
+  (** Assumptions on the implementation made by the template proofs. *)
+
+  (* The node predicate is specific to each template implementation. See GRASShopper files
+     b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
+  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
+
+  (* The following assumption is justified by the fact that GRASShopper uses a
+   * first-order separation logic. *)
+  Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
+  Instance node_timeless n I C: Timeless (node n I C).
+  Proof. apply node_timeless_proof. Qed.
+
+  (* The following hypothesis is proved as GRASShopper lemmas in
+   * hashtbl-give-up.spl and b+-tree.spl *)
+  Hypothesis node_sep_star: ∀ n I_n I_n' C C',
+    node n I_n C ∗ node n I_n' C' -∗ False.
+
+  (** Coarse-grained specification *)
+
+  Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp :=
+    match dop with
+    | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
+    | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    end.
+
+  Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
+  Proof. destruct dop; apply _. Qed.
+
+  (** Helper functions specs *)
+
+  (* Todo: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
+  Parameter getLockLoc_spec : ∀ (n: Node),
+    ⊢ ({{{ True }}}
+        getLockLoc #n
+       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+
+  (* The following functions are proved for each implementation in GRASShopper
+   * (see b+-tree.spl and hashtbl-give-up.spl) *)
+
+  Parameter inRange_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+   ⊢ ({{{ node n In C }}}
+        inRange #n #k
+      {{{ (res: bool), RET #res; node n In C
+           ∗ (match res with true => ⌜in_inset K k In n⌝ |
+                    false => ⌜True⌝ end) }}})%I.
 
   (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
