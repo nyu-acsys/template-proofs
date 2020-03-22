@@ -112,14 +112,14 @@ Section Give_Up_Template.
     node n I_n C ∗ node n I_n' C' -∗ False.
 
   (* The node-level invariant (γ in the paper).
-   * See also link.spl for the matching GRASShopper definition *)
+   * See also give-up.spl for the matching GRASShopper definition *)
   Definition nodeinv (I_n: inset_flowint_ur K) (n: Node) (C: gset K): Prop :=
       (∀ (k: K), k ∈ C → k ∈ inset K I_n n) 
     ∧ (∀ k n', k ∉ C ∨ ¬ in_outset K k I_n n')
     ∧ (∀ k n' n'', n' = n'' ∨ ¬ in_outset K k I_n n' ∨ ¬ in_outset K k I_n n'').
 
   (* The following hypothesis is proved as GRASShopper lemmas in
-   * hashtbl-link.spl and b-link.spl *)
+   * hashtbl-give-up.spl and b+-tree.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n C⌝)%I.
 
