@@ -147,32 +147,33 @@ Section Link_Template.
   (* These are proved for each implementation in GRASShopper *)
 
   Parameter getLockLoc_spec : ∀ (n: Node),
-    ({{{ True }}}
-      getLockLoc #n
-    {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+      ⊢ ({{{ True }}}
+           getLockLoc #n
+         {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
 
   (* The following functions are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
 
   (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
-  Parameter findNext_spec : ∀ (n: Node) (I_n : linkset_flowint_ur K) (C: gset K) (k: K),
-    ({{{ node n I_n C ∗ ⌜k ∈ inset K I_n n ∨ k ∈ linkset K I_n n⌝ }}}
-      findNext #n #k
-    {{{ (b: bool) (n': Node),
-        RET (match b with true => (SOMEV #n') | false => NONEV end);
-        node n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
-                                    false => ⌜¬in_outsets K k I_n⌝ end) }}})%I.
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : linkset_flowint_ur K) (C: gset K),
+    ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜k ∈ inset K In n ∨ k ∈ linkset K In n⌝ }}}
+         findNext #n #k
+       {{{ (succ: bool) (n': Node),
+           RET (match succ with true => (SOMEV #n') | false => NONEV end);
+           node n In C ∗ (match succ with
+                            true => ⌜in_outset K k In n'⌝
+                          | false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
-      (I_n: linkset_flowint_ur K) (C: gset K),
-    ({{{ node n I_n C ∗ ⌜in_inset K k I_n n⌝ ∗ ⌜¬in_outsets K k I_n⌝ }}}
-      decisiveOp dop #n #k
-    {{{ (b: bool) (C': gset K) (res: bool),
-        RET (match b with false => NONEV | true => (SOMEV #res) end);
-        match b with false => node n I_n C |
-                      true => node n I_n C' ∗ Ψ dop k C C' res
-                              ∗ ⌜ C' ⊆ keyset K I_n n⌝
-        end }}})%I.
+      (In: linkset_flowint_ur K) (C: gset K),
+    ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ ∗ ⌜¬in_outsets K k In⌝ }}}
+         decisiveOp dop #n #k
+       {{{ (succ: bool) (res: bool) (C': gset K),
+           RET (match succ with false => NONEV | true => (SOMEV #res) end);
+           match succ with
+             false => node n In C
+           | true => node n In C' ∗ Ψ dop k C C' res
+           end }}})%I.
 
   (** The concurrent search structure invariant *)
 
@@ -194,9 +195,9 @@ Section Link_Template.
   (** Lock module proofs *)
 
   Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
-    <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
-      lockNode #n    @ ⊤
-    <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
+    ⊢ <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
+        lockNode #n    @ ⊤
+      <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
@@ -216,9 +217,9 @@ Section Link_Template.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-    <<< lockLoc n ↦ #true >>>
-      unlockNode #n    @ ⊤
-    <<< lockLoc n ↦ #false, RET #() >>>.
+    ⊢ <<< lockLoc n ↦ #true >>>
+        unlockNode #n    @ ⊤
+      <<< lockLoc n ↦ #false, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". wp_lam. wp_bind(getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
@@ -236,18 +237,18 @@ Section Link_Template.
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (γ_inr γ_fi: Node → gname)
       (root: Node) (k: K) (n: Node) (Ns: gset Node) (I_n:linkset_flowint_ur K):
-    ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
-    ∗ own (γ_inr n) (◯ (inset K I_n n ∪ linkset K I_n n))
-    ∗ ⌜k ∈ inset K I_n n ∨ k ∈ linkset K I_n n⌝ -∗
-    <<< ∀ C, is_CSS γ γ_fp γ_k γ_inr γ_fi root C >>>
-      traverse #n #k @ ⊤
-    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': linkset_flowint_ur K) (Cn': gset K),
-        is_CSS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
-        ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
-        ∗ own γ_k (◯ prod (keyset K I_n' n', Cn')) ∗ ⌜domm I_n' = {[n']}⌝
-        ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
+    ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
+      ∗ own (γ_inr n) (◯ (inset K I_n n ∪ linkset K I_n n))
+      ∗ ⌜k ∈ inset K I_n n ∨ k ∈ linkset K I_n n⌝ -∗
+        <<< ∀ C, is_CSS γ γ_fp γ_k γ_inr γ_fi root C >>>
+            traverse #n #k @ ⊤
+        <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': linkset_flowint_ur K) (Cn': gset K),
+            is_CSS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
+            ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
+            ∗ own γ_k (◯ prod (keyset K I_n' n', Cn')) ∗ ⌜domm I_n' = {[n']}⌝
+                                                                                   ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
-    iLöb as "IH" forall (n Ns I_n). iIntros "(#Hinn & #Hfp & #Hinrfp & #Hkinr)".
+    iLöb as "IH" forall (n Ns I_n). iIntros "(#Hkks & #Hinn & #Hfp & #Hinrfp & #Hkinr)".
     iDestruct "Hinn" as %Hinn.
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
     awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
@@ -272,8 +273,9 @@ Section Link_Template.
     iSplitR "Hb". iFrame "∗ % #". iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In.
     iFrame "# % ∗". iIntros "AU". iModIntro. wp_pures.
     iDestruct "Hb" as (Cn) "(Hrep & Hfil & Hks)". iDestruct "HNds" as %HNds.
-    wp_bind (findNext _ _)%E. wp_apply ((findNext_spec n In Cn k) with "[Hrep]").
-    iFrame; iPureIntro; done. iIntros (b n') "(Hrep & Hb)". destruct b.
+    wp_bind (findNext _ _)%E. wp_apply ((findNext_spec n k In Cn) with "[Hrep]").
+    iDestruct "Hkks" as "%".
+    iFrame; iPureIntro; split; done. iIntros (b n') "(Hrep & Hb)". destruct b.
     - wp_pures. awp_apply (unlockNode_spec n).
       iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
       iDestruct "Hst" as (I1) "(HI & HKS & HNDS & Hglob & Hstar)".
@@ -451,8 +453,8 @@ Section Link_Template.
     iDestruct "Hinn" as %Hinn. iDestruct "Hinset" as %Hinset. iDestruct "Hnotout" as %Hnotout.
     iModIntro. iFrame. iIntros "AU". iModIntro. wp_pures. wp_bind (decisiveOp _ _ _)%E.
     wp_apply ((decisiveOp_spec dop n k In Cn) with "[Hrepn]"). eauto with iFrame.
-    iIntros (b' Cn' res). iIntros "Hb". destruct b'.
-    - iDestruct "Hb" as "(Hrep & #HΨ & #Hsub)".
+    iIntros (b' res Cn'). iIntros "Hb". destruct b'.
+    - iDestruct "Hb" as "(Hrep & #HΨ)".
       wp_pures. wp_bind(unlockNode _)%E.
       awp_apply (unlockNode_spec n).
       iApply (aacc_aupd_commit with "AU"); first done. iIntros (C2) "Hst".
