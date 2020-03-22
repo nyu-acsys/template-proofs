@@ -158,21 +158,21 @@ Section Link_Template.
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : linkset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜k ∈ inset K In n ∨ k ∈ linkset K In n⌝ }}}
          findNext #n #k
-       {{{ (succ: bool) (n': Node),
-           RET (match succ with true => (SOMEV #n') | false => NONEV end);
+       {{{ (succ: bool) (np: Node),
+           RET (match succ with true => (SOMEV #np) | false => NONEV end);
            node n In C ∗ (match succ with
-                            true => ⌜in_outset K k In n'⌝
+                            true => ⌜in_outset K k In np⌝
                           | false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
       (In: linkset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ ∗ ⌜¬in_outsets K k In⌝ }}}
          decisiveOp dop #n #k
-       {{{ (succ: bool) (res: bool) (C': gset K),
+       {{{ (succ: bool) (res: bool) (C1: gset K),
            RET (match succ with false => NONEV | true => (SOMEV #res) end);
            match succ with
              false => node n In C
-           | true => node n In C' ∗ Ψ dop k C C' res
+           | true => node n In C1 ∗ Ψ dop k C C1 res
            end }}})%I.
 
   (** The concurrent search structure invariant *)
