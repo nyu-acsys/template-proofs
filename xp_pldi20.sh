@@ -23,6 +23,11 @@ run()
         # ignore comments and blank lines for line counting
         grep -v -e '^[[:space:]]*$' $f.v | grep -v -e "^[[:space:]]*(\*" | wc -l >> $locfile
         { TIMEFORMAT=%3R; time make $f.vo 2>&1 ; } 2>> $timesfile
+        retcode=$?
+        if [ $retcode -ne 0 ]; then
+            echo -e "\nCoq exited with errors, aborting."
+            exit 1
+        fi
         echo 1 >> $timesfile
     done
     awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $locfile >> $outputfile
