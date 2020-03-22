@@ -111,6 +111,19 @@ Section Give_Up_Template.
   Hypothesis node_sep_star: ∀ n I_n I_n' C C',
     node n I_n C ∗ node n I_n' C' -∗ False.
 
+  (* The node-level invariant (γ in the paper).
+   * See also link.spl for the matching GRASShopper definition *)
+  Definition nodeinv (I_n: inset_flowint_ur K) (n: Node) (C: gset K): Prop :=
+      (∀ (k: K), k ∈ C → k ∈ inset K I_n n) 
+    ∧ (∀ k n', k ∉ C ∨ ¬ in_outset K k I_n n')
+    ∧ (∀ k n' n'', n' = n'' ∨ ¬ in_outset K k I_n n' ∨ ¬ in_outset K k I_n n'').
+
+  (* The following hypothesis is proved as GRASShopper lemmas in
+   * hashtbl-link.spl and b-link.spl *)
+  Hypothesis node_implies_nodeinv : ∀ n I_n C,
+    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n C⌝)%I.
+
+
   (** Coarse-grained specification *)
 
   Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp :=
@@ -159,7 +172,6 @@ Section Give_Up_Template.
              RET (match succ with false => NONEV | true => (SOMEV #res) end);
              match succ with false => node n In C |
                      true => node n In C1 ∗ Ψ dop k C C1 res
-                                  (*∗ ⌜ C1 ⊆ keyset K In n⌝*)
              end }}})%I.
 
   (** The concurrent search structure invariant *)
@@ -413,9 +425,18 @@ Section Give_Up_Template.
       iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "HIn Hrep HKS".
       iExists I. iFrame "∗ % #". iApply "H5". iExists true.
       iFrame "Hlock". eauto with iFrame. } iIntros "Hlock".
+      iPoseProof (own_valid with "HIn") as "%". rename H2 into Hvldn. 
+      iAssert (node n In Cn' ∗ ⌜nodeinv In n Cn'⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
+      { iApply (node_implies_nodeinv _ _ _). rewrite auth_frag_valid in Hvldn *.
+        intros. iFrame "∗ # %". } iDestruct "Hninv" as %Hninv.     
       iMod ((ghost_update_keyset γ_k dop k Cn Cn' res (keyset K In n) C2) with "[H1 HKS]") as "Hgks".
-      iFrame "% ∗ #". iDestruct "Hinset" as %Hinset. iDestruct "Hnotout" as %Hnotout.
-      iPureIntro. apply keyset_def; try done.
+      iDestruct "Hinset" as %Hinset. iDestruct "Hnotout" as %Hnotout. 
+      iFrame "% ∗ #". iPureIntro. { split. intros k0 Hk0. unfold nodeinv in Hninv.
+      destruct Hninv as [Hninv1 [Hninv2 _]]. pose proof (Hninv1 k0 Hk0).
+      apply keyset_def; try done. unfold in_outsets.
+      unfold not. intros. destruct H3 as [n0 H3].
+      pose proof (Hninv2 k0 n0). destruct H4; contradiction.
+      apply keyset_def; try done. }
       iDestruct "Hgks" as (C2') "(#HΨC & Ha & Hf)".
       iModIntro. iExists (C2'), res. iSplitL. iSplitR "HΨC".
       { iExists I. iFrame "∗ % #". iApply "H5". iExists false. iFrame "∗ # %".
