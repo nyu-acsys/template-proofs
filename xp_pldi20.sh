@@ -25,7 +25,7 @@ run()
         { TIMEFORMAT=%3R; time make $f.vo 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
-            echo -e "\nCoq exited with errorso n file $f.v.\n"
+            echo -e "\nCoq exited with errors in file $f.v.\n"
         fi
         echo 1 >> $timesfile
     done
