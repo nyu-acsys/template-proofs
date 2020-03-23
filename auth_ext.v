@@ -2,9 +2,8 @@
 
 From iris.algebra Require Import excl auth gmap agree gset.
 From iris.proofmode Require Import tactics.
-From iris.heap_lang Require Import proofmode notation par.
+From iris.heap_lang Require Import par.
 From iris.bi.lib Require Import fractional.
-From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
 
 Lemma auth_own_incl `{inG Σ (authR A)} `{!CmraDiscrete A} γ (x y: A) :
