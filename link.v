@@ -123,13 +123,13 @@ Section Link_Template.
 
   (* The node-level invariant (γ in the paper).
    * See also link.spl for the matching GRASShopper definition *)
-  Definition nodeinv I_n n: Prop :=
+  Definition nodeinv  (n: Node) (I_n: linkset_flowint_ur K) (C: gset K): Prop :=
     (∀ k, k ∈ linkset K I_n n ∧ ¬ in_outsets K k I_n → in_inset K k I_n n).
 
   (* The following hypothesis is proved as GRASShopper lemmas in
    * hashtbl-link.spl and b-link.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
-    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv I_n n⌝)%I.
+    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv n I_n C⌝)%I.
 
   (** Coarse-grained specification *)
 
@@ -345,7 +345,7 @@ Section Link_Template.
       iApply "IH". iFrame "∗ # %". done.
     - iApply fupd_wp. iMod "AU" as (C) "[Hst [_ Hclose]]". iSpecialize ("Hclose" $! n Ns In Cn).
       iMod ("Hclose" with "[Hst Hfil Hks Hrep Hb]") as "HΦ". iDestruct "Hb" as %Hnotout.
-      iAssert (node n In Cn ∗ ⌜nodeinv In n⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
+      iAssert (node n In Cn ∗ ⌜nodeinv n In Cn⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
       { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". }
       iDestruct "Hninv" as %Hninv.
       iFrame "∗ # %". iPureIntro. unfold nodeinv in Hninv.
@@ -479,10 +479,18 @@ Section Link_Template.
       apply (auth_auth_frac_op_inv _ _ _ _) in H3. apply leibniz_equiv in H3. replace In1.
       iPoseProof ((own_valid γ (◯ In)) with "HIn") as "%". rename H4 into HInV.
       assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }
-      iAssert (node n In Cn' ∗ ⌜nodeinv In n⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
+      iAssert (node n In Cn' ∗ ⌜nodeinv n In Cn'⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
       { iApply (node_implies_nodeinv _ _ _). iFrame "% ∗ #". } iDestruct "Hninv" as %Hninv.
+      iPoseProof (own_valid with "Hks") as "%". rename H4 into HvldCn.
+      rewrite auth_frag_valid in HvldCn *; intros HvldCn. unfold valid, cmra_valid in HvldCn.
+      simpl in HvldCn. unfold ucmra_valid in HvldCn. simpl in HvldCn.
       iMod ((ghost_update_keyset γ_k dop k Cn Cn' res (keyset K In n) C2) with "[HKS Hks]") as "Hgks".
-      iFrame "% ∗ #". iPureIntro. apply keyset_def; try done.
+      assert (k ∈ keyset K In n). apply keyset_def; try done. iFrame "% ∗ #".
+      iEval (unfold Ψ) in "HΨ".
+      { destruct dop.
+        - iDestruct "HΨ" as %(HΨ & _). iPureIntro. subst Cn'. done.
+        - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
+        - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver. }  
       iDestruct "Hgks" as (C2') "(#HΨC & Ha & Hf)".
       iModIntro. iExists (C2'), res. iSplitL. iSplitR "HΨC".
       { iExists I. iFrame "∗ % #".
