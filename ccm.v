@@ -1,15 +1,13 @@
+(** Theory of Commutative Cancelative Monoids (CCMs) *)
+
 Require Import Coq.Logic.Decidable.
 
 From iris Require Export base.
-(*Set Default Proof Using "Type".*)
-
 From stdpp Require Export decidable.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset.
 From stdpp Require Import finite.
 Require Import gmap_more.
-
-(** Commutative Cancelative Monoids (CCMs) *)
 
 Delimit Scope ccm_scope with CCM.
 
@@ -137,16 +135,6 @@ Section product.
 
   Open Scope ccm_scope.
     
-  Instance c1_eq: EqDecision A1.
-  Proof.
-    apply ccm_eq.
-  Defined.
-
-  Instance c2_eq: EqDecision A2.
-  Proof.
-    apply ccm_eq.
-  Defined.
-
   Instance prod_eq: EqDecision (A1 * A2).
   Proof.
     apply prod_eq_dec.
@@ -237,6 +225,7 @@ Proof.
   inversion H1.
 Qed.
 
+(* The type of non-zero maps over CCMs *)
 Record nzmap K `{Countable K} A `{CCM A} :=
   NZMap {
       nzmap_car : gmap K A;
@@ -245,6 +234,8 @@ Record nzmap K `{Countable K} A `{CCM A} :=
 
 Arguments NZMap {_ _ _ _ _} _ _ : assert.
 Arguments nzmap_car {_ _ _ _ _} _ : assert.
+
+(* Lift some common operations from gmaps to nzmaps. *)
 
 Instance nzmap_lookup `{Countable K} `{CCM A} : Lookup K A (nzmap K A) :=
   λ i m, let (m, _) := m in m !! i.
@@ -456,6 +447,20 @@ Qed.
 Class UnitId A `(CCM A) (f : A → A → A) : Prop :=
   unit_id : f 0 0 = 0.
 
+Instance ccm_op_unit_id `{CCM A} : UnitId A _ (+).
+Proof.
+  unfold UnitId.
+    by rewrite ccm_left_id.
+Defined.
+
+Instance lift_opinv_unit_id `{CCM A} : UnitId A _ (-).
+Proof.
+  unfold UnitId.
+  rewrite <- (ccm_right_id 0) at 1.
+    by rewrite ccm_pinv.
+Defined.
+
+
 Lemma nzmap_lookup_merge `{Countable K} `{UnitId A f} (m1 m2 : nzmap K A) (k : K) :
   nzmap_merge f m1 m2 ! k = f (m1 ! k) (m2 ! k).
 Proof.
@@ -522,40 +527,15 @@ Section lifting.
 
   Global Instance lift_unit : CcmUnit (nzmap K A) := nzmap_unit.
     
-  Instance op_zero_dec `(x1 : A, x2 : A) : Decision (x1 + x2 = 0).
-  Proof.
-    apply ccm_eq.
-  Defined.
-
-  Definition lift_merge_op (x y : A) := x + y.
-
-  Instance lift_op_unit_id : UnitId A _ lift_merge_op.
-  Proof.
-    unfold UnitId, lift_merge_op.
-      by rewrite ccm_left_id.
-  Defined.
-  
+  (* Lift CCM operations on A to (nzmap K A) *)
+    
   Instance lift_op : CcmOp (nzmap K A) := λ m1 m2,
-    nzmap_merge lift_merge_op m1 m2.
-
-  Instance opinv_zero_dec `(x1 : A, x2 : A) : Decision (x1 - x2 = 0).
-  Proof.
-    apply ccm_eq.
-  Defined.
-
-  Definition lift_merge_opinv (x y : A) := x - y.
-
-  Instance lift_opinv_unit_id : UnitId A _ lift_merge_opinv.
-  Proof.
-    unfold UnitId, lift_merge_opinv.
-    rewrite <- (ccm_right_id 0) at 1.
-      by rewrite ccm_pinv.
-  Defined.
+    nzmap_merge (+) m1 m2.
 
   Instance lift_opinv : CcmOpInv (nzmap K A) := λ m1 m2,
-    nzmap_merge lift_merge_opinv m1 m2.
+    nzmap_merge (-) m1 m2.
 
-  Implicit Types m : nzmap K A.
+  (* Prove that this yields again a CCM *)
 
   Instance lift_comm: Comm (=) lift_op.
   Proof.
@@ -564,7 +544,6 @@ Section lifting.
     apply nzmap_eq.
     intros.
     repeat rewrite nzmap_lookup_merge.
-    unfold lift_merge_op.
     apply ccm_comm.
   Qed.
 
@@ -575,10 +554,8 @@ Section lifting.
     apply nzmap_eq.
     intros.
     repeat rewrite nzmap_lookup_merge.
-    unfold lift_merge_op.
     apply ccm_assoc.
   Defined.
-
   
   Instance lift_leftid: LeftId (=) 0 lift_op.
   Proof.
@@ -587,7 +564,6 @@ Section lifting.
     rewrite nzmap_eq.
     intros.
     rewrite nzmap_lookup_merge.
-    unfold lift_merge_op.
     apply ccm_left_id.
   Defined.
 
@@ -601,7 +577,6 @@ Section lifting.
     intros.
     pose proof (H1 k).
     repeat rewrite nzmap_lookup_merge in H2.
-    unfold lift_merge_op in H2.
     apply ccm_cancel in H2.
     trivial.
   Defined.
@@ -613,12 +588,14 @@ Section lifting.
     apply nzmap_eq.
     intros.
     repeat rewrite nzmap_lookup_merge.
-    unfold lift_merge_op, lift_merge_opinv.
     apply ccm_pinv.
   Defined.
   
   Global Program Instance lift_ccm : CCM (nzmap K A) := { }.
 
+  Implicit Types m : nzmap K A.
+
+  (* The monoid operation distributes over lookup. *)  
   Lemma lookup_op m1 m2 i : (m1 + m2) ! i = m1 ! i + m2 ! i.
   Proof.
     unfold ccm_op,ccmop at 1.

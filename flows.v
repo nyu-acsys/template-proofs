@@ -1,38 +1,41 @@
-From iris.heap_lang Require Import proofmode.
-From iris.algebra Require Export auth updates local_updates.
-
-From stdpp Require Export gmap.
-From stdpp Require Import mapset finite.
-Require Export ccm gmap_more.
-
-Require Import Coq.Setoids.Setoid.
-
-(** Flow Interface encoding and camera definitions *)
+(** Theory of Flow Interface *)
 
 (* This formalization builds on the paper:
    
    Local Reasoning for Global Graph Properties: Siddharth Krishna and Alexander J. Summers and Thomas Wies, ESOP'20.
 *)
 
+(*From iris.heap_lang Require Import proofmode.*)
+From iris.algebra Require Export auth updates local_updates.
+From stdpp Require Export gmap.
+From stdpp Require Import mapset finite.
+Require Export ccm gmap_more.
+Require Import Coq.Setoids.Setoid.
+
+(* The set of nodes over which graphs are built. *)
 Definition Node := nat.
 
 Section flowint.
 
+(* The underlying flow domain. *)
 Context `{CCM flowdom}.
 
 Open Scope ccm_scope.
 
-
-(* Representation of flow interfaces. The domain of the interface is the domain of its inflow infR. The outflow function is defined to be non-zero in order to obtain a representation that yields a cancelable RA. *)
+(* Representation of flow interfaces: 
+   - The domain of the interface is the domain of its inflow infR. 
+   - The outflow function is defined using nzmap so that interface composition is cancelable. 
+*)
 Record flowintR :=
   {
     infR : gmap Node flowdom;
     outR : nzmap Node flowdom;
   }.
 
+(* TODO: could also just use `option flowintR` here *)
 Inductive flowintT :=
 | int: flowintR → flowintT
-| intUndef: flowintT.
+| intUndef: flowintT. (* used when interface composition is undefined *)
 
 (* The empty interface *)
 Definition I_emptyR := {| infR := ∅; outR := ∅ |}.

@@ -27,7 +27,7 @@ Section Lock_module.
       then #()
       else "lockN" "x".
 
-  (* Unlock node x *)
+  (* Unlock node. x *)
   Definition unlockNode : val :=
     λ: "x",
     let: "l" := getLockLoc "x" in
