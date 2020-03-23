@@ -112,13 +112,13 @@ Section Give_Up_Template.
     node n I_n C ∗ node n I_n' C' -∗ False.
 
   (* The node-level invariant (γ in the paper).
-   * See also link.spl for the matching GRASShopper definition *)
+   * See also hashtbl-give-up.spl and b+-tree.spl for the matching GRASShopper definition *)
   Definition nodeinv (n: Node) (I_n: inset_flowint_ur K) (C: gset K): Prop :=
       (∀ k, k ∈ C → k ∈ inset K I_n n) 
     ∧ (∀ k n', k ∉ C ∨ ¬ in_outset K k I_n n').
 
   (* The following hypothesis is proved as GRASShopper lemmas in
-   * hashtbl-link.spl and b-link.spl *)
+   * hashtbl-give-up.spl and b+-tree.spl *)
   Hypothesis node_implies_nodeinv : ∀ n I_n C,
     (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv n I_n C⌝)%I.
 
@@ -234,8 +234,8 @@ Section Give_Up_Template.
   Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
    ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
      <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
-      traverse root #n #k @ ⊤
-    <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
+       traverse root #n #k @ ⊤
+     <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
         is_CSS γ γ_fp γ_k root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
         ∗ own γ (◯ I_n') ∗ node n' I_n' C_n'
         ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝
