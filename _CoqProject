@@ -18,6 +18,7 @@ inset_flows.v
 linkset_flows.v
 keyset_ra.v
 auth_ext.v
+lock.v
 give_up.v
 link.v
 coupling_inv.v

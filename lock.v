@@ -1,11 +1,8 @@
-From iris.algebra Require Import excl auth gmap agree gset.
+(** Implementation of lock module (shared between all templates) *)
+
 From iris.heap_lang Require Export lifting notation locations lang.
-From iris.base_logic.lib Require Export invariants.
 From iris.program_logic Require Export atomic.
-From iris.proofmode Require Import tactics.
-From iris.heap_lang Require Import proofmode notation par.
-From iris.bi.lib Require Import fractional.
-From iris.bi Require Import derived_laws_sbi.
+From iris.heap_lang Require Import proofmode par.
 Set Default Proof Using "All".
 Require Export flows.
 
@@ -13,9 +10,16 @@ Section Lock_module.
 
   Context `{!heapG Σ}.
 
+  (** Assumed functions to retrieve lock bit from a node *)
   Parameter lockLoc : Node → loc.
   Parameter getLockLoc : val.
 
+  Parameter getLockLoc_spec : ∀ (n: Node),
+    ⊢ ({{{ True }}}
+        getLockLoc #n
+       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
+  
+  (* Lock node x. *)
   Definition lockNode : val :=
     rec: "lockN" "x" :=
       let: "l" := getLockLoc "x" in
@@ -23,22 +27,18 @@ Section Lock_module.
       then #()
       else "lockN" "x".
 
+  (* Unlock node x *)
   Definition unlockNode : val :=
     λ: "x",
     let: "l" := getLockLoc "x" in
     "l" <- #false.
     
-  Parameter getLockLoc_spec : ∀ (n: Node),
-    ⊢ ({{{ True }}}
-        getLockLoc #n
-       {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
-
   (** Lock module proofs *)
 
-  Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
+  Lemma lockNode_spec (n: Node):
     ⊢ <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
       lockNode #n    @ ⊤
-    <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
+    <<< (lockLoc n) ↦ #true ∗ ⌜b = false⌝ , RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
@@ -74,4 +74,3 @@ Section Lock_module.
   Qed.
   
 End Lock_module.  
-    
