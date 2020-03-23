@@ -120,7 +120,6 @@ Section Give_Up_Template.
 
   (** Helper functions specs *)
 
-  (* Todo: we can also try to get rid of getLockLoc and just do CAS (lockLoc "l") #true #false in lock, etc. *)
   Parameter getLockLoc_spec : ∀ (n: Node),
     ⊢ ({{{ True }}}
         getLockLoc #n
@@ -132,11 +131,8 @@ Section Give_Up_Template.
   Parameter inRange_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
    ⊢ ({{{ node n In C }}}
         inRange #n #k
-      {{{ (res: bool), RET #res; node n In C
-           ∗ (match res with true => ⌜in_inset K k In n⌝ |
-                    false => ⌜True⌝ end) }}})%I.
+      {{{ (res: bool), RET #res; node n In C ∗ ⌜res → in_inset K k In n⌝ }}})%I.
 
-  (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ }}}
          findNext #n #k
@@ -173,10 +169,10 @@ Section Give_Up_Template.
 
   (** Lock module proofs *)
 
-  Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
+  Lemma lockNode_spec (n: Node):
     ⊢ <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
       lockNode #n    @ ⊤
-    <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
+    <<< (lockLoc n) ↦ #true ∗ ⌜b = false⌝ , RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
@@ -237,14 +233,15 @@ Section Give_Up_Template.
     iDestruct "Hb" as (b) "[Hlock Hb]".
     iAaccIntro with "Hlock". { iIntros "H". iModIntro. iSplitL.
     iExists I. iFrame "∗ % #". iApply "H5". iExists b.
-    iFrame. eauto with iFrame. } iIntros "(Hloc & ?)".
-    destruct b. { iExFalso. done. } iModIntro.
+    iFrame. eauto with iFrame. } iIntros "(Hloc & %)".
+    destruct b. { iExFalso. done. } clear H1. iModIntro.
     iSplitR "Hb". iExists I. iFrame "∗ % #". iApply "H5". iExists true.
     iFrame. iIntros "AU". iModIntro. wp_pures.
     iDestruct "Hb" as (In Cn) "(HIn & Hrep & #HNds & HKS)". iDestruct "HNds" as %HNds.
     wp_bind (inRange _ _)%E. wp_apply ((inRange_spec n k In Cn) with "Hrep").
     iIntros (b) "(Hrep & Hb)". destruct b.
-    - wp_pures. wp_bind (findNext _ _)%E. iDestruct "Hb" as %Hinset.
+    - wp_pures. wp_bind (findNext _ _)%E. iSimpl in "Hb".
+      iDestruct "Hb" as %Hinset. pose proof (Hinset Coq.Init.Logic.I) as Hinset.
       wp_apply ((findNext_spec n k In Cn) with "[Hrep]"). iFrame "∗ # %".
       iIntros (b n') "(Hrep & Hbb)". destruct b.
       + wp_pures. awp_apply (unlockNode_spec n).
@@ -272,7 +269,8 @@ Section Give_Up_Template.
           iAssert (⌜n' ∈ domm I1⌝)%I as "%".
           { iPureIntro. assert (n' ∈ domm I2).
             { apply (flowint_step I1 In I2 k n' root); try done. }
-            unfold globalinv in H1. destruct H1 as [HI1 H1]. apply leibniz_equiv in H4. rewrite H4 in HI1.
+            unfold globalinv in H1. destruct H1 as [HI1 H1].
+            apply leibniz_equiv in H4. rewrite H4 in HI1.
             assert (domm (In⋅I2) = domm (In) ∪ domm (I2)). { apply intComp_dom. done. } rewrite H4.
             rewrite H7. set_solver. }
             iFrame. iPureIntro. split; try done. apply globalinv_root_fp. auto. }

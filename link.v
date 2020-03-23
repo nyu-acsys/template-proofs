@@ -137,7 +137,6 @@ Section Link_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
 
-  (* Todo: Can we simplify the match to ⌜b → in_inset k I_n n⌝? *)
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : linkset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜k ∈ inset K In n ∨ k ∈ linkset K In n⌝ }}}
          findNext #n #k
@@ -176,10 +175,10 @@ Section Link_Template.
 
   (** Lock module proofs *)
 
-  Lemma lockNode_spec (n: Node): (* TODO rewrite if then else *)
+  Lemma lockNode_spec (n: Node):
     ⊢ <<< ∀ (b: bool), (lockLoc n) ↦ #b >>>
         lockNode #n    @ ⊤
-      <<< (lockLoc n) ↦ #true ∗ if b then False else True, RET #() >>>.
+      <<< (lockLoc n) ↦ #true ∗ ⌜b = false⌝, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(getLockLoc _)%E.
@@ -244,8 +243,8 @@ Section Link_Template.
     iDestruct "Hn" as (b In) "(Hlock & Hb & HIn & #HNds & Hfis & Hks)".
     iAaccIntro with "Hlock". { iIntros "H". iModIntro. iSplitL. iFrame "∗ % #".
     iExists I. iFrame "∗ % #". iApply "Hstar". iExists b, In.
-    iFrame "# % ∗". eauto with iFrame. } iIntros "(Hloc & ?)".
-    destruct b. { iExFalso. done. } iModIntro.
+    iFrame "# % ∗". eauto with iFrame. } iIntros "(Hloc & %)".
+    destruct b. { iExFalso. done. } iModIntro. clear H1.
     iPoseProof ((auth_own_incl (γ_inr n) (_ ∪ _) (_ ∪ _)) with "[$]") as "%".
     apply gset_included in H1.
     iDestruct "Hkinr" as "%".
