@@ -50,7 +50,7 @@ Section Give_Up_Template.
 
   (** The code of the give-up template. *)
 
-  Inductive dOp := memberOp | insertOp | deleteOp.
+  Inductive dOp := searchOp | insertOp | deleteOp.
 
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. See GRASShopper files b+-tree.spl and
@@ -127,7 +127,7 @@ Section Give_Up_Template.
 
   Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp :=
     match dop with
-    | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    | searchOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
     | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     end.

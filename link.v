@@ -65,7 +65,7 @@ Section Link_Template.
 
   (** The code of the link template. *)
 
-  Inductive dOp := memberOp | insertOp | deleteOp.
+  Inductive dOp := searchOp | insertOp | deleteOp.
 
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. See GRASShopper files b-link-core.spl and
@@ -135,7 +135,7 @@ Section Link_Template.
 
   Definition Ψ dop k (C: gset K) (C': gset K) (res: bool) : iProp :=
     match dop with
-    | memberOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    | searchOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
     | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
     end.

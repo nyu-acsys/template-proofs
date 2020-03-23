@@ -56,7 +56,7 @@ Section Coupling_Template.
 
   (** The code of the coupling template. *)
 
-  Inductive dOp := memberOp | insertOp | deleteOp.
+  Inductive dOp := searchOp | insertOp | deleteOp.
 
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. See GRASShopper files b+-tree.spl and
@@ -237,7 +237,7 @@ Section Coupling_Template.
 
   Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : Prop :=
     match dop with
-    | memberOp => C' = C ∧ if res then k ∈ C else k ∉ C
+    | searchOp => C' = C ∧ if res then k ∈ C else k ∉ C
     | insertOp => C' = union C {[k]} ∧ if res then k ∉ C else k ∈ C
     | deleteOp => C' = difference C {[k]} ∧ if res then k ∈ C else k ∉ C
     end.
