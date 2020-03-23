@@ -33,12 +33,15 @@ Here is the file tree of this VM:
         Extension of maps
   - flows.v:
         The flow framework and flow interfaces camera definitions
+  - keyset_ra.v:
+        The Keyset RA from Sec 4.2 of the paper
   - inset_flows.v:
         Instantiation of flows used by give-up and coupling templates
   - linkset_flows.v:
         Instantiation of flows used by link template
-  - keyset_ra.v:
-        The Keyset RA from Sec 4.2 of the paper
+  - auth_ext.v:
+        Assorted auxiliary lemmas for authoritative RAs used by the
+        template proofs.
   - link.v:
         The link template algorithm and proof
   - give_up.v:
@@ -61,8 +64,12 @@ Here is the file tree of this VM:
         Common definitions across all link template implementations
   - lock-coupling.spl:
         Common definitions across all lock-coupling template implementations
-  - b-link.spl:
+  - b-link-core.spl:
         The B-link tree implementation of the link template
+  - b-link-half.spl:
+        The half split operation on B-link trees
+  - b-link-full.spl:
+        The full split operation on B-link trees
   - b+-tree.spl:
         The B+ tree implementation of the give-up template
   - hashtbl-give-up.spl:
