@@ -170,10 +170,9 @@ Section Link_Template.
          decisiveOp dop #n #k
        {{{ (succ: bool) (res: bool) (C1: gset K),
            RET (match succ with false => NONEV | true => (SOMEV #res) end);
-           match succ with
-             false => node n In C
-           | true => node n In C1 ∗ Ψ dop k C C1 res
-           end }}})%I.
+           node n In C1 ∗ (match succ with false => ⌜C = C1⌝
+                                      | true => Ψ dop k C C1 res
+                           end) }}})%I.
 
   (** The concurrent search structure invariant *)
 
@@ -321,7 +320,7 @@ Section Link_Template.
       assert (k ∈ inset K In' n' ∨ k ∈ linkset K In' n').
       {
         apply or_comm.
-        apply (flowint_linkset_step In In' k n'). done. set_solver.  
+        apply (flowint_linkset_step In In' k n'). done. set_solver.
         unfold in_outset in Hb. done.
       }
       assert (root ∈ domm I1). { apply globalinv_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
@@ -329,7 +328,7 @@ Section Link_Template.
                        (● (inset K In' n' ∪ linkset K In' n')
                           ⋅ ◯ (inset K In' n' ∪ linkset K In' n'))
               with "Hks1'") as "HNs".
-      apply auth_update_core_id. 
+      apply auth_update_core_id.
       apply gset_core_id. done. iDestruct "HNs" as "(Hks1' & #Hinr1')".
       iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "Hfil Hks Hrep". iFrame "∗ # %".
       iExists I1. iFrame "∗ % #". rewrite (big_sepS_delete _ (domm I1) n); last by eauto.
@@ -490,7 +489,7 @@ Section Link_Template.
       { destruct dop.
         - iDestruct "HΨ" as %(HΨ & _). iPureIntro. subst Cn'. done.
         - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
-        - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver. }  
+        - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver. }
       iDestruct "Hgks" as (C2') "(#HΨC & Ha & Hf)".
       iModIntro. iExists (C2'), res. iSplitL. iSplitR "HΨC".
       { iExists I. iFrame "∗ % #".
@@ -508,16 +507,27 @@ Section Link_Template.
       rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
       iDestruct "Hstar" as "[Hn Hstar]".
       iDestruct "Hn" as (b' In1) "(Hlock & Hb' & HIn & #HNds & Hfis & Hinreach)".
-      destruct b'; first last. { iDestruct "Hb'" as (Cn'') "(Hrep' & _)".
-      iAssert (⌜False⌝)%I with "[Hb Hrep']" as %Hf. { iApply (node_sep_star n In In1).
-      iFrame "∗ # %". } exfalso. done. }
-      iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "Hfil Hb Hks".
-      iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In1.
-      iFrame "∗ # %". eauto with iFrame. } iIntros "Hlock". iModIntro.
-      iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
-      apply (auth_auth_frac_op_inv _ _ _ _) in H1. apply leibniz_equiv in H1. replace In1.
-      iSplitR "". iExists I. iFrame "∗ % #". iApply "Hstar". iExists false, In. iFrame "∗ % #".
-      iExists Cn. iFrame. iIntros "AU". iModIntro. wp_pures. iApply "IH"; try done.
+      destruct b'; first last.
+      { iDestruct "Hb'" as (Cn'') "(Hrep' & _)".
+        iAssert (⌜False⌝)%I with "[Hb Hrep']" as %Hf.
+        { iDestruct "Hb" as "(Hrep & %)".
+          iApply (node_sep_star n In In1).
+          iFrame "∗ # %". }
+        exfalso. done. }
+      iAaccIntro with "Hlock".
+      { iIntros "Hlock". iModIntro. iSplitR "Hfil Hb Hks".
+        iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In1.
+        iFrame "∗ # %". eauto with iFrame. }
+      iIntros "Hlock". iModIntro.
+      iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1))
+                    with "[Hfil] [Hfis]") as "%"; try done.
+      apply (auth_auth_frac_op_inv _ _ _ _) in H1.
+      apply leibniz_equiv in H1. replace In1.
+      iSplitR "". iExists I.
+      iDestruct "Hb" as "(Hb & %)". subst Cn'.
+      iFrame "∗ % #". iApply "Hstar". iExists false, In. iFrame "∗ % #".
+      iExists Cn. iFrame. iIntros "AU". iModIntro. wp_pures.
+      iApply "IH"; try done.
   Qed.
 
 End Link_Template.
