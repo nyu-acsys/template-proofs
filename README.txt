@@ -39,6 +39,8 @@ Contents of the VM
         Instantiation of flows used by link template
   - keyset_ra.v:
         The Keyset RA from Sec 4.2 of the paper
+  - lock.v:
+        The implementation and proofs for node locking operations.
   - link.v:
         The link template algorithm and proof
   - give_up.v:
@@ -98,7 +100,7 @@ You can prefix the make command with e.g. `TIMED=true` in order to time each che
 You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as either `Parameter` (for the helper function implementations) or `Hypothesis` (for an implementation-dependent lemma of the same name checked by GRASShopper). See below for a complete list of such assumptions.
 
 Apart from these, we make the following assumptions in our Iris proofs:
-lockLoc, getLockLoc, getLockLoc_spec, and node_timeless_proof. The first three assumptions are a way to talk about the lock field of each node that all GRASShopper implementations have, and the final one is justified because GRASShopper uses a first-order separation logic.
+lockLoc, getLockLoc, getLockLoc_spec, and node_timeless_proof. The first three assumptions are a way to talk about the lock field of each node that all GRASShopper implementations have. These assumptions are declared in the file `lock.v`. The assumption node_times_proof is justified because GRASShopper uses a first-order separation logic.
 
 
 Implementation Proofs
@@ -137,6 +139,6 @@ The give-up template proof (templates/give_up.v) makes the following assumptions
     These are GRASShopper procedures in the implementation files. Note that decisiveOp is a placeholder for each of the three search structure operations: search, insert, and delete.
   - Parameters findNext_spec, inRange_spec, and decisiveOp_spec:
     These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
-  - Hypothesis node_sep_star:
-    This has a GRASShopper lemmas of the same name, with a proof in each implementation file.
+  - Hypothesis node_sep_star and node_implies_nodeinv:
+    These have GRASShopper lemmas of the same name, with proofs in each implementation file.
 
