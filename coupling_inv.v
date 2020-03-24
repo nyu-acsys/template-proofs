@@ -104,20 +104,20 @@ Section Coupling_Template.
   (* The node-local invariant. 
    * See list-coupling.spl for the corresponding GRASShopper definition.*)
   (* TODO there's a slight discrepancy between this and grasshopper. *)
-  Definition nodeinv root n (I_n : inset_flowint_ur K) C_n : Prop :=
-    n ∈ domm I_n
-    ∧ C_n ⊆ keyset K I_n n
-    ∧ (∀ k : K, default 0 (inf I_n n !! k) ≤ 1)
-    ∧ (n = root → ∀ k : K, k ∈ KS → in_outsets K k I_n).
+  Definition nodeinv root n (In : inset_flowint_ur K) Cn : Prop :=
+    n ∈ domm In
+    ∧ Cn ⊆ keyset K In n
+    ∧ (∀ k : K, default 0 (inf In n !! k) ≤ 1)
+    ∧ (n = root → ∀ k1 : K, k1 ∈ KS → in_outsets K k1 In).
 
   (* The following hypotheses are proved as GRASShopper lemmas in
    * list-coupling.spl *)
-  Hypothesis node_implies_nodeinv : ∀ root n I_n C,
-    (⌜✓I_n⌝)%I ∗ node root n I_n C
-    -∗ node root n I_n C ∗ (⌜nodeinv root n I_n C⌝)%I.
+  Hypothesis node_implies_nodeinv : ∀ root n In C,
+    (⌜✓In⌝)%I ∗ node root n In C
+    -∗ node root n In C ∗ (⌜nodeinv root n In C⌝)%I.
 
-  Hypothesis node_sep_star: ∀ root n I_n I_n' C C',
-    node root n I_n C ∗ node root n I_n' C' -∗ False.
+  Hypothesis node_sep_star: ∀ root n In In' C C',
+    node root n In C ∗ node root n In' C' -∗ False.
 
   Lemma successor_not_root : ∀ (I I1 I2 I3 : flowintT) C root n k,
       globalinv K root I →
@@ -217,26 +217,30 @@ Section Coupling_Template.
    * (see list-coupling.spl) *)
 
   (* TODO ghp spec doesn't match *)
-  Parameter findNext_spec : ∀ root (n: Node) (I_n : inset_flowint_ur K) (C: gset K) (k: K),
-     ⊢ ({{{ node root n I_n C ∗ ⌜in_inset K k I_n n⌝ }}}                
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K) root,
+     ⊢ ({{{ node root n In C ∗ ⌜in_inset K k In n⌝ }}}                
            findNext #n #k
-       {{{ (b: bool) (n': Node),
-              RET (match b with true => (SOMEV #n') | false => NONEV end);
-               node root n I_n C ∗ (match b with true => ⌜in_outset K k I_n n'⌝ |
-                                          false => ⌜¬in_outsets K k I_n⌝ ∗ ⌜n ≠ root⌝ end) }}})%I.
+       {{{ (succ: bool) (np: Node),
+              RET (match succ with true => (SOMEV #np) | false => NONEV end);
+               node root n In C ∗ (match succ with true => ⌜in_outset K k In np⌝ |
+                                          false => ⌜¬in_outsets K k In⌝ ∗ ⌜n ≠ root⌝ end) }}})%I.
 
-  Parameter decisiveOp_insert_spec : ∀ dop root (p n m: Node) (k: K) (I_p I_n: inset_flowint_ur K) (C_p C_n: gset K),
-     ⊢ ({{{ node root p I_p C_p ∗ node root n I_n C_n ∗ hrep_spatial m ∗ ⌜n ≠ root⌝ ∗ ⌜m ≠ root⌝
-                          ∗ ⌜in_inset K k I_p p⌝ ∗ ⌜in_outset K k I_p n ⌝ ∗ ⌜¬in_outsets K k I_n⌝ }}}
+  Parameter decisiveOp_insert_spec : ∀ dop root (p n m: Node) (k: K) (Ip In: inset_flowint_ur K) (Cp Cn: gset K),
+     ⊢ ({{{ node root p Ip Cp ∗ node root n In Cn ∗ hrep_spatial m ∗ ⌜n ≠ root⌝ ∗ ⌜m ≠ root⌝
+                          ∗ ⌜in_inset K k Ip p⌝ ∗ ⌜in_outset K k Ip n ⌝ ∗ ⌜¬in_outsets K k In⌝ }}}
            decisiveOp dop #p #n #k
-       {{{ (C_p' C_n' C_m': gset K) (I_p' I_n' I_m': flowintUR K_multiset) (res: bool), RET  #res;
-                           node root p I_p' C_p' ∗ node root n I_n' C_n' ∗ node root m I_m' C_m'
-                         ∗ Ψ dop k (C_p ∪ C_n) (C_p' ∪ C_n' ∪ C_m') res
-                         ∗ ⌜contextualLeq _ (I_p ⋅ I_n) (I_p' ⋅ I_n' ⋅ I_m')⌝ ∗ ⌜inf (I_p'⋅I_n'⋅I_m') m = 0%CCM⌝
-                         ∗ ⌜domm I_p' = {[p]}⌝ ∗ ⌜domm I_n' = {[n]}⌝ ∗ ⌜domm I_m' = {[m]}⌝
-                         ∗ ⌜keyset K I_p' p ## keyset K I_n' n⌝ ∗ ⌜keyset K I_p' p ## keyset K I_m' m⌝
-                         ∗ ⌜keyset K I_m' m ## keyset K I_n' n⌝
-                         ∗ ⌜keyset K I_p' p ∪ keyset K I_n' n ∪ keyset K I_m' m = keyset K I_p p ∪ keyset K I_n n⌝ }}})%I.
+       {{{ (Cp1 Cn1 Cm1: gset K) (Ip1 In1 Im1: flowintUR K_multiset) (res: bool), RET  #res;
+                  node root p Ip1 Cp1
+                ∗ node root n In1 Cn1
+                ∗ node root m Im1 Cm1
+                ∗ Ψ dop k (Cp ∪ Cn) (Cp1 ∪ Cn1 ∪ Cm1) res
+                ∗ ⌜contextualLeq _ (Ip ⋅ In) (Ip1 ⋅ In1 ⋅ Im1)⌝
+                ∗ ⌜inf (Ip1 ⋅ In1 ⋅ Im1) m = 0%CCM⌝
+                ∗ ⌜domm Ip1 = {[p]}⌝ ∗ ⌜domm In1 = {[n]}⌝ ∗ ⌜domm Im1 = {[m]}⌝
+                ∗ ⌜keyset K Ip1 p ## keyset K In1 n⌝
+                ∗ ⌜keyset K Ip1 p ## keyset K Im1 m⌝
+                ∗ ⌜keyset K Im1 m ## keyset K In1 n⌝
+                ∗ ⌜keyset K Ip1 p ∪ keyset K In1 n ∪ keyset K Im1 m = keyset K Ip p ∪ keyset K In n⌝ }}})%I.
 
   Parameter alloc_spec :
      ⊢ ({{{ True }}}
@@ -340,7 +344,7 @@ Section Coupling_Template.
     { unfold in_inset. fold (inset K I_n n).
       apply (flowint_inset_step I_p I_n k n); try done. set_solver. }
     iDestruct "H" as "(HIp & HIn)".
-    wp_apply ((findNext_spec root n I_n C_n k) with "[Hnoden]"). iFrame "∗ % #".
+    wp_apply ((findNext_spec n k I_n C_n root) with "[Hnoden]"). iFrame "∗ % #".
     iIntros (b n') "(Hnoden & Hb)". destruct b.
     - iDestruct "Hb" as "%". wp_pures.
       wp_bind (lockNode _)%E.
@@ -444,7 +448,7 @@ Section Coupling_Template.
     wp_pures. wp_bind(findNext _ _)%E.
     assert (in_inset K k If root). { unfold globalinv in H1. destruct H1 as [? [? [? ?]]].
     specialize (H7 root). destruct H7 as [H7 _]. apply (inset_monotone I0 If Io k root); try done; set_solver. }
-    wp_apply ((findNext_spec root root If Cf k) with "[Hnodef]").
+    wp_apply ((findNext_spec root k If Cf root) with "[Hnodef]").
     { iFrame "∗ # %". } iIntros (b n) "(Hnodef & Hb)".
     destruct b; last first. wp_pures. iDestruct "Hb" as "(% & %)".
     exfalso. apply H6. done. iDestruct "Hb" as "%". wp_pures.
