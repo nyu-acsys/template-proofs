@@ -1,9 +1,12 @@
-(** Camera definitions and proofs for the keyset RA *)
+(** Camera definitions and proofs for the keyset RA. *)
 
 From iris.algebra Require Import gset.
 From iris.proofmode Require Import tactics.
+From iris.base_logic.lib Require Export iprop.
+From iris.base_logic.lib Require Export invariants.
+
 Set Default Proof Using "All".
-Require Export flows.
+Require Export flows auth_ext.
 
 Section keyset_ra.
 
@@ -132,9 +135,9 @@ Qed.
 Canonical Structure keysetUR : ucmraT := UcmraT prodT prod_ucmra_mixin.
 
 Lemma auth_ks_included (a1 a2 b1 b2: gset K) :
-           ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)
-              → (a1 = a2 ∧ b1 = b2) ∨
-                  (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
+  ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)
+  → (a1 = a2 ∧ b1 = b2) ∨
+    (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
 Proof.
   intros H1 H2 H0. destruct H0 as [z H0]. assert (✓ z). { apply (cmra_valid_op_r (prod (a1, b1))).
   rewrite <- H0. done. } rewrite /(✓ prod (a1, b1)) /= in H1. rewrite /(✓ prod (a2, b2)) /= in H2.
@@ -148,8 +151,8 @@ Proof.
 Qed.
 
 Lemma auth_ks_local_update_insert K1 C Cn k:
-            ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn ∧ k ∈ KS →
-           (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
+  ✓ prod (KS, C) ∧ ✓ prod (K1, Cn) ∧ k ∈ K1 ∧ k ∉ Cn ∧ k ∈ KS →
+  (prod (KS, C), prod (K1, Cn)) ~l~> (prod (KS, C ∪ {[k]}), prod (K1, Cn ∪ {[k]})).
 Proof.
   intros [H1 [H2 [H3 [H4 HKS]]]]. apply local_update_discrete. intros z.
   intros _. intros. split. rewrite /(✓ prod (KS, C ∪ {[k]})) /=.
@@ -196,7 +199,94 @@ Proof.
   rewrite /(opM) /=. inversion H0. done.
 Qed.
 
-
 End keyset_ra.
 
 Arguments keysetUR _ {_ _}.
+
+Section keyset_updates.
+  Context `{Countable K}.
+
+  (** RA for pairs of keysets and contents *)
+
+  Class keysetG Σ := KeysetG { keyset_inG :> inG Σ (authUR (keysetUR K)) }.
+  Definition keysetΣ : gFunctors := #[GFunctor (authUR (keysetUR K))].
+
+  Global Instance subG_keysetΣ {Σ} : subG keysetΣ Σ → keysetG Σ.
+  Proof. solve_inG. Qed.
+
+  Context `{!keysetG Σ}.
+
+  (** Abstract specification of search structure operations *)
+  
+  Inductive dOp := searchOp | insertOp | deleteOp.
+
+  Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp Σ :=
+    match dop with
+    | searchOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+    | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
+    | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
+  end.
+
+  Global Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
+  Proof. destruct dop; apply _. Qed.
+
+  (** Ghost update of abstract search structure state *)
+  
+  Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
+    ⊢ Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
+    ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
+    ==∗ ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C'))
+      ∗ own γ_k (◯ prod (K1, Cn')).
+  Proof.
+    iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl γ_k (prod (KS, C)) (prod (K1, Cn))
+                with "[$Ha $Hf]") as "%". iDestruct "HKS" as %HKS.
+    iPoseProof ((own_valid γ_k (● prod (KS, C))) with "Ha") as "%".
+    iPoseProof ((own_valid γ_k (◯ prod (K1, Cn))) with "Hf") as "%".
+    assert ((K1 = KS ∧ Cn = C) ∨
+            (∃ a0 b0, KS = K1 ∪ a0 ∧ C = Cn ∪ b0 ∧ K1 ## a0 ∧ Cn ## b0 ∧ Cn ⊆ K1 ∧ C ⊆ KS ∧ b0 ⊆ a0)) as Hs.
+    { apply (auth_ks_included K1 KS Cn C); try done. apply auth_auth_valid. done. }
+    destruct Hs.
+    - iEval (unfold Ψ) in "HΨ". destruct H5. destruct dop.
+      + iDestruct "HΨ" as "%". destruct H7.
+        iModIntro. iExists C. iEval (rewrite <-H7) in "Hf". iFrame. unfold Ψ.
+        iPureIntro. split; try done. rewrite <-H6. done.
+      + iDestruct "HΨ" as "%". destruct H7. destruct res.
+        * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn))
+          (● prod (KS, C ∪ {[k]}) ⋅ ◯ prod (K1, Cn ∪ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
+          { apply auth_update. apply auth_ks_local_update_insert.
+            split; try done. apply auth_auth_valid. done.   }
+          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H7). iFrame.
+          unfold Ψ. iPureIntro. split; try done. rewrite <-H6. done.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H9) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. rewrite <- H6. split; try done. rewrite H9 in H7. done.
+      + iDestruct "HΨ" as "%". destruct H7. destruct res.
+        * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn))
+          (● prod (KS, C ∖ {[k]}) ⋅ ◯ prod (K1, Cn ∖ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
+          { apply auth_update. apply auth_ks_local_update_delete. split; try done. apply auth_auth_valid. done. }
+          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H7). iFrame.
+          unfold Ψ. iPureIntro. split; try done. rewrite <-H6. done.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H9) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. rewrite <- H6. split; try done. rewrite H9 in H7. done.
+    - destruct H5 as [Ko [Co [H5 [H6 [H7 [H8 [H9 [H10 H11]]]]]]]]. destruct dop.
+      + iDestruct "HΨ" as "%". destruct H12.
+        iModIntro. iExists C. iEval (rewrite <-H12) in "Hf". iFrame. unfold Ψ.
+        iPureIntro. split; try done. destruct res; set_solver.
+      + iDestruct "HΨ" as "%". destruct H12. destruct res.
+        * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn))
+          (● prod (KS, C ∪ {[k]}) ⋅ ◯ prod (K1, Cn ∪ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
+          { apply auth_update. apply auth_ks_local_update_insert. split; try done. }
+          iModIntro. iExists (C ∪ {[k]}). iEval (rewrite H12). iFrame.
+          unfold Ψ. iPureIntro. split; try done. set_solver.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H14) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. set_solver.
+      + iDestruct "HΨ" as "%". destruct H12. destruct res.
+        * iMod (own_update_2 γ_k (● prod (KS, C)) (◯ prod (K1, Cn))
+          (● prod (KS, C ∖ {[k]}) ⋅ ◯ prod (K1, Cn ∖ {[k]})) with "[Ha] [Hf]") as "(Ha & Hf)"; try done.
+          { apply auth_update. apply auth_ks_local_update_delete. split; try done. }
+          iModIntro. iExists (C ∖ {[k]}). iEval (rewrite H12). iFrame.
+          unfold Ψ. iPureIntro. split; try done. set_solver.
+        * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H14) in "Hf".
+          iFrame. unfold Ψ. iPureIntro. set_solver.
+  Qed.
+
+End keyset_updates.

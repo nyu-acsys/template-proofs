@@ -1,6 +1,6 @@
 Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
-Require Export flows ccm.
+Require Export flows ccm keyset_ra.
 
 (** Flow interface cameras and auxiliary lemmas for inset and linkset flows
   (used in the link template proof) *)
@@ -9,13 +9,15 @@ Section linkset_flows.
 
 Context `{Countable K}.
   
+Definition KS := @KS K _ _.
+
 (** CCM of pairs of multisets over keys *)
 
 Definition K_multiset := nzmap K nat.
 
 Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
-Definition dom_ms (m : K_multiset) := nzmap_dom K nat m.
+Definition dom_ms (m : K_multiset) := nzmap_dom m.
 
 Instance K_multiset_pair_ccm : CCM (K_multiset * K_multiset) :=
   prod_ccm K_multiset K_multiset.
@@ -60,10 +62,16 @@ Definition globalinv root I :=
   ✓I
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
-  ∧ (∀ k, k ∈ inset I root ∧ k ∈ linkset I root)
+  ∧ (∀ k, k ∈ KS → k ∈ inset I root ∧ k ∈ linkset I root)
   ∧ (∀ n, (n ≠ root) → (∀ k, ¬(k ∈ inset I n ∧ k ∉ linkset I n))).
 
 (** Assorted lemmas about inset and linkset flows used in the template proofs *)
+
+Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ domm I.
+Proof.
+  intros I root Hglob. unfold globalinv in Hglob.
+  destruct Hglob as [H1 [H2 H3]]. done.
+Qed.
 
 Lemma flowint_step :
   ∀ I I1 I2 k n root,
@@ -71,84 +79,70 @@ Lemma flowint_step :
 Proof.
   intros I I1 I2 k n r gInv dI kOut.
   unfold globalinv in gInv.
-  destruct gInv as [vI [rI [cI globalInf]]].
+  destruct gInv as (vI & rI & cI & _).
+  rewrite dI in vI.
   
   assert (domm I = domm I1 ∪ domm I2) as disj.
-  rewrite dI in vI.
   pose proof (intComp_dom _ _ vI).
   rewrite dI.
   trivial.
 
-  assert (✓ I1) as vI1.
-  rewrite dI in vI.
-  eauto using intComp_valid_proj1.
-
-  assert (✓ I2) as vI2.
-  rewrite dI in vI.
-  eauto using intComp_valid_proj2.
-
-  apply flowint_valid_unfold in vI1.
-  destruct vI1 as [Ir1 [dI1 [disj1 _]]].
-  apply flowint_valid_unfold in vI2.
-  destruct vI2 as [Ir2 [dI2 [disj2 _]]].
-
   (* First, prove n ∉ domm I1 *)
-  assert (n ∈ dom (gset Node) (outR Ir1)) as inOut1n.
-  apply elem_of_dom.
-
-  unfold outset, dom_ms, nzmap_dom in kOut.
+  destruct (decide (n ∈ domm I1)).
+  pose proof (intComp_valid_proj1 I1 I2 vI) as vI1.
+  pose proof (intValid_in_dom_not_out I1 n vI1 e).
+  unfold outset, dom_ms in kOut.
   rewrite elem_of_union in kOut *.
   intros kOut.
-  repeat (rewrite nzmap_elem_of_dom in kOut *; intros kOut).
-   
-  unfold out, out_map in kOut.
-  rewrite dI1 in kOut.
-  destruct (outR Ir1 !! n); eauto.
-  unfold default in kOut.
-  rewrite lift_lookup_empty in kOut.
-  unfold is_Some in kOut.
-  destruct kOut as [[x H0] | [x H0]].
-  all: try inversion H0.
-
-  assert (dom (gset Node) (infR Ir1) ## dom (gset Node) (outR Ir1)) as domDisj1.
-  by apply map_disjoint_dom.
-
-  assert (n ∉ dom (gset Node) (infR Ir1)) as not_in_Inf1_n.
-  set_solver.
-
+  rewrite nzmap_elem_of_dom_total in kOut *.
+  intros.
+  (*unfold ccmunit, ccm_unit, K_multiset_ccm, lift_ccm, lift_unit in H0.*)
+  rewrite H0 in H1.
+  rewrite nzmap_lookup_empty in H1.
+  { destruct H1.
+    - contradiction.
+    - unfold ccmunit, ccm_unit, K_multiset_pair_ccm, prod_ccm, prod_unit in H1.
+      simpl in H1.
+      rewrite nzmap_elem_of_dom_total in H1 *.
+      intros.
+      rewrite nzmap_lookup_empty in H1.
+      contradiction.
+  }
+  
   (* Now, prove n ∈ domm I *)
   assert (n ∈ domm I) as in_Inf_n. 
-  rewrite dI in vI.
+  (*rewrite dI in vI.*)
   pose proof (intComp_unfold_out I1 I2 vI n).
   destruct (decide (n ∉ domm (I1 ⋅ I2))).
-  apply H0 in n0.
+  apply H0 in n1.
   pose proof (cI k n) as not_k_out.
   unfold outset, dom_ms in not_k_out.
   rewrite not_elem_of_union in not_k_out *.
   intros not_k_out.
   unfold op, cmra_op, ucmra_cmraR, ucmra_op, linkset_flowint_ur, flowintUR in dI.
-  unfold op in n0.
-  rewrite <- dI in n0.
-  rewrite n0 in not_k_out.
+  unfold op in n1.
+  rewrite <- dI in n1.
+  rewrite n1 in not_k_out.
   repeat (rewrite nzmap_elem_of_dom_total in not_k_out *;
   intro not_k_out).
-  unfold ccmop, ccm_op, K_multiset_pair_ccm, K_multiset_ccm, prod_ccm, prod_op in not_k_out.
+  unfold ccmop, ccm_op, K_multiset_pair_ccm at 1 4, K_multiset_ccm at 1 4, prod_ccm, prod_op in not_k_out.
   simpl in not_k_out.
   repeat rewrite lookup_op in not_k_out.
   unfold outset, dom_ms in kOut.
   rewrite elem_of_union in kOut *.
   intros kOut.
   repeat (rewrite nzmap_elem_of_dom_total in kOut *; intros kOut).
-  remember (nzmap_total_lookup k (out I1 n).1) as x1.
-  remember (nzmap_total_lookup k (out I1 n).2) as x2.
-  unfold ccmop, ccm_op, nat_ccm, nat_op, ccmunit, nat_unit in not_k_out.
+  unfold ccmop, ccm_op, nat_ccm at 1 4, nat_op, ccmunit, nat_unit in not_k_out.
   destruct not_k_out as (not_k_out1 & not_k_out2).
   apply dec_stable in not_k_out1.
   apply dec_stable in not_k_out2.
-  destruct kOut as [kOut | kOut]; unfold ccmunit, ccm_unit, nat_ccm, nat_unit in kOut; lia.
+  remember ((out I1 n).1 ! k) as x1.
+  remember ((out I1 n).2 ! k) as x2.
+  unfold ccmop, ccm_op, nat_ccm, nat_op, ccm_unit, ccmunit, nat_unit in kOut.
+  destruct kOut as [kOut | kOut]; lia.
   
   rewrite dI.
-  apply dec_stable in n0.
+  apply dec_stable in n1.
   trivial.
   
   (* Finally, prove n ∈ domm I2 *)
@@ -164,56 +158,40 @@ Qed.
 
 Lemma outset_distinct : ∀ I n, ✓ I ∧ (∃ k, k ∈ outset I n) → n ∉ domm I.
 Proof.
-  intros.
+    intros.
   destruct H0 as (VI & Out).
   destruct Out as [k Out].
 
   apply flowint_valid_unfold in VI.
   destruct VI as (Ir & dI & disj & _).
 
-  rewrite map_disjoint_spec in disj *.
+  rewrite (@map_disjoint_dom Node (gmap Node) (gset Node)) in disj *.
   intros disj.
+
+  unfold outset, dom_ms, nzmap_dom, out, out_map in Out.
+  rewrite dI in Out.
+  rewrite elem_of_union in Out *.
+  intros Out.
+  rewrite nzmap_elem_of_dom_total in Out *.
+  intros Out.
+  destruct (decide (outR Ir ! n = 0%CCM)).
+  rewrite e in Out.
+  rewrite nzmap_lookup_empty in Out.
+  { destruct Out.
+    - contradiction.
+    - unfold ccmunit, ccm_unit, K_multiset_pair_ccm, prod_ccm, prod_unit in H0.
+      simpl in H0.
+      apply dom_empty in H0.
+      apply elem_of_empty in H0.
+      contradiction.
+  }
+
+  rewrite <- nzmap_elem_of_dom_total in n0.
+  unfold dom, nzmap_dom in n0.
   
-  assert (is_Some (outR Ir !! n)).
-  * unfold outset, out in Out.
-    case_eq (out_map I !! n).
-    - intros.
-      unfold out_map in H0.
-      rewrite dI in H0.
-      unfold is_Some.
-      exists p.
-      trivial.
-
-    - intros.
-      rewrite H0 in Out.
-      unfold default, dom_ms, nzmap_dom, ccmunit, lift_unit, nzmap_unit in Out.
-      simpl in Out.
-      rewrite dom_empty in Out *. intros Out.
-      apply empty_union in Out.
-      apply elem_of_empty in Out.
-      contradiction.
-      split.
-      all: reflexivity.
-
-  * case_eq (infR Ir !! n).
-    - intros.
-      unfold is_Some in H0.
-      destruct H0.
-      pose proof (disj n p x H1 H0).
-      contradiction.
-
-    - intros.
-      unfold domm.
-      unfold dom, flowint_dom.
-      rewrite elem_of_dom.
-      unfold not.
-      intro.
-      unfold is_Some in H2.
-      destruct H2.
-      rewrite dI in H2.
-      unfold inf_map in H2.
-      rewrite H2 in H1.
-      inversion H1.
+  unfold domm, dom, flowint_dom, inf_map.
+  rewrite dI.
+  set_solver.
 Qed.
 
 Lemma linkset_monotone : ∀ I I1 I2 k n,
@@ -311,6 +289,16 @@ Proof.
   lia.
   lia.
   all: apply K_multiset_pair_ccm.
+Qed.
+
+Lemma globalinv_root_inr : ∀ I Ir root k,
+    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]} ∧ k ∈ KS
+    → k ∈ inset Ir root ∨ k ∈ linkset Ir root.
+Proof.
+  intros I Ir root k ((Hv & _ & _ & Hl & _) & [I2 Hincl] & Hdom & kKS).
+  right. specialize (Hl k kKS). destruct Hl.
+  apply (linkset_monotone I Ir I2 k root); try done.
+  set_solver.
 Qed.
 
 End linkset_flows.
