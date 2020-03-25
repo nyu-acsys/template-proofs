@@ -19,7 +19,7 @@ Section Lock_module.
         getLockLoc #n
        {{{ (l:loc), RET #l; ⌜lockLoc n = l⌝ }}})%I.
   
-  (* Lock node x. *)
+  (* Lock node x *)
   Definition lockNode : val :=
     rec: "lockN" "x" :=
       let: "l" := getLockLoc "x" in
@@ -27,7 +27,7 @@ Section Lock_module.
       then #()
       else "lockN" "x".
 
-  (* Unlock node. x *)
+  (* Unlock node x *)
   Definition unlockNode : val :=
     λ: "x",
     let: "l" := getLockLoc "x" in

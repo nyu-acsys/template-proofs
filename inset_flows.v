@@ -53,8 +53,7 @@ Definition globalinv root I :=
   ✓I
   ∧ (root ∈ domm I)
   ∧ (∀ k n, k ∉ outset I n) 
-  ∧ ∀ n, ((n = root) → (∀ k, k ∈ KS → k ∈ inset I n))
-         ∧ ((n ≠ root) → (∀ k, k ∉ inset I n)).
+  ∧ (∀ k, k ∈ KS → k ∈ inset I root).
 
 (** Assorted lemmas about inset flows used in the template proofs *)
 
@@ -286,40 +285,15 @@ Proof.
       unfold outset in H2.
       trivial.
   - intros.
-    pose proof (InfI n).
-    destruct H2 as (H2 & _).
-    pose proof (H2 H0 k).
-    rewrite <- H0 in DomR.
-    pose proof (InfR n DomR).
+    (*destruct H2 as (H2 & _).*)
+    specialize (InfI k).
+    (*rewrite <- H0 in DomR.*)
+    specialize (InfR root DomR).
     unfold inset.
-    unfold inset in H3.
-    rewrite <- H4.
-    apply H3 in H1.
+    unfold inset in InfR.
+    rewrite <- InfR.
+    apply InfI in H0.
     trivial.
-  - intros.
-    destruct (decide (n ∈ domm I)).
-    * pose proof (InfI n).
-      destruct H1 as (_ & H1).
-      pose proof (H1 H0 k).
-      pose proof (InfR n e).
-      unfold inset.
-      rewrite <- H3.
-      unfold inset in H2.
-      trivial.
-    * destruct (decide (n ∈ domm I')).
-      + assert (n ∈ domm I' ∖ domm I) by set_solver.
-        pose proof (InfI' n H1).
-        rewrite H2.
-        apply not_elem_of_empty.
-      + unfold domm, dom_ms, dom, flowint_dom in n1.
-        apply not_elem_of_dom in n1.
-        unfold inset, dom_ms, inf.
-        rewrite n1. simpl.
-        unfold nzmap_dom.
-        rewrite nzmap_elem_of_dom.
-        unfold ccmunit, lift_unit, nzmap_unit, lookup, nzmap_lookup.
-        rewrite lookup_empty.
-        apply is_Some_None.
 Qed.
 
 Lemma intComp_out_zero I1 I2 n : 
