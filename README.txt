@@ -34,7 +34,7 @@ Contents of the VM
   - auth_ext.v:
         Assorted auxiliary lemmas for authoritative RAs used by the template proofs
   - inset_flows.v:
-        Instantiation of flows used by give-up template
+        Instantiation of flows used by give-up and lock-coupling templates
   - linkset_flows.v:
         Instantiation of flows used by link template
   - keyset_ra.v:
@@ -45,6 +45,8 @@ Contents of the VM
         The link template algorithm and proof
   - give_up.v:
         The give-up template algorithm and proof
+  - coupling_inv.v:
+        The lock coupling template algorithm and proof
 + implementations/: (this is a symlink)
      The GRASShopper proofs of implementations
   - ccm.spl, multiset-ccm.spl, multipair-ccm.spl:
@@ -71,6 +73,11 @@ Contents of the VM
         The hash table implementation of the give-up template
   - hashtbl-link.spl:
         The hash table implementation of the link template
+  - lock-coupling.spl:
+        Common definitions for lock coupling template implementations
+  - list-coupling.spl:
+        The list-based implementation of the lock coupling template
+  
 + update_files.sh:
      A script to update the above proof scripts from our repository
 + run_experiments.sh:
