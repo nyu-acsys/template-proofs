@@ -143,9 +143,7 @@ Section Coupling_Template.
     rewrite intComp_dom in inf_I23.
     apply inf_I23 in n_in_I23 as n_inf_I23.
     unfold cmra_op, flowintRA, cmra_car, K_multiset at 5, K_multiset at 5 in n_inf_I23.
-    pose proof (I_inf_out root) as (root_out & _).
-    assert (root = root) by reflexivity.
-    pose proof (root_out H0 k) as root_out_k.
+    pose proof (I_inf_out k) as root_out_k.
 
     assert (default 0 (inf I n !! k) ≠ 0).
     rewrite e.
