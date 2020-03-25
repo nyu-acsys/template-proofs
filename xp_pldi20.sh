@@ -3,6 +3,7 @@
 FILES1="ccm flows inset_flows linkset_flows keyset_ra lock auth_ext"
 FILES2="give_up"
 FILES3="link"
+FILES4="coupling_inv"
 
 timesfile=/tmp/times-iris
 timestotalfile=/tmp/times-total-iris
@@ -42,6 +43,7 @@ echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
 run "Flow library" $FILES1
 run "Link template" $FILES3
 run "Give-up template" $FILES2
+run "Lock-coupling template" $FILES4
 
 echo -n -e "Total\t\t" >> $outputfile
 awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $loctotalfile >> $outputfile
