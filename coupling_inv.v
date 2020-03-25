@@ -147,8 +147,8 @@ Section Coupling_Template.
     rewrite intComp_dom in inf_I23.
     apply inf_I23 in n_in_I23 as n_inf_I23.
     unfold cmra_op, flowintRA, cmra_car, K_multiset at 5, K_multiset at 5 in n_inf_I23.
+(* <<<<<<< HEAD *)
     pose proof (I_inf_out k k_in_KS) as root_out_k.
-
     assert (default 0 (inf I n !! k) ≠ 0).
     rewrite e.
     unfold inset, dom_ms in root_out_k.
