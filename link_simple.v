@@ -102,16 +102,6 @@ Section Link_Template.
   Hypothesis node_sep_star: ∀ n I_n I_n' C C',
     node n I_n C ∗ node n I_n' C' -∗ False.
 
-  (* The node-level invariant (γ in the paper).
-   * See also link.spl for the matching GRASShopper definition *)
-  Definition nodeinv  (n: Node) (I_n: inset_flowint_ur K) (C: gset K): Prop := True.
-(*    (∀ k, k ∈ linkset K I_n n ∧ ¬ in_outsets K k I_n → in_inset K k I_n n).
-*)
-  (* The following hypothesis is proved as GRASShopper lemmas in
-   * hashtbl-link.spl and b-link.spl *)
-  Hypothesis node_implies_nodeinv : ∀ n I_n C,
-    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv n I_n C⌝)%I.
-
 
   (** Helper functions specs *)
   (* These are proved for each implementation in GRASShopper *)
@@ -266,9 +256,6 @@ Section Link_Template.
       iApply "IH". iFrame "∗ # %". done.
     - iApply fupd_wp. iMod "AU" as (C) "[Hst [_ Hclose]]". iSpecialize ("Hclose" $! n Ns In Cn).
       iMod ("Hclose" with "[Hst Hfil Hks Hrep Hb]") as "HΦ". iDestruct "Hb" as %Hnotout.
-      iAssert (node n In Cn ∗ ⌜nodeinv n In Cn⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
-      { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". }
-      iDestruct "Hninv" as %Hninv.
       iFrame "∗ # %". iModIntro. wp_pures. done.
   Qed.
 
@@ -333,9 +320,7 @@ Section Link_Template.
       iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
       apply (auth_auth_frac_op_inv _ _ _ _) in H4. apply leibniz_equiv in H4. replace In1.
       iPoseProof ((own_valid γ (◯ In)) with "HIn") as "%". rename H5 into HInV.
-      assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }
-      iAssert (node n In Cn' ∗ ⌜nodeinv n In Cn'⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
-      { iApply (node_implies_nodeinv _ _ _). iFrame "% ∗ #". } iDestruct "Hninv" as %Hninv.
+      assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }    
       iPoseProof (own_valid with "Hks") as "%". rename H5 into HvldCn.
       rewrite auth_frag_valid in HvldCn *; intros HvldCn. unfold valid, cmra_valid in HvldCn.
       simpl in HvldCn. unfold ucmra_valid in HvldCn. simpl in HvldCn.
