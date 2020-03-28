@@ -296,6 +296,16 @@ Proof.
     trivial.
 Qed.
 
+Lemma globalinv_root_ins : ∀ I Ir root k,
+    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]} ∧ k ∈ KS
+    → k ∈ inset Ir root.
+Proof.
+  intros I Ir root k ((Hv & _ & _ & Hl) & [I2 Hincl] & Hdom & kKS).
+  specialize (Hl k kKS). 
+  apply (inset_monotone I Ir I2 k root); try done.
+  set_solver.
+Qed.
+
 Lemma intComp_out_zero I1 I2 n : 
         ✓ (I1 ⋅ I2) → n ∉ domm (I1 ⋅ I2) → out (I1 ⋅ I2) n = 0%CCM → out I2 n = 0%CCM.
 Proof.

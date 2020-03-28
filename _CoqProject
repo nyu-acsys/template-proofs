@@ -22,3 +22,4 @@ lock.v
 give_up.v
 link.v
 coupling_inv.v
+link_simple.v
