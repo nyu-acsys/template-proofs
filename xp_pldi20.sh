@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FILES1="ccm flows inset_flows linkset_flows keyset_ra lock auth_ext"
+FILES1="ccm flows inset_flows keyset_ra lock auth_ext"
 FILES2="give_up"
 FILES3="link"
 FILES4="coupling_inv"
@@ -15,6 +15,7 @@ run()
 {
     name="${1}"
     tabs=$((2 - ${#name} / 8))
+    echo "\\hline" >> $outputfile
     echo -n "$name" >> $outputfile
     perl -E "print \"\t\" x $tabs" >> $outputfile
     shift
@@ -31,7 +32,7 @@ run()
     done
     awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $locfile >> $outputfile
     awk '{sum+=$1;} END{print sum;}' $locfile >> $loctotalfile
-    awk '{sum+=$1;} END{printf("\t& %d\n", int(sum+0.5));}' $timesfile >> $outputfile
+    awk '{sum+=$1;} END{printf("\t& %d\\\\\n", int(sum+0.5));}' $timesfile >> $outputfile
     awk '{sum+=$1;} END{printf("%d\n", int(sum+0.5));}' $timesfile >> $timestotalfile
 }
 
@@ -39,15 +40,16 @@ coq_makefile -f _CoqProject -o Makefile
 make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
-echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
+echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
 run "Flow library" $FILES1
 run "Link template" $FILES3
 run "Give-up template" $FILES2
 run "Lock-coupling template" $FILES4
 
+echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
 awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $loctotalfile >> $outputfile
-awk '{sum+=$1;} END{printf("\t& %d\n", int(sum+0.5));}' $timestotalfile >> $outputfile
+awk '{sum+=$1;} END{printf("\t& %d\\\\\n", int(sum+0.5));}' $timestotalfile >> $outputfile
 
 echo ""
 cat $outputfile

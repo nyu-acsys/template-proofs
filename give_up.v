@@ -245,7 +245,7 @@ Section Give_Up_Template.
     wp_apply ((inRange_spec n k In Cn) with "Hnode").
     iIntros (b) "(Hnode & Hb)". destruct b.
     - wp_pures. wp_bind (findNext _ _)%E. iSimpl in "Hb".
-      iDestruct "Hb" as %Hinset. pose proof (Hinset Coq.Init.Logic.I) as Hinset.
+      iDestruct "Hb" as %Hinset. specialize (Hinset Coq.Init.Logic.I).
       wp_apply ((findNext_spec n k In Cn) with "[Hnode]"). iFrame "∗ %".
       iIntros (b n') "(Hnode & Hbb)". destruct b.
       + wp_pures. iDestruct "Hbb" as %in_outset.  

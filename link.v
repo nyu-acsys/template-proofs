@@ -10,7 +10,7 @@ From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
 From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
-Require Export linkset_flows.
+Require Export inset_flows.
 Require Import auth_ext.
 
 (** We use integers as keys. *)
@@ -21,8 +21,8 @@ Section Link_Cameras.
 
   (* RA for authoritative flow interfaces over pairs of multisets of keys *)
   Class flowintG Σ :=
-    FlowintG { flowint_inG :> inG Σ (authR (linkset_flowint_ur K)) }.
-  Definition flowintΣ : gFunctors := #[GFunctor (authR (linkset_flowint_ur K))].
+    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
@@ -46,8 +46,8 @@ Section Link_Cameras.
 
   (* RA for fractional interfaces *)
   Class fracintG Σ :=
-    FracinthG { fracint_inG :> inG Σ (authR (linkset_flowint_ur K)) }.
-  Definition fracintΣ : gFunctors := #[GFunctor (authR (linkset_flowint_ur K))].
+    FracinthG { fracint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
+  Definition fracintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
 
   Instance subG_fracintΣ {Σ} : subG fracintΣ Σ → fracintG Σ.
   Proof. solve_inG. Qed.
@@ -89,7 +89,7 @@ Section Link_Template.
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b-link.spl and hashtbl-link.spl for the concrete definitions. *)
-  Parameter node : Node → linkset_flowint_ur K → gset K → iProp.
+  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
@@ -102,16 +102,6 @@ Section Link_Template.
   Hypothesis node_sep_star: ∀ n I_n I_n' C C',
     node n I_n C ∗ node n I_n' C' -∗ False.
 
-  (* The node-level invariant (γ in the paper).
-   * See also link.spl for the matching GRASShopper definition *)
-  Definition nodeinv  (n: Node) (I_n: linkset_flowint_ur K) (C: gset K): Prop :=
-    (∀ k, k ∈ linkset K I_n n ∧ ¬ in_outsets K k I_n → in_inset K k I_n n).
-
-  (* The following hypothesis is proved as GRASShopper lemmas in
-   * hashtbl-link.spl and b-link.spl *)
-  Hypothesis node_implies_nodeinv : ∀ n I_n C,
-    (⌜✓I_n⌝)%I ∗ node n I_n C -∗ node n I_n C ∗ (⌜nodeinv n I_n C⌝)%I.
-
 
   (** Helper functions specs *)
   (* These are proved for each implementation in GRASShopper *)
@@ -119,8 +109,8 @@ Section Link_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
 
-  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : linkset_flowint_ur K) (C: gset K),
-    ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜k ∈ inset K In n ∨ k ∈ linkset K In n⌝ }}}
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+    ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ }}}
          findNext #n #k
        {{{ (succ: bool) (np: Node),
            RET (match succ with true => (SOMEV #np) | false => NONEV end);
@@ -129,13 +119,13 @@ Section Link_Template.
                           | false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
-      (In: linkset_flowint_ur K) (C: gset K),
+      (In: inset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ ∗ ⌜¬in_outsets K k In⌝ }}}
          decisiveOp dop #n #k
        {{{ (succ: bool) (res: bool) (C1: gset K),
            RET (match succ with false => NONEV | true => (SOMEV #res) end);
            node n In C1 ∗ (match succ with false => ⌜C = C1⌝
-                                      | true => Ψ dop k C C1 res
+                                         | true => Ψ dop k C C1 res
                            end) }}})%I.
 
   (** The concurrent search structure invariant *)
@@ -143,13 +133,13 @@ Section Link_Template.
   Definition CSS γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=
     (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● domm I)
     ∗ ⌜globalinv K root I⌝
-    ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (I_n: linkset_flowint_ur K),
+    ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (I_n: inset_flowint_ur K),
       (lockLoc n) ↦ #b
       ∗ (if b then True
         else (∃ C_n, node n I_n C_n ∗ own (γ_fi n) ((●{1/2} I_n))
                      ∗ own γ_k (◯ prod (keyset K I_n n, C_n))))
       ∗ own γ (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝ ∗ own (γ_fi n) ((●{1/2} I_n))
-      ∗ own (γ_inr n) (● (inset K I_n n ∪ linkset K I_n n))))
+      ∗ own (γ_inr n) (● (inset K I_n n))))
     )%I.
 
   Definition is_CSS γ γ_fp γ_k γ_inr γ_fi root C :=
@@ -158,17 +148,17 @@ Section Link_Template.
   (** Proofs of traverse and CSSOp *)
 
   Lemma traverse_spec (γ γ_fp γ_k: gname) (γ_inr γ_fi: Node → gname)
-      (root: Node) (k: K) (n: Node) (Ns: gset Node) (I_n:linkset_flowint_ur K):
+      (root: Node) (k: K) (n: Node) (Ns: gset Node) (I_n:inset_flowint_ur K):
     ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
-      ∗ own (γ_inr n) (◯ (inset K I_n n ∪ linkset K I_n n))
-      ∗ ⌜k ∈ inset K I_n n ∨ k ∈ linkset K I_n n⌝ -∗
+      ∗ own (γ_inr n) (◯ (inset K I_n n))
+      ∗ ⌜k ∈ inset K I_n n⌝ -∗
         <<< ∀ C, is_CSS γ γ_fp γ_k γ_inr γ_fi root C >>>
             traverse #n #k @ ⊤
-        <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': linkset_flowint_ur K) (Cn': gset K),
+        <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (Cn': gset K),
             is_CSS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
             ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
             ∗ own γ_k (◯ prod (keyset K I_n' n', Cn')) ∗ ⌜domm I_n' = {[n']}⌝
-                                                                                   ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
+            ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
     iLöb as "IH" forall (n Ns I_n). iIntros "(#Hkks & #Hinn & #Hfp & #Hinrfp & #Hkinr)".
     iDestruct "Hinn" as %Hinn.
@@ -186,10 +176,10 @@ Section Link_Template.
     iExists I. iFrame "∗ % #". iApply "Hstar". iExists b, In.
     iFrame "# % ∗". eauto with iFrame. } iIntros "(Hloc & %)".
     destruct b. { iExFalso. done. } iModIntro. clear H1.
-    iPoseProof ((auth_own_incl (γ_inr n) (_ ∪ _) (_ ∪ _)) with "[$]") as "%".
+    iPoseProof ((auth_own_incl (γ_inr n) (inset K In n) (inset K I_n n)) with "[$Hks $Hinrfp]") as "%".
     apply gset_included in H1.
     iDestruct "Hkinr" as "%".
-    assert (k ∈ inset K In n ∨ k ∈ linkset K In n) as Hkinr; first by set_solver.
+    assert (k ∈ inset K In n) as Hkinr; first by set_solver.
     iPoseProof (own_valid with "HIn") as "%". rename H3 into HInV.
     assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }
     iSplitR "Hb". iFrame "∗ % #". iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In.
@@ -240,16 +230,15 @@ Section Link_Template.
       iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H8.
       assert (✓ (In ⋅ In')). { apply (auth_frag_valid (◯ (In ⋅ In'))). done. }
       iDestruct "HNds'" as %HNds'.
-      assert (k ∈ inset K In' n' ∨ k ∈ linkset K In' n').
+      assert (k ∈ inset K In' n').
       {
-        apply or_comm.
-        apply (flowint_linkset_step In In' k n'). done. set_solver.
+        apply (flowint_inset_step In In' k n'). done. set_solver.
         unfold in_outset in Hb. done.
       }
       assert (root ∈ domm I1). { apply globalinv_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
       iMod (own_update (γ_inr n') _
-                       (● (inset K In' n' ∪ linkset K In' n')
-                          ⋅ ◯ (inset K In' n' ∪ linkset K In' n'))
+                       (● (inset K In' n')
+                          ⋅ ◯ (inset K In' n'))
               with "Hks1'") as "HNs".
       apply auth_update_core_id.
       apply gset_core_id. done. iDestruct "HNs" as "(Hks1' & #Hinr1')".
@@ -267,14 +256,7 @@ Section Link_Template.
       iApply "IH". iFrame "∗ # %". done.
     - iApply fupd_wp. iMod "AU" as (C) "[Hst [_ Hclose]]". iSpecialize ("Hclose" $! n Ns In Cn).
       iMod ("Hclose" with "[Hst Hfil Hks Hrep Hb]") as "HΦ". iDestruct "Hb" as %Hnotout.
-      iAssert (node n In Cn ∗ ⌜nodeinv n In Cn⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
-      { iApply (node_implies_nodeinv _ _ _). iFrame "∗ # %". }
-      iDestruct "Hninv" as %Hninv.
-      iFrame "∗ # %". iPureIntro. unfold nodeinv in Hninv.
-      destruct Hkinr.
-      * unfold in_inset. done.
-      * apply Hninv. split; try done.
-      * iModIntro. wp_pures. done.
+      iFrame "∗ # %". iModIntro. wp_pures. done.
   Qed.
 
   (** Verification of abstract specification of the search structure operation. *)
@@ -298,15 +280,15 @@ Section Link_Template.
     iDestruct "Hn" as (b Ir) "(H1 & H2 & H3 & H4 & H5 & Hksr)".
     iPoseProof (auth_own_incl with "[$HI $H3]") as "%". iDestruct "H4" as %HNdsr.
     iMod (own_update (γ_inr root) _
-                     (● (inset K Ir root ∪ linkset K Ir root)
-                      ⋅ ◯ (inset K Ir root ∪ linkset K Ir root))
+                     (● (inset K Ir root)
+                      ⋅ ◯ (inset K Ir root))
             with "Hksr") as "H".
     apply auth_update_core_id. apply gset_core_id. done. iDestruct "H" as "(Hksr & #Hinr)".
     iMod ("HAU" with "[HI HKS H1 H2 H3 H5 Hstar HNDS Hksr] ") as "AU".
     { iExists I0. iFrame "∗ % #". iApply "Hstar". iExists b, Ir. iFrame "∗ # %". }
     iModIntro. wp_bind (traverse _ _)%E.
     awp_apply (traverse_spec γ γ_fp γ_k γ_inr γ_fi root k root (domm I0) Ir). iFrame "∗ # %".
-    iPureIntro. apply (globalinv_root_inr I0 Ir root k); try done.
+    iPureIntro. apply (globalinv_root_ins I0 Ir root k); try done.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C1) "Hst". iAaccIntro with "Hst"; first by eauto with iFrame.
     iIntros (n Ns In Cn) "(Hst & #Hinn & #Hfp & Hrepn & Hfil & Hks & #HNdsn & #Hinset & #Hnotout)".
@@ -338,9 +320,7 @@ Section Link_Template.
       iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
       apply (auth_auth_frac_op_inv _ _ _ _) in H4. apply leibniz_equiv in H4. replace In1.
       iPoseProof ((own_valid γ (◯ In)) with "HIn") as "%". rename H5 into HInV.
-      assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }
-      iAssert (node n In Cn' ∗ ⌜nodeinv n In Cn'⌝)%I with "[Hrep]" as "(Hrep & Hninv)".
-      { iApply (node_implies_nodeinv _ _ _). iFrame "% ∗ #". } iDestruct "Hninv" as %Hninv.
+      assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }    
       iPoseProof (own_valid with "Hks") as "%". rename H5 into HvldCn.
       rewrite auth_frag_valid in HvldCn *; intros HvldCn. unfold valid, cmra_valid in HvldCn.
       simpl in HvldCn. unfold ucmra_valid in HvldCn. simpl in HvldCn.
