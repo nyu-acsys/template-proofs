@@ -171,7 +171,7 @@ Section Give_Up_Template.
     wp_bind (inRange _ _)%E. wp_apply ((inRange_spec n k In Cn) with "Hrep").
     iIntros (b) "(Hrep & Hb)". destruct b.
     - wp_pures. wp_bind (findNext _ _)%E. iSimpl in "Hb".
-      iDestruct "Hb" as %Hinset. pose proof (Hinset Coq.Init.Logic.I) as Hinset.
+      iDestruct "Hb" as %Hinset. specialize (Hinset Coq.Init.Logic.I).
       wp_apply ((findNext_spec n k In Cn) with "[Hrep]"). iFrame "∗ # %".
       iIntros (b n') "(Hrep & Hbb)". destruct b.
       + wp_pures. awp_apply (unlockNode_spec n).
