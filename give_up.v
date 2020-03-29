@@ -43,7 +43,7 @@ End Give_Up_Cameras.
 (** Verification of the template *)
 Section Give_Up_Template.
 
-  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !(@keysetG K _ _) Σ} (N : namespace).
+  Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !(@keysetG K _ _) Σ}.
   Notation iProp := (iProp Σ).
 
   (*Definition val := heap_lang.val.*)
@@ -125,127 +125,170 @@ Section Give_Up_Template.
 
   (** The concurrent search structure invariant *)
 
-  Definition CSS (γ γ_fp γ_k : gname) root I (C: gset K) : iProp :=
-    (own γ_k (● prod (KS, C)) ∗ own γ (● I) ∗ ⌜globalinv K root I⌝
-    ∗ ([∗ set] n ∈ (domm I), (∃ b: bool, (lockLoc n) ↦ #b
-      ∗ if b then True
-        else (∃ (I_n: inset_flowint_ur K) (C_n: gset K),
-              own γ (◯ I_n) ∗ node n I_n C_n
-              ∗ ⌜domm I_n = {[n]}⌝ ∗ own γ_k (◯ prod (keyset K I_n n, C_n)))))
-    ∗ own γ_fp (● domm I)
-    )%I.
+  Definition inFP γ_f n : iProp := ∃ (N: gset Node), own γ_f (◯ N) ∗ ⌜n ∈ N⌝.
 
-  Definition is_CSS γ γ_fp γ_k root C :=
-    (∃ I, (CSS γ γ_fp γ_k root I C))%I.
+  Definition nodePred γ_I γ_k n I_n C_n  :iProp := node n I_n C_n ∗ own γ_k (◯ prod (keyset K I_n n, C_n))
+                                                 ∗ own γ_I (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝.
+
+  Definition CSS (γ_I γ_f γ_k : gname) root (C: gset K) : iProp :=
+    ∃ I, own γ_I (● I) ∗ ⌜globalinv K root I⌝ 
+       ∗ own γ_k (● prod (KS, C))
+       ∗ own γ_f (● domm I) 
+       ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (I_n: inset_flowint_ur K),
+            ((lockLoc n) ↦ #b ∗ if b then True 
+                               else (∃ (C_n: gset K), nodePred γ_I γ_k n I_n C_n)))).
+    
+  (** High-level lock specs **)
+
+  Lemma lockNode_spec_high (γ_I γ_f γ_k : gname) root n :
+    ⊢ inFP γ_f n -∗ <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
+                             lockNode #n @ ⊤
+                    <<< ∃ I_n C_n, CSS γ_I γ_f γ_k root C ∗ nodePred γ_I γ_k n I_n C_n, RET #() >>>.
+  Proof.
+    iIntros "HFp". iIntros (Φ) "AU". iLöb as "IH".
+    wp_lam. wp_bind(getLockLoc _)%E.
+    wp_apply getLockLoc_spec; first done.
+    iIntros (l) "H". iDestruct "H" as %Hloc.
+    wp_pures. wp_bind (CmpXchg _ _ _)%E.
+    iMod "AU" as (C) "[HInv HAU]".
+    iDestruct "HInv" as (I) "(H●I & Hglob & H●k & H●f & Hbigstar)".
+    unfold inFP. iDestruct "HFp" as (N0) "(#H◯f & n_in_N)".
+    iDestruct "n_in_N" as %n_in_N.
+    iPoseProof ((auth_own_incl γ_f (domm I) N0) with "[$]") as "%".
+    apply gset_included in H0.
+    assert (n ∈ domm I) as n_in_I by set_solver.
+    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
+    iDestruct "Hbigstar" as "(Hn & Hbigstar)".
+    iDestruct "Hn" as (b In) "(Hlock & Hb)".
+    iEval (rewrite <-Hloc). destruct b.
+    - wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]".
+      iMod ("HAU" with "[-Hb]") as "H". iExists I.
+      iFrame "∗". iApply "Hbigstar". iExists true, In. iFrame.
+      iModIntro. wp_pures. iApply "IH".
+      iExists N0. iFrame "# %". done.
+    - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
+      iDestruct "Hb" as (Cn) "HN".
+      iMod ("HAU" with "[-IH]") as "HΦ". iFrame.
+      iExists I. iFrame "∗". iApply "Hbigstar". 
+      iExists true, In. iFrame "∗".
+      iModIntro. wp_pures. done.
+  Qed.
+  
+  Lemma unlockNode_spec_high (γ_I γ_f γ_k : gname) root n I_n C_n :
+    ⊢ nodePred γ_I γ_k n I_n C_n -∗ <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
+                                              unlockNode #n @ ⊤
+                                      <<< CSS γ_I γ_f γ_k root C, RET #() >>>.
+  Proof.
+    iIntros "HN". iIntros (Φ) "AU". wp_lam.
+    wp_bind(getLockLoc _)%E.
+    wp_apply getLockLoc_spec; first done.
+    iIntros (l) "Hloc". iDestruct "Hloc" as %Hloc.
+    wp_let. iMod "AU" as (C) "[HInv [_ Hclose]]".
+    iDestruct "HInv" as (I) "(H●I & Hglob & H●k & H●f & Hbigstar)".
+    iDestruct "HN" as "(Hnode & H◯k & H◯I & Dom_In)".
+    iDestruct "Dom_In" as %Dom_In.
+    iPoseProof ((auth_own_incl γ_I (I) (I_n)) with "[$]") as "%".
+    rename H0 into I_incl. destruct I_incl as [Io I_incl].
+    iPoseProof (own_valid with "H●I") as "%". rename H0 into Valid_I.
+    assert (n ∈ domm I) as n_in_I.
+    { rewrite I_incl. rewrite flowint_comp_fp.
+      rewrite Dom_In. set_solver. rewrite <- I_incl.
+      by apply auth_auth_valid. } 
+    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
+    iDestruct "Hbigstar" as "(Hn & Hbigstar)".
+    iDestruct "Hn" as (b In) "(Hlock & Hb)".
+    iEval (rewrite <-Hloc).
+    wp_store. iMod ("Hclose" with "[Hnode H◯k H◯I H●I Hglob H●k H●f Hlock Hb Hbigstar]") as "HΦ".
+    iExists I. iFrame "∗". iApply "Hbigstar".
+    iExists false, I_n. iFrame. destruct b.
+    iExists C_n. iFrame "∗ %". iDestruct "Hb" as (Cn') "HN'".
+    unfold nodePred.
+    iDestruct "HN'" as "(Hnode' & _)". 
+    iExFalso. iApply node_sep_star. iFrame. 
+    iModIntro. done.
+ Qed.
 
   (** Proofs of traverse and CSSOp *)
 
-  Lemma traverse_spec (γ γ_fp γ_k: gname) (k: K) (root n: Node) (Ns: gset Node):
-   ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns) ∗ ⌜root ∈ Ns⌝ -∗
-     <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
+  Lemma traverse_spec (γ_I γ_f γ_k: gname) (k: K) (root n: Node):
+   ⊢ ⌜k ∈ KS⌝ ∗ inFP γ_f n -∗
+     <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
        traverse root #n #k @ ⊤
-     <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (C_n': gset K),
-        is_CSS γ γ_fp γ_k root C ∗ ⌜n' ∈ Ns'⌝ ∗ own γ_fp (◯ Ns')
-        ∗ own γ (◯ I_n') ∗ node n' I_n' C_n'
-        ∗ own γ_k (◯ prod (keyset K I_n' n', C_n')) ∗ ⌜domm I_n' = {[n']}⌝
+     <<< ∃ (n': Node) (I_n': inset_flowint_ur K) (C_n': gset K),
+        CSS γ_I γ_f γ_k root C ∗ inFP γ_f n'
+        ∗ nodePred γ_I γ_k n' I_n' C_n' 
         ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
-    iLöb as "IH" forall (n Ns). iIntros "(#Hks & #Hinn & #Hfp & #Hroot)".
+    iLöb as "IH" forall (n). iIntros "(#Hks & #Hfp)".
+    iDestruct "Hks" as %k_in_KS.
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
-    awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
-    iIntros (C0) "Hst". iDestruct "Hst" as (I)"(H2 & H3 & H4 & H5 & H6)".
-    iAssert (⌜n ∈ domm I⌝)%I with "[Hfp Hinn H6]" as "%".
-    { iPoseProof ((auth_own_incl γ_fp (domm I) Ns) with "[$]") as "%".
-      apply gset_included in H0.
-      iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
-    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
-    iDestruct "H5" as "[Hb H5]".
-    iDestruct "Hb" as (b) "[Hlock Hb]".
-    iAaccIntro with "Hlock". { iIntros "H". iModIntro. iSplitL.
-    iExists I. iFrame "∗ % #". iApply "H5". iExists b.
-    iFrame. eauto with iFrame. } iIntros "(Hloc & %)".
-    destruct b. { iExFalso. done. } clear H1. iModIntro.
-    iSplitR "Hb". iExists I. iFrame "∗ % #". iApply "H5". iExists true.
-    iFrame. iIntros "AU". iModIntro. wp_pures.
-    iDestruct "Hb" as (In Cn) "(HIn & Hrep & #HNds & HKS)". iDestruct "HNds" as %HNds.
-    wp_bind (inRange _ _)%E. wp_apply ((inRange_spec n k In Cn) with "Hrep").
-    iIntros (b) "(Hrep & Hb)". destruct b.
+    awp_apply (lockNode_spec_high γ_I γ_f γ_k root n); try done.
+    iApply (aacc_aupd_abort with "AU"); first done.
+    iIntros (C0) "HInv". iAaccIntro with "HInv".
+    { iIntros "HInv". iModIntro. eauto with iFrame. }
+    iIntros (In Cn) "(HInv & Nodepred)".
+    iModIntro. iFrame. iIntros "AU". iModIntro.
+    wp_pures. wp_bind (inRange _ _)%E.
+    iDestruct "Nodepred" as "(Hnode & H◯k & H◯I & Dom_In)".
+    iApply fupd_wp. iMod "AU" as (C1) "[HInv [Hclose _]]".
+    iDestruct "HInv" as (I) "(H●I & Hglob & H●k & H●f & Hbigstar)".
+    iDestruct "Dom_In" as %Dom_In.
+    iPoseProof ((auth_own_incl γ_I (I) (In)) with "[$]") as "%".
+    rename H0 into I_incl. destruct I_incl as [Io I_incl].
+    iPoseProof (own_valid with "H●I") as "%". rename H0 into Valid_I.
+    iDestruct "Hglob" as %Hglob.
+    iMod (own_update γ_f (● (domm I)) (● (domm I) ⋅ ◯ (domm I)) with "H●f") as "H".
+    apply auth_update_core_id. apply gset_core_id. done.
+    iDestruct "H" as "(H●f & #H◯_dommI)".
+    iMod ("Hclose" with "[H●I H●k H●f Hbigstar]") as "AU".
+    iExists I. iFrame "∗ %". iModIntro.    
+    wp_apply ((inRange_spec n k In Cn) with "Hnode").
+    iIntros (b) "(Hnode & Hb)". destruct b.
     - wp_pures. wp_bind (findNext _ _)%E. iSimpl in "Hb".
       iDestruct "Hb" as %Hinset. pose proof (Hinset Coq.Init.Logic.I) as Hinset.
-      wp_apply ((findNext_spec n k In Cn) with "[Hrep]"). iFrame "∗ # %".
-      iIntros (b n') "(Hrep & Hbb)". destruct b.
-      + wp_pures. awp_apply (unlockNode_spec n).
-        iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
-        iDestruct "Hst" as (I1)"(H1 & H2 & % & H5 & H6)".
-        iAssert (⌜n ∈ domm I1⌝)%I with "[Hfp Hinn H6]" as "%".
-        { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
-          apply gset_included in H2.
-          iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
-        rewrite (big_sepS_elem_of_acc _ (domm I1) n); last by eauto.
-        iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
-        destruct b; first last. { iDestruct "Hl" as (In' Cn') "(_ & Hrep' & _)".
-        iAssert (⌜False⌝)%I with "[Hrep Hrep']" as %Hf. { iApply (node_sep_star n In In').
-        iFrame. } exfalso. done. }
-        iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "HIn HKS Hrep Hbb".
-        iExists I1. iFrame "∗ % #". iApply "H5". iExists true. iFrame. iIntros "AU".
-        iModIntro. iFrame. } iIntros "Hlock".
-        iDestruct "Hbb" as %Hbb.
-        iAssert (⌜n' ∈ (domm I1)⌝ ∗ ⌜root ∈ (domm I1)⌝ ∗ own γ (● I1) ∗ own γ_fp (● (domm I1)) ∗ own γ (◯ In))%I
-                with "[HIn H2 H6]" as "Hghost".
-        { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
-          apply gset_included in H3.
-          iPoseProof ((auth_own_incl γ I1 In) with "[$H2 $HIn]") as (I2)"%".
-          iPoseProof (own_valid with "H2") as "%".
-          iAssert (⌜n' ∈ domm I1⌝)%I as "%".
-          { iPureIntro. assert (n' ∈ domm I2).
-            { apply (flowint_step I1 In I2 k n' root); try done. }
-            unfold globalinv in H1. destruct H1 as [HI1 H1].
-            apply leibniz_equiv in H4. rewrite H4 in HI1.
-            assert (domm (In⋅I2) = domm (In) ∪ domm (I2)). { apply intComp_dom. done. } rewrite H4.
-            rewrite H7. set_solver. }
-            iFrame. iPureIntro. split; try done. apply globalinv_root_fp. auto. }
-        iDestruct "Hghost" as "(% & % & HAIn & HAfp & HIn)".
-        iMod (own_update γ_fp (● (domm I1)) (● (domm I1) ⋅ ◯ (domm I1)) with "HAfp") as "HNs".
-        apply auth_update_core_id. apply gset_core_id. done.
-        iDestruct "HNs" as "(HAfp & #Hfp1)".
-        iModIntro. iSplitL. iExists I1.
-        iFrame "∗ % #". iApply "H5". iExists false. iFrame. iExists In. eauto with iFrame.
-        iIntros "AU". iModIntro. wp_pures. iApply "IH". iFrame "∗ % #". done.
-      + iApply fupd_wp. iMod "AU" as (C) "[Hst [_ Hclose]]". iSpecialize ("Hclose" $! n Ns In).
-        iMod ("Hclose" with "[Hst HIn Hrep Hbb HKS]") as "HΦ".
-        iFrame "∗ % #". iModIntro. wp_match. done.
-    - wp_if. awp_apply (unlockNode_spec n).
-      iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
-      iDestruct "Hst" as (I1)"(H1 & H2 & % & H5 & H6)".
-      iAssert (⌜n ∈ domm I1⌝)%I with "[Hfp Hinn H6]" as "%".
-      { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
-        apply gset_included in H2.
-        iDestruct "Hinn" as %Hinn. iPureIntro. set_solver. }
-      rewrite (big_sepS_elem_of_acc _ (domm I1) n); last by eauto.
-      iDestruct "H5" as "[Hl H5]". iDestruct "Hl" as (b) "[Hlock Hl]".
-      destruct b; first last. { iDestruct "Hl" as (In' Cn') "(_ & Hrep' & _)".
-      iAssert (⌜False⌝)%I with "[Hrep Hrep']" as %Hf. { iApply (node_sep_star n In In').
-      iFrame. } exfalso. done. }
-      iAaccIntro with "Hlock". { iIntros "Hlock". iModIntro. iSplitR "Hrep HIn HKS".
-      iExists I1. iFrame "∗ % #". iApply "H5". iExists true. iFrame. iIntros "AU".
-      iModIntro. eauto with iFrame. } iIntros "Hlock". iModIntro.
-      iSplitL. iExists I1. iFrame "∗ % #". iApply "H5". iExists false. iFrame.
-      iExists In, Cn. eauto with iFrame. iIntros "AU". iModIntro. wp_pures.
-      iApply "IH". eauto with iFrame. done.
+      wp_apply ((findNext_spec n k In Cn) with "[Hnode]"). iFrame "∗ %".
+      iIntros (b n') "(Hnode & Hbb)". destruct b.
+      + wp_pures. iDestruct "Hbb" as %in_outset.  
+        awp_apply ((unlockNode_spec_high γ_I γ_f γ_k root n) with "[-AU]").
+        iFrame "∗ %". iApply (aacc_aupd_abort with "AU"); first done.
+        iIntros (C2) "HInv". iAaccIntro with "HInv".
+        { iIntros "HInv". iModIntro. eauto with iFrame. }
+        iIntros "HInv". iModIntro. iFrame. iIntros "AU".
+        iModIntro. wp_pures. iApply "IH"; try done. iFrame "%".
+        iExists (domm I). iFrame "#". iPureIntro.
+        assert (n' ∈ domm Io).
+        { apply (flowint_step I In Io k n' root); try done. }
+        rewrite I_incl. rewrite intComp_dom. set_solver.
+        rewrite <-I_incl. by apply auth_auth_valid.     
+      + iDestruct "Hbb" as %not_in_outset.
+        iApply fupd_wp. iMod "AU" as (C) "[HInv [_ Hclose]]".
+        iSpecialize ("Hclose" $! n In Cn).
+        iMod ("Hclose" with "[H◯k H◯I HInv Hnode]").
+        iFrame "∗ # %". iModIntro. wp_pures. done.
+    - wp_pures. iDestruct "Hb" as %Hnot_in_inset.
+      awp_apply ((unlockNode_spec_high γ_I γ_f γ_k root n) with "[-AU]").
+      iFrame "∗ # %". iApply (aacc_aupd_abort with "AU"); first done.
+      iIntros (C) "HInv". iAaccIntro with "HInv".
+      { iIntros. iModIntro. eauto with iFrame. }
+      iIntros "HInv". iModIntro. iFrame. iIntros "AU".
+      iModIntro. wp_pures. iApply "IH"; try done. iFrame "%".
+      iExists (domm I). iFrame "H◯_dommI". iPureIntro.
+      unfold globalinv in Hglob. by destruct Hglob as (_ & Hglob & _).
   Qed.
-
 
   (** Verification of abstract specification of the search structure operation. *)
   
   (*Instance Ψ_persistent dop (k : K) C C' res : Persistent (Ψ dop k C C' res : iProp).
   Proof. destruct dop; apply _. Qed.*)
 
-  Theorem CSSOp_spec (γ γ_fp γ_k: gname) root (dop: dOp) (k: K):
-   ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CSS γ γ_fp γ_k root C >>>
+  Theorem CSSOp_spec (γ_I γ_f γ_k: gname) root (dop: dOp) (k: K):
+   ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
       CSSOp dop root #k @ ⊤
-    <<< ∃ C' (res: bool), is_CSS γ γ_fp γ_k root C'
+    <<< ∃ C' (res: bool), CSS γ_I γ_f γ_k root C'
         ∗ (Ψ dop k C C' res : iProp), RET #res >>>.
   Proof.
+  Admitted.
+(*  
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
     iApply fupd_wp. iMod "AU" as (C0) "[Hst [HAU _]]".
     iDestruct "Hst" as (I0) "(H1 & H2 & % & H5 & H6)".
@@ -321,5 +364,5 @@ Section Give_Up_Template.
       iApply "H6". iExists false. eauto with iFrame. iIntros "AU". iModIntro.
       wp_pures. iApply "IH"; try done.
   Qed.
-
+*)
 End Give_Up_Template.
