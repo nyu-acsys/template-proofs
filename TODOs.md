@@ -3,6 +3,8 @@ Things to do
 
 - Can we prove the lock/unlock specs shown in the paper?
 
+- Why does traverse_spec return inFP(n') and domm In' = {[n']}?
+
 - Rename ghost names to match paper.
 
 - Reorder `globalinv` and `CSS` to match paper.
