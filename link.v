@@ -130,33 +130,115 @@ Section Link_Template.
 
   (** The concurrent search structure invariant *)
 
-  Definition CSS γ γ_fp γ_k γ_inr γ_fi root I C : iProp :=
-    (own γ (● I) ∗ own γ_k (● prod (KS, C)) ∗ own γ_fp (● domm I)
-    ∗ ⌜globalinv K root I⌝
-    ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (I_n: inset_flowint_ur K),
-      (lockLoc n) ↦ #b
-      ∗ (if b then True
-        else (∃ C_n, node n I_n C_n ∗ own (γ_fi n) ((●{1/2} I_n))
-                     ∗ own γ_k (◯ prod (keyset K I_n n, C_n))))
-      ∗ own γ (◯ I_n) ∗ ⌜domm I_n = {[n]}⌝ ∗ own (γ_fi n) ((●{1/2} I_n))
-      ∗ own (γ_inr n) (● (inset K I_n n))))
+  Definition inFP γ_f n : iProp :=
+    ∃ (N: gset Node), own γ_f (◯ N) ∗ ⌜n ∈ N⌝.
+
+  Definition nodePred γ_h γ_k n I_n C_n : iProp :=
+    node n I_n C_n ∗ own (γ_h n) ((●{1/2} I_n))
+      ∗ own γ_k (◯ prod (keyset K I_n n, C_n)).
+
+  Definition CSS γ_I γ_f γ_k γ_i γ_h root C : iProp :=
+    (∃ I, own γ_I (● I) ∗ ⌜globalinv K root I⌝
+        ∗ own γ_k (● prod (KS, C))
+        ∗ own γ_f (● domm I)
+        ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (I_n: inset_flowint_ur K),
+            (lockLoc n) ↦ #b
+            ∗ (if b then True
+               else (∃ C_n, nodePred γ_h γ_k n I_n C_n))
+            ∗ own γ_I (◯ I_n)
+            ∗ own (γ_h n) ((●{1/2} I_n))
+            ∗ ⌜domm I_n = {[n]}⌝
+            ∗ own (γ_i n) (● (inset K I_n n))))
     )%I.
 
-  Definition is_CSS γ γ_fp γ_k γ_inr γ_fi root C :=
-    (∃ I, (CSS γ γ_fp γ_k γ_inr γ_fi root I C))%I.
+  (** Some useful lemmas *)
+  
+  Lemma CSS_unfold γ_I γ_f γ_k γ_i γ_h root C n  :
+    inFP γ_f n ∗ CSS γ_I γ_f γ_k γ_i γ_h root C
+    -∗ (∃ (b: bool) I_n, lockLoc n ↦ #b
+        ∗ (if b then True else (∃ C_n, nodePred γ_h γ_k n I_n C_n)))
+      ∗ ((∃ (b: bool) I_n, lockLoc n ↦ #b
+          ∗ (if b then True else (∃ C_n, nodePred γ_h γ_k n I_n C_n)))
+         -∗ CSS γ_I γ_f γ_k γ_i γ_h root C).
+  Proof.
+  Admitted.
+  
+  (** High-level lock specs *)
+
+  Lemma lockNode_spec_high γ_I γ_f γ_k γ_i γ_h root n :
+    ⊢ inFP γ_f n
+      -∗ <<< ∀ C, CSS γ_I γ_f γ_k γ_i γ_h root C >>>
+           lockNode #n @ ⊤
+         <<< ∃ I_n C_n, CSS γ_I γ_f γ_k γ_i γ_h root C
+                      ∗ nodePred γ_h γ_k n I_n C_n,
+             RET #() >>>.
+  Proof.
+    iIntros "HFp". iIntros (Φ) "AU".
+    awp_apply (lockNode_spec n).
+    iApply (aacc_aupd_commit with "AU"); first done.
+    iIntros (C) "HCSS".
+    iPoseProof (CSS_unfold with "[$HFp $HCSS]") as "(Hn & HCSS')".
+    iDestruct "Hn" as (b In) "(Hlock & Hn)".
+    iAaccIntro with "Hlock".
+    { iIntros "Hlockn". iModIntro.
+      iPoseProof ("HCSS'" with "[Hlockn Hn]") as "HCSS"; first eauto with iFrame.
+      iSplitL.
+      iFrame "HCSS".
+      iIntros "AU". iModIntro.
+      eauto with iFrame.
+    }
+
+    (* Continue here: using lockNode_spec. *)
+  Qed.
+  
+  Lemma unlockNode_spec_high (γ_I γ_f γ_k : gname) root n I_n C_n :
+    ⊢ nodePred γ_I γ_k n I_n C_n
+      -∗ <<< ∀ C, CSS γ_I γ_f γ_k γ_i γ_h root C >>>
+           unlockNode #n @ ⊤
+         <<< CSS γ_I γ_f γ_k γ_i γ_h root C, RET #() >>>.
+  Proof.
+    (* TODO use unlockNode_spec instead. *)
+    iIntros "HN". iIntros (Φ) "AU". wp_lam.
+    wp_bind(getLockLoc _)%E.
+    wp_apply getLockLoc_spec; first done.
+    iIntros (l) "Hloc". iDestruct "Hloc" as %Hloc.
+    wp_let. iMod "AU" as (C) "[HInv [_ Hclose]]".
+    iDestruct "HInv" as (I) "(H●I & Hglob & H●k & H●f & Hbigstar)".
+    iDestruct "HN" as "(Hnode & H◯k & H◯I & Dom_In)".
+    iDestruct "Dom_In" as %Dom_In.
+    iPoseProof ((auth_own_incl γ_I (I) (I_n)) with "[$]") as "%".
+    rename H0 into I_incl. destruct I_incl as [Io I_incl].
+    iPoseProof (own_valid with "H●I") as "%". rename H0 into Valid_I.
+    assert (n ∈ domm I) as n_in_I.
+    { rewrite I_incl. rewrite flowint_comp_fp.
+      rewrite Dom_In. set_solver. rewrite <- I_incl.
+      by apply auth_auth_valid. } 
+    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
+    iDestruct "Hbigstar" as "(Hn & Hbigstar)".
+    iDestruct "Hn" as (b In) "(Hlock & Hb)".
+    iEval (rewrite <-Hloc).
+    wp_store. iMod ("Hclose" with "[Hnode H◯k H◯I H●I Hglob H●k H●f Hlock Hb Hbigstar]") as "HΦ".
+    iExists I. iFrame "∗". iApply "Hbigstar".
+    iExists false, I_n. iFrame. destruct b.
+    iExists C_n. iFrame "∗ %". iDestruct "Hb" as (Cn') "HN'".
+    unfold nodePred.
+    iDestruct "HN'" as "(Hnode' & _)". 
+    iExFalso. iApply node_sep_star. iFrame. 
+    iModIntro. done.
+ Qed.
 
   (** Proofs of traverse and CSSOp *)
 
-  Lemma traverse_spec (γ γ_fp γ_k: gname) (γ_inr γ_fi: Node → gname)
+  Lemma traverse_spec (γ_I γ_f γ_k: gname) (γ_i γ_h: Node → gname)
       (root: Node) (k: K) (n: Node) (Ns: gset Node) (I_n:inset_flowint_ur K):
-    ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_fp (◯ Ns)
-      ∗ own (γ_inr n) (◯ (inset K I_n n))
+    ⊢ ⌜k ∈ KS⌝ ∗ ⌜n ∈ Ns⌝ ∗ own γ_f (◯ Ns)
+      ∗ own (γ_i n) (◯ (inset K I_n n))
       ∗ ⌜k ∈ inset K I_n n⌝ -∗
-        <<< ∀ C, is_CSS γ γ_fp γ_k γ_inr γ_fi root C >>>
+        <<< ∀ C, CSS γ_I γ_f γ_k γ_i γ_h root C >>>
             traverse #n #k @ ⊤
         <<< ∃ (n': Node) (Ns': gsetUR Node) (I_n': inset_flowint_ur K) (Cn': gset K),
-            is_CSS γ γ_fp γ_k γ_inr γ_fi root C ∗ ⌜n' ∈ Ns'⌝
-            ∗ own γ_fp (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_fi n') ((●{1/2} I_n'))
+            CSS γ_I γ_f γ_k γ_i γ_h root C ∗ ⌜n' ∈ Ns'⌝
+            ∗ own γ_f (◯ Ns') ∗ node n' I_n' Cn' ∗ own (γ_h n') ((●{1/2} I_n'))
             ∗ own γ_k (◯ prod (keyset K I_n' n', Cn')) ∗ ⌜domm I_n' = {[n']}⌝
             ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
@@ -166,7 +248,7 @@ Section Link_Template.
     awp_apply (lockNode_spec n). iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "Hst". iDestruct "Hst" as (I) "(HI & HKS & HNDS & Hglob & Hstar)".
     iAssert (⌜n ∈ domm I⌝)%I with "[HNDS]" as "%".
-    { iPoseProof ((auth_own_incl γ_fp (domm I) Ns) with "[$]") as "%".
+    { iPoseProof ((auth_own_incl γ_f (domm I) Ns) with "[$]") as "%".
       apply gset_included in H0.
       iPureIntro. set_solver. }
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
@@ -176,7 +258,7 @@ Section Link_Template.
     iExists I. iFrame "∗ % #". iApply "Hstar". iExists b, In.
     iFrame "# % ∗". eauto with iFrame. } iIntros "(Hloc & %)".
     destruct b. { iExFalso. done. } iModIntro. clear H1.
-    iPoseProof ((auth_own_incl (γ_inr n) (inset K In n) (inset K I_n n)) with "[$Hks $Hinrfp]") as "%".
+    iPoseProof ((auth_own_incl (γ_i n) (inset K In n) (inset K I_n n)) with "[$Hks $Hinrfp]") as "%".
     apply gset_included in H1.
     iDestruct "Hkinr" as "%".
     assert (k ∈ inset K In n) as Hkinr; first by set_solver.
@@ -192,7 +274,7 @@ Section Link_Template.
       iApply (aacc_aupd_abort with "AU"); first done. iIntros (C1) "Hst".
       iDestruct "Hst" as (I1) "(HI & HKS & HNDS & Hglob & Hstar)".
       iAssert (⌜n ∈ domm I1⌝)%I with "[HNDS]" as "%".
-      { iPoseProof ((auth_own_incl γ_fp (domm I1) Ns) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_f (domm I1) Ns) with "[$]") as "%".
         apply gset_included in H3.
         iPureIntro. set_solver. }
       rewrite (big_sepS_delete _ (domm I1) n); last by eauto. iDestruct "Hstar" as "(Hcln & Hstar)".
@@ -200,7 +282,7 @@ Section Link_Template.
       destruct b; first last. { iDestruct "Hbb" as (Cn') "(Hrep' & _)".
       iAssert (⌜False⌝)%I with "[Hrep Hrep']" as %Hf. { iApply (node_sep_star n In In1).
       iFrame. } exfalso. done. }
-      iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
+      iPoseProof ((own_valid_2 (γ_h n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
       apply (auth_auth_frac_op_inv _ _ _ _) in H4. apply leibniz_equiv in H4. replace In1.
       iDestruct "Hb" as %Hb. iDestruct "HNds1" as %HNds1. iDestruct "Hglob" as %Hglob.
       iPoseProof (auth_own_incl with "[$HI $HIn]") as (I2)"%".
@@ -226,7 +308,7 @@ Section Link_Template.
       rewrite (big_sepS_delete _ (domm I1 ∖ {[n]}) n'); last first.
       set_solver. iDestruct "Hstar" as "(Hcln' & Hstar)".
       iDestruct "Hcln'" as (b In') "(Hlock' & Hbb' & HIn' & #HNds' & Hfis' & Hks1')".
-      iPoseProof ((own_op γ (◯ In) (◯ In' )) with "[HIn HIn']") as "H"; first by eauto with iFrame.
+      iPoseProof ((own_op γ_I (◯ In) (◯ In' )) with "[HIn HIn']") as "H"; first by eauto with iFrame.
       iPoseProof (own_valid with "H") as "%". rewrite -auth_frag_op in H8.
       assert (✓ (In ⋅ In')). { apply (auth_frag_valid (◯ (In ⋅ In'))). done. }
       iDestruct "HNds'" as %HNds'.
@@ -236,7 +318,7 @@ Section Link_Template.
         unfold in_outset in Hb. done.
       }
       assert (root ∈ domm I1). { apply globalinv_root_fp. done. } iDestruct "H" as "(HIn & HIn')".
-      iMod (own_update (γ_inr n') _
+      iMod (own_update (γ_i n') _
                        (● (inset K In' n')
                           ⋅ ◯ (inset K In' n'))
               with "Hks1'") as "HNs".
@@ -247,7 +329,7 @@ Section Link_Template.
       iSplitR "Hstar Hbb' HIn' Hfis' Hks1' Hlock'". iExists true, In. iFrame "# % ∗".
       rewrite (big_sepS_delete _ (domm I1 ∖ {[n]}) n'); last first. set_solver. iFrame. iExists b, In'.
       iFrame "# % ∗".  iIntros "AU". iModIntro. iFrame "# % ∗". } iIntros "Hlock".
-      iMod (own_update γ_fp (● domm I1) (● domm I1 ⋅ ◯ domm I1) with "HNDS") as "HNs".
+      iMod (own_update γ_f (● domm I1) (● domm I1 ⋅ ◯ domm I1) with "HNDS") as "HNs".
       apply auth_update_core_id. apply gset_core_id. done. iDestruct "HNs" as "(HAfp & #Hfp1)".
       iModIntro. iSplitL. iExists I1. iFrame "∗ % #". rewrite (big_sepS_delete _ (domm I1) n); last by eauto.
       iSplitR "Hstar Hbb' HIn' Hfis' Hks1' Hlock'". iExists false, In. iFrame "# % ∗". iExists Cn. iFrame.
@@ -261,10 +343,10 @@ Section Link_Template.
 
   (** Verification of abstract specification of the search structure operation. *)
   
-  Theorem CSSOp_spec (γ γ_fp γ_k: gname) γ_inr γ_fi root (k: K) (dop: dOp):
-    ⌜k ∈ KS⌝ -∗ <<< ∀ C, is_CSS γ γ_fp γ_k γ_inr γ_fi root C >>>
+  Theorem CSSOp_spec (γ_I γ_f γ_k: gname) γ_i γ_h root (k: K) (dop: dOp):
+    ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ_I γ_f γ_k γ_i γ_h root C >>>
       CSSOp dop root #k @ ⊤
-    <<< ∃ C' (res: bool), is_CSS γ γ_fp γ_k γ_inr γ_fi root C'
+    <<< ∃ C' (res: bool), CSS γ_I γ_f γ_k γ_i γ_h root C'
         ∗ (Ψ dop k C C' res : iProp), RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
@@ -272,14 +354,14 @@ Section Link_Template.
     iDestruct "Hst" as (I0) "(HI & HKS & HNDS & #Hglob & Hstar)".
     iDestruct "Hglob" as %Hglob. iDestruct "HKin" as %HKin.
     assert (root ∈ domm I0)%I as Hroot. { apply globalinv_root_fp. done. }
-    iMod (own_update γ_fp (● domm I0) (● domm I0 ⋅ ◯ domm I0) with "HNDS") as "H".
+    iMod (own_update γ_f (● domm I0) (● domm I0 ⋅ ◯ domm I0) with "HNDS") as "H".
     { apply auth_update_core_id. apply gset_core_id. done. }
     iDestruct "H" as "(HNDS & #Hfp0)".
     rewrite (big_sepS_elem_of_acc _ (domm I0) root); last by eauto.
     iDestruct "Hstar" as "[Hn Hstar]".
     iDestruct "Hn" as (b Ir) "(H1 & H2 & H3 & H4 & H5 & Hksr)".
     iPoseProof (auth_own_incl with "[$HI $H3]") as "%". iDestruct "H4" as %HNdsr.
-    iMod (own_update (γ_inr root) _
+    iMod (own_update (γ_i root) _
                      (● (inset K Ir root)
                       ⋅ ◯ (inset K Ir root))
             with "Hksr") as "H".
@@ -287,7 +369,7 @@ Section Link_Template.
     iMod ("HAU" with "[HI HKS H1 H2 H3 H5 Hstar HNDS Hksr] ") as "AU".
     { iExists I0. iFrame "∗ % #". iApply "Hstar". iExists b, Ir. iFrame "∗ # %". }
     iModIntro. wp_bind (traverse _ _)%E.
-    awp_apply (traverse_spec γ γ_fp γ_k γ_inr γ_fi root k root (domm I0) Ir). iFrame "∗ # %".
+    awp_apply (traverse_spec γ_I γ_f γ_k γ_i γ_h root k root (domm I0) Ir). iFrame "∗ # %".
     iPureIntro. apply (globalinv_root_ins I0 Ir root k); try done.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C1) "Hst". iAaccIntro with "Hst"; first by eauto with iFrame.
@@ -303,7 +385,7 @@ Section Link_Template.
       iDestruct "Hst" as (I) "(HI & HKS & HNDS & #Hglob & Hstar)".
       iDestruct "Hglob" as %Hglob'.
       iAssert (⌜n ∈ domm I⌝)%I with "[HNDS]" as "%".
-      { iPoseProof ((auth_own_incl γ_fp (domm I) Ns) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_f (domm I) Ns) with "[$]") as "%".
         apply gset_included in H1.
       iPureIntro. set_solver. }
       rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
@@ -316,10 +398,10 @@ Section Link_Template.
       iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In1.
       iFrame "∗ # %". eauto with iFrame. } iIntros "Hlock".
       iPoseProof (auth_own_incl with "[$HI $HIn]") as (I2)"%".
-      iPoseProof ((own_valid γ (● I)) with "HI") as "%".
-      iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
+      iPoseProof ((own_valid γ_I (● I)) with "HI") as "%".
+      iPoseProof ((own_valid_2 (γ_h n) (●{1 / 2} In) (●{1 / 2} In1)) with "[Hfil] [Hfis]") as "%"; try done.
       apply (auth_auth_frac_op_inv _ _ _ _) in H4. apply leibniz_equiv in H4. replace In1.
-      iPoseProof ((own_valid γ (◯ In)) with "HIn") as "%". rename H5 into HInV.
+      iPoseProof ((own_valid γ_I (◯ In)) with "HIn") as "%". rename H5 into HInV.
       assert (✓ In) as HInv. { apply (auth_frag_valid (◯ In)). done. }    
       iPoseProof (own_valid with "Hks") as "%". rename H5 into HvldCn.
       rewrite auth_frag_valid in HvldCn *; intros HvldCn. unfold valid, cmra_valid in HvldCn.
@@ -342,7 +424,7 @@ Section Link_Template.
       iDestruct "Hst" as (I) "(HI & HKS & HNDS & #Hglob & Hstar)".
       iDestruct "Hglob" as %Hglob'.
       iAssert (⌜n ∈ domm I⌝)%I with "[HNDS]" as "%".
-      { iPoseProof ((auth_own_incl γ_fp (domm I) Ns) with "[$]") as "%".
+      { iPoseProof ((auth_own_incl γ_f (domm I) Ns) with "[$]") as "%".
         apply gset_included in H1.
       iPureIntro. set_solver. }
       rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
@@ -360,7 +442,7 @@ Section Link_Template.
         iExists I. iFrame "∗ % #". iApply "Hstar". iExists true, In1.
         iFrame "∗ # %". eauto with iFrame. }
       iIntros "Hlock". iModIntro.
-      iPoseProof ((own_valid_2 (γ_fi n) (●{1 / 2} In) (●{1 / 2} In1))
+      iPoseProof ((own_valid_2 (γ_h n) (●{1 / 2} In) (●{1 / 2} In1))
                     with "[Hfil] [Hfis]") as "%"; try done.
       apply (auth_auth_frac_op_inv _ _ _ _) in H2.
       apply leibniz_equiv in H2. replace In1.
