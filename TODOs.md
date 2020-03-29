@@ -1,6 +1,14 @@
 Things to do
 ------------
 
+- Can we prove the lock/unlock specs shown in the paper?
+
+- Rename ghost names to match paper.
+
+- Reorder `globalinv` and `CSS` to match paper.
+
+- (Discuss) add alias `in_inreach` for `in_inset` in link.v to match paper.
+
 - Get rid of `is_CSS` and put the `exists I` in `CSS` to match paper.
 
 - Prove replacement lemma for new contextual extension.
