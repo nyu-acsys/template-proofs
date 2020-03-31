@@ -155,12 +155,17 @@ Section Link_Template.
   
   Lemma CSS_unfold γ_I γ_f γ_k γ_i γ_h root C n  :
     inFP γ_f n ∗ CSS γ_I γ_f γ_k γ_i γ_h root C
-    -∗ (∃ (b: bool) I_n, lockLoc n ↦ #b
-        ∗ (if b then True else (∃ C_n, nodePred γ_h γ_k n I_n C_n)))
-      ∗ ((∃ (b: bool) I_n, lockLoc n ↦ #b
-          ∗ (if b then True else (∃ C_n, nodePred γ_h γ_k n I_n C_n)))
-         -∗ CSS γ_I γ_f γ_k γ_i γ_h root C).
+    -∗ ((∃ (b: bool), lockLoc n ↦ #b
+          ∗ (if b then True else (∃ I_n C_n, nodePred γ_h γ_k n I_n C_n)))
+        ∗ ((∃ (b: bool), lockLoc n ↦ #b
+             ∗ (if b then True else (∃ I_n C_n, nodePred γ_h γ_k n I_n C_n)))
+           -∗ CSS γ_I γ_f γ_k γ_i γ_h root C)).
   Proof.
+    iIntros "(#Hfp & Hcss)".
+    iDestruct "Hcss" as (I) "(HI & Hglob & Hks & Hdom & Hbigstar)".
+    iDestruct "Hfp" as (N) "(#Hdom' & n_in_N)".
+
+    
   Admitted.
   
   (** High-level lock specs *)
@@ -173,22 +178,22 @@ Section Link_Template.
                       ∗ nodePred γ_h γ_k n I_n C_n,
              RET #() >>>.
   Proof.
-    iIntros "HFp". iIntros (Φ) "AU".
+    iIntros "#HFp". iIntros (Φ) "AU".
     awp_apply (lockNode_spec n).
     iApply (aacc_aupd_commit with "AU"); first done.
     iIntros (C) "HCSS".
     iPoseProof (CSS_unfold with "[$HFp $HCSS]") as "(Hn & HCSS')".
-    iDestruct "Hn" as (b In) "(Hlock & Hn)".
+    iDestruct "Hn" as (b) "(Hlock & Hn)".
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iPoseProof ("HCSS'" with "[Hlockn Hn]") as "HCSS"; first eauto with iFrame.
-      iSplitL.
-      iFrame "HCSS".
-      iIntros "AU". iModIntro.
-      eauto with iFrame.
+      iFrame "HCSS". iIntros "AU". by iModIntro.
     }
-
-    (* Continue here: using lockNode_spec. *)
+    iIntros "(Hlockn & %)". iModIntro.
+    subst b. iDestruct "Hn" as (In Cn) "Hn".
+    iPoseProof ("HCSS'" with "[Hlockn]") as "HCSS"; first eauto with iFrame.
+    iExists In, Cn. 
+    iFrame "∗". iIntros "H". by iModIntro.
   Qed.
   
   Lemma unlockNode_spec_high (γ_I γ_f γ_k : gname) root n I_n C_n :
