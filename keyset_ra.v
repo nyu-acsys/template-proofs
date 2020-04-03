@@ -230,6 +230,30 @@ Section keyset_updates.
   Global Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
   Proof. destruct dop; apply _. Qed.
 
+  (** Some useful lemmas  *)
+
+  Lemma keyset_valid γ_k Ks C:
+    own γ_k (◯ prod (Ks, C)) -∗ ⌜C ⊆ Ks⌝.
+  Proof.
+    iIntros "Hks".
+    iPoseProof (own_valid with "Hks") as "HvldCn".
+    iDestruct "HvldCn" as %HvldCn.
+    rewrite auth_frag_valid in HvldCn *; intros HvldCn.
+    unfold valid, cmra_valid in HvldCn.
+    simpl in HvldCn. unfold ucmra_valid in HvldCn. simpl in HvldCn.
+      by iPureIntro.
+  Qed.
+
+  Lemma Ψ_impl_C_in_K dop k C C' res (Ks: gset K) :
+    Ψ dop k C C' res -∗ ⌜C ⊆ Ks⌝ -∗ ⌜k ∈ Ks⌝ -∗ ⌜C' ⊆ Ks⌝.
+  Proof.
+    iIntros "HΨ % %". iEval (unfold Ψ) in "HΨ".
+    destruct dop.
+    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. subst C'. done.
+    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
+    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
+  Qed.
+
   (** Ghost update of abstract search structure state *)
   
   Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
