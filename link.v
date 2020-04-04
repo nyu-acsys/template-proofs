@@ -151,14 +151,19 @@ Section Link_Template.
     ∗ ⌜domm In = {[n]}⌝    (* Needed for globalinv_root_ins *)
     ∗ own (γ_i n) (● (inset K In n)).
 
+  Definition nodeFull γ_I γ_f γ_k γ_i γ_h n : iProp :=
+    (∃ (b: bool) (In: inset_flowint_ur K),
+        lockLoc n ↦ #b
+        ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))
+        ∗ nodeShared γ_I γ_i γ_h n In).
+  
+  Definition globalGhost γ_I γ_k γ_f r I C : iProp :=
+    (own γ_I (● I) ∗ ⌜globalinv K r I⌝ ∗ own γ_k (● prod (KS, C))
+     ∗ own γ_f (● domm I))%I.
+
   Definition CSSi γ_I γ_f γ_k γ_i γ_h r C I : iProp :=
-    (own γ_I (● I) ∗ ⌜globalinv K r I⌝
-     ∗ own γ_k (● prod (KS, C))
-     ∗ own γ_f (● domm I)
-     ∗ ([∗ set] n ∈ (domm I), (∃ (b: bool) (In: inset_flowint_ur K),
-         (lockLoc n) ↦ #b
-         ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))
-         ∗ nodeShared γ_I γ_i γ_h n In))
+    (globalGhost γ_I γ_k γ_f r I C
+     ∗ ([∗ set] n ∈ (domm I), nodeFull γ_I γ_f γ_k γ_i γ_h n)
     )%I.
 
   Definition CSS γ_I γ_f γ_k γ_i γ_h r C : iProp :=
@@ -170,7 +175,7 @@ Section Link_Template.
     inFP γ_f n -∗ CSSi γ_I γ_f γ_k γ_i γ_h r C I -∗ ⌜n ∈ domm I⌝.
   Proof.
     iIntros "#Hfp Hcss".
-    iDestruct "Hcss" as "(HI & Hglob & Hks & Hdom & Hbigstar)".
+    iDestruct "Hcss" as "((HI & Hglob & Hks & Hdom) & Hbigstar)".
     iDestruct "Hfp" as (N) "(#Hdom' & n_in_N)". iDestruct "n_in_N" as %n_in_N.
     iPoseProof ((auth_own_incl γ_f (domm I) N) with "[$]") as "#N_incl".
     iDestruct "N_incl" as %N_incl.
@@ -190,27 +195,14 @@ Section Link_Template.
   Qed.
     
   Lemma CSS_unfold γ_I γ_f γ_k γ_i γ_h r C n :
-    let globalGhost γ_I γ_k γ_f r I C : iProp :=
-        (own γ_I (● I) ∗ ⌜globalinv K r I⌝ ∗ own γ_k (● prod (KS, C))
-        ∗ own γ_f (● domm I))%I
-    in
     CSS γ_I γ_f γ_k γ_i γ_h r C -∗ inFP γ_f n
-    -∗ (∃ I,
-        globalGhost γ_I γ_k γ_f r I C
-        ∗ (∃ (b: bool) (In: inset_flowint_ur K),
-              lockLoc n ↦ #b
-              ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))
-              ∗ nodeShared γ_I γ_i γ_h n In)
+    -∗ (∃ I, globalGhost γ_I γ_k γ_f r I C ∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
         ∗ (∀ C',
-           (globalGhost γ_I γ_k γ_f r I C'
-           ∗ (∃ (b: bool) (In: inset_flowint_ur K),
-                 lockLoc n ↦ #b
-                 ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))
-                 ∗ nodeShared γ_I γ_i γ_h n In))
-            -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
+           globalGhost γ_I γ_k γ_f r I C' ∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
+           -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
   Proof.
     iIntros "Hcss #Hfp".
-    iDestruct "Hcss" as (I) "(HI & Hglob & Hks & Hdom & Hbigstar)".
+    iDestruct "Hcss" as (I) "((HI & Hglob & Hks & Hdom) & Hbigstar)".
     iPoseProof (inFP_domm with "[$] [$]") as "%".
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
     iDestruct "Hbigstar" as "(Hn & Hbigstar)". iExists I. iFrame "∗".
@@ -218,31 +210,14 @@ Section Link_Template.
     iExists I. iFrame "∗". by iApply "Hbigstar".
   Qed.
 
-  Lemma CSS_unfold_node γ_I γ_f γ_k γ_i γ_h r C n In Cn :
-    let globalGhost γ_I γ_k γ_f r I C : iProp :=
-        (own γ_I (● I) ∗ ⌜globalinv K r I⌝ ∗ own γ_k (● prod (KS, C))
-        ∗ own γ_f (● domm I))%I
-    in
-    CSS γ_I γ_f γ_k γ_i γ_h r C -∗ node n In Cn -∗ inFP γ_f n
-    -∗ own (γ_h n) (●{1/2} In)
-    -∗ (∃ I,
-        node n In Cn ∗ own (γ_h n) (●{1/2} In)
-        ∗ globalGhost γ_I γ_k γ_f r I C
-        ∗ lockLoc n ↦ #true ∗ nodeShared γ_I γ_i γ_h n In
-        ∗ (∀ C',
-           (globalGhost γ_I γ_k γ_f r I C'
-           ∗ (∃ (b: bool) (In: inset_flowint_ur K),
-                 lockLoc n ↦ #b
-                 ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))
-                 ∗ nodeShared γ_I γ_i γ_h n In))
-            -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
+  Lemma node_nodeFull_equal γ_I γ_f γ_k γ_i γ_h n In Cn :
+    node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
+    -∗ (lockLoc n ↦ #true ∗ node n In Cn ∗ own (γ_h n) (●{1/2} In)
+        ∗ nodeShared γ_I γ_i γ_h n In).
   Proof.
-    iIntros "Hcss Hn #Hfp HfIn".
-    iPoseProof (CSS_unfold with "[$] [$]") as (I) "(Hg & Hns & Hcss')".
-    iExists I.
-    iDestruct "Hns" as (b In') "(Hlock & Hnp & Hns)". destruct b.
+    iIntros "Hn HhIn Hnf".
+    iDestruct "Hnf" as (b In') "(Hlock & Hnp & Hns)". destruct b.
     - (* Case n locked *)
-      iDestruct "Hg" as "(HI & Hglob & Hks & Hdom)".
       iDestruct "Hns" as "(HIn & HhIn' & HdomIn & Hins)".
       iPoseProof (frac_int_equal with "[$] [$]") as "%". subst In'.
       iFrame "∗".
@@ -251,32 +226,68 @@ Section Link_Template.
       iExFalso. iApply (node_sep_star n In In' with "[$]").
   Qed.
 
-  (* TODO try just using CSS_unfold instead: *)
-  Lemma CSS_fold γ_I γ_f γ_k γ_i γ_h r C n In Cn :
-    nodePred γ_f γ_h γ_k n In Cn -∗ CSS γ_I γ_f γ_k γ_i γ_h r C
-    -∗ (lockLoc n ↦ #true ∗ nodePred γ_f γ_h γ_k n In Cn
-        ∗ ((∃ (b: bool), lockLoc n ↦ #b
-             ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn)))
-           -∗ CSS γ_I γ_f γ_k γ_i γ_h r C)).
+  Lemma CSS_unfold_node_wand γ_I γ_f γ_k γ_i γ_h r C n In Cn :
+    CSS γ_I γ_f γ_k γ_i γ_h r C
+    -∗ node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ inFP γ_f n
+    -∗ (∃ I, node n In Cn ∗ own (γ_h n) (●{1/2} In)
+        ∗ globalGhost γ_I γ_k γ_f r I C
+        ∗ lockLoc n ↦ #true ∗ nodeShared γ_I γ_i γ_h n In
+        ∗ (∀ C',
+           globalGhost γ_I γ_k γ_f r I C' ∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
+           -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
   Proof.
-    iIntros "Hnp Hcss".
-    iDestruct "Hcss" as (I) "(HI & Hglob & Hks & Hdom & Hbigstar)".
-    iDestruct "Hnp" as "(Hn & HnhIn & HkIn & #Hinfp & domIn)".
-    iPoseProof (inFP_domm with "[$] [$]") as "%".
-    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
-    iDestruct "Hbigstar" as "(Hns & Hbigstar)".
-    iDestruct "Hns" as (b In') "(Hlock & Hb & HIn & HhIn & HdomIn & Hins)".
-    destruct b; first last.
-    - (* Case n unlocked: impossible *)
-      iDestruct "Hb" as (?C) "(Hn' & _)".
-      iExFalso. iApply (node_sep_star n In In' with "[$]").
-    - (* Case n locked *)
-      iPoseProof (frac_int_equal with "[$] [$]") as "%". subst In'.
-      iFrame "Hlock Hn HnhIn HkIn Hinfp domIn".
-      iIntros "H". iClear "Hb". iDestruct "H" as (b) "(Hlock & Hb)".
-      iExists I. iFrame "∗". iApply "Hbigstar".
-      iExists b, In. iFrame "∗". 
+    iIntros "Hcss Hn HhIn #Hfp".
+    iPoseProof (CSS_unfold with "[$] [$]") as (I) "(Hg & Hnf & Hcss')".
+    iExists I.
+    iPoseProof (node_nodeFull_equal with "[$] [$] [$]")
+      as "(Hlock & Hn & HhIn &Hns)".
+    iFrame.
   Qed.
+
+  Lemma CSS_unfold_node γ_I γ_f γ_k γ_i γ_h r C n In Cn :
+    CSS γ_I γ_f γ_k γ_i γ_h r C
+    -∗ node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ inFP γ_f n
+    -∗ (∃ I, node n In Cn ∗ own (γ_h n) (●{1/2} In)
+        ∗ globalGhost γ_I γ_k γ_f r I C
+        ∗ lockLoc n ↦ #true ∗ nodeShared γ_I γ_i γ_h n In
+        ∗ ([∗ set] n' ∈ (domm I ∖ {[n]}), nodeFull γ_I γ_f γ_k γ_i γ_h n')).
+  Proof.
+    iIntros "Hcss Hn HhIn #Hfp".
+    iDestruct "Hcss" as (I) "(Hgl & Hbigstar)".
+    iPoseProof (inFP_domm with "[$] [$]") as "%".
+    rewrite (big_sepS_delete _ (domm I) n); last by eauto.
+    iDestruct "Hbigstar" as "(Hnf & Hbigstar)".
+    iPoseProof (node_nodeFull_equal with "[$] [$] [$]")
+      as "(Hlock & Hn & HhIn &Hns)".
+    iExists I. iFrame.
+  Qed.
+
+  (* (* TODO try just using CSS_unfold instead: *) *)
+  (* Lemma CSS_fold γ_I γ_f γ_k γ_i γ_h r C n In Cn : *)
+  (*   nodePred γ_f γ_h γ_k n In Cn -∗ CSS γ_I γ_f γ_k γ_i γ_h r C *)
+  (*   -∗ (lockLoc n ↦ #true ∗ nodePred γ_f γ_h γ_k n In Cn *)
+  (*       ∗ ((∃ (b: bool), lockLoc n ↦ #b *)
+  (*            ∗ (if b then True else (∃ Cn, nodePred γ_f γ_h γ_k n In Cn))) *)
+  (*          -∗ CSS γ_I γ_f γ_k γ_i γ_h r C)). *)
+  (* Proof. *)
+  (*   iIntros "Hnp Hcss". *)
+  (*   iDestruct "Hcss" as (I) "(HI & Hglob & Hks & Hdom & Hbigstar)". *)
+  (*   iDestruct "Hnp" as "(Hn & HnhIn & HkIn & #Hinfp & domIn)". *)
+  (*   iPoseProof (inFP_domm with "[$] [$]") as "%". *)
+  (*   rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto. *)
+  (*   iDestruct "Hbigstar" as "(Hns & Hbigstar)". *)
+  (*   iDestruct "Hns" as (b In') "(Hlock & Hb & HIn & HhIn & HdomIn & Hins)". *)
+  (*   destruct b; first last. *)
+  (*   - (* Case n unlocked: impossible *) *)
+  (*     iDestruct "Hb" as (?C) "(Hn' & _)". *)
+  (*     iExFalso. iApply (node_sep_star n In In' with "[$]"). *)
+  (*   - (* Case n locked *) *)
+  (*     iPoseProof (frac_int_equal with "[$] [$]") as "%". subst In'. *)
+  (*     iFrame "Hlock Hn HnhIn HkIn Hinfp domIn". *)
+  (*     iIntros "H". iClear "Hb". iDestruct "H" as (b) "(Hlock & Hb)". *)
+  (*     iExists I. iFrame "∗". iApply "Hbigstar". *)
+  (*     iExists b, In. iFrame "∗".  *)
+  (* Qed. *)
 
   Lemma inInr_impl_inset γ_I γ_f γ_k γ_i γ_h r C n In Cn k :
     CSS γ_I γ_f γ_k γ_i γ_h r C -∗ nodePred γ_f γ_h γ_k n In Cn
@@ -306,6 +317,18 @@ Section Link_Template.
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
   Qed.
+
+  (* Can we unify this with the above? *)
+  Lemma ghost_snapshot_fp_k γ_i (Ks: gset K) k n :
+    ⊢ own (γ_i n) (● Ks) -∗ ⌜k ∈ Ks⌝ ==∗ own (γ_i n) (● Ks) ∗ inInr γ_i k n.
+  Proof.
+    iIntros.
+    iMod (own_update (γ_i n) (● Ks) (● Ks ⋅ ◯ Ks) with "[$]")
+      as "H".
+    { apply auth_update_core_id. apply gset_core_id. done. }
+    iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
+    iExists Ks. by iFrame.
+  Qed.
     
   Lemma ghost_update_step γ_I γ_f γ_k γ_i γ_h r C n In Cn k n' :
     ⊢ CSS γ_I γ_f γ_k γ_i γ_h r C
@@ -316,32 +339,72 @@ Section Link_Template.
       ∗ inFP γ_f n' ∗ inInr γ_i k n'.
   Proof.
     iIntros "Hcss Hnp % %".
-    iDestruct "Hnp" as "(Hn & HnhIn & HkIn & #Hinfp & domIn)".
-    (* Can't use CSS_unfold_node because need to unroll bigstar twice. *)
-    iDestruct "Hcss" as (I) "Hcss".
-    iPoseProof (inFP_domm with "[$] [$]") as "%".
-    iDestruct "Hcss" as "(HI & % & Hks & Hdom & Hbigstar)".
-    rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
-    iDestruct "Hbigstar" as "(Hns & Hbigstar)".
-    
-    iDestruct "Hns" as "(HIn & HhIn' & HdomIn & Hins)".
+    iDestruct "Hnp" as "(Hn & HnhIn & HkIn & #Hinfp & %)".
+    (* iDestruct "Hcss" as (I) "Hcss". *)
+    (* iPoseProof (inFP_domm with "[$] [$]") as "%". *)
+    (* iAssert (CSS γ_I γ_f γ_k γ_i γ_h r C)%I with "[Hcss]" as "Hcss". *)
+    (* { iExists I. iFrame. } clear I. *)
+    iPoseProof (CSS_unfold_node with "[$] [$] [$] [$]")
+      as (I) "(Hn & HhIn & Hg & Hlock & Hns & Hbigstar)".
+    iDestruct "Hns" as "(HIn & HhInn & % & Hins)".
+    iDestruct "Hg" as "(HI & % & Hks & Hdom)".
+    assert (n ∈ domm I). admit. (* TODO make inFP_domm compatible *)
     (* In ≼ I *)
     iPoseProof ((auth_own_incl γ_I I In) with "[$]")
-      as (Io) "incl".
+      as (Io) "#incl".
     iDestruct "incl" as %incl.
-    assert (n' ∈ domm Io).
-      by eauto using flowint_step. 
-    assert (n' ∈ domm I).
-      by admit.
+    (* Some validities we'll use later *)
+    iPoseProof (own_valid with "HI") as "%".
+    iPoseProof (own_valid with "HIn") as "%".
+    (* Prove the preconditions of ghost_snapshot_fp *)
+    assert (n' ∈ domm Io). by eauto using flowint_step.
+    assert (domm I = domm In ∪ domm Io). {
+      rewrite incl. rewrite flowint_comp_fp. done.
+      rewrite <- incl. by apply auth_auth_valid.
+    }
+    assert (n' ∈ domm I). by set_solver.
     (* Take snapshot of fp to get inFP n' *)
     iMod (ghost_snapshot_fp γ_f (domm I) n' with "[$Hdom] [% //]")
         as "(Hdom & #Hinfp')".
-
-      
-    (* unroll star again using n' ∈ domm (I - In) and get In' *)
-    (* somehow get ✓ (In ⋅ In') *)
-    (* flowint_inset_step gives me k ∈ inset In' *)
+    (* unroll star again using n' ∈ domm Io and get In' *)
+    assert (n' ∈ domm I ∖ {[n]}). {
+      assert (n' ∉ domm In). {
+        apply (outset_distinct In n').
+        split. by apply auth_frag_valid.
+        exists k. done.
+      }
+      set_solver.
+    }
+    rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n'); last by eauto.
+    iDestruct "Hbigstar" as "(Hnf' & Hbigstar)".
+    (* Get ✓ (In ⋅ In') *)
+    iDestruct "Hnf'" as (b In') "(? & ? & (HIn' & ? & % & Hins'))".
+    iAssert (✓ (In ⋅ In'))%I as "%". {
+      iPoseProof ((own_op γ_I (◯ In) (◯ In' )) with "[HIn HIn']") as "H";
+        first by eauto with iFrame.
+      iPoseProof (own_valid with "H") as "%". iPureIntro.
+      apply (auth_frag_valid (◯ (In ⋅ In'))). rewrite auth_frag_op. done.
+    }
+    (* Use that with flowint_inset_step to get k ∈ inset In' *)
+    assert (k ∈ inset K In' n'). {
+      apply (flowint_inset_step In In' k n'). done. set_solver. set_solver.
+    }
     (* snapshot In' inreach to get inInr k n' *)
+    iMod (ghost_snapshot_fp_k γ_i _ k n' with "[$] [% //]")
+      as "(Hins' & #Hininr')".
+    (* Aaaand, we're done *)
+    iModIntro.
+    iAssert (CSS γ_I γ_f γ_k γ_i γ_h r C)%I with "[-Hn HkIn HhInn]" as "Hcss". {
+      iExists I. iFrame "HI Hks Hdom".
+      iSplitR. by iPureIntro.
+      rewrite (big_sepS_delete _ (domm I) n); last by eauto.
+      iSplitL "Hlock HIn HhIn Hins".
+      iExists true, In. eauto with iFrame.
+      rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n'); last by eauto.
+      iFrame "Hbigstar".
+      iExists b, In'. eauto with iFrame.
+    }
+    iFrame "#". iFrame "∗". by iPureIntro.
   Admitted.
 
   Lemma ghost_update_root γ_I γ_f γ_k γ_i γ_h r C k :
