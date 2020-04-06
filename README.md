@@ -20,9 +20,7 @@ The artifact has the following external dependencies
 
 - Z3, version >= 4.5
 
-The easiest way to satisfy all OCaml and Coq-related installation
-requirements is to install the OCaml package manager OPAM and then execute the
-following commands
+The easiest way to satisfy all OCaml and Coq-related requirements is to install the OCaml package manager OPAM and then execute the following commands
 
 ```bash
 opam switch 4.07.1
@@ -34,13 +32,11 @@ opam install -y coq-iris
 eval $(opam config env)
 ```
 
-For your convenience, you can execute
+For your convenience, you can download and install the correct GRASShopper version by executing the script
 
 ```bash
 ./setup.sh
 ```
-
-to automatically download and compile the correct version of GRASShopper.
 
 Use the following script to generate the rows for Table 1 (Section 4 of the paper):
 
@@ -48,7 +44,7 @@ Use the following script to generate the rows for Table 1 (Section 4 of the pape
 ./run_experiments.sh
 ```
 
-Please note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with ? in the generated rows.
+Please make sure that the Z3 executable is in your PATH. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
 
 ### Contents
 
@@ -135,12 +131,12 @@ lockLoc, getLockLoc, getLockLoc_spec, and node_timeless_proof. The first three a
 
 #### Implementation Proofs
 
-These proofs live in the implementations/ directory and require GRASShopper compiled from source (branch pldi20). Again, the VM has a built version of GRASShopper but see ~/grasshopper/README.md for build instructions.
+These proofs live in the implementations/ directory and require GRASShopper compiled from source (version pldi_2020). 
 
 From the implementations/ directory, one can check individual implementation files by running, for example:
 
 ```bash
-grasshopper hashtbl-link.spl -module hashtbl-link
+../grasshopper/grasshopper.native hashtbl-link.spl -module hashtbl-link
 ```
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
