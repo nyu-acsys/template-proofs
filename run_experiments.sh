@@ -15,7 +15,7 @@ popd
 
 # Assumes https://github.com/wies/grasshopper/ is in ~/grasshopper
 
-pushd ./grasshopper/
+pushd ./implementations/
 echo ""
 echo "Checking implementation proofs using GRASShopper:"
 echo ""
