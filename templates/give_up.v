@@ -46,7 +46,6 @@ Section Give_Up_Template.
   Context `{!heapG Σ, !flowintG Σ, !nodesetG Σ, !(@keysetG K _ _) Σ}.
   Notation iProp := (iProp Σ).
 
-  (*Definition val := heap_lang.val.*)
   (** The code of the give-up template. *)
 
   (* The following parameters are the implementation-specific helper functions
@@ -57,7 +56,7 @@ Section Give_Up_Template.
   Parameter inRange : val.
   Parameter decisiveOp : (dOp → val).
 
-  Definition traverse (root: Node) : val :=
+  Definition traverse (r: Node) : val :=
     rec: "tr" "n" "k"  :=
       lockNode "n";;
       if: inRange "n" "k" then
@@ -67,11 +66,11 @@ Section Give_Up_Template.
         end
       else
         unlockNode "n";;
-        "tr" #root "k".
+        "tr" #r "k".
 
-  Definition CSSOp (Ψ: dOp) (root: Node) : val :=
+  Definition CSSOp (Ψ: dOp) (r: Node) : val :=
     rec: "dictOp" "k" :=
-      let: "n" := (traverse root) #root "k" in
+      let: "n" := (traverse r) #r "k" in
       match: ((decisiveOp Ψ) "n" "k") with
         NONE => unlockNode "n";; "dictOp" "k"
       | SOME "res" => unlockNode "n";; "res"
@@ -94,9 +93,10 @@ Section Give_Up_Template.
   Hypothesis node_sep_star: ∀ n I_n I_n' C C',
     node n I_n C ∗ node n I_n' C' -∗ False.
 
+
   (** Helper functions specs *)
 
-  (* The following functions are proved for each implementation in GRASShopper
+  (* The following specs are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl) *)
 
   Parameter inRange_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
@@ -353,12 +353,12 @@ Section Give_Up_Template.
 
   (** Proofs of traverse and CSSOp *)
 
-  Lemma traverse_spec (γ_I γ_f γ_k: gname) (k: K) (root n: Node):
+  Lemma traverse_spec (γ_I γ_f γ_k: gname) (k: K) (r n: Node):
    ⊢ ⌜k ∈ KS⌝ ∗ inFP γ_f n -∗
-     <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
-       traverse root #n #k @ ⊤
+     <<< ∀ C, CSS γ_I γ_f γ_k r C >>>
+       traverse r #n #k @ ⊤
      <<< ∃ (n': Node) (I_n': inset_flowint_ur K) (C_n': gset K),
-          CSS γ_I γ_f γ_k root C
+          CSS γ_I γ_f γ_k r C
         ∗ nodePred γ_I γ_k n' I_n' C_n' 
         ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
   Proof.
@@ -366,7 +366,7 @@ Section Give_Up_Template.
     iDestruct "Hks" as %k_in_KS.
     iIntros (Φ) "AU". wp_lam. wp_let. wp_bind(lockNode _)%E.
     (* Open AU to get lockNode precondition *)
-    awp_apply (lockNode_spec_high γ_I γ_f γ_k root n); try done.
+    awp_apply (lockNode_spec_high γ_I γ_f γ_k r n); try done.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "HInv". iAaccIntro with "HInv".
     { iIntros "HInv". iModIntro. eauto with iFrame. }
@@ -393,7 +393,7 @@ Section Give_Up_Template.
         (* Close AU *)
         iMod ("Hclose" with "Hcss") as "AU". iModIntro.
         (* Unlock node n *)
-        awp_apply ((unlockNode_spec_high γ_I γ_f γ_k root n) with "[-AU //]").
+        awp_apply ((unlockNode_spec_high γ_I γ_f γ_k r n) with "[-AU //]").
         iApply (aacc_aupd_abort with "AU"); first done.
         iIntros (C2) "HInv". iAaccIntro with "HInv".
         { iIntros "HInv". iModIntro. eauto with iFrame. }
@@ -412,7 +412,7 @@ Section Give_Up_Template.
     - (* Case : inRange returns false *)
       wp_pures. iDestruct "Hb" as %Hnot_in_inset.
       (* Unlock node n *)
-      awp_apply ((unlockNode_spec_high γ_I γ_f γ_k root n) with "[-AU]").
+      awp_apply ((unlockNode_spec_high γ_I γ_f γ_k r n) with "[-AU]").
       iFrame "∗ # %". iApply (aacc_aupd_abort with "AU"); first done.
       iIntros (C) "HInv". iAaccIntro with "HInv".
       { iIntros. iModIntro. eauto with iFrame. }
@@ -427,10 +427,10 @@ Section Give_Up_Template.
 
   (** Verification of abstract specification of the search structure operation. *)
   
-  Theorem CSSOp_spec (γ_I γ_f γ_k: gname) root (dop: dOp) (k: K):
-   ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ_I γ_f γ_k root C >>>
-                          CSSOp dop root #k @ ⊤
-                 <<< ∃ C' (res: bool), CSS γ_I γ_f γ_k root C'
+  Theorem CSSOp_spec (γ_I γ_f γ_k: gname) r (dop: dOp) (k: K):
+   ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ_I γ_f γ_k r C >>>
+                          CSSOp dop r #k @ ⊤
+                 <<< ∃ C' (res: bool), CSS γ_I γ_f γ_k r C'
                                      ∗ (Ψ dop k C C' res : iProp), RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
@@ -441,7 +441,7 @@ Section Give_Up_Template.
     (* Close AU *)
     iMod ("HAU" with "HInv") as "AU". iModIntro.
     (* Open AU and apply traverse_spec *)
-    awp_apply (traverse_spec γ_I γ_f γ_k k root root); first by iFrame "% #".
+    awp_apply (traverse_spec γ_I γ_f γ_k k r r); first by iFrame "% #".
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C1) "HInv". iAaccIntro with "HInv"; first by eauto with iFrame.
     (* traverse returns node n and it's local ghost state *)
@@ -496,7 +496,7 @@ Section Give_Up_Template.
     - (* Case : decisiveOp fails *) 
       wp_match. iDestruct "Hb" as "%". subst Cn'.
       (* Open AU and apply unlockNode spec *)
-      awp_apply ((unlockNode_spec_high γ_I γ_f γ_k root n) with "[-AU]").
+      awp_apply ((unlockNode_spec_high γ_I γ_f γ_k r n) with "[-AU]").
       iFrame. iApply (aacc_aupd_abort with "AU"); first done.
       iIntros (C2) "HInv".
       (* execute unlockNode and close AU *)

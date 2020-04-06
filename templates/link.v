@@ -106,9 +106,8 @@ Section Link_Template.
 
 
   (** Helper functions specs *)
-  (* These are proved for each implementation in GRASShopper *)
 
-  (* The following functions are proved for each implementation in GRASShopper
+  (* The following specs are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
 
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
