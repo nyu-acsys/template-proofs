@@ -14,7 +14,7 @@ The artifact has the following external dependencies
 
 - Coq stdpp, version coq-stdpp.dev.2020-03-18.1.846deb08
 
-- Iris, version coq-iris.dev.2020-03-21.0.ed3b52f9 and stdpp version
+- Iris, version coq-iris.dev.2020-03-21.0.ed3b52f9
 
 - GRASShopper, version pldi_2020.
 
