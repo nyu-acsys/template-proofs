@@ -1,0 +1,220 @@
+/** B+ tree implementation of the give-up template. */
+
+options "-simplearrays -propreads"
+
+include "inset-flows.spl"
+include "array_util.spl"
+
+/** {Spec} Definition of key space */
+
+pure function KS() returns (res: Set<K>)
+{
+  { k: K :: lt(k, top) }
+}
+
+/** Definition of a node */
+
+struct Node {
+  var len: Int;
+  var rangeLb: K;
+  var rangeUb: K;
+  var keys: Array<K>;
+  var ptrs: Array<Node>;
+}
+
+const B: Int
+
+/** {Spec} Definition of heap representation predicate, node */
+
+axiom B > 1
+
+// Access permissions associated with a node x
+define hrepSpatial(x) {
+  acc(x) &*& acc(x.keys) &*& acc(x.ptrs)
+}
+
+// The definition of the implementation-specific node predicate assumed by Iris
+define node(x, I, C) {
+  hrepSpatial(x) &*& I.dom == {x} &*& intValid(I)
+    && 0 <= x.len && x.len < 2*B && x.keys.length == 2*B && x.ptrs.length == 2*B
+    // The keys are within the range
+    && (x.len != 0 ==> le(x.rangeLb, x.keys[0]) && lt(x.keys[x.len-1], x.rangeUb))
+    // The range defines the inset
+    && (forall k: K :: I.inf[x][k] == 1 && le(x.rangeLb, k) && lt(k, x.rangeUb)
+    || I.inf[x][k] == 0 && (lt(k, x.rangeLb) || le(x.rangeUb, k)))
+    // Keys are sorted
+    && (forall i: Int, j: Int :: 0 <= i < j < x.len ==> lt(x.keys[i], x.keys[j]) @(noinst i) @(noinst j))
+    && (x.ptrs[0] == null  // Leaf
+       && (forall n: Node, n1: Node :: I.out[n1] == domZero)
+       && C == set_of_map(x.keys.map, 0, x.len)
+     || x.ptrs[0] != null  // Internal
+       && C == {}
+       && (forall i: Int :: 0 <= i <= x.len ==> x != x.ptrs[i])
+         && (forall i: Int, j: Int :: 0 <= i < j <= x.len ==> x.ptrs[i] != x.ptrs[j] @(noinst i) @(noinst j))
+       && (forall i: Int :: 0 <= i <= x.len ==> x.ptrs[i] != null)
+       && (forall i: Int, k: K :: 0 <= i <= x.len ==>
+          (I.out[x.ptrs[i]][k] == 1
+          && ((0 < i ==> le(x.keys[i-1], k)) && (i < x.len ==> lt(k, x.keys[i])))
+           || I.out[x.ptrs[i]][k] == 0
+           && !((i <= 0 || le(x.keys[i-1], k)) && (i >= x.len || lt(k, x.keys[i]))))
+          @(matching x.ptrs[i] yields x.keys[i - 1])
+          @(matching x.ptrs[i] yields x.keys[i]))
+          //       && (forall i: Int :: 0 <= i <= x.len ==> I.fm[x][x.ptrs[i]].pc == 1)
+       )
+}
+
+
+/** {Spec} Implementation-specific lemmas needed by Iris */
+
+// Node predicate is not duplicable
+lemma node_sep_star(n: Node, I_n: Interface, I_np: Interface, C: Set<K>, Cp: Set<K>)
+  requires node(n, I_n, C) &*& node(n, I_np, Cp)
+  ensures false
+{
+
+}
+
+/** {Spec} Lemmas for proofs below */
+
+// Show that if query key k is in the keyset of node x than x must be a leaf.
+lemma keyset_implies_leaf(x: Node, Ix: Interface, k: K, i: Int, implicit ghost C: Set<K>)
+  requires node(x, Ix, C)
+  requires Ix.inf[x][k] == 1 && (forall y: Node :: Ix.out[y][k] == 0)
+  requires (i <= 0 || le(x.keys[i-1], k)) && 0 <= i <= x.len
+  ensures node(x, Ix, C)
+  ensures x.ptrs[0] == null  // x is a leaf
+{
+  if (x.ptrs[0] != null) {
+    if (i < x.len) {
+      if (lt(k, x.keys[i])) {
+        pure assert Ix.out[x.ptrs[i]][k] == 1;
+      } else {
+        keyset_implies_leaf(x, Ix, k, i + 1);
+      }
+    } else {
+      pure assert Ix.out[x.ptrs[i]][k] == 1;
+    }
+  }
+}
+
+/** Begin programs */
+
+/** Initialize a new root node */
+procedure init() returns (x: Node, I: Interface, implicit ghost C: Set<K>)
+  ensures node(x, I, C) &*& intValid(I) &*& C == {}
+{
+  x := new Node;
+  x.keys := new Array<K>(2*B);
+  x.ptrs := new Array<Node>(2*B);
+  arr_init_node(x.ptrs, 2*B, null);
+  x.len := 0;
+  x.rangeLb := bot;
+  x.rangeUb := top;
+
+  var xkc := { k: K :: le(bot, k) && lt(k, top) ? 1 : 0 };
+  var xfm := { n1: Node :: domZero };
+  I := int({ n: Node :: n == x ? xkc : domZero },
+            xfm, {x});
+  pure assert intValid(I);
+}
+
+
+procedure inRange(n: Node, k: K, ghost In: Interface, implicit ghost C: Set<K>)
+  returns (res: Bool)
+  requires k in KS
+  requires node(n, In, C)
+  ensures node(n, In, C) &*& (res ==> in_inset(k, In, n))
+{
+  return le(n.rangeLb, k) && lt(k, n.rangeUb);
+}
+
+procedure findNext(n: Node, k: K, ghost In: Interface, implicit ghost C: Set<K>)
+  returns (succ: Bool, np: Node)
+  requires k in KS
+  requires node(n, In, C)
+  requires in_inset(k, In, n)
+  ensures node(n, In, C)
+  ensures succ ==> in_outset(k, In, np)
+  ensures !succ ==> !(in_outsets(k, In))
+{
+  if (n.ptrs[0] == null) {  // Leaf node
+    return false, null;
+  }
+
+  var found, i := arr_find(n.keys, n.len, k);
+
+  if (i < n.len && k == n.keys[i]) {  // arr_find finds upper bound, we want lower
+    i := i + 1;
+  }
+
+  np := n.ptrs[i];
+  succ := true;
+}
+
+procedure search(n: Node, k: K, ghost In: Interface, implicit ghost C: Set<K>)
+  returns (succ: Bool, res: Bool, implicit ghost C1: Set<K>)
+  requires k in KS
+  requires node(n, In, C)
+  requires in_inset(k, In, n) && !(in_outsets(k, In))
+  ensures node(n, In, C1)
+  ensures succ ==> Psi(searchOp, k, C, C1, res)
+  ensures !succ ==> C1 == C
+{
+  keyset_implies_leaf(n, In, k, 0);
+
+  var idx: Int;
+  res, idx := arr_find(n.keys, n.len, k);
+
+  return true, res;
+}
+
+procedure insert(n: Node, k: K, ghost In: Interface, implicit ghost C: Set<K>)
+  returns (succ: Bool, res: Bool, implicit ghost C1: Set<K>)
+  requires k in KS
+  requires node(n, In, C)
+  requires in_inset(k, In, n) && !(in_outsets(k, In))
+  ensures node(n, In, C1)
+  ensures succ ==> Psi(insertOp, k, C, C1, res)
+  ensures !succ ==> C1 == C
+{
+  keyset_implies_leaf(n, In, k, 0);
+
+  if (n.len < 2*B - 1) {
+
+    ghost var m := n.keys.map;
+    var old_len := n.len;
+
+    var idx, new_len := arr_insert(n.keys, k, n.len);
+
+    map_insert_content_set(m, n.keys.map, idx, k, n.len, new_len);
+
+    n.len := new_len;
+
+    return true, new_len != old_len;
+  } else {
+    return false, false;
+  }
+}
+
+procedure delete(n: Node, k: K, ghost In: Interface, implicit ghost C: Set<K>)
+  returns (succ: Bool, res: Bool, implicit ghost C1: Set<K>)
+  requires k in KS
+  requires node(n, In, C)
+  requires in_inset(k, In, n) && !(in_outsets(k, In))
+  ensures node(n, In, C1)
+  ensures succ ==> Psi(deleteOp, k, C, C1, res)
+  ensures !succ ==> C1 == C
+{
+  keyset_implies_leaf(n, In, k, 0);
+
+  ghost var m := n.keys.map;
+  var old_len := n.len;
+
+  var new_len, idx := arr_delete(n.keys, k, n.len);
+
+  map_delete_content_set(m, n.keys.map, n.len, new_len, idx, k);
+
+  n.len := new_len;
+
+  return true, new_len != old_len;
+}

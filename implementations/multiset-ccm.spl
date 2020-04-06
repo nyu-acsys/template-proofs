@@ -1,0 +1,89 @@
+/** {Spec} Flow domain for multisets over some element type K */
+
+/** {Spec} Flow domain definitions */
+
+type K
+
+type Multiset = Map<K, Int>
+
+function domPlus(p1: Multiset, p2: Multiset) returns (p: Multiset)
+{
+  { k: K :: p1[k] + p2[k] }
+}
+
+function domMinus(p1: Multiset, p2: Multiset) returns (p: Multiset)
+{
+  { k: K :: p1[k] - p2[k] }
+}
+
+function domZero() returns(p: Multiset)
+{
+  { k: K :: 0 }
+}
+
+pure predicate domValid(p: Multiset) {
+  forall k1: K :: p[k1] >= 0
+}
+
+/** {Spec} Show that (Multiset, domPlus, domMinus, domZero) is a cancellative commutative monoid */
+
+// domZero is unit of domPlus
+lemma domZero_unit(p: Multiset)
+  ensures domPlus(p, domZero) == p
+{
+ pure assert forall k: K :: domPlus(p, domZero)[k] == p[k] with {
+   pure assert p[k] + domZero[k] == p[k];
+ }
+}
+
+// domPlus is associative
+lemma domPlus_assoc(p1: Multiset, p2: Multiset, p3: Multiset)
+  ensures domPlus(p1, domPlus(p2, p3)) == domPlus(domPlus(p1, p2), p3)
+{
+  pure assert forall k: K :: domPlus(p1, domPlus(p2, p3))[k] == domPlus(domPlus(p1, p2), p3)[k] with {
+    pure assert p1[k] + (p2[k] + p3[k]) == (p1[k] + p2[k]) + p3[k];
+    pure assert p1[k] + domPlus(p2, p3)[k] == domPlus(p1, p2)[k] + p3[k];
+  }
+}
+
+// domPlus is commutative
+lemma domPlus_comm(p1: Multiset, p2: Multiset)
+  ensures domPlus(p1, p2) == domPlus(p2, p1)
+{
+  pure assert forall k: K :: domPlus(p1, p2)[k] == domPlus(p2, p1)[k] with {
+    pure assert p1[k] + p2[k] == p2[k] + p1[k];
+  }
+}
+
+// domPlus is cancellative
+lemma domPlus_canc(p1: Multiset, p2: Multiset, p3: Multiset)
+  requires domPlus(p1, p2) == domPlus(p1, p3)
+  ensures p2 == p3
+{
+  pure assert forall k: K :: p1[k] + p2[k] == p1[k] + p3[k] with {
+    pure assert domPlus(p1, p2)[k] == domPlus(p1, p3)[k];
+  }
+  pure assert forall k: K :: p2[k] == p3[k] with {
+    pure assert p1[k] + p2[k] == p1[k] + p3[k];
+  }
+}
+
+// Validity is preserved by domPlus
+lemma domPlus_valid(p1: Multiset, p2: Multiset)
+  requires domValid(p1) && domValid(p2)
+  ensures domValid(domPlus(p1, p2))
+{
+  pure assert forall k: K :: domPlus(p1, p2)[k] >= 0 with {
+    pure assert p1[k] + p2[k] >= 0;
+  }
+}
+
+// domMinus is partial inverse of domPlus
+lemma domMinus_pinv(p1: Multiset, p2: Multiset)
+  ensures domMinus(domPlus(p1, p2), p1) == p2 
+{
+  pure assert forall k: K :: domMinus(domPlus(p1, p2), p1)[k] == p2[k] with {
+    pure assert (p1[k] + p2[k]) - p1[k] == p2[k];
+    pure assert domPlus(p1, p2)[k] - p1[k] == p2[k];
+  }
+}
