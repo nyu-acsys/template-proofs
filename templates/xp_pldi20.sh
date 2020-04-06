@@ -3,7 +3,7 @@
 FILES1="ccm flows inset_flows keyset_ra lock auth_ext"
 FILES2="give_up"
 FILES3="link"
-FILES4="coupling_inv"
+FILES4="coupling"
 
 timesfile=/tmp/times-iris
 timestotalfile=/tmp/times-total-iris

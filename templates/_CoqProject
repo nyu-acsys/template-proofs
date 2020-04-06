@@ -21,5 +21,4 @@ auth_ext.v
 lock.v
 give_up.v
 link.v
-link_old.v
-coupling_inv.v
+coupling.v
