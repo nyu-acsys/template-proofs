@@ -2,20 +2,53 @@
 
 ### Getting Started Guide
 
-Our artifact is a VirtualBox VM distributed as a zip file (756.zip). To get started, unzip the file and import the enclosed ova file into VirtualBox. Boot up the VM, and use the following credentials to log in:
+The artifact has the following external dependencies
 
-username: templates
-password: templates
+- OCaml, version 4.07.1
 
-Once in the home directory, you can run all the experiments and reproduce the results of the paper by running the following scripts:
+- OCaml Findlib, version 1.8.1
 
-./update_files.sh  # optional; this updates proof scripts from our repository
+- ocamlbuild, version 0.14.0
 
+- Coq, version 8.11
+
+- Coq stdpp, version coq-stdpp.dev.2020-03-18.1.846deb08
+
+- Iris, version coq-iris.dev.2020-03-21.0.ed3b52f9 and stdpp version
+
+- GRASShopper, version pldi_2020.
+
+- Z3, version >= 4.5
+
+The easiest way to satisfy all OCaml and Coq-related installation
+requirements is to install the OCaml package manager OPAM and then execute the
+following commands
+
+```bash
+opam switch 4.07.1
+opam install -y ocamlfind
+opam install -y ocamlbuild
+opam install -y coq
+opam install -y coq-stdpp
+opam install -y coq-iris
+eval $(opam config env)
+```
+
+For your convenience, you can execute
+
+```bash
+./setup.sh
+```
+
+to automatically download and compile the correct version of GRASShopper.
+
+Use the following script to generate the rows for Table 1 (Section 4 of the paper):
+
+```bash
 ./run_experiments.sh
+```
 
-The script will generate the rows for Table 1 (Section 4 of the paper).
-
-Warning: line counts and times may differ from the original submission because we've updated the proofs since submission, in order to reduce the unverified interface between the Coq and GRASShopper proofs. We have transferred the mechanization of the flow framework from GRASShopper to Coq. This also enables others to use flow-based reasoning in Iris proofs without having to rely on external proofs. We have also transferred many flow-domain-specific proofs to Coq. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with ? in the generated rows.
+Please note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with ? in the generated rows.
 
 ### Contents
 
@@ -70,12 +103,10 @@ Warning: line counts and times may differ from the original submission because w
   - list-coupling.spl:
         The list-based implementation of the lock coupling template
   
-+ update_files.sh:
-     A script to update the above proof scripts from our repository
++ setup.sh:
+     A script to download and compile the correct GRASShopper version.
 + run_experiments.sh:
      The script to re-run the experiments reported in our paper
-+ grasshopper/:
-     GRASShopper source files and proof scripts
 
 
 ### Step-by-Step Evaluation Instructions

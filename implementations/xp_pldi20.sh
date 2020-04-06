@@ -39,9 +39,9 @@ run()
     rm -f $timesfile $locfile
     for f in $@ ; do
         #echo "processessing $f"
-        python line-counter.py $SPLPATH/$f.spl >> $locfile
-        echo "grasshopper $SPLPATH/$f.spl -module $f"
-        { TIMEFORMAT=%3R; time grasshopper $SPLPATH/$f.spl -module $f 2>&1 ; } 2>> $timesfile
+        python ../grasshopper/bin/line-counter.py $SPLPATH/$f.spl >> $locfile
+        echo "grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f"
+        { TIMEFORMAT=%3R; time ../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
             echo -e "\nGrasshopper exited with errors on file $f.spl.\n"
