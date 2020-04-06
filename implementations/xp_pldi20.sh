@@ -61,7 +61,7 @@ run "Array library" $FILES8
 run "B+ tree" $FILES4
 run "B-link (core)" $FILES5
 run "B-link (half split)" $FILES6
-run "B-tree (full split)" $FILES7
+run "B-link (full split)" $FILES7
 run "Hash table (link)" $FILES2
 run "Hash table (give-up)" $FILES3
 run "Lock-coupling list" $FILES9
