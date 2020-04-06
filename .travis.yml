@@ -1,0 +1,22 @@
+language: c
+sudo: required
+install:
+  - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip -O ~/z3.zip
+  - unzip ~/z3.zip -d ~/z3
+  - z3 --version
+  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-ocaml.sh
+  - bash -ex .travis-ocaml.sh
+  - opam install -y ocamlfind
+  - opam install -y ocamlbuild
+  - opam repo add coq-released https://coq.inria.fr/opam/released
+  - opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+  - opam install -y coq
+  - opam install -y coq-stdpp
+  - opam install -y coq-iris
+  - eval $(opam config env)
+env:
+  - OCAML_VERSION=4.07 PATH="$HOME/z3/z3-4.8.7-x64-ubuntu-16.04/bin/:$PATH"
+script:
+  - bash setup.sh
+  - bash run_experiments.sh
+os: linux
