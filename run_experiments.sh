@@ -19,5 +19,5 @@ pushd ./implementations/
 echo ""
 echo "Checking implementation proofs using GRASShopper:"
 echo ""
-./bin/xp_pldi20.sh
+./xp_pldi20.sh
 popd
