@@ -28,6 +28,6 @@ env:
 
 script:
   - bash setup.sh
-  - travis_wait bash run_experiments.sh
+  - travis_wait 40 bash run_experiments.sh
 
 os: linux
