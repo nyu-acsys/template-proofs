@@ -1,5 +1,5 @@
 language: c
-sudo: required
+dist: xenial
 
 install:
   - wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip -O ~/z3.zip
@@ -10,7 +10,7 @@ install:
   - opam install -y ocamlfind ocamlbuild
   - opam repo add coq-released https://coq.inria.fr/opam/released
   - opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-  - travis_wait opam install -y coq-iris
+  - travis_wait opam install -y coq-iris.dev.2020-04-06.4.0e2975ec
   - eval $(opam config env)
 
 cache:
