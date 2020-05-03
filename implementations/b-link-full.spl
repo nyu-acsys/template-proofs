@@ -12,6 +12,12 @@ pure predicate comp_ok(Ipc: Interface, Ipc1: Interface, x: Node) {
 
 
 /** Full split */
+// TODOs:
+// full_split should read x := c.next
+// Then it should read parent's next child pointer and see if it == x
+// Can we prove the Nothing == x preconditions when looking at parent's next
+//    child pointer?
+// 
 
 procedure full_split(p: Node, Ip: Interface, ci: Int, c: Node, Ic: Interface,
   Ipc: Interface, x: Node, implicit ghost Cp: Set<K>, implicit ghost Cc: Set<K>)
@@ -29,6 +35,7 @@ procedure full_split(p: Node, Ip: Interface, ci: Int, c: Node, Ic: Interface,
   requires Ic.out[p] == domZero  // needed for int_comp_unfold
 
   ensures node(p, Ip1, Cp) &*& node(c, Ic1, Cc)
+  // TODO also need that their keysets are the same
   //ensures intComp(Ip1, Ic1) == Ipc
   ensures comp_ok(Ipc, intComp(Ip1, Ic1), x)
 {

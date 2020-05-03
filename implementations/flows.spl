@@ -567,8 +567,10 @@ lemma lemma_replacement_no_inflow(I1: Interface, I2: Interface, J1: Interface)
   }  
 }
 
+
+/* WORK IN PROGRESS:
 // Contextual extension allowing increase of inflow of existing nodes
-/*pure predicate contextualExt(I: Interface, J: Interface) {
+pure predicate contextualExt(I: Interface, J: Interface) {
   intValid(I) && intValid(J) &&
   I.dom <= J.dom
   && (forall n: Node :: n in I.dom ==> domValid(domMinus(J.inf[n], I.inf[n]))
@@ -609,7 +611,7 @@ lemma lemma_replacement_ext(I1: Interface, I2: Interface, J1: Interface)
       domPlus_comm(domMinus(J1.inf[n], I1.inf[n]), I1.inf[n]);
       pure assert domPlus(J.inf[n], I2.out[n])
         == domPlus(I1.inf[n], domMinus(J1.inf[n], I1.inf[n]));
-      domMinus_plus_dist(I1.inf[n], J1.inf[n], I1.inf[n]);
+      domMinus_plus_dist(I1.inf[n], J1.inf[n]);
       pure assert domPlus(J.inf[n], I2.out[n])
         == domMinus(domPlus(I1.inf[n], J1.inf[n]), I1.inf[n]);
       domMinus_pinv(I1.inf[n], J1.inf[n]);
