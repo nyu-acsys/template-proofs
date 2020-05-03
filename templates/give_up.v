@@ -120,7 +120,7 @@ Section Give_Up_Template.
          {{{ (succ: bool) (res: bool) (C1: gset K),
              RET (match succ with false => NONEV | true => (SOMEV #res) end);
              node n In C1 ∗ (match succ with false => ⌜C = C1⌝
-                                        | true => Ψ dop k C C1 res
+                                        | true => ⌜Ψ dop k C C1 res⌝
                              end) }}})%I.
 
   (** The concurrent search structure invariant *)
@@ -431,7 +431,7 @@ Section Give_Up_Template.
    ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ_I γ_f γ_k r C >>>
                           CSSOp dop r #k @ ⊤
                  <<< ∃ C' (res: bool), CSS γ_I γ_f γ_k r C'
-                                     ∗ (Ψ dop k C C' res : iProp), RET #res >>>.
+                                     ∗ ⌜Ψ dop k C C' res⌝, RET #res >>>.
   Proof.
     iIntros "HKin" (Φ) "AU". iLöb as "IH". wp_lam.
     iDestruct "HKin" as %k_in_KS.
@@ -484,8 +484,10 @@ Section Give_Up_Template.
       {
         iPoseProof (keyset_valid with "Hk") as "%".
         assert (k ∈ keyset K In n); first by apply keyset_def.
-        iPoseProof ((Ψ_impl_C_in_K _ _ _ _ _ (keyset K In n))
-                      with "[$HΨ] [% //] [% //]") as "%".
+        iAssert (⌜Cn' ⊆ keyset K In n⌝)%I with "[HΨ]" as "%".
+        { iDestruct "HΨ" as "%". iPureIntro.
+          apply (Ψ_impl_C_in_K dop k Cn Cn' res); try done.
+        }
         iFrame "∗ #". by iPureIntro.
       }
       iModIntro.

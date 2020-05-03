@@ -6,7 +6,7 @@ From iris.base_logic.lib Require Export iprop.
 From iris.base_logic.lib Require Export invariants.
 
 Set Default Proof Using "All".
-Require Export flows auth_ext.
+Require Export search_str flows auth_ext.
 
 Section keyset_ra.
 
@@ -216,20 +216,6 @@ Section keyset_updates.
 
   Context `{!keysetG Σ}.
 
-  (** Abstract specification of search structure operations *)
-  
-  Inductive dOp := searchOp | insertOp | deleteOp.
-
-  Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) : iProp Σ :=
-    match dop with
-    | searchOp => (⌜C' = C ∧ (if res then k ∈ C else k ∉ C)⌝)%I
-    | insertOp => (⌜C' = union C {[k]} ∧ (if res then k ∉ C else k ∈ C)⌝)%I
-    | deleteOp => (⌜C' = difference C {[k]} ∧ (if res then k ∈ C else k ∉ C)⌝)%I
-  end.
-
-  Global Instance Ψ_persistent dop k C C' res : Persistent (Ψ dop k C C' res).
-  Proof. destruct dop; apply _. Qed.
-
   (** Some useful lemmas  *)
 
   Lemma keyset_valid γ_k Ks C:
@@ -244,22 +230,12 @@ Section keyset_updates.
       by iPureIntro.
   Qed.
 
-  Lemma Ψ_impl_C_in_K dop k C C' res (Ks: gset K) :
-    Ψ dop k C C' res -∗ ⌜C ⊆ Ks⌝ -∗ ⌜k ∈ Ks⌝ -∗ ⌜C' ⊆ Ks⌝.
-  Proof.
-    iIntros "HΨ % %". iEval (unfold Ψ) in "HΨ".
-    destruct dop.
-    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. subst C'. done.
-    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
-    - iDestruct "HΨ" as %(HΨ & _). iPureIntro. set_solver.
-  Qed.
-
   (** Ghost update of abstract search structure state *)
   
-  Lemma ghost_update_keyset γ_k dop k Cn Cn' res K1 C:
-    ⊢ Ψ dop k Cn Cn' res ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
+  Lemma ghost_update_keyset γ_k dop (k: K) Cn Cn' res K1 C:
+    ⊢ ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝
-    ==∗ ∃ C', Ψ dop k C C' res ∗ own γ_k (● prod (KS, C'))
+    ==∗ ∃ C', ⌜Ψ dop k C C' res⌝ ∗ own γ_k (● prod (KS, C'))
       ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
     iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl γ_k (prod (KS, C)) (prod (K1, Cn))

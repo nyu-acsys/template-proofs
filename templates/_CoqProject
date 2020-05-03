@@ -11,6 +11,7 @@
 -arg -w -arg -ambiguous-paths
 
 -R . flows
+search_str.v
 ccm.v
 gmap_more.v
 flows.v
