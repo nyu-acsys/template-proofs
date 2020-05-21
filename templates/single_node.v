@@ -1,4 +1,4 @@
-(** Verification of a simple example template: a one-node structure *)
+(** Verification of a simple example template: a single-node structure *)
 
 Require Import lock.
 From iris.algebra Require Import excl auth gmap agree gset.
