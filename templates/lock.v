@@ -1,6 +1,6 @@
 (** Implementation of lock module (shared between all templates) *)
 
-From iris.heap_lang Require Export lifting notation locations lang.
+From iris.heap_lang Require Export notation locations lang.
 From iris.program_logic Require Export atomic.
 From iris.heap_lang Require Import proofmode par.
 Set Default Proof Using "All".

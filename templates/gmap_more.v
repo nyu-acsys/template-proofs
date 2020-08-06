@@ -279,8 +279,8 @@ Qed.
 
 Instance pmap_positive_imerge : Imerge Pmap positive :=
   {|
-    imerge {A B C} := Pimerge;
-    imerge_prf {A B C} := Pimerge_prf
+    imerge A B C := Pimerge;
+    imerge_prf A B C := Pimerge_prf
   |}.
 
 Lemma gmap_imerge_wf `{Countable K} {A B C}
@@ -328,8 +328,8 @@ Qed.
 
 Instance gmap_Imerge `{Countable K} : Imerge (gmap K) K :=
   {|
-    imerge {A B C} := gmap_imerge;
-    imerge_prf {A B C} := gmap_imerge_prf
+    imerge A B C := gmap_imerge;
+    imerge_prf A B C := gmap_imerge_prf
   |}.
 
 Lemma gmap_imerge_empty {A} `{Countable K}
