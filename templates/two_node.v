@@ -2,15 +2,15 @@
 
 Require Import lock.
 From iris.algebra Require Import excl auth gmap agree gset.
-From iris.heap_lang Require Export lifting notation locations lang.
+From iris.heap_lang Require Export notation locations lang.
 From iris.base_logic.lib Require Export invariants.
 From iris.program_logic Require Export atomic.
 From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode notation par.
 From iris.bi.lib Require Import fractional.
-From iris.bi Require Import derived_laws_sbi.
 Set Default Proof Using "All".
-Require Import search_str keyset_ra.
+Require Export inset_flows.
+Require Import auth_ext search_str.
 
 (** We use integers as keys. *)
 Definition K := Z.
@@ -191,7 +191,7 @@ Section Two_Node_Template.
               with "[HKS Hks]") as (C2') "(#HΨC & Hks & HkIn)".
       {
         iPoseProof (keyset_valid with "Hks") as "%".
-        assert (k ∈ Kn). by apply H1.
+        assert (k ∈ Kn). by apply H2.
         assert (Cn' ⊆ Kn).
         { apply (Ψ_impl_C_in_K dop k Cn Cn' res); try done. }
         iFrame "∗ #". by iPureIntro.
@@ -223,7 +223,7 @@ Section Two_Node_Template.
               with "[HKS Hks]") as (C2') "(#HΨC & Hks & HkIn)".
       {
         iPoseProof (keyset_valid with "Hks") as "%".
-        assert (k ∈ Kn). by apply H1.
+        assert (k ∈ Kn). by apply H2.
         assert (Cn' ⊆ Kn).
         { apply (Ψ_impl_C_in_K dop k Cn Cn' res); try done. }
         iFrame "∗ #". by iPureIntro.

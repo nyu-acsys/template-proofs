@@ -19,6 +19,8 @@ inset_flows.v
 keyset_ra.v
 auth_ext.v
 lock.v
+single_node.v
+two_node.v
 give_up.v
 link.v
 coupling.v

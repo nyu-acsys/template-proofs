@@ -42,6 +42,8 @@ rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
 run "Flow library" $FILES1
+run "Single-node template" "single_node"
+run "Two-node template" "two_node"
 run "Link template" $FILES3
 run "Give-up template" $FILES2
 run "Lock-coupling template" $FILES4
