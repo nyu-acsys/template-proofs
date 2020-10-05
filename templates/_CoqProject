@@ -11,16 +11,23 @@
 -arg -w -arg -ambiguous-paths
 
 -R . flows
-search_str.v
-ccm.v
-gmap_more.v
-flows.v
-inset_flows.v
-keyset_ra.v
-auth_ext.v
-lock.v
-single_node.v
-two_node.v
-give_up.v
-link.v
-coupling.v
+
+flows/ccm.v
+flows/gmap_more.v
+flows/flows.v
+
+single_copy/search_str.v
+single_copy/keyset_ra.v
+single_copy/auth_ext.v
+single_copy/lock.v
+single_copy/inset_flows.v
+single_copy/single_node.v
+single_copy/two_node.v
+single_copy/give_up.v
+single_copy/link.v
+single_copy/coupling.v
+
+multicopy/inset_flows_multicopy.v
+multicopy/KT_flows.v
+multicopy/general_multicopy.v
+
