@@ -161,7 +161,7 @@ Section Two_Node_Template.
     iApply (aacc_aupd_commit with "AU"); first done.
     iIntros (C2) "HInv".
     (* Unfold CSS to execute unlockNode *)
-    iDestruct "HInv" as (b1 b2) "(HKS & Hlock1 & Hb1 & Hlock2 & Hb2)".
+    iDestruct "HInv" as (b1 b2) "(Hlock1 & Hb1 & Hlock2 & Hb2)".
     iDestruct "Hfp" as "[%|%]".
     - (* n = n1 *)
       subst n.
@@ -169,8 +169,9 @@ Section Two_Node_Template.
       {
         destruct b1.
         - by iPureIntro.
-        - iExFalso. iDestruct "Hb1" as (? ?) "(? & ?)".
-          iApply (node_sep_star n1 with "[$]").
+        - iExFalso. iDestruct "Hb1" as "(? & ?)".
+          iApply (node_sep_star n1 with "[$ Hn]").
+           (*This is where I am reaching the issue*)
       }
       subst b1.
       iAaccIntro with "Hlock1".

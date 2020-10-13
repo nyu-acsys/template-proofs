@@ -156,42 +156,33 @@ Section One_Node_Template.
 
   (** The concurrent search structure invariant *)
 
-  Definition nodePred γ n C : iProp :=
-    node n C
+  Definition nodePred γ n : iProp :=
+    ∃ C, node n C
     ∗ γ ⤇½ C.
 
   Definition CSS γ r (C: gset K) : iProp :=
     ∃ (b: bool),
       γ ⤇½ C
-      ∗ lockR b r (nodePred γ r C).
+      ∗ lockR b r (nodePred γ r).
 
   (** High-level lock specs **)
 
   Lemma lockNode_spec_high γ (r: Node) :
     ⊢  <<< ∀ (C: gset K), CSS γ r C >>>
          lockNode #r @ ⊤
-       <<< CSS γ r C ∗ nodePred γ r C, RET #() >>>.
+       <<< CSS γ r C ∗ nodePred γ r, RET #() >>>.
   Proof.
-    iIntros (Φ) "AU". iLöb as "IH".
-    wp_lam. wp_bind(getLockLoc _)%E.
-    wp_apply getLockLoc_spec; first done.
-    iIntros (l) "#Hl". wp_let. 
-    wp_bind (CmpXchg _ _ _)%E.
-    iMod "AU" as (C) "[HC HAU]".
-    iDestruct "HC" as (b) "(Hfrac & HlockR)". 
-    iDestruct "HlockR" as "(HlockLoc & Hlockif)". iDestruct "Hl" as %Hl.
-    iEval (rewrite Hl) in "HlockLoc". destruct b.
-    - iDestruct "HlockLoc" as "[HlockLoc Htrue]".
-      wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]".
-      iMod ("HAU" with "[HlockLoc Htrue Hfrac]") as "H".
-      iExists true. unfold lockR. iFrame.
-      iEval (rewrite Hl). iFrame.   
-      iModIntro. wp_pures. iApply "IH". done.
-    - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
-      iMod ("HAU" with "[HlockLoc Hlockif Hfrac]") as "HΦ".
-      iFrame. iExists true. unfold lockR. 
-      iEval (rewrite Hl). iFrame.
-      iModIntro. wp_pures. done.
+    iIntros (Φ) "AU". 
+    awp_apply (lockNode_spec r).
+    iApply (aacc_aupd_commit with "AU"); first done.
+    iIntros (C) "Hcss". iDestruct "Hcss" as (b) "(HC & Hlock)".  iAaccIntro with "Hlock".
+    { iIntros "Hlockn". iModIntro. iSplitL.
+      iFrame. iExists b. iFrame.
+      eauto with iFrame.
+    }
+    iIntros "(Hlockn & Hnp)". iModIntro. 
+    iSplitL. iFrame. iExists true. iFrame.
+    eauto with iFrame. 
 Qed.
 
   (** Proof of CSSOp *)
@@ -204,7 +195,7 @@ Qed.
   Proof.
     iIntros "%" (Φ) "AU". wp_lam. wp_bind(lockNode _)%E.
     (* Open AU to get lockNode precondition *)
-    awp_apply (lockNode_spec_high γ r); try done.
+    awp_apply (lockNode_spec_high γ r); try done. 
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "HInv". iAaccIntro with "HInv".
     { iIntros "HInv". iModIntro. eauto with iFrame. }
@@ -213,7 +204,7 @@ Qed.
     iModIntro. iFrame. iIntros "AU". iModIntro.
     (* Execute decisiveOp *)
     wp_pures. wp_bind (decisiveOp _ _ _)%E.
-    iDestruct "Hnode" as "(Hn & HCn)".
+    iDestruct "Hnode" as (Cn) "(Hn & Hcn)".
     wp_apply ((decisiveOp_spec dop r k) with "[Hn]"). eauto with iFrame.
     iIntros (res C1) "(Hn & %)".
     wp_pures. wp_bind(unlockNode _)%E.
@@ -226,8 +217,9 @@ Qed.
     {
       destruct b.
       - by iPureIntro.
-      - iExFalso. iDestruct "Hb" as "(? & ?)".
-        iApply (node_sep_star r with "[$]").
+      - iExFalso. 
+      iApply (node_sep_star r with "[$Hn]"). 
+      (*This is where I am reaching the issue*)
     }
     subst b.
     iAaccIntro with "Hlock".
