@@ -217,9 +217,8 @@ Qed.
     {
       destruct b.
       - by iPureIntro.
-      - iExFalso. 
-      iApply (node_sep_star r with "[$Hn]"). 
-      (*This is where I am reaching the issue*)
+      - iExFalso. iDestruct "Hb" as (?)"(Hn' & _)".
+      iApply (node_sep_star r with "[Hn Hn']"). iFrame.
     }
     subst b.
     iAaccIntro with "Hlock".
@@ -229,13 +228,13 @@ Qed.
     }
     iIntros "Hlock".
     (* Commit AU *)
-    iPoseProof (makeElem_eq with "[$HC] [$HCn]") as "%".
+    iPoseProof (makeElem_eq with "[$HC] [$Hcn]") as "%".
     subst C2.
-    iMod (makeElem_update _ _ _ C1 with "HC HCn") as "(HC & HCn)".
+    iMod (makeElem_update _ _ _ C1 with "HC Hcn") as "(HC & Hcn)".
     iModIntro.
     (* Close AU *)
     iExists C1, res. iSplitL. iFrame. iSplitL.
-    iExists false. iFrame.
+    iExists false. iFrame. iExists C1. iFrame.
     by iPureIntro.
     iIntros. iModIntro. by wp_pures.
   Qed.
