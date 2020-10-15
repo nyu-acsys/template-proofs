@@ -37,6 +37,12 @@ Definition in_outsets k In := ∃ n, in_outset k In n.
 
 Definition keyset I n := dom_ms (inf I n) ∖ dom_ms (out I n).
 
+Lemma inset_monotone : ∀ I I1 I2 k n,
+    ✓ I → I = I1 ⋅ I2 → k ∈ inset I n → n ∈ domm I1 → k ∈ inset I1 n.
+Proof.
+Admitted.
+
+(*
 Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n
   → k ∈ keyset I_n n.
 Proof.
@@ -47,7 +53,7 @@ Proof.
   rewrite elem_of_difference.
   naive_solver.
 Qed.
-(*
+
 (* The global invariant ϕ. *)
 Definition globalinv root I :=
   ✓I
