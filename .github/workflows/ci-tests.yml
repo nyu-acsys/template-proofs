@@ -19,6 +19,14 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Try to restore opam cache
+        if: runner.os != 'Windows'
+        id: opam-cache
+        uses: actions/cache@v2
+        with:
+          path: "~/.opam"
+          key: 4.07.1  # OCaml version is key to cache
+
       - name: Use OCaml
         uses: avsm/setup-ocaml@v1
         with:
