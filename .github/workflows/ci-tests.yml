@@ -22,7 +22,7 @@ jobs:
       - name: Use OCaml
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: 4.07
+          ocaml-version: 4.07.1
           
       - run: opam install -y ocamlfind ocamlbuild
       - run: opam repo add coq-released https://coq.inria.fr/opam/released
