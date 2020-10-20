@@ -38,5 +38,5 @@ jobs:
 #       - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
 #       - run: eval $(opam config env)
       
-      - run: bash /xp_pldi.sh
+      - run: wc -l xp_pldi.sh
         working-directory: $GITHUB_WORKSPACE/templates
