@@ -38,6 +38,8 @@ jobs:
       - run: opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
       - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
       - run: eval $(opam config env)
+      
+      - run: coqc --version
 
       - name: Check template proofs
         working-directory: templates
