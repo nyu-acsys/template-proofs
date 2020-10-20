@@ -27,10 +27,10 @@ jobs:
           path: "~/.opam"
           key: 4.07.1  # OCaml version is key to cache
 
-      - name: Use OCaml
-        uses: avsm/setup-ocaml@v1
-        with:
-          ocaml-version: 4.07.1
+#       - name: Use OCaml
+#         uses: avsm/setup-ocaml@v1
+#         with:
+#           ocaml-version: 4.07.1
           
 #       - run: opam install -y ocamlfind ocamlbuild
 #       - run: opam repo add coq-released https://coq.inria.fr/opam/released
@@ -38,5 +38,21 @@ jobs:
 #       - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
 #       - run: eval $(opam config env)
       
-      - run: wc -l xp_pldi.sh
+
+      - name: Test working directory 1
         working-directory: $GITHUB_WORKSPACE/templates
+        run: |
+          pwd
+          ls -l
+
+      - name: Test working directory 2
+        working-directory: ${{ github.workspace }}/templates
+        run: |
+          pwd
+          ls -l
+
+      - name: Test working directory 3
+        working-directory: templates
+        run: |
+          pwd
+          ls -l
