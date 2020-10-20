@@ -36,6 +36,7 @@ run()
     awk '{sum+=$1;} END{printf("%d\n", int(sum+0.5));}' $timesfile >> $timestotalfile
 }
 
+eval $(opam env)
 coq_makefile -f _CoqProject -o Makefile
 make clean
 rm -f $loctotalfile $timestotalfile $outputfile
