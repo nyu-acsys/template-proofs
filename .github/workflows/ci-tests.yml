@@ -32,10 +32,11 @@ jobs:
         with:
           ocaml-version: 4.07.1
           
-      - run: opam install -y ocamlfind ocamlbuild
-      - run: opam repo add coq-released https://coq.inria.fr/opam/released
-      - run: opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-      - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
-      - run: eval $(opam config env)
+#       - run: opam install -y ocamlfind ocamlbuild
+#       - run: opam repo add coq-released https://coq.inria.fr/opam/released
+#       - run: opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+#       - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
+#       - run: eval $(opam config env)
       
-      - run: cd $GITHUB_WORKSPACE/templates/ && ./xp_pldi.sh
+      - run: bash /xp_pldi.sh
+        working-directory: $GITHUB_WORKSPACE/templates
