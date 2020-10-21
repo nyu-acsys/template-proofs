@@ -159,10 +159,10 @@ Section Two_Node_Template.
     wp_pures. wp_bind(unlockNode _)%E.
     awp_apply (unlockNode_spec n).
     iApply (aacc_aupd_commit with "AU"); first done.
-    iIntros (C2) "HInv".
+    iIntros (C2) "HCss".
 
     (* Unfold CSS to execute unlockNode *)
-    iDestruct "HInv" as (b1 b2) "(HKS & Hlockr1 & Hlockr2)".
+    iDestruct "HCss" as (b1 b2) "(HKS & Hlockr1 & Hlockr2)".
     iDestruct "Hfp" as "[%|%]".
     - (* n = n1 *)
       subst n.
@@ -170,10 +170,12 @@ Section Two_Node_Template.
       {
         destruct b1.
         - by iPureIntro.
-        - iExFalso. iDestruct "Hlockr1" as "(Hn' & Hs')". 
-          iApply (node_sep_star n1 with "[Hs' Hn]").
-          iFrame.
-           (*This is where I am reaching the issue*)
+        - iExFalso.
+          (* These unfolds are not necessary; helps to see structure *)
+          unfold lockR. unfold nodePred.
+          iDestruct "Hlockr1" as "(? & Hn1)".
+          iDestruct "Hn1" as (? ?) "(Hn1 & ?)".
+          iApply (node_sep_star n1 with "[$]").
       }
       subst b1.
       iAaccIntro with "Hlock1".
