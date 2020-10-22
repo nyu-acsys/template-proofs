@@ -371,6 +371,28 @@ Definition nzmap_imerge `{Countable K} `{CCM A} :=
     NZMap (imerge (nzmap_imerge_op f) m1 m2) (bool_decide_pack _ (nzmap_imerge_wf f _ _
     (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
 
+Class NonZero A `(CCM A) (a : A) : Prop :=
+  nonzero : a ≠ 0.
+
+Lemma nzmap_insert_wf `{Countable K} `{CCM A}
+      (i : K) (a: A) `{NonZero A a} (m1 : gmap K A) :
+  nzmap_wf m1 → nzmap_wf (<[i := a]> m1).
+Proof.
+  unfold nzmap_wf, map_Forall. intros Hm1.
+  intros j x. destruct (decide (i = j)).
+  replace j. rewrite lookup_insert. intros Hx.
+  inversion Hx. replace x. 
+  unfold NonZero in H2. done.
+  rewrite lookup_insert_ne; try done.
+  by pose proof Hm1 j x.
+Qed.
+
+Definition nzmap_insert `{Countable K} `{CCM A} :=
+  λ (i : K) (a: A) `{NonZero A a} (m1 : nzmap K A),
+    let (m1, Hm1) := m1 in
+    NZMap (<[i := a]> m1) (bool_decide_pack _ (nzmap_insert_wf i a m1 
+    (bool_decide_unpack _ Hm1) )).
+
 
 Lemma nzmap_lookup_wf `{Countable K} `{CCM A} (m : gmap K A) i : nzmap_wf m → m !! i <> Some 0.
 Proof.

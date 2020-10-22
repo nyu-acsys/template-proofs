@@ -27,5 +27,6 @@ Global Canonical Structure KT_flowint_ur : ucmraT := flowintUR KT_multiset.
 
 End KT_flows.
 
+Arguments KT_multiset _ {_ _} : assert.
 Arguments KT_flowint_ur _ {_ _} : assert.
  
