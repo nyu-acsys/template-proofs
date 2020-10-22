@@ -171,14 +171,13 @@ Section Two_Node_Template.
         destruct b1.
         - by iPureIntro.
         - iExFalso.
-          (* These unfolds are not necessary; helps to see structure *)
-          unfold lockR. unfold nodePred.
           iDestruct "Hlockr1" as "(? & Hn1)".
           iDestruct "Hn1" as (? ?) "(Hn1 & ?)".
           iApply (node_sep_star n1 with "[$]").
       }
       subst b1.
-      iAaccIntro with "Hlock1".
+      iDestruct "Hlockr1" as "(Hl1 & Hn1)".
+      iAaccIntro with "Hl1".
       { iIntros "Hlock1". iModIntro.
         iFrame. iSplitL. iExists true, b2. iFrame.
         eauto with iFrame.
@@ -206,11 +205,14 @@ Section Two_Node_Template.
       {
         destruct b2.
         - by iPureIntro.
-        - iExFalso. iDestruct "Hb2" as (? ?) "(? & ?)".
-          iApply (node_sep_star n2 with "[$]").
+        - iExFalso. 
+        iDestruct "Hlockr2" as "(? & Hn2)".
+        iDestruct "Hn2" as (? ?) "(Hn2 & ?)".
+        iApply (node_sep_star n2 with "[$]").
       }
       subst b2.
-      iAaccIntro with "Hlock2".
+      iDestruct "Hlockr2" as "(Hl2 & Hn2)".
+      iAaccIntro with "Hl2".
       { iIntros "Hlock2". iModIntro.
         iFrame. iSplitL. iExists b1, true. iFrame.
         eauto with iFrame.
