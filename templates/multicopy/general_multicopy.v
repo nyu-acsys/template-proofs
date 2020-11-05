@@ -139,39 +139,6 @@ Section multicopy.
     | None => false
     | _ => true end.
 
-  Lemma out_edgeset_true k : ∀ es, out_edgeset k es = true → ∃ n, k ∈ es !!! n.
-  Proof.
-    intros es Hes.
-    unfold out_edgeset in Hes.
-    destruct (out_edgeset_list k (map_to_list es)) 
-      as [ (i, (n,s)) | ] eqn: E; try inversion Hes.
-    unfold out_edgeset_list in E.
-    rewrite list_find_Some in E *; intros E.
-    destruct E as [E1 [E2 _]].
-    simpl in E2. apply elem_of_list_lookup_2 in E1.
-    apply elem_of_map_to_list in E1.
-    exists n. rewrite /(es !!! n). 
-    unfold finmap_lookup_total. rewrite E1. by simpl.
-  Qed.
-      
-  Lemma out_edgeset_false k : ∀ es, out_edgeset k es = false → ∀ n, k ∉ es !!! n.
-  Proof.
-    intros es Hes n.
-    unfold out_edgeset in Hes.
-    destruct (out_edgeset_list k (map_to_list es)) 
-      as [ p | ] eqn: E; try inversion Hes.
-    unfold out_edgeset_list in E.
-    rewrite list_find_None in E *; intros E.
-    rewrite Forall_forall in E *; intros E.
-    rewrite /(es !!! n). 
-    unfold finmap_lookup_total.
-    destruct (es !! n) eqn:F.
-    - rewrite F. simpl.
-      rewrite <-(elem_of_map_to_list es n g) in F.
-      pose proof E (n, g) F as E. by simpl in E.
-    - rewrite F. simpl. set_solver.
-  Qed.    
-
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
 
   Definition closed γ_f (es: esT) : iProp := ∀ n, ⌜es !!! n  ≠ ∅⌝ → inFP γ_f n.
@@ -256,6 +223,8 @@ Section multicopy.
     ∗ ⌜outflow_le_1 Jn⌝.
 
   Definition clock lc (t: nat) : iProp := lc ↦ #t.
+  
+  Definition history_init (H: gset KT) : iProp := ⌜∀ k, k ∈ KS → (k, 0) ∈ H⌝.
       
   Definition nodePred γ_e γ_c γ_b γ_t γ_s lc r n (Cn Bn : gmap K natUR) : iProp :=
     ∃ es t,
@@ -280,7 +249,7 @@ Section multicopy.
     
   Definition global_state γ_te γ_he γ_s γ_t γ_I γ_J γ_R γ_f r t H I J R : iProp :=
       MCS_auth γ_te γ_he t H
-    ∗ own γ_s (● H)
+    ∗ own γ_s (● H) ∗ (history_init H)
     ∗ own γ_t (●{1/2} MaxNat t)
     ∗ own γ_I (● I)
     ∗ own γ_J (● J)
@@ -399,9 +368,47 @@ Section multicopy.
 
   (** Useful lemmas and definitions **)
 
+(*
   Instance test r n γ_t T : Laterable (if n =? r then 
                                             own γ_t (●{1 / 2} T) else ⌜True⌝)%I.
-  Proof. Admitted.
+  Proof.
+    destruct (n =? r); try done.
+  Admitted.
+*)
+
+  Lemma out_edgeset_true k : ∀ es, out_edgeset k es = true → ∃ n, k ∈ es !!! n.
+  Proof.
+    intros es Hes.
+    unfold out_edgeset in Hes.
+    destruct (out_edgeset_list k (map_to_list es)) 
+      as [ (i, (n,s)) | ] eqn: E; try inversion Hes.
+    unfold out_edgeset_list in E.
+    rewrite list_find_Some in E *; intros E.
+    destruct E as [E1 [E2 _]].
+    simpl in E2. apply elem_of_list_lookup_2 in E1.
+    apply elem_of_map_to_list in E1.
+    exists n. rewrite /(es !!! n). 
+    unfold finmap_lookup_total. rewrite E1. by simpl.
+  Qed.
+      
+  Lemma out_edgeset_false k : ∀ es, out_edgeset k es = false → ∀ n, k ∉ es !!! n.
+  Proof.
+    intros es Hes n.
+    unfold out_edgeset in Hes.
+    destruct (out_edgeset_list k (map_to_list es)) 
+      as [ p | ] eqn: E; try inversion Hes.
+    unfold out_edgeset_list in E.
+    rewrite list_find_None in E *; intros E.
+    rewrite Forall_forall in E *; intros E.
+    rewrite /(es !!! n). 
+    unfold finmap_lookup_total.
+    destruct (es !! n) eqn:F.
+    - rewrite F. simpl.
+      rewrite <-(elem_of_map_to_list es n g) in F.
+      pose proof E (n, g) F as E. by simpl in E.
+    - rewrite F. simpl. set_solver.
+  Qed.    
+
 
   Lemma inFP_domm γ_f n D : inFP γ_f n -∗ own γ_f (● D) -∗ ⌜n ∈ D⌝.
   Proof.
@@ -709,10 +716,9 @@ Section multicopy.
 
   (** Proofs **)  
 
-(*
   Lemma traverse_spec γ_te γ_he γ_s γ_t γ_I γ_J γ_R 
-                                  γ_f γ_e γ_c γ_b γ_cir r n k t0 t1:
-    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv γ_te γ_he γ_s γ_t γ_I γ_J γ_R γ_f γ_e γ_c γ_b γ_cir r -∗
+                                γ_f γ_e γ_c γ_b γ_cir lc r n k t0 t1:
+    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv γ_te γ_he γ_s γ_t γ_I γ_J γ_R γ_f γ_e γ_c γ_b γ_cir lc r -∗
         inFP γ_f n -∗ own (γ_cir n k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
           <<< ∀ t H, MCS γ_te γ_he t H >>> 
               traverse #n #k @ ⊤ ∖ ↑N
@@ -723,21 +729,34 @@ Section multicopy.
     iIntros "#FP_n #Hlb H". iDestruct "H" as %t0_le_t1.
     iDestruct "k_in_KS" as %k_in_KS.
     iIntros (Φ) "AU". wp_lam. wp_pures.
+    (** Lock node n **)
     awp_apply lockNode_spec_high; try done.
     iAaccIntro with ""; try eauto with iFrame. 
     iIntros (Cn Bn)"HnP_n". iModIntro.
     wp_pures. iDestruct "HnP_n" as (es T)"(node_n & HnP_frac & HnP_C & HnP_t)".
+    (** Check contents of n **)
     wp_apply (inContents_spec with "node_n").
     iIntros (t) "(node_n & H)". iDestruct "H" as %Cn_val.
-    wp_pures. case_eq (bool_decide ((#t = #0))).
-    - intros Ht. wp_pures.
+    wp_pures.
+    (** Case analysis on whether k in contents of n **)
+    case_eq (bool_decide ((#t = #0))).
+    - (** Case : k not in contents of n **)
+      intros Ht. wp_pures.
+      (** Find next node to visit **)
       wp_apply (findNext_spec with "node_n").
-      iIntros (b n1) "(node_n & Hif)". destruct b.
-      + wp_pures. iDestruct "Hif" as %k_in_es.
-        iApply fupd_wp. iInv "HInv" as ">H".
+      iIntros (b n1) "(node_n & Hif)". 
+      (** Case analysis on whether there exists a next node **)
+      destruct b.
+      + (** Case : exists next node n' **)
+        wp_pures. iDestruct "Hif" as %k_in_es.
+        iApply fupd_wp.
+        (** Open invariant to establish resources
+            required to apply induction hypothesis IH
+            on node n' **)
+        iInv "HInv" as ">H".
         iDestruct "H" as (T' H I J R) "(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -758,7 +777,7 @@ Section multicopy.
           inversion Ht as [H'']. rewrite Cn_val.
           clear -H''. lia. }
         iAssert (⌜n1 ∈ domm I⌝)%I as %n_in_I.
-        { iDestruct "Hglob" as "(_ & _ & _ & _ & _ & _ & Hf & _)". 
+        { iDestruct "Hglob" as "(_ & _ & _ & _ & _ & _ & _ & Hf & _)". 
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n1] [$Hf]") as "H'". }
         iAssert (⌜n ≠ n1⌝)%I as %n_neq_n1.
         { destruct (decide (n = n1)); try done.
@@ -826,7 +845,7 @@ Section multicopy.
                               (MaxNat (Bn1 !!! k))).
           apply max_nat_local_update. 
           simpl. lia. } { iFrame. }
-
+        (** Closing the invariant **)
         iModIntro. iSplitR "node_n HnP_frac HnP_C HnP_t AU". iNext.
         iExists T', H, I, J, R. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -837,21 +856,28 @@ Section multicopy.
         iExists es, In, Jn, Rn. iFrame. by iApply "HnS_star'".                  
         iExists bn1, Cn1, Bn1. iFrame "Hl_n1 Hlif_n1".
         iExists es1, In1, Jn1, Rn1. iFrame. by iApply "HnS_star1'".
-        iModIntro.        
+        iModIntro.
+        (** Unlock node n **)       
         awp_apply (unlockNode_spec_high with "[] [] 
             [HnP_frac HnP_C HnP_t node_n]"); try done. iExists es, T.
         iFrame.                
         iAaccIntro with ""; try eauto with iFrame.
         iIntros "_". iModIntro. wp_pures.
+        (** Apply IH on node n' **)
         iApply "IH"; try done. iPureIntro.
         apply leibniz_equiv_iff in Bn1_eq_Bn.
         rewrite <-Bn1_eq_Bn in lb_t1. clear -lb_t1 t0_le_t1.
         apply (Nat.le_trans t0 t1 _); try done.
-      + wp_pures. iDestruct "Hif" as %Not_in_es.
-        iApply fupd_wp. iInv "HInv" as ">H".
+      + (** Case : no next node from n **)
+        wp_pures. iDestruct "Hif" as %Not_in_es.
+        iApply fupd_wp. 
+        (** Linearization Point: key k has not been found in the 
+            data structure. Open invariant to obtain resources 
+            required to establish post-condition **)
+        iInv "HInv" as ">H".
         iDestruct "H" as (T' H I J R) "(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%".
-        { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -887,33 +913,47 @@ Section multicopy.
           rewrite Cn_val in Hφ1. rewrite Hφ1 in lb_t1.
           inversion Ht. clear -H2 lb_t1 t0_le_t1.
           lia. } subst t0.
+        (** Linearization **)  
         iMod "AU" as (t' H') "[MCS [_ Hclose]]". 
         iAssert (⌜H' = H⌝)%I as %H1. 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                   & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
           iPoseProof ((auth_agree' γ_he) with "[MCS_auth] [MCS]") as "%".
           unfold MCS_auth. by iDestruct "MCS_auth" as "(_ & H'')".
           by iDestruct "MCS" as "(_ & H')".
           by iPureIntro. } subst H'.
+        iAssert (⌜(k,0) ∈ H⌝)%I as "%". 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
+                  & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
+          iDestruct "Hist" as %Hist. iPureIntro. 
+          by pose proof Hist k k_in_KS as Hist. }
+        rename H1 into k0_in_H.  
         iSpecialize ("Hclose" $! 0).
         iMod ("Hclose" with "[MCS]") as "HΦ". iFrame. 
-        iPureIntro. split; try done. admit.
+        iPureIntro. split; try done.
+        (** Closing the invariant **)
         iModIntro. iSplitR "node_n HnP_frac HnP_C HnP_t HΦ". iNext.
         iExists T', H, I, J, R. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iFrame "Hstar'". iExists bn, Cn, Bn.
         iFrame "Hl_n Hlif_n". iExists es, In, Jn, Rn.
         iFrame "∗%". by iApply "HnS_star'". iModIntro.
+        (** Unlock node n **)
         awp_apply (unlockNode_spec_high with "[] [] 
                [HnP_frac HnP_C HnP_t node_n]") without "HΦ"; try done. 
         iExists es, T. iFrame.
         iAaccIntro with ""; try eauto with iFrame.
         iIntros "_". iModIntro. iIntros "HΦ". by wp_pures.
-    - intros Ht. wp_pures.                                         
-      iApply fupd_wp. iInv "HInv" as ">H".
+    - (** Case : k in contents of n **)
+      intros Ht. wp_pures.                                         
+      iApply fupd_wp. 
+      (** Linearization Point: key k has been found. Open 
+          invariant to obtain resources required to 
+          establish post-condition **)
+      iInv "HInv" as ">H".
       iDestruct "H" as (T' H I J R) "(Hglob & Hstar)".
       iAssert (⌜n ∈ domm I⌝)%I as "%". 
-      { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+      { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
         by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -946,7 +986,7 @@ Section multicopy.
         rewrite Cn_val in Hoc. unfold bool_decide in Ht.
         rewrite Hoc in Ht. simpl in Ht. inversion Ht. }
       iAssert (⌜set_of_map Cn ⊆ H⌝)%I as %Cn_Sub_H.
-      { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+      { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
         iPoseProof ((auth_own_incl γ_s H _) with "[$HH $HnP_C]") as "%".
         rename H1 into H'. by apply gset_included in H'. }  
@@ -960,10 +1000,12 @@ Section multicopy.
           by simpl in Cn_val.
         - simpl in Cn_val.
           apply bool_decide_eq_false_1 in Ht.
-          exfalso. apply Ht. replace t. try done. }  
-      iMod "AU" as (t' H') "[MCS [_ Hclose]]". iSpecialize ("Hclose" $! t).
+          exfalso. apply Ht. replace t. try done. }
+      (** Linearization **)      
+      iMod "AU" as (t' H') "[MCS [_ Hclose]]". 
+      iSpecialize ("Hclose" $! t).
       iAssert (⌜H' = H⌝)%I as %H1. 
-      { iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+      { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
         iPoseProof ((auth_agree' γ_he) with "[MCS_auth] [MCS]") as "%".
         unfold MCS_auth. by iDestruct "MCS_auth" as "(_ & H'')".
@@ -972,19 +1014,21 @@ Section multicopy.
       iMod ("Hclose" with "[MCS]") as "HΦ". iFrame. 
       iPureIntro. split. set_solver. rewrite Hφ1 in lb_t1.
       rewrite Cn_val in lb_t1. lia.
+      (** Closing the invariant **)
       iModIntro. iSplitR "node_n HnP_frac HnP_C HnP_t HΦ". iNext.
       iExists T', H, I, J, R. iFrame "Hglob".
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iFrame "Hstar'". iExists bn, Cn, Bn.
       iFrame "Hl_n Hlif_n". iExists es, In, Jn, Rn.
       iFrame "∗%". by iApply "HnS_star'". iModIntro.
+      (** Unlock node n **)
       awp_apply (unlockNode_spec_high with "[] [] 
                 [HnP_frac HnP_C HnP_t node_n]") without "HΦ"; 
                       try done. iExists es, T. iFrame.
       iAaccIntro with ""; try eauto with iFrame.
       iIntros "_". iModIntro. iIntros "HΦ". by wp_pures.
-  Admitted.  
-*)
+  Qed.  
+
 
   Lemma upsert_spec γ_te γ_he γ_s γ_t γ_I γ_J γ_R 
                                   γ_f γ_e γ_c γ_b γ_cir lc r (k: K) :
@@ -997,12 +1041,15 @@ Section multicopy.
     iIntros "H". iDestruct "H" as %k_in_KS.
     iIntros "#HInv". iLöb as "IH".
     iIntros (Φ) "AU". wp_lam.
-    iApply fupd_wp. iInv "HInv" as ">H".
+    iApply fupd_wp. 
+    (** Open invariant to establish root node in footprint **)
+    iInv "HInv" as ">H".
     iDestruct "H" as (T0 H0 I0 J0 R0) "(Hglob & Hstar)".
-    iDestruct "Hglob" as "(MCS & Hs & Ht & HI & HJ & HR & Hf 
+    iDestruct "Hglob" as "(MCS & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & #FP_r & Max_ts & domm_IJ & domm_IR)".
     iModIntro. iSplitR "AU". iNext. 
     iExists T0, H0, I0, J0, R0. iFrame "∗ #". iModIntro.
+    (** Lock the node r **)
     awp_apply lockNode_spec_high; try done.
     iAaccIntro with ""; try eauto with iFrame. 
     iIntros (Cr Br)"HnP_n". iModIntro. wp_pures.
@@ -1012,24 +1059,30 @@ Section multicopy.
     iIntros "HnP_t". wp_pures.
     wp_apply (addContents_spec with "node_r").
     iIntros (b Cr')"(node_r & Hif)".
+    (** Case analysis on whether addContents is successful **)
     destruct b; last first.
-    - iDestruct "Hif" as %HCr. replace Cr'. wp_pures.
+    - (** Case : addContents fails. Unlock root node and apply 
+                 inductive hypothesis IH **) 
+      iDestruct "Hif" as %HCr. replace Cr'. wp_pures.
       awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
       { iExists es, T. iFrame. iEval (rewrite <-beq_nat_refl); try done. }
       iAaccIntro with ""; try eauto with iFrame.
       iIntros "_". iModIntro. wp_pures.
       by iApply "IH".
-    - iDestruct "Hif" as %HCr. wp_pures.
+    - (** Case : addContent successful **)
+      (** Linearization Point: open invariant and update the resources **)
       awp_apply (incrementClock_spec γ_t lc T). iInv "HInv" as ">H". 
       iDestruct "H" as (T1 H1 I1 J1 R1) "(Hglob & Hstar)".
-      iDestruct "Hglob" as "(MCS_auth & HH & Ht & HI & HJ & HR & Hf 
+      iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & HJ & HR & Hf 
                 & Inf_I & Inf_J & Inf_R & _ & Max_ts & domm_IJ & domm_IR)".
+      iDestruct "Hif" as %HCr. wp_pures.
       iAssert (⌜T = T1⌝)%I as %HT. 
       { iDestruct "HnP_t" as "(HnP_t & Hc)".
         iPoseProof ((own_valid_2 _ _ _) with "[$HnP_t] [$Ht]") as "H'".
         iDestruct "H'" as %H'. 
         pose proof (auth_auth_frac_op_inv _ _ _ _ H') as H''.
-        inversion H''. by iPureIntro. } replace T1.          
+        inversion H''. by iPureIntro. } replace T1.
+      (** Updating the clock value **)            
       iAssert (own γ_t (● (MaxNat T)) ∗ clock lc T)%I 
                                         with "[Ht HnP_t]" as "H".
       { iDestruct "HnP_t" as "(Ht' & Hc)".
@@ -1039,13 +1092,15 @@ Section multicopy.
         iDestruct "Ht" as "(Ht & HnP_t)".
         iCombine "HnP_t Hc" as "HnP_t". 
         iModIntro. iSplitR "AU HnP_frac HnP_C node_r HnP_t".
-        iNext. iExists T, H1, I1, J1, R1. iFrame "∗ #". iFrame. }
+        iNext. iExists T, H1, I1, J1, R1. iFrame "∗ #". iFrame.
+        by iPureIntro. }
       iIntros "H". iDestruct "H" as "(Ht & Hc)".
       iDestruct "Ht" as "(Ht & HnP_t)".
       iCombine "HnP_t Hc" as "HnP_t".
       iPoseProof ((auth_own_incl γ_s H1 _) with "[$HH $HnP_C]") as "%".
       rename H into Cr_sub_H1. apply gset_included in Cr_sub_H1.
       iDestruct "Max_ts" as %Max_tsH1.
+      (** Re-establish maxTS for updated T and H **)
       assert (maxTS (T+1) (H1 ∪ {[(k, T)]})) as Max_ts.
       { split. intros k' t' H.
         assert (((k',t') ∈ H1) ∨ (k' = k ∧ t' = T)) as Hor by set_solver.
@@ -1059,6 +1114,7 @@ Section multicopy.
         pose proof (set_of_map_insert_subseteq Cr k T) as H'.
         assert (set_of_map Cr = set_of_map Cr) as H'' by done. 
         set_solver. }
+      (** Update the (● H) resource **)  
       iMod (own_update γ_s (● H1) (● (H1 ∪ {[(k,T)]})) with "[$HH]") as "HH".
       { apply (auth_update_auth _ _ (H1 ∪ {[(k,T)]})).
         apply gset_local_update. set_solver. }
@@ -1079,6 +1135,11 @@ Section multicopy.
           apply lookup_insert. } 
         clear - H' Cr_sub_H1 Cr_sub_H1'. set_solver.
         exfalso. clear -H1_eq. set_solver. }
+      (** Re-establish history_init **)   
+      iAssert (history_init (H1 ∪ {[(k, T)]})) with "[Hist]" as "Hist".
+      { iDestruct "Hist" as %Hist.
+        unfold history_init. iPureIntro.
+        clear -Hist. set_solver. }  
       iDestruct "HnP_C" as "_".  
       iDestruct "HH" as "(HH & HnP_C)".   
       iAssert (⌜r ∈ domm I1⌝)%I as %r_in_I.
@@ -1096,6 +1157,7 @@ Section multicopy.
                                         HnS_if & HnS_star & Hφ)".
       iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
       destruct H as [Hes [Hc Hb]]. subst es'. subst Cr''. subst Br''.
+      (** Update contents-in-reach of r **)
       set (Br' := <[k := T]>Br).
       assert (Br' = <[k := T]>Br) as HBr'. try done.
       iEval (rewrite <-beq_nat_refl) in "HnS_if".
@@ -1109,8 +1171,10 @@ Section multicopy.
         intros t. 
         destruct Max_tsH1 as [Max_tsH1 _].
         by pose proof Max_tsH1 k t. }
+      (** Case analysis on whether there exists n s.t. k in es(r,n) **)  
       destruct (out_edgeset k es) eqn: Hes.
-      + apply out_edgeset_true in Hes.
+      + (** Case : there exists n s.t. k in es(r,n) **)
+        apply out_edgeset_true in Hes.
         destruct Hes as [n k_in_es].
         iPoseProof (node_edgeset_self_empty with "node_r") as "%".
         rename H into Self_es.
@@ -1118,9 +1182,12 @@ Section multicopy.
         { destruct (decide (n = r)); try done.
           rewrite e in k_in_es.
           clear -Self_es k_in_es.
-          set_solver. } 
+          set_solver. }
+        (** Case analysis on whether k was 
+            contained in old contents of r **)   
         destruct (decide (Cr !!! k  = 0)) as [ Cr_k | Cr_k ]; last first.
-        * iEval (rewrite (big_sepS_delete (_) (KS) k); last by eauto) in "HnS_star".
+        * (** Case : k in old contents of r **) 
+          iEval (rewrite (big_sepS_delete (_) (KS) k); last by eauto) in "HnS_star".
           iDestruct "HnS_star" as "(Hk & HnS_star')".
           iAssert (⌜Br !!! k ≤ T⌝)%I as %Br_le_T.
           { iDestruct "HnS_oc" as "(% & _)". rename H into HocI.
@@ -1141,6 +1208,7 @@ Section multicopy.
             rewrite /(Cr !!! k) in Cr_k.
             unfold finmap_lookup_total in Cr_k.
             rewrite Hc in Cr_k. simpl in Cr_k. lia. }
+          (** Update Maxnat Br resources **)  
           iMod (own_update (γ_cir r k) (● (MaxNat (Br !!! k))) 
                   (● (MaxNat (Br' !!! k))) with "Hk") as "Hk".
           { apply (auth_update_auth _ _ (MaxNat (Br' !!! k))).
@@ -1167,8 +1235,11 @@ Section multicopy.
             { apply lookup_total_insert_ne; try done. } 
             by iEval (rewrite H'').
             done. }
+          (** Update fractional resources **)  
           iMod ((frac_update γ_e γ_c γ_b r es Cr Br es Cr' Br') 
                       with "[$HnP_frac $HnS_frac]") as "(HnP_frac & HnS_frac)".
+          (** Update J-interface of r. I-interface and 
+              R-interface of r do not change in this case **)            
           set (Jr_temp := outflow_delete_KT Jr n k (Cr !!! k)).
           set (Jr' := outflow_insert_KT Jr_temp n k T).
           iPoseProof (node_edgeset_disjoint with "node_r") as "%".
@@ -1190,6 +1261,8 @@ Section multicopy.
           rename H into OC_1. rename H2 into OC_2.
           rename H3 into OC_3. rename H4 into Ole_I.
           rename H5 into Ole_J.
+          (** Re-establish outflow_constraints of 
+              singleton interfaces of r **)
           iAssert (outflow_constraints r Ir Jr' Rr es Cr' Br')%I 
                                               as "HnS_oc".
           { iPureIntro. split; last split; last split; 
@@ -1394,14 +1467,18 @@ Section multicopy.
           iDestruct "HnS_n" as (es_n In Jn Rn) 
             "(HnS_fracn & HnS_sin & HnS_FPn & HnS_cln & HnS_ocn & 
                                         HnS_ifn & HnS_starn & Hφn)".
+          (** Update J-interface of n **)                              
           set (Jn_temp := inflow_delete_KT Jn n k (Cr !!! k)).
           set (Jn' := inflow_insert_KT Jn_temp n k T).
+          (** Re-establish outflow_constraints of 
+              singleton interfaces of n **)
           iAssert (outflow_constraints n In Jn' Rn es_n Cn Bn)%I
             with "[HnS_ocn]" as "HnS_ocn".
           { iDestruct "HnS_ocn" as "(% & % & %)".
             rename H into OCn_1. rename H2 into OCn_2.
             rename H3 into OCn_3. 
             iPureIntro. split; last split; try done. }
+          (** Update singleton interfaces of r and n **)  
           iAssert (singleton_interfaces_ghost_state γ_I γ_J γ_R r Ir Jr' Rr
             ∗ singleton_interfaces_ghost_state γ_I γ_J γ_R n In Jn' Rn)%I 
                     with "[HnS_si HnS_sin]" as "(HnS_si & HnS_sin)".
@@ -1468,6 +1545,7 @@ Section multicopy.
           iAssert (⌜domm Rr = {[r]}⌝)%I as "%".
           { by iDestruct "HnS_si" as "(_&_&_&_&_&H')". }
           rename H into Domm_Rr.
+          (** Re-establish φ_i's of r **)
           iAssert (⌜φ0 Br' (T+1)⌝ ∗ ⌜φ1 Br' Cr' Ir⌝ ∗ ⌜φ2 r Br' Ir⌝ ∗ ⌜φ3 r Br' Jr'⌝ 
                   ∗ ⌜φ4 r Br' Rr⌝ ∗ ⌜φ5 r Rr⌝)%I with "[Hφ]" as "Hφ".
           { iDestruct "Hφ" as %Hφ. 
@@ -1510,6 +1588,7 @@ Section multicopy.
               pose proof Inf_R r k' as Inf_R.
               by rewrite <-beq_nat_refl in Inf_R.
               rewrite Domm_Rr. clear. set_solver. } 
+          (** Re-establish φ_i's of n **)    
           iAssert (⌜φ0 Bn (T+1)⌝ ∗ ⌜φ1 Bn Cn In⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn'⌝ 
                   ∗ ⌜φ4 n Bn Rn⌝ ∗ ⌜φ5 n Rn⌝)%I with "[Hφn]" as "Hφn".
           { iDestruct "Hφn" as %Hφ. 
@@ -1539,7 +1618,8 @@ Section multicopy.
             destruct Hin as [Hin | Hin].
             by pose proof Hφ3 k' t' Hin as Hφ3.
             inversion Hin.
-            by pose proof Hφ0 k. }  
+            by pose proof Hφ0 k. }
+          (** Linearization **)    
           iMod "AU" as (t' H')"[MCS [_ Hclose]]".
           iAssert (⌜t' = T⌝)%I as %Ht'. 
           { iPoseProof ((auth_agree γ_te) with "[MCS_auth] [MCS]") as "%".
@@ -1559,9 +1639,8 @@ Section multicopy.
                                               as "(MCS●h & MCS◯h)".
           iCombine "MCS◯t MCS◯h" as "MCS".
           iCombine "MCS●t MCS●h" as "MCS_auth".
-          iMod ("Hclose" with "MCS") as "HΦ".            
-            
-            
+          iMod ("Hclose" with "MCS") as "HΦ".
+          (** Close the invariant **)            
           iModIntro.
           iSplitR "HΦ node_r HnP_t HnP_C HnP_frac".
           { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}), I1, J1, R1.
@@ -1603,7 +1682,8 @@ Section multicopy.
             iEval (rewrite Hyr). iPureIntro. split; try done.
             intros k'. pose proof Hφ0 k'. 
             apply (Nat.le_trans _ T _); try done. lia. } 
-          wp_pures.  
+          wp_pures. 
+          (** Unlock node r **) 
           awp_apply (unlockNode_spec_high with "[] [] [HnP_t HnP_C HnP_frac node_r]")
                 without "HΦ"; try done. iExists es, (T + 1). iFrame.
                 by iEval (rewrite <-beq_nat_refl).
