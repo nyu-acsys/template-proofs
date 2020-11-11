@@ -1,0 +1,67 @@
+options "-abspreds -simplearrays -propreads -stratify"
+
+include "array_util_KT.spl"
+
+pure function KS() returns (res: Set<K>)
+{
+  { k: K :: lt(k, top) }
+}
+
+//datatype KT = pair(key: K, ts: Int)
+
+struct Node {
+  var len: Int;
+  var keys: Array<K>;
+  var ptrs: Array<Node>;
+  ghost var indices: Map<Node, Int>;
+  var table: Array<KT>;
+}
+
+const B: Int
+
+axiom B > 1
+
+
+predicate hrepSpatial(x: Node) {
+  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.table) &*& x.keys.length == 2*B && x.ptrs.length == 2*B
+}
+
+define ks_child(x, u, k)
+{
+  (x.indices[u] == 0 || !lt(k, x.keys.map[x.indices[u] - 1])) &&
+    (x.indices[u] == x.len && lt(k, top) || lt(k, x.keys.map[x.indices[u]]))
+}
+
+function edgesetFn(x: Node)
+  returns (res: Map<Node, Set<K>>)
+  requires hrepSpatial(x)
+{
+  { n: Node ::
+    0 <= x.indices[n] <= x.len ? { k: K :: ks_child(x, n, k) ? true : false} : {}
+  }
+}
+
+predicate map_of_table(A: Array<KT>, C: Map<K, Int>) {
+  (forall k: K :: C[k] >= 0)
+  && (forall k: K :: C[k] > 0 ==> (exists i: Int :: A[i] == pair(k, C[k])))
+  && (forall k: K, i: Int :: C[k] > 0 && 0 <= i < A.length && A[i].key == k ==> A[i].ts <= C[k])
+}
+
+define heapGood(n) {
+  sorted_array_prefix_KT(n.table, n.table.length)
+}
+
+define hrep(n, es, C) {
+  hrepSpatial(n) &*& heapGood(n) &*& map_of_table(n.table, C)
+}
+
+define node(n, es, C) {
+  hrep(n, es, C) &*& es = edgesetFn(n)
+}
+
+lemma node_sep_star(n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
+  requires node(n, es, C) &*& node(n, es1, C1)
+  ensures false
+{
+
+}
