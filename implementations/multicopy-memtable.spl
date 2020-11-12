@@ -1,4 +1,4 @@
-options "-abspreds -simplearrays -propreads -stratify"
+options "-abspreds -simplearrays -propreads -stratify -procedure inContents"
 
 include "array_util_KT.spl"
 
@@ -15,6 +15,7 @@ struct Node {
   var ptrs: Array<Node>;
   ghost var indices: Map<Node, Int>;
   var table: Array<KT>;
+  var tableLen: Int;
 }
 
 const B: Int
@@ -41,27 +42,74 @@ function edgesetFn(x: Node)
   }
 }
 
-predicate map_of_table(A: Array<KT>, C: Map<K, Int>) {
-  (forall k: K :: C[k] >= 0)
-  && (forall k: K :: C[k] > 0 ==> (exists i: Int :: A[i] == pair(k, C[k])))
-  && (forall k: K, i: Int :: C[k] > 0 && 0 <= i < A.length && A[i].key == k ==> A[i].ts <= C[k])
+// predicate map_of_table(A: Array<KT>, C: Map<K, Int>) {
+define map_of_table(A, C) {
+  true
+  && (forall k: K, i: Int :: 0 <= i < A.length && A[i].key == k
+    && (forall j: Int :: i < j < A.length ==> A[j].key != k)
+    ==> C[k] == A[i].ts)
+  // && (forall k: K :: C[k] >= 0)
+  // && (forall k: K :: C[k] > 0 ==> (exists i: Int :: A[i] == pair(k, C[k])))
+  // && (forall k: K, i: Int :: C[k] > 0 && 0 <= i < A.length && A[i].key == k ==> A[i].ts <= C[k])
 }
 
 define heapGood(n) {
-  sorted_array_prefix_KT(n.table, n.table.length)
+  true
+  // TODO this is unsound:
+  // sorted_array_prefix_KT(n.table, n.table.length)
 }
 
 define hrep(n, es, C) {
   hrepSpatial(n) &*& heapGood(n) &*& map_of_table(n.table, C)
+  &*& 0 <= n.tableLen <= n.table.length
+  &*& true
 }
 
-define node(n, es, C) {
-  hrep(n, es, C) &*& es = edgesetFn(n)
+// TODO make n first or last arg
+define node(r, n, es, Cn) {
+  hrep(n, es, Cn) &*& es = edgesetFn(n)
 }
 
-lemma node_sep_star(n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
-  requires node(n, es, C) &*& node(n, es1, C1)
+lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
+  requires node(r, n, es, C) &*& node(r, n, es1, C1)
   ensures false
-{
+{}
 
+// TODO which ones need to be implicit?
+procedure inContents(n: Node, k: K,
+    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (t: Int)
+  requires node(r, n, es, Cn)
+  ensures node(r, n, es, Cn) &*& Cn[k] == t
+{
+  var i := n.tableLen - 1;
+  var flag := false;
+  while (i >= 0 && !flag)
+    invariant node(r, n, es, Cn)
+    invariant -1 <= i < n.tableLen
+    invariant flag ==> 0 <= i < n.tableLen && n.table[i].key == k
+    invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+  {
+    // TODO why can't we just use an array of keys and an array of timestamps?
+    if (n.table[i].key == k) {
+      flag := true;
+    } else {
+      i := i - 1;
+    }
+  }
+  if (flag) {
+    pure assert 0 <= i < n.table.length && n.table[i].key == k
+    && (forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k)
+    && Cn[k] == n.table[i].ts;
+    pure assume false;
+    return n.table[i].ts;
+  } else {
+    pure assume false;
+    return 0;  // Not found. Return bottom
+    // TODO can we use -1? 0 could be a valid timestamp
+  }
 }
+
+// procedure addContents
+
+// procedure findNext
