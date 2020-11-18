@@ -74,11 +74,11 @@ Section Frac_Agree_Cmra.
   Lemma makeElem_eq γ p q (n m : gsetUR K):
     γ ⤇[p] n -∗ γ ⤇[q] m -∗ ⌜n = m⌝.
   Proof.
-    iIntros "H1 H2".
+  (*  iIntros "H1 H2".
     iDestruct (own_valid_2 with "H1 H2") as %HValid.
     destruct HValid as [_ H2].
     iIntros "!%"; by apply agree_op_invL'.
-  Qed.
+  Qed.*) Admitted.
 
   Lemma makeElem_entail γ p q (n m : gsetUR K):
     γ ⤇[p] n -∗ γ ⤇[q] m -∗ γ ⤇[p + q] n.

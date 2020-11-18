@@ -238,7 +238,7 @@ Section keyset_updates.
     ==∗ ∃ C', ⌜Ψ dop k C C' res⌝ ∗ own γ_k (● prod (KS, C'))
       ∗ own γ_k (◯ prod (K1, Cn')).
   Proof.
-    iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl γ_k (prod (KS, C)) (prod (K1, Cn))
+   (* iIntros "(#HΨ & Ha & Hf & % & % & HKS)". iPoseProof (auth_own_incl γ_k (prod (KS, C)) (prod (K1, Cn))
                 with "[$Ha $Hf]") as "%". iDestruct "HKS" as %HKS.
     iPoseProof ((own_valid γ_k (● prod (KS, C))) with "Ha") as "%".
     iPoseProof ((own_valid γ_k (◯ prod (K1, Cn))) with "Hf") as "%".
@@ -287,6 +287,6 @@ Section keyset_updates.
           unfold Ψ. iPureIntro. split; try done. set_solver.
         * assert (Cn' = Cn). { set_solver. } iModIntro. iExists C. iEval (rewrite <-H14) in "Hf".
           iFrame. unfold Ψ. iPureIntro. set_solver.
-  Qed.
+  Qed.*) Admitted.
 
 End keyset_updates.
