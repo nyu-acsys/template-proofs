@@ -1,7 +1,5 @@
 options "-abspreds -simplearrays -propreads -stratify"
 
-// TODO I think we don't need this
-// include "array_util_KT.spl"
 include "array_util.spl"
 
 pure function KS() returns (res: Set<K>)
@@ -10,6 +8,10 @@ pure function KS() returns (res: Set<K>)
 }
 
 datatype KT = pair(key: K, ts: Int)
+
+datatype OptionTS = someTS(tst: Int) | noneTS
+
+datatype OptionNode = someNode(nd: Node) | noneNode
 
 struct Node {
   var len: Int;
@@ -31,7 +33,6 @@ define hrepSpatial(x) {
   &*& x.keys.length == 2*B &*& x.ptrs.length == 2*B
 }
 
-// predicate map_of_table(A: Array<KT>, C: Map<K, Int>) {
 define map_of_table(A, Alen, C) {
   true
   &*& (forall k: K, i: Int :: 0 <= i < Alen && A[i].key == k
@@ -39,10 +40,6 @@ define map_of_table(A, Alen, C) {
     ==> C[k] == A[i].ts)
   &*& (forall k: K :: (forall j: Int :: 0 <= j < Alen ==> A[j].key != k)
     ==> C[k] == 0)
-  // These are not necessary:
-  // &*& (forall k: K :: C[k] >= 0)
-  // &*& (forall k: K :: C[k] > 0 ==> (exists i: Int :: A[i] == pair(k, C[k])))
-  // &*& (forall k: K, i: Int :: C[k] > 0 && 0 <= i < A.length && A[i].key == k ==> A[i].ts <= C[k])
 }
 
 // TODO what's the difference between hrep and node?
@@ -80,12 +77,14 @@ lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<
   ensures false
 {}
 
+// TODO init method
+
 // TODO which ones need to be implicit?
 procedure inContents(n: Node, k: K,
     ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
-  returns (t: Int)
+  returns (res: OptionTS)
   requires node(r, n, es, Cn)
-  ensures node(r, n, es, Cn) &*& Cn[k] == t
+  ensures node(r, n, es, Cn) &*& (res != noneTS ==> Cn[k] == res.tst)
 {
   var i := n.tableLen - 1;
   var flag := false;
@@ -102,13 +101,13 @@ procedure inContents(n: Node, k: K,
     }
   }
   if (flag) {
-    return n.table[i].ts;
+    return someTS(n.table[i].ts);
   } else {
-    return 0;  // Not found. Return bottom
-    // TODO can we use -1? 0 could be a valid timestamp
+    return noneTS;
   }
 }
 
+// TODO add n == r to precondition?
 procedure addContents(n: Node, k: K, t: Int,
     ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (succ: Bool, implicit ghost Cn1: Map<K, Int>)
@@ -127,14 +126,16 @@ procedure addContents(n: Node, k: K, t: Int,
 
 procedure findNext(n: Node, k: K,
     ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
-  returns (succ: Bool, n1: Node)
+  returns (res: OptionNode)
   requires node(r, n, es, Cn)
   ensures node(r, n, es, Cn)
-  ensures succ ==> k in es[n1]
-  ensures !succ ==> (forall n2: Node :: k !in es[n2])
+  ensures res != noneNode ==> k in es[res.nd]
+  // TODO this times out:
+  // ensures exists n1: Node :: res == someNode(n1) ==> k in es[n1]
+  ensures res == noneNode ==> (forall n2: Node :: k !in es[n2])
 {
   if (n.ptrs[0] == null) {  // Leaf node
-    return false, null;
+    return noneNode;
   }
 
   var found, i := arr_find(n.keys, n.len, k);
@@ -143,6 +144,5 @@ procedure findNext(n: Node, k: K,
     i := i + 1;
   }
 
-  n1 := n.ptrs[i];
-  succ := true;
+  return someNode(n.ptrs[i]);
 }
