@@ -17,7 +17,6 @@ struct Node {
   var len: Int;
   var keys: Array<K>;
   var ptrs: Array<Node>;
-  ghost var indices: Map<Node, Int>;
   // TODO why can't we just use an array of keys and an array of timestamps?
   var table: Array<KT>;
   var tableLen: Int;
@@ -77,7 +76,23 @@ lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<
   ensures false
 {}
 
-// TODO init method
+procedure init()
+  returns (r: Node, es: Map<Node, Set<K>>, Cr: Map<K, Int>)
+  ensures node(r, r, es, Cr)
+{
+  r := new Node;
+  r.keys := new Array<K>(2*B);
+  r.ptrs := new Array<Node>(2*B);
+  r.table := new Array<KT>(2*B);
+  arr_init_node(r.ptrs, 2*B, null);
+  r.len := 0;
+  r.tableLen := 0;
+
+  es := { n: Node :: {} };
+  Cr := { k: K :: 0 };
+
+  return r, es, Cr;
+}
 
 // TODO which ones need to be implicit?
 procedure inContents(n: Node, k: K,
