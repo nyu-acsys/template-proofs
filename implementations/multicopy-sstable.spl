@@ -1,20 +1,23 @@
 options "-abspreds -simplearrays -propreads -stratify"
 
-include "array_util_KT.spl"
+include "array_util.spl"
 
 pure function KS() returns (res: Set<K>)
 {
   { k: K :: lt(k, top) }
 }
 
-//datatype KT = pair(key: K, ts: Int)
+datatype OptionTS = someTS(tst: Int) | noneTS
+
+datatype OptionNode = someNode(nd: Node) | noneNode
 
 struct Node {
   var len: Int;
   var keys: Array<K>;
   var ptrs: Array<Node>;
-  ghost var indices: Map<Node, Int>;
-  var table: Array<KT>;
+  var tableK: Array<K>;
+  var tableT: Array<Int>;
+  var tableLen: Int;
 }
 
 const B: Int
@@ -22,59 +25,97 @@ const B: Int
 axiom B > 1
 
 
-predicate hrepSpatial(x: Node) {
-  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.table) &*& x.keys.length == 2*B && x.ptrs.length == 2*B
+define hrepSpatial(x) {
+  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.tableK) &*& acc(x.tableT)
+  &*& x.keys.length == 2*B &*& x.ptrs.length == 2*B
+  &*& x.tableK.length == x.tableT.length
 }
 
-define ks_child(x, u, k)
-{
-  (x.indices[u] == 0 || !lt(k, x.keys.map[x.indices[u] - 1])) &&
-    (x.indices[u] == x.len && lt(k, top) || lt(k, x.keys.map[x.indices[u]]))
-}
-
-function edgesetFn(x: Node)
-  returns (res: Map<Node, Set<K>>)
-  requires hrepSpatial(x)
-{
-  { n: Node ::
-    0 <= x.indices[n] <= x.len ? { k: K :: ks_child(x, n, k) ? true : false} : {}
-  }
-}
-
-predicate map_of_table(A: Array<KT>, C: Map<K, Int>) {
-  (forall k: K :: C[k] >= 0)
-  && (forall k: K :: C[k] > 0 ==> (exists i: Int :: A[i] == pair(k, C[k])))
-}
-
-define heapGood(n) {
-  sorted_array_prefix_KT(n.table, n.table.length)
+define map_of_table(tableK, tableT, len, C) {
+  true
+  &*& (forall i: Int :: 0 <= i < len ==> C[tableK[i]] == tableT[i])
 }
 
 define hrep(n, es, C) {
-  hrepSpatial(n) &*& heapGood(n) &*& map_of_table(n.table, C)
+  hrepSpatial(n)
+  &*& map_of_table(n.tableK, n.tableT, n.tableLen, C)
+  &*& 0 <= n.tableLen <= n.tableK.length
 }
 
-define node(n, es, C) {
-  hrep(n, es, C) &*& es = edgesetFn(n)
+define node(r, n, es, Cn) {
+  hrep(n, es, Cn)
+  &*& sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
+  &*& (n.ptrs[0] == null  // Leaf
+      &*& (forall n1: Node :: es[n1] == {})
+    || n.ptrs[0] != null  // Internal
+      && (forall i: Int :: 0 <= i <= n.len ==> n != n.ptrs[i])
+      && (forall i: Int, j: Int :: 0 <= i < j <= n.len ==> n.ptrs[i] != n.ptrs[j]
+        @(noinst i) @(noinst j))
+      && (forall i: Int :: 0 <= i <= n.len ==> n.ptrs[i] != null)
+      && (forall i: Int, k: K :: 0 <= i <= n.len ==>
+        (k in es[n.ptrs[i]]
+          && (0 < i ==> le(n.keys[i-1], k)) && (i < n.len ==> lt(k, n.keys[i]))
+        || k !in es[n.ptrs[i]]
+          && !((i <= 0 || le(n.keys[i-1], k)) && (i >= n.len || lt(k, n.keys[i]))))
+        @(matching n.ptrs[i] yields n.keys[i - 1])
+        @(matching n.ptrs[i] yields n.keys[i]))
+  )
+  // Keys are sorted
+  &*& sorted_map_seg(n.keys.map, 0, n.len) == true
+  &*& 0 <= n.len <= n.keys.length
 }
 
-lemma node_sep_star(n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
-  requires node(n, es, C) &*& node(n, es1, C1)
+lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
+  requires node(r, n, es, C) &*& node(r, n, es1, C1)
   ensures false
-{
+{}
 
+procedure init()
+  returns (r: Node, es: Map<Node, Set<K>>, Cr: Map<K, Int>)
+  ensures node(r, r, es, Cr)
+{
+  r := new Node;
+  r.keys := new Array<K>(2*B);
+  r.ptrs := new Array<Node>(2*B);
+  r.tableK := new Array<K>(2*B);
+  r.tableT := new Array<Int>(2*B);
+  arr_init_node(r.ptrs, 2*B, null);
+  r.len := 0;
+  r.tableLen := 0;
+
+  es := { n: Node :: {} };
+  Cr := { k: K :: 0 };
+
+  return r, es, Cr;
 }
 
-procedure findNext(n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>, k: K)
-  returns (succ: Bool, np: Node)
-  requires k in KS
-  requires node(n, es, C)
-  ensures node(n, es, C)
-  ensures succ ==> k in es[np]
-  ensures !succ ==> (forall n1 : Node :: !(k in es[n1]))
+procedure inContents(n: Node, k: K,
+    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (res: OptionTS)
+  requires node(r, n, es, Cn)
+  ensures node(r, n, es, Cn)
+  ensures res != noneTS ==> Cn[k] == res.tst
+  // TODO make Cn Map<K, OptionTS> instead of:
+  ensures res == noneTS ==> (forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k)
+{
+  var b, i := arr_find(n.tableK, n.tableLen, k);
+  if (b) {
+    return someTS(n.tableT[i]);
+  } else {
+    return noneTS;
+  }
+}
+
+procedure findNext(n: Node, k: K,
+    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (res: OptionNode)
+  requires node(r, n, es, Cn)
+  ensures node(r, n, es, Cn)
+  ensures res != noneNode ==> k in es[res.nd]
+  ensures res == noneNode ==> (forall n2: Node :: k !in es[n2])
 {
   if (n.ptrs[0] == null) {  // Leaf node
-    return false, null;
+    return noneNode;
   }
 
   var found, i := arr_find(n.keys, n.len, k);
@@ -83,44 +124,8 @@ procedure findNext(n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>, k: K)
     i := i + 1;
   }
 
-  if (i == n.len) {
-    if (lt(k, n.keys[i])) {
-      np := n.ptrs[i];
-      return true, np;
-    } else {
-      return true, np;
-    }
-  } else {
-    np := n.ptrs[i];
-    return true, np;
-  }
-}   
-
-procedure inContent(n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>, k: K)
-  returns (t : Int)
-  requires node(n, es, C)
-  ensures node(n, es, C)
-  ensures t == C[k]
-{ var b, i := arr_find_KT(n.table, n.table.length, k);
-  if (b) {
-    return n.table[i].ts;
-  } else {
-    return 0;
-  }  
+  return someNode(n.ptrs[i]);
 }
 
-/*
-procedure addContent(n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>, k: K, t: Int)
-  returns (C1 : Map<K, Int>)
-  requires node(n, es, C)
-  requires t >= 0
-  ensures node(n, es, C1)
-  ensures C1[k] == t
-  ensures (forall k1: K :: k1 != k ==> C1[k1] == C[k1])
-{ 
-  var i := 0;
-
-  assume false;
-  return { k1 : K :: k1 = k ? t : C[k1] };
-}
-
+// addContents is not needed since this is for the non-root nodes
+// TODO However we probably need mergeContents
