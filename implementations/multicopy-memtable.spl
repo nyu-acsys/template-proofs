@@ -17,6 +17,7 @@ struct Node {
   var len: Int;
   var keys: Array<K>;
   var ptrs: Array<Node>;
+  ghost var indices: Map<Node, Int>;
   // TODO why can't we just use an array of keys and an array of timestamps?
   var table: Array<KT>;
   var tableLen: Int;
@@ -65,16 +66,50 @@ define node(r, n, es, Cn) {
           && !((i <= 0 || le(n.keys[i-1], k)) && (i >= n.len || lt(k, n.keys[i]))))
         @(matching n.ptrs[i] yields n.keys[i - 1])
         @(matching n.ptrs[i] yields n.keys[i]))
+      && (forall n1: Node :: n.indices[n1] == -1 ==> es[n1] == {})
   )
   // Keys are sorted
   &*& sorted_map_seg(n.keys.map, 0, n.len) == true
   &*& 0 <= n.len <= n.keys.length
+  // Indices of outgoing pointers are stored in n.indices
+  &*& (forall y: Node :: 0 <= n.indices[y] <= n.len
+    ==> n.ptrs.map[n.indices[y]] == y)
+  &*& (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
+    ==> n.indices[n.ptrs.map[i]] == i @(noinst i))
+  &*& (forall y: Node :: -1 <= n.indices[y] <= n.len)
+  &*& (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
+  &*& n.indices[n] == -1
 }
 
 lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
   requires node(r, n, es, C) &*& node(r, n, es1, C1)
   ensures false
 {}
+
+lemma node_es_disjoint(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
+  requires node(r, n, es, C)
+  ensures node(r, n, es, C)
+  ensures forall k: K, n1: Node, n2: Node ::
+    n1 != n2 ==> (k !in es[n1] || k !in es[n2]) 
+{
+  pure assert forall k: K, n1: Node, n2: Node ::
+    n1 != n2 ==> (k !in es[n1] || k !in es[n2]) 
+  with {
+    if (n1 != n2) {
+      if (n.indices[n1] > -1) {
+        if (n.indices[n2] > -1) {
+          pure assert n.ptrs[n.indices[n1]] == n1 && n.ptrs[n.indices[n2]] == n2;
+          if (n.indices[n1] == n.indices[n2]) {
+            pure assert false;
+          } else {
+            pure assert (k !in es[n.ptrs[n.indices[n1]]]
+              || k !in es[n.ptrs[n.indices[n2]]]);
+          }
+        }
+      }
+    }
+  }
+}
 
 procedure init()
   returns (r: Node, es: Map<Node, Set<K>>, Cr: Map<K, Int>)
@@ -83,6 +118,7 @@ procedure init()
   r := new Node;
   r.keys := new Array<K>(2*B);
   r.ptrs := new Array<Node>(2*B);
+  r.indices := { n: Node :: -1 };
   r.table := new Array<KT>(2*B);
   arr_init_node(r.ptrs, 2*B, null);
   r.len := 0;
