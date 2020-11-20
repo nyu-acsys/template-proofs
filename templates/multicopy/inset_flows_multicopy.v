@@ -42,6 +42,66 @@ Lemma inset_monotone : ∀ I I1 I2 k n,
 Proof.
 Admitted.
 
+Definition gmap_decrement (k: K) (m : gmap K nat) : gmap K nat := 
+          if (1 <? m !!! k) then <[k := m !!! k - 1]> m
+          else delete k m.
+
+Lemma nzmap_decrement_wf (k: K) (m : gmap K nat) :
+      nzmap_wf m → nzmap_wf (gmap_decrement k m).
+Proof.
+  unfold nzmap_wf, map_Forall. intros Hm.
+  intros i x. destruct (decide (i = k)).
+  - replace i. unfold gmap_decrement.
+    destruct (1 <? m !!! k) eqn: Hmkt.
+    + rewrite lookup_insert. intros H'; inversion H'.
+      apply Nat.ltb_lt in Hmkt. 
+      unfold ccmunit, ccm_unit. simpl.
+      unfold nat_unit. lia.
+    + rewrite lookup_delete.
+      intros H'; inversion H'.
+  - unfold gmap_decrement. destruct (1 <? m !!! k);
+    [ rewrite lookup_insert_ne; try done | rewrite lookup_delete_ne];
+    by pose proof Hm i x.       
+Qed.
+
+
+Definition nzmap_decrement (kt: K) (m : nzmap K nat) :=
+      let (m, Hm) := m in
+        NZMap (gmap_decrement kt m) (bool_decide_pack _ (nzmap_decrement_wf kt m 
+    (bool_decide_unpack _ Hm))).
+
+Definition nzmap_decrement_set (s: gset K) (m : nzmap K nat) : nzmap K nat :=
+      let f := λ k m', nzmap_decrement k m' in
+      set_fold f m s.
+
+Definition nzmap_increment_set (s: gset K) (m : nzmap K nat) : nzmap K nat :=
+      let f := λ k m', <<[ k := m ! k + 1 ]>>m' in
+      set_fold f m s.
+
+
+Definition outflow_insert_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
+           let I_out_n := (nzmap_increment_set s (out I n)) in
+           let I'_out := (<<[n := I_out_n]>> (out_map I)) in
+           (int {| infR := inf_map I ; outR := I'_out |}).
+           
+Definition outflow_delete_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
+           let I_out_n := (nzmap_decrement_set s (out I n)) in
+           let I'_out := (<<[n := I_out_n]>> (out_map I)) in
+           (int {| infR := inf_map I ; outR := I'_out |}).
+
+(* assumes: n ∈ domm I *)           
+Definition inflow_insert_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
+           let I_inf_n := (nzmap_increment_set s (inf I n)) in
+           let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
+           (int {| infR := I'_inf ; outR := out_map I |}).
+
+(* assumes: n ∈ domm I *)
+Definition inflow_delete_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
+           let I_inf_n := (nzmap_decrement_set s (inf I n)) in
+           let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
+           (int {| infR := I'_inf ; outR := out_map I |}).
+
+
 (*
 Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n
   → k ∈ keyset I_n n.

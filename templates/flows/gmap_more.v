@@ -354,3 +354,49 @@ Proof.
   intros.
   apply H0.
 Qed.
+
+Definition gmap_insert_map {A} `{Countable K} (m s: gmap K A) : (gmap K A) :=
+      let f := λ k a m', <[k := a]> m' in
+      map_fold f m s.
+
+Lemma gmap_lookup_insert_map {A} `{Countable K} (m s: gmap K A) (k: K) :
+      k ∈ dom (gset K) s → gmap_insert_map m s !! k = s !! k.
+Proof.
+  intros Hk. unfold gmap_insert_map.
+Admitted.
+
+Lemma gmap_lookup_insert_map_ne {A} `{Countable K} (m s: gmap K A) (k: K) :
+      k ∉ dom (gset K) s → gmap_insert_map m s !! k = m !! k.
+Proof.
+  intros Hk. unfold gmap_insert_map.
+Admitted.
+
+Definition gmap_delete_set {A} `{Countable K} (m: gmap K A) (s: gset K) 
+                                              : (gmap K A) :=
+      let f := λ k m', delete k m' in
+      set_fold f m s.
+
+Lemma gmap_lookup_delete_set {A} `{Countable K} 
+                          (m: gmap K A) (s: gset K) (k: K) :
+      k ∈ s → gmap_delete_set m s !! k = None.
+Proof.
+  intros Hk. unfold gmap_delete_set.
+Admitted.
+
+Lemma gmap_lookup_delete_set_ne {A} `{Countable K} 
+                          (m: gmap K A) (s: gset K) (k: K) :
+      k ∉ s → gmap_delete_set m s !! k = m !! k.
+Proof.
+  intros Hk. unfold gmap_delete_set.
+Admitted.
+
+
+               
+
+
+
+
+
+
+
+

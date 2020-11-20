@@ -388,6 +388,12 @@ Definition nzmap_delete `{Countable K} `{CCM A} :=
     let (m, Hm) := m in
     NZMap (delete i m) (bool_decide_pack _ (nzmap_delete_wf i m 
     (bool_decide_unpack _ Hm) )).
+    
+Definition nzmap_delete_set `{Countable K} `{CCM A} :=
+  λ (s: gset K) (m : nzmap K A),
+    let f := λ k m', nzmap_delete k m' in
+    set_fold f m s.
+
 
 (*
 Class NonZero A `(CCM A) (a : A) : Prop :=
@@ -417,7 +423,10 @@ Definition nzmap_insert `{Countable K} `{CCM A}
 
 Notation "<<[ i := a ]>> m" := (nzmap_insert i a m) (at level 5).
 
-
+Definition nzmap_insert_map `{Countable K} `{CCM A}
+  (s: gmap K A) (m : nzmap K A) :=
+    let f := λ k a m', <<[k := a]>> m' in
+    map_fold f m s.
 
 Lemma nzmap_lookup_wf `{Countable K} `{CCM A} (m : gmap K A) i : nzmap_wf m → m !! i <> Some 0.
 Proof.
@@ -458,6 +467,18 @@ Proof.
   rewrite lookup_delete_ne; try done.
 Qed.
 
+Lemma nzmap_lookup_total_delete_set `{Countable K} `{CCM A} 
+    (i: K) (s : gset K) (m : nzmap K A) : 
+    i ∈ s → nzmap_delete_set s m ! i = 0.
+Proof.
+Admitted.    
+    
+Lemma nzmap_lookup_total_delete_set_ne `{Countable K} `{CCM A} 
+    (i: K) (s : gset K) (m : nzmap K A) : 
+    i ∉ s → nzmap_delete_set s m ! i = m ! i.
+Proof.
+Admitted.    
+
 
 Lemma nzmap_lookup_total_insert `{Countable K} `{CCM A} 
     (i : K) (a: A) (m : nzmap K A): <<[i:=a]>>m ! i = a.
@@ -484,6 +505,18 @@ Proof.
   - simpl. rewrite lookup_delete_ne; try done.
   - rewrite lookup_insert_ne; try done.
 Qed.
+
+Lemma nzmap_lookup_total_insert_map `{Countable K} `{CCM A} 
+    (i : K) (s: gmap K A) (m : nzmap K A): 
+    i ∈ dom (gset K) s → nzmap_insert_map s m ! i = default 0 (s !! i).
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_insert_map_ne `{Countable K} `{CCM A} 
+    (i : K) (s: gmap K A) (m : nzmap K A): 
+    i ∉ dom (gset K) s → nzmap_insert_map s m ! i = m ! i.
+Proof.
+Admitted.
 
 Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
 Proof.

@@ -93,6 +93,33 @@ Proof.
   - rewrite lookup_delete_ne; try done.
 Qed.
 
+Definition nzmap_increment_set (s: gset KT) (m : nzmap KT nat) : nzmap KT nat :=
+      let f := λ kt m', <<[ kt := m ! kt + 1 ]>>m' in
+      set_fold f m s.
+
+Lemma nzmap_lookup_total_increment_set kt s m :
+      kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1.
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_increment_set_ne kt s m :
+      kt ∉ s → nzmap_increment_set s m ! kt = m ! kt.
+Proof.
+Admitted.
+
+Definition nzmap_decrement_set (s: gset KT) (m : nzmap KT nat) : nzmap KT nat :=
+      let f := λ kt m', nzmap_decrement kt m' in
+      set_fold f m s.
+
+Lemma nzmap_lookup_total_decrement_set kt s m :
+      kt ∈ s → nzmap_decrement_set s m ! kt = m ! kt - 1.
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_decrement_set_ne kt s m :
+      kt ∉ s → nzmap_decrement_set s m ! kt = m ! kt.
+Proof.
+Admitted.
 
 Definition outflow_insert_KT (I : KT_flowint_ur) (n: Node) 
                             (k: K) (t: nat) : KT_flowint_ur := 
@@ -103,6 +130,18 @@ Definition outflow_insert_KT (I : KT_flowint_ur) (n: Node)
 Definition outflow_delete_KT (I : KT_flowint_ur) (n: Node) 
                             (k: K) (t: nat) :KT_flowint_ur := 
            let I_out_n := (nzmap_decrement (k,t) (out I n)) in
+           let I'_out := (<<[n := I_out_n]>> (out_map I)) in
+           (int {| infR := inf_map I ; outR := I'_out |}).
+
+Definition outflow_insert_set_KT (I : KT_flowint_ur) (n: Node) 
+                            (s: gset KT) : KT_flowint_ur := 
+           let I_out_n := (nzmap_increment_set s (out I n)) in
+           let I'_out := (<<[n := I_out_n]>> (out_map I)) in
+           (int {| infR := inf_map I ; outR := I'_out |}).
+
+Definition outflow_delete_set_KT (I : KT_flowint_ur) (n: Node) 
+                            (s: gset KT) :KT_flowint_ur := 
+           let I_out_n := (nzmap_decrement_set s (out I n)) in
            let I'_out := (<<[n := I_out_n]>> (out_map I)) in
            (int {| infR := inf_map I ; outR := I'_out |}).
 
@@ -204,6 +243,21 @@ Definition inflow_delete_KT (I : KT_flowint_ur) (n: Node)
            let I_inf_n := (nzmap_decrement (k,t) (inf I n)) in
            let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
            (int {| infR := I'_inf ; outR := out_map I |}).
+
+(* assumes: n ∈ domm I *) 
+Definition inflow_insert_set_KT (I : KT_flowint_ur) (n: Node) 
+                            (s: gset KT) :KT_flowint_ur := 
+           let I_inf_n := (nzmap_increment_set s (inf I n)) in
+           let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
+           (int {| infR := I'_inf ; outR := out_map I |}).
+
+(* assumes: n ∈ domm I *)
+Definition inflow_delete_set_KT (I : KT_flowint_ur) (n: Node) 
+                            (s: gset KT) :KT_flowint_ur := 
+           let I_inf_n := (nzmap_decrement_set s (inf I n)) in
+           let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
+           (int {| infR := I'_inf ; outR := out_map I |}).
+
 
 Lemma inflow_insert_inset_ne_KT I n k t I' n' :
       n' ≠ n → I' = inflow_insert_KT I n k t → 
