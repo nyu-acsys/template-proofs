@@ -125,32 +125,57 @@ Qed.
 Lemma nzmap_lookup_total_increment_set kt s m :
       kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1.
 Proof.
-  unfold nzmap_increment_set.
-    set (P := λ (m': nzmap KT nat) (X: gset KT),
-                    (kt ∈ X → m' ! kt = m ! kt + 1)
-                    ∧ (kt ∉ X → m' ! kt = m ! kt) ).
-    apply (set_fold_ind_L P); try done.
-  
-Admitted.
+  apply nzmap_lookup_total_increment_set_aux.
+Qed.
 
 Lemma nzmap_lookup_total_increment_set_ne kt s m :
       kt ∉ s → nzmap_increment_set s m ! kt = m ! kt.
 Proof.
-Admitted.
+  apply nzmap_lookup_total_increment_set_aux.
+Qed.
 
 Definition nzmap_decrement_set (s: gset KT) (m : nzmap KT nat) : nzmap KT nat :=
       let f := λ kt m', nzmap_decrement kt m' in
       set_fold f m s.
 
+Lemma nzmap_lookup_total_decrement_set_aux kt s m :
+    (kt ∈ s → nzmap_decrement_set s m ! kt = m ! kt - 1)
+  ∧ (kt ∉ s → nzmap_decrement_set s m ! kt = m ! kt).
+Proof.
+    set (P := λ (m': nzmap KT nat) (X: gset KT),
+                    ∀ x, (x ∈ X → m' ! x = m ! x - 1)
+                         ∧ (x ∉ X → m' ! x = m ! x) ).
+    apply (set_fold_ind_L P); try done.
+    intros x X r Hx HP.
+    unfold P in HP. unfold P.
+    intros x'.
+    destruct (decide (x' = x));
+      split; intros Hx'.
+    - rewrite e. rewrite nzmap_lookup_total_decrement.
+      apply HP in Hx.
+      rewrite Hx. trivial.
+    - assert (x ∈ X). set_solver. contradiction.
+    - assert (x' ∈ X) as x'_in_X. set_solver.
+      apply HP in x'_in_X.
+      rewrite nzmap_lookup_total_decrement_ne.
+      done. done.
+    - assert (x' ∉ X) as x'_nin_X. set_solver.
+      apply HP in x'_nin_X.
+      rewrite nzmap_lookup_total_decrement_ne.
+      done. done.
+Qed.
+
 Lemma nzmap_lookup_total_decrement_set kt s m :
       kt ∈ s → nzmap_decrement_set s m ! kt = m ! kt - 1.
 Proof.
-Admitted.
+  apply nzmap_lookup_total_decrement_set_aux.
+Qed.
 
 Lemma nzmap_lookup_total_decrement_set_ne kt s m :
       kt ∉ s → nzmap_decrement_set s m ! kt = m ! kt.
 Proof.
-Admitted.
+  apply nzmap_lookup_total_decrement_set_aux.
+Qed.
 
 Definition outflow_insert_KT (I : KT_flowint_ur) (n: Node) 
                             (k: K) (t: nat) : KT_flowint_ur := 
