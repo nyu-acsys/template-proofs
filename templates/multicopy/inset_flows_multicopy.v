@@ -40,61 +40,7 @@ Definition keyset I n := dom_ms (inf I n) ∖ dom_ms (out I n).
 Lemma inset_monotone : ∀ I I1 I2 k n,
     ✓ I → I = I1 ⋅ I2 → k ∈ inset I n → n ∈ domm I1 → k ∈ inset I1 n.
 Proof.
-  intros ? ? ? ? ? VI ID Inset Dom.
-  rewrite ID in VI.
-  pose proof (intComp_unfold_inf_1 I1 I2 VI n) as Inf1.
-  apply Inf1 in Dom.
-  assert (Inset1 := Inset).
-  unfold inset, dom_ms, nzmap_dom in Inset.
-  rewrite nzmap_elem_of_dom in Inset *.
-  intros Inset.
-  unfold inf, inf_map in Dom.
-  pose proof (intComp_valid_proj1 I1 I2 VI) as VI1.
-  apply flowint_valid_defined in VI1.
-  destruct VI1 as [I1r I1D].
-  pose proof (intComp_valid_proj2 I1 I2 VI) as VI2.
-  apply flowint_valid_defined in VI2.
-  destruct VI2 as [I2r I2D].
-
-  apply flowint_valid_defined in VI.
-  destruct VI as [I12r I12D].
-
-  rewrite I1D in Dom.
-  rewrite I1D in I12D.
-  rewrite I12D in Dom.
-
-  unfold inset, inf, dom_ms, inf_map.
-  rewrite I1D.
-  rewrite Dom.
-  rewrite nzmap_elem_of_dom_total.
-  rewrite lookup_op.
-  unfold nzmap_total_lookup.
-  unfold inf, is_Some, inf_map in Inset.
-  destruct Inset as [x Inset].
-  rewrite ID in Inset.
-  rewrite I1D in Inset.
-  rewrite I12D in Inset.
-  rewrite Inset.
-  simpl.
-  
-  assert (x <> 0).
-  unfold inset, dom_ms in Inset1.
-  rewrite nzmap_elem_of_dom_total in Inset1 *.
-  intros xDef.
-  rewrite ID in xDef.
-  rewrite I1D in xDef.
-  rewrite I12D in xDef.
-  unfold inf, inf_map in xDef.
-  unfold nzmap_total_lookup in xDef.
-  rewrite Inset in xDef.
-  simpl in xDef.
-  trivial.
-  
-  unfold ccmop, ccm_op, nat_ccm, nat_op, out, out_map.
-  unfold ccmunit, nat_unit.
-  lia.
-  all: apply K_multiset_ccm.
-Qed.
+Admitted.
 
 Definition gmap_decrement (k: K) (m : gmap K nat) : gmap K nat := 
           if (1 <? m !!! k) then <[k := m !!! k - 1]> m
@@ -283,6 +229,46 @@ Proof.
   simpl.
   trivial.
 Qed.
+
+Lemma inflow_insert_set_inset_ne_K I n S I' n' :
+      n' ≠ n → I' = inflow_insert_set_K I n S → 
+           inset I' n' = inset I n'.
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_increment_set_aux s m :
+      ∀ kt, (kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1)
+          ∧ (kt ∉ s → nzmap_increment_set s m ! kt = m ! kt).
+Proof.
+Admitted.  
+
+Lemma nzmap_lookup_total_increment_set kt s m :
+      kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1.
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_increment_set_ne kt s m :
+      kt ∉ s → nzmap_increment_set s m ! kt = m ! kt.
+Proof.
+Admitted.
+
+
+Lemma nzmap_lookup_total_decrement_set kt s m :
+      kt ∈ s → nzmap_decrement_set s m ! kt = m ! kt - 1.
+Proof.
+Admitted.
+
+Lemma nzmap_lookup_total_decrement_set_ne kt s m :
+      kt ∉ s → nzmap_decrement_set s m ! kt = m ! kt.
+Proof.
+Admitted.
+
+Lemma inflow_insert_set_out_eq_K I n S I' n' :
+      I' = inflow_insert_set_K I n S →
+          out I' n' = out I n'.
+Proof.
+Admitted.
+
 
 
 (*
