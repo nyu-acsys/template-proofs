@@ -132,12 +132,51 @@ Definition nzmap_increment_set (s: gset K) (m : nzmap K nat) : nzmap K nat :=
       let f := λ k m', <<[ k := m ! k + 1 ]>>m' in
       set_fold f m s.
 
+Lemma nzmap_lookup_total_increment_set_aux s m :
+      ∀ kt, (kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1)
+          ∧ (kt ∉ s → nzmap_increment_set s m ! kt = m ! kt).
+Proof.
+    set (P := λ (m': nzmap K nat) (X: gset K),
+                    ∀ x, (x ∈ X → m' ! x = m ! x + 1)
+                         ∧ (x ∉ X → m' ! x = m ! x) ).
+    apply (set_fold_ind_L P); try done.
+    intros x X r Hx HP.
+    unfold P in HP. unfold P.
+    intros x'.
+    destruct (decide (x' = x));
+    split; intros Hx'.
+    - rewrite e. by rewrite nzmap_lookup_total_insert.
+    - assert (x ∈ X). set_solver. contradiction.
+    - assert (x' ∈ X) as x'_in_X. set_solver.
+      apply HP in x'_in_X.
+      rewrite nzmap_lookup_total_insert_ne.
+      done. done.
+    - assert (x' ∉ X) as x'_nin_X. set_solver.
+      apply HP in x'_nin_X.
+      rewrite nzmap_lookup_total_insert_ne.
+      done. done.
+Qed.
+
+Lemma nzmap_lookup_total_increment_set kt s m :
+      kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1.
+Proof.
+  apply nzmap_lookup_total_increment_set_aux.
+Qed.
+
+Lemma nzmap_lookup_total_increment_set_ne kt s m :
+      kt ∉ s → nzmap_increment_set s m ! kt = m ! kt.
+Proof.
+  apply nzmap_lookup_total_increment_set_aux.
+Qed.
+
 
 Definition outflow_insert_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
            let I_out_n := (nzmap_increment_set s (out I n)) in
            let I'_out := (<<[n := I_out_n]>> (out_map I)) in
            (int {| infR := inf_map I ; outR := I'_out |}).
-           
+
+
+
 Definition outflow_delete_set_K I (n: Node) (s: gset K) : inset_flowint_ur := 
            let I_out_n := (nzmap_decrement_set s (out I n)) in
            let I'_out := (<<[n := I_out_n]>> (out_map I)) in
@@ -155,42 +194,95 @@ Definition inflow_delete_set_K I (n: Node) (s: gset K) : inset_flowint_ur :=
            let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
            (int {| infR := I'_inf ; outR := out_map I |}).
 
-  Lemma flowint_insert_set_eq_K (I1 I1' I2 I2': inset_flowint_ur) n S :
-        I1' = outflow_insert_set_K I1 n S →
-          I2' = inflow_insert_set_K I2 n S →
-             I1 ⋅ I2 = I1' ⋅ I2'.
-  Proof.
-  Admitted.
+Lemma flowint_insert_set_eq_K (I1 I1' I2 I2': inset_flowint_ur) n S :
+  I1' = outflow_insert_set_K I1 n S →
+  I2' = inflow_insert_set_K I2 n S →
+  I1 ⋅ I2 = I1' ⋅ I2'.
+Proof.
+Admitted.
 
-  Lemma flowint_inflow_insert_set_dom_K (I: inset_flowint_ur) n S I':
-        I' = inflow_insert_set_K I n S
-          → domm I' = domm I ∪ {[n]}.
-  Proof.
-  Admitted.
+Lemma flowint_inflow_insert_set_dom_K (I: inset_flowint_ur) n S I':
+    I' = inflow_insert_set_K I n S
+    → domm I' = domm I ∪ {[n]}.
+Proof.
+  
+Admitted.
 
 Lemma outflow_insert_set_outset_K I n S I' :
       I' = outflow_insert_set_K I n S → 
            outset I' n = (outset I n) ∪ S.
 Proof.
-Admitted.
+    intros Heq. unfold outset.
+  unfold inset_flows.dom_ms.
+  replace I'. unfold outflow_insert_set_K.
+  unfold out. simpl.
+  rewrite nzmap_lookup_total_insert.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x. 
+  rewrite !nzmap_elem_of_dom_total.
+  destruct (decide (x ∈ S)); split.
+  - set_solver.
+  - rewrite nzmap_lookup_total_increment_set.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    unfold ccmunit, ccm_unit. simpl.
+    unfold nat_unit. lia. done.
+  - rewrite nzmap_lookup_total_increment_set_ne.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    intro.
+    left.
+    trivial. trivial.
+  - rewrite elem_of_union.
+    intro.
+    destruct H0.
+    rewrite nzmap_lookup_total_increment_set_ne.
+    rewrite nzmap_elem_of_dom_total in H0 *.
+    trivial. trivial.
+    contradiction.
+Qed.
 
 Lemma outflow_insert_set_outset_ne_K I n S I' n' :
       n' ≠ n → I' = outflow_insert_set_K I n S → 
            outset I' n' = outset I n'.
 Proof.
-Admitted.
+  intros Hneq Heq. unfold outset.
+  unfold inset_flows.dom_ms.
+  replace I'. unfold outflow_insert_set_K.
+  unfold out. simpl.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x.
+  rewrite !nzmap_elem_of_dom_total.
+  rewrite nzmap_lookup_total_insert_ne.
+  trivial. auto.
+Qed.
+
 
 Lemma inflow_insert_set_outset_ne_K I n S I' n' :
-      I' = outflow_insert_set_K I n S → 
+      I' = inflow_insert_set_K I n S → 
            outset I' n' = outset I n'.
 Proof.
-Admitted.
+  intros Heq.
+  rewrite Heq.
+  unfold inflow_insert_set_K.
+  unfold outset.
+  unfold inf.
+  simpl.
+  trivial.
+Qed.
 
 Lemma outflow_insert_set_inset_K I n S I' n' :
       I' = outflow_insert_set_K I n S → 
           inset I' n' = inset I n'.
 Proof.
-Admitted.
+  intros Heq.
+  rewrite Heq.
+  unfold outflow_insert_set_K.
+  unfold inset.
+  unfold inf.
+  simpl.
+  trivial.
+Qed.
 
 
 (*
