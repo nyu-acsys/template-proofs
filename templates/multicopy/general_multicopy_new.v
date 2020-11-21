@@ -194,22 +194,29 @@ Section multicopy.
              let f := λ k t H, H ∪ {[(k,t)]} in
              map_fold f (∅: gset KT) C.
 
+  (** ϕ_1 in the paper *)
   Definition φ0 (es: esT) (Qn: gmap K natUR) :=
               ∀ k, (∀ n', k ∉ es !!! n') → Qn !! k = None.
 
+  (** This constraint is implicit in the paper. We track B_n explicitly as ghost state here. 
+      That is the following captures the definition of B_n in terms of C_n/Q_n given in the paper. *)
   Definition φ1 (Bn Cn Qn: gmap K natUR) := 
               ∀ k t, (Cn !! k = Some t → Bn !! k = Some t)
                  ∧ (Cn !! k = None → Bn !! k = Qn !! k). 
 
+  (** ϕ_2 in the paper *)
   Definition φ2 n (Bn: gmap K natUR) In := 
               ∀ k t, (k,t) ∈ inset_KT In n → Bn !!! k = t.
 
+  (** ϕ_4 in the paper *)
   Definition φ3 n (Bn: gmap K natUR) Rn :=
               ∀ k, Bn !! k = None ∨ k ∈ inset K Rn n.
 
+  (** ϕ_5 in the paper *)
   Definition φ4 n (Rn: inset_flowint_ur K) := 
               ∀ k, inf Rn n !1 k ≤ 1.
-  
+
+  (** ϕ_3 in the paper *)
   Definition φ5 (Bn Qn: gmap K natUR) :=
               ∀ k, Qn !!! k ≤ Bn !!! k.            
 
@@ -272,6 +279,7 @@ Section multicopy.
   Definition ghost_loc γ_en γ_cn γ_bn γ_qn (γ_cirn: gmap K gnameO) : per_node_gl := 
         to_agree (γ_en, γ_cn, γ_bn, γ_qn, γ_cirn).
 
+  (** Predicate N_L *)
   Definition nodePred γ_gh γ_t γ_s lc r n (Cn Bn Qn : gmap K natUR) : iProp :=
     ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es t,
       node r n es Cn
@@ -280,6 +288,7 @@ Section multicopy.
     ∗ own γ_s (◯ set_of_map Cn)
     ∗ (if (n =? r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else ⌜True⌝)%I.
 
+  (** Predicate N_S *)
   Definition nodeShared (γ_I γ_R γ_f: gname) γ_gh r n 
           (Cn Bn Qn : gmap K natUR) H t: iProp :=
     ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es In Rn,
@@ -294,6 +303,7 @@ Section multicopy.
     ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ1 Bn Cn Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Rn⌝ 
     ∗ ⌜φ4 n Rn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ6 Bn t⌝ ∗ ⌜φ7 n es Rn Qn⌝. 
 
+  (** Predicate G *)
   Definition global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r t H 
           (hγ: gmap Node per_node_gl) (I: KT_flowint_ur K) 
           (R: inset_flowint_ur K) : iProp :=
@@ -308,6 +318,7 @@ Section multicopy.
     ∗ ⌜maxTS t H⌝
     ∗ ⌜domm I = domm R⌝ ∗ ⌜domm I = dom (gset Node) hγ⌝.
 
+  (** Invariant Inv *)
   Definition mcs γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r : iProp :=
     ∃ t (H: gset KT) hγ
       (I: KT_flowint_ur K) (R: inset_flowint_ur K),
@@ -608,29 +619,6 @@ Section multicopy.
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid_discrete.
   Qed.
 
-
-  Lemma auth_update γ (ys xs1 xs2: nat) :
-    own γ (● (Excl' xs1)) -∗ own γ (◯ (Excl' xs2)) ==∗
-      own γ (● (Excl' ys)) ∗ own γ (◯ (Excl' ys)).
-  Proof.
-    iIntros "Hγ● Hγ◯".
-    iMod (own_update_2 _ _ _ (● Excl' ys ⋅ ◯ Excl' ys)
-      with "Hγ● Hγ◯") as "[$$]".
-    { by apply auth_update, option_local_update, exclusive_local_update. }
-    done.
-  Qed.
-  
-  Lemma auth_update' (γ: gname) (ys xs1 xs2: gsetUR KT) :
-    own γ (● (Excl' xs1)) -∗ own γ (◯ (Excl' xs2)) ==∗
-      own γ (● (Excl' ys)) ∗ own γ (◯ (Excl' ys)).
-  Proof.
-    iIntros "Hγ● Hγ◯".
-    iMod (own_update_2 _ _ _ (● Excl' ys ⋅ ◯ Excl' ys)
-      with "Hγ● Hγ◯") as "[$$]".
-    {  admit. }  
-    (* { apply view_update, option_local_update, exclusive_local_update. } *)
-    done.
-  Admitted.
 
   Lemma set_of_map_member_ne (C: gmap K nat) k :
             C !! k = None →    
@@ -2823,7 +2811,7 @@ Section multicopy.
     + admit.             
   Admitted.           
 
-(*
+(**
   Lemma traverse_spec γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r 
                           γ_en γ_cn γ_bn γ_qn γ_cirn n (k: K) t0 t1 :
     ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r -∗
@@ -3430,9 +3418,9 @@ Section multicopy.
         by iPureIntro. } replace H'.
       iDestruct "MCS" as "(MCS◯t & MCS◯h)".
       iDestruct "MCS_auth" as "(MCS●t & MCS●h)".
-      iMod ((auth_update γ_te (T+1) T T) with "MCS●t MCS◯t") 
+      iMod ((auth_excl_update γ_te (T+1) T T) with "MCS●t MCS◯t") 
                                           as "(MCS●t & MCS◯t)".
-      iMod ((auth_update' γ_he (H1 ∪ {[(k, T)]}) H1 H1) with "MCS●h MCS◯h") 
+      iMod ((auth_excl_update γ_he (H1 ∪ {[(k, T)]}) H1 H1) with "MCS●h MCS◯h") 
                                           as "(MCS●h & MCS◯h)".
       iCombine "MCS◯t MCS◯h" as "MCS".
       iCombine "MCS●t MCS●h" as "MCS_auth".
@@ -3484,6 +3472,6 @@ Section multicopy.
       iIntros "_". iModIntro; iIntros "HΦ"; try done.
       Unshelve. try done.
   Qed.      
-*)
 
+*)
     
