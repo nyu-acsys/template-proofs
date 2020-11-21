@@ -228,6 +228,31 @@ Proof.
     unfold nat_unit. lia.
 Qed.
 
+Lemma outflow_insert_set_outset_KT I n S I' :
+      I' = outflow_insert_set_KT I n S → 
+           outset_KT I' n = (outset_KT I n) ∪ S.
+Proof.
+Admitted.
+
+Lemma outflow_insert_set_outset_ne_KT I n S I' n' :
+      n' ≠ n → I' = outflow_insert_set_KT I n S → 
+           outset_KT I' n' = outset_KT I n'.
+Proof.
+Admitted.
+
+Lemma outflow_insert_set_lookup_out_KT I n S I' kt :
+      kt ∈ S → I' = outflow_insert_set_KT I n S →
+          out I' n ! kt = out I n ! kt + 1.
+Proof.
+Admitted.          
+
+Lemma outflow_insert_set_lookup_out_ne_KT I n S I' kt :
+      kt ∉ S → I' = outflow_insert_set_KT I n S →
+          out I' n ! kt = out I n ! kt.
+Proof.
+Admitted.          
+
+
 Lemma outflow_delete_outset_ne_KT I n k t I' n' :
       n' ≠ n → I' = outflow_delete_KT I n k t
              → outset_KT I' n' = outset_KT I n'.
@@ -1222,6 +1247,12 @@ Proof.
   by rewrite Hinfcomp Houtcomp.  
 Qed.
 
+Lemma inflow_insert_set_out_eq_KT I n S I' n' :
+      I' = inflow_insert_set_KT I n S →
+          out I' n' = out I n'.
+Proof.
+Admitted.
+
 Lemma outflow_insert_inf_eq_KT I n k t I' :
       I' = outflow_insert_KT I n k t → 
         ∀ n', inset_KT I' n' = inset_KT I n'.
@@ -1239,6 +1270,34 @@ Proof.
   unfold inf. replace I'.
   unfold outflow_insert_KT. by simpl. 
 Qed.
+
+  Lemma flowint_insert_set_eq_KT I1 I1' I2 I2' n S :
+        I1' = outflow_insert_set_KT I1 n S →
+          I2' = inflow_insert_set_KT I2 n S →
+             I1 ⋅ I2 = I1' ⋅ I2'.
+  Proof.
+  Admitted.
+
+  Lemma flowint_delete_set_eq_KT I1 I1' I2 I2' n S :
+        I1' = outflow_delete_set_KT I1 n S →
+          I2' = inflow_delete_set_KT I2 n S →
+             I1 ⋅ I2 = I1' ⋅ I2'.
+  Proof.
+  Admitted.
+
+  
+  Lemma flowint_inflow_insert_set_dom_KT I n S I':
+        I' = inflow_insert_set_KT I n S
+          → domm I' = domm I ∪ {[n]}.
+  Proof.
+  Admitted. 
+
+Lemma outflow_insert_set_inset_KT I n S I' n' :
+      I' = outflow_insert_set_KT I n S → 
+          inset_KT I' n' = inset_KT I n'.
+Proof.
+Admitted.
+
 
 
 End KT_flows.

@@ -850,7 +850,26 @@ Section multicopy.
           ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝
           ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
-  Admitted.
+    unfold flowint_update_P.
+    case_eq (view_auth_proj x); last first.
+    - intros Hx. iIntros "(% & ?)". iExFalso. done.
+    - intros [q a] Hx.
+      iIntros "[HI' Hown]". iDestruct "HI'" as %HI'.
+      destruct HI' as [I' HI'].
+      destruct HI' as [Hagree [Hq [HIn [Hcontxl HIo]]]].
+      iExists I'.
+      iSplit. by iPureIntro.
+      iSplit. by iPureIntro. destruct x.
+      simpl in Hx. simpl in HIn.
+      rewrite Hx. rewrite <-HIn.
+      rewrite Hq Hagree.
+      assert (● I' ⋅ ◯ I_n' = View (Some (1%Qp, to_agree I')) I_n') as H'.
+      { rewrite /(● I' ⋅ ◯ I_n'). unfold cmra_op.
+        simpl. unfold view_op. simpl.
+        assert (ε ⋅ I_n' = I_n') as H'. by rewrite left_id.
+        rewrite H'. unfold op, cmra_op. by simpl. }   
+      by iEval (rewrite H').
+  Qed.    
 
   Lemma dom_lookup (C: gmap K nat) k :
         C !! k ≠ None → k ∈ dom (gset K) C.
@@ -876,38 +895,6 @@ Section multicopy.
               let f := λ a m, <[a := C !!! a ]> m in
                         set_fold f (∅: gmap K nat) S.
                         
-  Lemma flowint_insert_set_eq_KT (I1 I1' I2 I2': KT_flowint_ur K) n S :
-        I1' = outflow_insert_set_KT I1 n S →
-          I2' = inflow_insert_set_KT I2 n S →
-             I1 ⋅ I2 = I1' ⋅ I2'.
-  Proof.
-  Admitted.
-
-  Lemma flowint_delete_set_eq_KT (I1 I1' I2 I2': KT_flowint_ur K) n S :
-        I1' = outflow_delete_set_KT I1 n S →
-          I2' = inflow_delete_set_KT I2 n S →
-             I1 ⋅ I2 = I1' ⋅ I2'.
-  Proof.
-  Admitted.
-
-  Lemma flowint_insert_set_eq_K (I1 I1' I2 I2': inset_flowint_ur K) n S :
-        I1' = outflow_insert_set_K I1 n S →
-          I2' = inflow_insert_set_K I2 n S →
-             I1 ⋅ I2 = I1' ⋅ I2'.
-  Proof.
-  Admitted.
-  
-  Lemma flowint_inflow_insert_set_dom_KT (I: KT_flowint_ur K) n S I':
-        I' = inflow_insert_set_KT I n S
-          → domm I' = domm I ∪ {[n]}.
-  Proof.
-  Admitted.        
-
-  Lemma flowint_inflow_insert_set_dom_K (I: inset_flowint_ur K) n S I':
-        I' = inflow_insert_set_K I n S
-          → domm I' = domm I ∪ {[n]}.
-  Proof.
-  Admitted.
   
   Lemma lookup_map_restriction S (C: gmap K nat) (k: K):
               k ∈ S → map_restriction S C !! k = Some (C !!! k).
@@ -1044,15 +1031,12 @@ Section multicopy.
     rename H into Disj_esn.                        
     wp_apply (atCapacity_spec with "node_n").
     iIntros (b) "(node_n & _)". destruct b; last first; wp_pures.
-    - admit.
-(*
-      awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
+    - awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
       iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, T. iFrame.
       iAaccIntro with ""; try eauto with iFrame.
       iIntros "_". iMod "AU" as (t H)"[MCS [_ Hclose]]".
       iMod ("Hclose" with "MCS") as "HΦ".
       by iModIntro.
-*)
     - wp_apply (chooseNext_spec with "node_n").
       iIntros (m esn' esm0 Cm0)"(node_n & es_ne & Hor)".
       iDestruct "es_ne" as %es_ne.
@@ -1066,16 +1050,15 @@ Section multicopy.
         iDestruct "H" as (T0' H0 hγ0 I0 R0) "(Hglob & Hstar)".
         iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
+
         iAssert (⌜m ∉ domm I0⌝)%I as "%".
-        { admit. }
-(*
         { destruct (decide (m ∈ domm I0)); try done.
           rewrite (big_sepS_delete _ (domm I0) m); last by eauto.
           iDestruct "Hstar" as "(Hm & _)".
           iDestruct "Hm" as (bm Cm Bm Qm)"(Hl_m' & _)".
           iDestruct (mapsto_valid_2 with "Hl_m Hl_m'") as "%".
           exfalso. done. }
-*)
+
         iAssert (⌜n ∈ domm I0⌝)%I as "%". 
         { by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rename H into m_notin_I0. rename H1 into n_in_I0.  
@@ -1114,8 +1097,6 @@ Section multicopy.
           by rewrite dom_singleton. }  
 
         iAssert (⌜esn !!! m = ∅⌝)%I as %Esn_empty.
-        { admit. }
-(*
         { destruct (decide (esn !!! m = ∅)); try done.
           iAssert (⌜esn !!! m ≠ ∅⌝)%I as "H'".
           by iPureIntro. 
@@ -1123,7 +1104,6 @@ Section multicopy.
           iAssert (⌜m ∈ domm I0⌝)%I as "%". 
           { by iPoseProof (inFP_domm _ _ _ with "[$Hfp_m] [$Hf]") as "H''". }
           iPureIntro. clear -H m_notin_I0. set_solver. }
-*)
         
         iPoseProof (own_valid with "HI") as "%".
         rename H into Valid_I0.
@@ -1140,28 +1120,20 @@ Section multicopy.
         iDestruct "Domm_Rn0" as %Domm_Rn0.
         
         assert (✓ Im0) as Valid_Im0.
-        { admit. }
-(*
         { unfold valid, cmra_valid, flowint_valid.
           subst Im0. simpl. split.
           solve_map_disjoint. 
           intros _; try done. }
-*)
         assert (✓ Rm0) as Valid_Rm0.
-        { admit. }
-(*
         { unfold valid, cmra_valid, flowint_valid.
           subst Rm0. simpl. split.
           solve_map_disjoint. 
           intros _; try done. }
-*)
 
         iPoseProof ((auth_own_incl γ_I I0 In0) with "[$HI $HnI]") as "%".
         rename H into Incl_In0. destruct Incl_In0 as [Iz Incl_In0].
         iDestruct "Out_I" as %Out_I.
         assert (out In0 m = 0%CCM ∧ out Iz m = 0%CCM) as [Out_In_m Out_Iz_m].
-        { admit. }
-(*
         { unfold outflow_zero in Out_I.
           rewrite Incl_In0 in Valid_I0*; intro H'.
           rewrite Incl_In0 in m_notin_I0*; intro H''.
@@ -1182,10 +1154,8 @@ Section multicopy.
           unfold ccmunit, ccm_unit in Hout;
           simpl in Hout; unfold nat_unit, nat_op in Hout;
           rewrite nzmap_lookup_merge in Hout; clear-Hout; lia. }
-*)
+
         assert (✓ (In0 ⋅ Im0)) as Valid_Inm0.
-        { admit. }
-(*
         { apply intValid_composable. unfold intComposable.
           repeat split; try done.
           * simpl. solve_map_disjoint.
@@ -1204,7 +1174,7 @@ Section multicopy.
                unfold inf. by rewrite Hinf.
             ** subst Im0. simpl in Hinf.
                rewrite lookup_singleton_ne in Hinf; try done. }
-*)
+
         assert (domm (In0 ⋅ Im0) = {[n; m]}) as Domm_Inm0.
         { rewrite flowint_comp_fp; try done.
           by rewrite Domm_In0 Domm_Im0. }
@@ -1212,22 +1182,18 @@ Section multicopy.
         { rewrite Incl_In0. rewrite flowint_comp_fp. done.
           by rewrite <-Incl_In0. }   
         assert (n ∉ domm Iz) as n_notin_Iz.
-        { admit. }
-(*
         { rewrite Incl_In0 in Valid_I0 *; intros Valid_In0'.
           apply intComposable_valid in Valid_In0'.
           unfold intComposable in Valid_In0'.
           destruct Valid_In0' as [_ [_ [H' _]]].
           rewrite Domm_In0 in H'. clear -H'; set_solver. }
-*)
+
         assert (m ∉ domm Iz) as m_notin_Iz.
         { clear -Domm_Inz m_notin_I0. set_solver. }
           
                 
         iMod (own_updateP (flowint_update_P (KT_multiset K) I0 In0 (In0 ⋅ Im0)) γ_I
                    (● I0 ⋅ ◯ (In0)) with "[HI HnI]") as (Io) "H'".
-        { admit. }
-(*
         { rewrite Incl_In0. apply flowint_update. 
           split; last split.
           - unfold contextualLeq.
@@ -1253,7 +1219,7 @@ Section multicopy.
           - intros n' Hn'. rewrite Domm_Inm0 Domm_In0 in Hn'.
             assert (n' = m) as H'. clear -Hn'. set_solver.
             subst n'. by unfold out in Out_Iz_m. }              
-*)
+
         { rewrite own_op. iFrame. }                        
         iPoseProof ((flowint_update_result γ_I I0 In0 (In0 ⋅ Im0))
                         with "H'") as (I0') "(% & % & (HI & HIn))".
@@ -1266,8 +1232,6 @@ Section multicopy.
         rewrite auth_auth_valid in Valid_I0' *; intros Valid_I0'. 
 
         assert (domm I0' = domm I0 ∪ {[m]}) as Domm_I0'.
-        { admit. }
-(*
         { rewrite Incl_In0 in HI0*; intros H'.
           apply intComp_cancelable in H'. 
           rewrite HI0'. repeat rewrite flowint_comp_fp.
@@ -1275,7 +1239,7 @@ Section multicopy.
           rewrite Incl_In0 in Valid_I0 *; intros H''.
           done. done. apply leibniz_equiv_iff in HI0'. 
           by rewrite <-HI0'. by rewrite <-Incl_In0. }
-*)
+
         assert (domm I0' ∖ {[m]} = domm I0) as Domm_I0_m.
         { clear -Domm_I0' m_notin_I0. set_solver. }  
 
@@ -1298,9 +1262,6 @@ Section multicopy.
         rename H into Incl_Rn0. destruct Incl_Rn0 as [Rz Incl_Rn0].
         iDestruct "Out_R" as %Out_R.
         assert (out Rn0 m = 0%CCM ∧ out Rz m = 0%CCM) as [Out_Rn_m Out_Rz_m].
-        { admit. }
-
-(*
         { unfold outflow_zero in Out_R.
           rewrite Incl_Rn0 in Valid_R0*; intro H'.
           rewrite Incl_Rn0 in m_notin_R0*; intro H''.
@@ -1321,10 +1282,8 @@ Section multicopy.
           unfold ccmunit, ccm_unit in Hout;
           simpl in Hout; unfold nat_unit, nat_op in Hout;
           rewrite nzmap_lookup_merge in Hout; clear-Hout; lia. }
-*)
+
         assert (✓ (Rn0 ⋅ Rm0)) as Valid_Rnm0.
-        { admit. }
-(*
         { apply intValid_composable. unfold intComposable.
           repeat split; try done.
           * simpl. solve_map_disjoint.
@@ -1343,7 +1302,6 @@ Section multicopy.
                unfold inf. by rewrite Hinf.
             ** subst Rm0. simpl in Hinf.
                rewrite lookup_singleton_ne in Hinf; try done. }
-*)
 
         assert (domm (Rn0 ⋅ Rm0) = {[n; m]}) as Domm_Rnm0.
         { rewrite flowint_comp_fp; try done.
@@ -1352,8 +1310,6 @@ Section multicopy.
         { rewrite Incl_Rn0. rewrite flowint_comp_fp. done.
           by rewrite <-Incl_Rn0. }   
         assert (n ∉ domm Rz) as n_notin_Rz.
-        { admit. }
-(*
         { rewrite Incl_Rn0 in Valid_R0 *; intros Valid_Rn0'.
           apply intComposable_valid in Valid_Rn0'.
           unfold intComposable in Valid_Rn0'.
@@ -1361,11 +1317,9 @@ Section multicopy.
           rewrite Domm_Rn0 in H'. clear -H'; set_solver. }
         assert (m ∉ domm Rz) as m_notin_Rz.
         { clear -Domm_Rnz m_notin_R0. set_solver. }               
-*)                
+
         iMod (own_updateP (flowint_update_P (_) R0 Rn0 (Rn0 ⋅ Rm0)) γ_R
                    (● R0 ⋅ ◯ (Rn0)) with "[HR HnR]") as (Ro) "H'".
-        { admit. }
-(*
         { rewrite Incl_Rn0. apply flowint_update. 
           split; last split.
           - unfold contextualLeq.
@@ -1391,7 +1345,6 @@ Section multicopy.
           - intros n' Hn'. rewrite Domm_Rnm0 Domm_Rn0 in Hn'.
             assert (n' = m) as H'. clear -Hn'. set_solver.
             subst n'. by unfold out in Out_Rz_m. }              
-*)
         { rewrite own_op. iFrame. }                        
         iPoseProof ((flowint_update_result' γ_R R0 Rn0 (Rn0 ⋅ Rm0))
                         with "H'") as (R0') "(% & % & (HR & HRn))".
@@ -1404,8 +1357,6 @@ Section multicopy.
         rewrite auth_auth_valid in Valid_R0' *; intros Valid_R0'. 
 
         assert (domm R0' = domm R0 ∪ {[m]}) as Domm_R0'.
-        { admit. }
-(*
         { rewrite Incl_Rn0 in HR0*; intros H'.
           apply intComp_cancelable in H'. 
           rewrite HR0'. repeat rewrite flowint_comp_fp.
@@ -1413,14 +1364,10 @@ Section multicopy.
           rewrite Incl_Rn0 in Valid_R0 *; intros H''.
           done. done. apply leibniz_equiv_iff in HR0'. 
           by rewrite <-HR0'. by rewrite <-Incl_Rn0. }
-*)
         assert (domm R0' ∖ {[m]} = domm R0) as Domm_R0_m.
         { clear -Domm_R0' m_notin_R0. set_solver. }
         iDestruct "Inf_R" as %Inf_R.  
         iAssert (⌜inflow_R R0' r⌝)%I as "Inf_R'".
-        { admit. }
-
-(*
         { iPureIntro. unfold inflow_R. intros n' k.
           destruct (n' =? r) eqn: Hn'.
           + pose proof Inf_R n' k as Inf_R.
@@ -1473,7 +1420,7 @@ Section multicopy.
                  unfold ccmunit, ccm_unit, lift_unit.
                  unfold dom_ms, dom, flowint_dom, nzmap_dom.
                  unfold nzmap_unit. simpl. clear; set_solver. }
-*)
+
         iMod (own_update γ_f (● domm I0) (● (domm I0 ∪ {[m]}) ⋅ ◯ ({[m]}))
                          with "[Hf]") as "(Hf & H')"; try done.
         { apply (auth_update_alloc (domm I0) (domm I0 ∪ {[m]}) ({[m]})).
@@ -1541,17 +1488,14 @@ Section multicopy.
         rename H into Hist.
         
         iAssert (closed γ_f esm0) as "HnS_clm".
-        { admit. }
-(*
         { iIntros (n')"%". rename H into H'.
           exfalso. rewrite Hesm in H'.
           rewrite /(∅ !!! n') in H'.
           unfold finmap_lookup_total in H'.
           rewrite lookup_empty in H'.
           simpl in H'. clear -H'; done. }
-*)
 
-        set (Sr := esn' !!! m ∩ inset K Rn0 n).
+        set (Sr := KS ∩ (esn' !!! m ∩ inset K Rn0 n)).
         set (Sr_map := map_restriction Sr ∅).
         set (Sr_mset := map_subset Sr ∅).
         set (Sb := KS ∩ (Sr ∖ dom (gset K) Cn)).
@@ -1581,8 +1525,8 @@ Section multicopy.
 
         assert (∀ k, k ∈ Sr → (∀ n', k ∉ esn !!! n')) as Esn_not.
         { intros k Hk. subst Sr. 
-          rewrite elem_of_intersection in Hk*; intros Hk.
-          destruct Hk as [Hk _].
+          rewrite !elem_of_intersection in Hk*; intros Hk.
+          destruct Hk as [_ [Hk _]].
           intros n'. destruct (decide (k ∈ esn !!! n')); try done.
           destruct (decide (n' = m)).
           - subst n'. clear -e Esn_empty. set_solver.
@@ -1611,8 +1555,6 @@ Section multicopy.
 
         assert (dom (gset K) Sb_map = Sb) as Domm_Sbmap.
         { subst Sb_map. by rewrite map_restriction_dom. }
-
-(*         clear Domm_Sbmap HSb. *)
 
         iAssert (⌜∀ k, Bn !!! k ≤ Bn0' !!! k⌝)%I as "%".
         { iPureIntro. intros k.
@@ -1729,7 +1671,12 @@ Section multicopy.
         { iPureIntro. split; last split; try done.
           - intros n' k t. destruct (decide (n' = m)).
             + subst n'. assert (outset_KT In0' m = Sr_mset) as Hout.
-              { admit. } rewrite Hout. split.
+              { assert (outset_KT In0 m = ∅).
+                { unfold outset_KT. rewrite Out_In_m. 
+                  unfold ccmunit, ccm_unit. unfold lift_unit.
+                  unfold nzmap_unit. unfold KT_flows.dom_ms, dom, nzmap_dom.
+                  simpl. apply leibniz_equiv. by rewrite dom_empty. }
+                admit. } rewrite Hout. split.
               * intros H'. apply HSr_mset in H'. 
                 destruct H' as [H1' H2'].
                 split. subst Sr. clear -H1'. set_solver.
@@ -1756,23 +1703,34 @@ Section multicopy.
               { admit. } rewrite Hout. split.
               * destruct (decide (k ∈ Sr)).
                 ** intros H'. apply OC1 in H'.
-                   admit.
+                   destruct H' as [H' _].
+                   pose proof Esn_not k e n' as H''.
+                   clear -H' H''. set_solver.
                 ** rewrite (Lookup_Qn0'_ne k n1). apply OC1.   
               * intros [Hkt1 Hkt2]. destruct (decide (k ∈ Sr)).
-                ** admit.
-                **rewrite (Lookup_Qn0'_ne k n1) in Hkt2.
-                  apply OC1; try done.   
+                ** pose proof Esn_not k e n' as H''.
+                   clear -Hkt1 H''. set_solver.
+                ** rewrite (Lookup_Qn0'_ne k n1) in Hkt2.
+                   apply OC1; try done.   
           - intros n' k. assert (inset K Rn0' n = inset K Rn0 n) as Hin.
             { try done. } rewrite Hin. destruct (decide (n' = m)).
             + subst n'. assert (outset K Rn0' m = Sr) as Hout.
-              { admit. } rewrite Hout. 
-              subst Sr.  rewrite elem_of_intersection.
-              split; try done.
+              { assert (outset K Rn0 m = ∅).
+                { unfold outset. rewrite Out_Rn_m. 
+                  unfold ccmunit, ccm_unit. unfold lift_unit.
+                  unfold nzmap_unit. unfold dom_ms, dom, nzmap_dom.
+                  simpl. apply leibniz_equiv. by rewrite dom_empty. }  
+                admit. } rewrite Hout. 
+              subst Sr.  rewrite !elem_of_intersection.
+              split; try done. admit. admit.
             + assert (outset K Rn0' n' = outset K Rn0 n') as Hout.
               { admit. } rewrite Hout. rewrite Hesn'. 
               rewrite lookup_total_insert_ne; try done.
           - intros n' kt. destruct (decide (n' = m)).
-            + subst n'. subst In0'. admit.
+            + subst n'. subst In0'.
+              destruct (decide (kt ∈ Sr_mset)).
+              * admit.
+              * admit.
             + subst In0'. unfold outflow_insert_set_KT.
               unfold out at 1, out_map at 1; simpl.
               rewrite nzmap_lookup_total_insert_ne; try done.
@@ -1822,7 +1780,9 @@ Section multicopy.
           iPureIntro. split; last split; last split; 
           last split; last split; last split; last split.
           - intros k Hnot. destruct (decide (k ∈ Sr)). 
-            + admit. 
+            + subst Sr. rewrite !elem_of_intersection in e*; intros e. 
+              destruct e as [_ [e _]]. pose proof Hnot m as Hnot. 
+              clear -Hnot e. set_solver.  
             + rewrite (Lookup_Qn0'_ne k n0). apply Hφ0. 
               intros n'. destruct (decide (n' = m)).
               * subst n'. rewrite Esn_empty.
@@ -1832,17 +1792,25 @@ Section multicopy.
                 rewrite lookup_total_insert_ne in Hnot; try done.
           - intros k t. destruct (decide (k ∈ Sr)).
             + split.
-              * assert (k ∉ Sb) as Hk.
-                { admit. }
+              * intros HCn.
+                assert (is_Some(Cn !! k)). by exists t; try done.
+                rewrite <-elem_of_dom in H.
+                assert (k ∉ Sb) as Hk.
+                { destruct (decide (k ∈ Sb)); try done.
+                  subst Sb. rewrite elem_of_intersection in e0*; intros e0.
+                  destruct e0 as [_ e0].
+                  clear -e0 H. set_solver. }
                 rewrite (Lookup_Bn0'_ne k Hk).
-                apply Hφ1.
+                by apply Hφ1.
               * assert (k ∈ Sb) as Hk.
                 { admit. }
                 rewrite (Lookup_Bn0' k Hk).
                 rewrite (Lookup_Qn0' k e).
                 done.
             + assert (k ∉ Sb) as Hk.
-              { admit. }
+              { destruct (decide (k ∈ Sb)); try done.
+                subst Sb. rewrite elem_of_intersection in e*; intros e.
+                destruct e as [_ e]. clear -e n0. set_solver. }
               rewrite (Lookup_Bn0'_ne k Hk).
               rewrite (Lookup_Qn0'_ne k n0).
               apply Hφ1.
@@ -1875,11 +1843,15 @@ Section multicopy.
                 rewrite (Lookup_Qn0'_ne k n1).
                 rewrite <-!lookup_total_alt.
                 by apply Hφ5.
-          - intros k. admit.
+          - intros k. rewrite lookup_total_alt. 
+            destruct (decide (k ∈ Sb)).
+            * rewrite (Lookup_Bn0' k e). simpl. lia.
+            * rewrite (Lookup_Bn0'_ne k n0).
+              by rewrite <-lookup_total_alt.
           - intros k. intros [H' H''].
             destruct H' as [n' H'].
             destruct (decide (n' = m)).
-            + subst n'. admit.
+            + subst n'. rewrite elem_of_dom.  admit.
             + assert (inset K Rn0' n = inset K Rn0 n) as Hin.
               { admit. } rewrite Hesn' in H'.
               rewrite lookup_total_insert_ne in H'; try done.

@@ -155,6 +155,43 @@ Definition inflow_delete_set_K I (n: Node) (s: gset K) : inset_flowint_ur :=
            let I'_inf := (<[ n := I_inf_n ]>(inf_map I)) in
            (int {| infR := I'_inf ; outR := out_map I |}).
 
+  Lemma flowint_insert_set_eq_K (I1 I1' I2 I2': inset_flowint_ur) n S :
+        I1' = outflow_insert_set_K I1 n S →
+          I2' = inflow_insert_set_K I2 n S →
+             I1 ⋅ I2 = I1' ⋅ I2'.
+  Proof.
+  Admitted.
+
+  Lemma flowint_inflow_insert_set_dom_K (I: inset_flowint_ur) n S I':
+        I' = inflow_insert_set_K I n S
+          → domm I' = domm I ∪ {[n]}.
+  Proof.
+  Admitted.
+
+Lemma outflow_insert_set_outset_K I n S I' :
+      I' = outflow_insert_set_K I n S → 
+           outset I' n = (outset I n) ∪ S.
+Proof.
+Admitted.
+
+Lemma outflow_insert_set_outset_ne_K I n S I' n' :
+      n' ≠ n → I' = outflow_insert_set_K I n S → 
+           outset I' n' = outset I n'.
+Proof.
+Admitted.
+
+Lemma inflow_insert_set_outset_ne_K I n S I' n' :
+      I' = outflow_insert_set_K I n S → 
+           outset I' n' = outset I n'.
+Proof.
+Admitted.
+
+Lemma outflow_insert_set_inset_K I n S I' n' :
+      I' = outflow_insert_set_K I n S → 
+          inset I' n' = inset I n'.
+Proof.
+Admitted.
+
 
 (*
 Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n
