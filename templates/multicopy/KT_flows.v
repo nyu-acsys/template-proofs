@@ -232,25 +232,76 @@ Lemma outflow_insert_set_outset_KT I n S I' :
       I' = outflow_insert_set_KT I n S → 
            outset_KT I' n = (outset_KT I n) ∪ S.
 Proof.
-Admitted.
+  intros Heq. unfold outset_KT.
+  unfold KT_flows.dom_ms.
+  replace I'. unfold outflow_insert_set_KT.
+  unfold out. simpl.
+  rewrite nzmap_lookup_total_insert.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x. 
+  rewrite !nzmap_elem_of_dom_total.
+  destruct (decide (x ∈ S)); split.
+  - set_solver.
+  - rewrite nzmap_lookup_total_increment_set.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    unfold ccmunit, ccm_unit. simpl.
+    unfold nat_unit. lia. done.
+  - rewrite nzmap_lookup_total_increment_set_ne.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    intro.
+    left.
+    trivial. trivial.
+  - rewrite elem_of_union.
+    intro.
+    destruct H0.
+    rewrite nzmap_lookup_total_increment_set_ne.
+    rewrite nzmap_elem_of_dom_total in H0 *.
+    trivial. trivial.
+    contradiction.
+Qed.
 
 Lemma outflow_insert_set_outset_ne_KT I n S I' n' :
       n' ≠ n → I' = outflow_insert_set_KT I n S → 
            outset_KT I' n' = outset_KT I n'.
 Proof.
-Admitted.
+  intros Hneq Heq. unfold outset_KT.
+  unfold KT_flows.dom_ms.
+  replace I'. unfold outflow_insert_set_KT.
+  unfold out. simpl.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x.
+  rewrite !nzmap_elem_of_dom_total.
+  rewrite nzmap_lookup_total_insert_ne.
+  trivial. auto.
+Qed.
 
 Lemma outflow_insert_set_lookup_out_KT I n S I' kt :
       kt ∈ S → I' = outflow_insert_set_KT I n S →
           out I' n ! kt = out I n ! kt + 1.
 Proof.
-Admitted.          
+  intros Hneq Heq. unfold outset_KT.
+  replace I'. unfold outflow_insert_set_KT.
+  unfold out. simpl.
+  apply leibniz_equiv.
+  rewrite nzmap_lookup_total_insert.
+  rewrite nzmap_lookup_total_increment_set.
+  trivial. trivial.
+Qed.
 
 Lemma outflow_insert_set_lookup_out_ne_KT I n S I' kt :
       kt ∉ S → I' = outflow_insert_set_KT I n S →
           out I' n ! kt = out I n ! kt.
 Proof.
-Admitted.          
+  intros Hneq Heq. unfold outset_KT.
+  replace I'. unfold outflow_insert_set_KT.
+  unfold out. simpl.
+  apply leibniz_equiv.
+  rewrite nzmap_lookup_total_insert.
+  rewrite nzmap_lookup_total_increment_set_ne.
+  trivial. trivial.
+Qed.
 
 
 Lemma outflow_delete_outset_ne_KT I n k t I' n' :
