@@ -97,9 +97,24 @@ Definition nzmap_increment_set (s: gset KT) (m : nzmap KT nat) : nzmap KT nat :=
       let f := λ kt m', <<[ kt := m ! kt + 1 ]>>m' in
       set_fold f m s.
 
+Lemma nzmap_lookup_total_increment_set_aux s m :
+      ∀ kt, (kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1)
+          ∧ (kt ∉ s → nzmap_increment_set s m ! kt = m ! kt).
+Proof.
+    set (P := λ (m': nzmap KT nat) (X: gset KT),
+                    ∀ x, (x ∈ X → m' ! x = m' ! x + 1)
+                    ∧ (x ∉ X → m' ! x = m' ! x) ).
+Admitted.  
+
 Lemma nzmap_lookup_total_increment_set kt s m :
       kt ∈ s → nzmap_increment_set s m ! kt = m ! kt + 1.
 Proof.
+  unfold nzmap_increment_set.
+    set (P := λ (m': nzmap KT nat) (X: gset KT),
+                    (kt ∈ X → m' ! kt = m' ! kt + 1)
+                    ∧ (kt ∉ X → m' ! kt = m' ! kt) ).
+    apply (set_fold_ind_L P); try done.
+  
 Admitted.
 
 Lemma nzmap_lookup_total_increment_set_ne kt s m :
