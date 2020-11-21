@@ -319,7 +319,22 @@ Section multicopy.
 
   Instance mcs_timeless γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r :
     Timeless (mcs γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r).
-  Proof. Admitted.
+  Proof.
+    rewrite /mcs.
+    repeat (apply bi.exist_timeless; intros).
+    repeat apply bi.sep_timeless; try apply _.
+    apply big_sepS_timeless.
+    repeat (intros; apply bi.exist_timeless; intros).
+    apply bi.sep_timeless; try apply _.
+    repeat apply bi.sep_timeless; try apply _.
+    destruct x5; try apply _.
+    repeat (apply bi.exist_timeless; intros).
+    repeat apply bi.sep_timeless; try apply _.
+    destruct (x4 =? r); try apply _.
+    repeat (apply bi.exist_timeless; intros).
+    repeat apply bi.sep_timeless; try apply _.
+    destruct (x4 =? r); try apply _.
+  Qed.
 
   Definition mcs_inv γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r := 
     inv N (mcs γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r).
