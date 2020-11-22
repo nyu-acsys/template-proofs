@@ -318,25 +318,11 @@ Definition inflow_insert_set I (n: Node) (s: gset K) : multiset_flowint_ur :=
 Definition inflow_delete_set I (n: Node) (s: gset K) : multiset_flowint_ur := 
   inflow_map_set (λ n, n - 1) I n s.
 
-Lemma flowint_insert_set_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
-  I1' = outflow_insert_set I1 n S →
-  I2' = inflow_insert_set I2 n S →
-  I1 ⋅ I2 = I1' ⋅ I2'.
-Proof.
-Admitted.
-
-Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S I':
-    I' = inflow_insert_set I n S
-    → domm I' = domm I ∪ {[n]}.
-Proof.
-  
-Admitted.
-
 Lemma outflow_insert_set_outset I n S I' :
       I' = outflow_insert_set I n S → 
            outset I' n = (outset I n) ∪ S.
 Proof.
-    intros Heq. unfold outset.
+  intros Heq. unfold outset.
   unfold multiset_flows.dom_ms.
   replace I'. unfold outflow_insert_set.
   unfold out. simpl.
@@ -365,6 +351,39 @@ Proof.
     trivial. trivial.
     contradiction.
 Qed.
+
+Lemma outflow_delete_set_outset I n S I' :
+      (∀ k, k ∈ S → out I n ! k ≤ 1) →
+        I' = outflow_delete_set I n S → 
+           outset I' n = (outset I n) ∖ S.
+Proof.
+  intros Hkb Heq. unfold outset.
+  unfold multiset_flows.dom_ms.
+  replace I'. unfold outflow_delete_set.
+  unfold out. simpl.
+  rewrite nzmap_lookup_total_insert.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x. 
+  rewrite !nzmap_elem_of_dom_total.
+  destruct (decide (x ∈ S)); split.
+  - intros. apply Hkb in e as HxB.
+    rewrite nzmap_lookup_total_map_set in H0.
+    unfold ccmunit, ccm_unit, nat_ccm, nat_unit in H0. simpl.
+    assert (out I n ! x - 1 = 0). lia.
+    contradiction. done.
+  - intros. set_solver.
+  - intros. rewrite nzmap_lookup_total_map_set_ne in H0.
+    rewrite elem_of_difference.
+    split.
+    rewrite nzmap_elem_of_dom_total.
+    unfold out in H0.
+    done. done. done.
+  - intros. rewrite nzmap_lookup_total_map_set_ne.
+    rewrite elem_of_difference in H0 *; intros.
+    destruct H0 as [H0 _].
+    rewrite nzmap_elem_of_dom_total in H0 *; intros.
+    unfold out. done. done.
+Qed.    
 
 Lemma outflow_insert_set_outset_ne I n S I' n' :
       n' ≠ n → I' = outflow_insert_set I n S → 
@@ -402,6 +421,19 @@ Proof.
 Qed.
 
 
+Lemma flowint_insert_set_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
+  I1' = outflow_insert_set I1 n S →
+  I2' = inflow_insert_set I2 n S →
+  I1 ⋅ I2 = I1' ⋅ I2'.
+Proof.
+Admitted.
+
+Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S I':
+    I' = inflow_insert_set I n S
+    → domm I' = domm I ∪ {[n]}.
+Proof.
+  
+Admitted.
 
 
 
