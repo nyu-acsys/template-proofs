@@ -240,7 +240,7 @@ Qed.
 
 Lemma outflow_map_set_inset_ne f I n S I' n' :
       I' = outflow_map_set f I n S → 
-          inset I' n' = inset I n'.
+          inf I' n' = inf I n'.
 Proof.
   intros Heq.
   unfold inset.
@@ -251,20 +251,16 @@ Proof.
   by rewrite Heq.
 Qed.
 
-Lemma inflow_map_set_inset_ne f I n S I' n' :
+Lemma inflow_map_set_ne f I n S I' n' :
       n' ≠ n → I' = inflow_map_set f I n S → 
-           inset I' n' = inset I n'.
+           inf_map I' !! n' = inf_map I !! n'.
 Proof.
   intros Hneq Heq. unfold inset.
   unfold multiset_flows.dom_ms.
   replace I'. 
   unfold inf. simpl.
-  apply leibniz_equiv.
-  apply elem_of_equiv. intros x.
-  rewrite !nzmap_elem_of_dom_total.
   rewrite lookup_partial_alter_ne.
-  auto.
-  auto.
+  auto. auto.
 Qed.
 
 Lemma inflow_map_set_out_eq f I n S I' n' :
@@ -410,14 +406,22 @@ Lemma outflow_insert_set_inset I n S I' n' :
       I' = outflow_insert_set I n S → 
           inset I' n' = inset I n'.
 Proof.
-  apply outflow_map_set_inset_ne.
+  unfold inset.
+  pose proof (outflow_map_set_inset_ne (λ n, n + 1) I n S I' n').
+  unfold outflow_insert_set.
+  intros.
+  rewrite H0. auto. auto.
 Qed.
 
 Lemma inflow_insert_set_inset_ne I n S I' n' :
       n' ≠ n → I' = inflow_insert_set I n S → 
            inset I' n' = inset I n'.
 Proof.
-  apply inflow_map_set_inset_ne.
+  unfold inset.
+  pose proof (inflow_map_set_ne (λ n, n + 1) I n S I' n').
+  intros.
+  unfold inf.
+  rewrite H0; done.
 Qed.
 
 
@@ -432,8 +436,38 @@ Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S I':
     I' = inflow_insert_set I n S
     → domm I' = domm I ∪ {[n]}.
 Proof.
-  
-Admitted.
+  intros Heq.
+  unfold domm, dom, flowint_dom.
+  apply leibniz_equiv.
+  apply elem_of_equiv.
+  intros n'.
+  pose proof (inflow_map_set_ne (λ n, n + 1) I n S I' n').
+  unfold inset, inf in H0.
+  destruct (decide (n = n')).
+  - rewrite <- e. split.
+    * intros. rewrite elem_of_union. right. set_solver.
+    * rewrite elem_of_dom.
+      intros.
+      rewrite Heq.
+      unfold inflow_insert_set.
+      unfold inflow_map_set.
+      simpl.
+      rewrite lookup_partial_alter.
+      rewrite <- not_eq_None_Some.
+      discriminate.
+  - split.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      rewrite H0.
+      auto. auto. auto.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      intros.
+      destruct H1.
+      rewrite H0.
+      auto. auto. auto.
+      set_solver.
+Qed.      
 
 
 
