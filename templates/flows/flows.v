@@ -175,6 +175,19 @@ Proof.
   apply nzmap_lookup_empty.
 Qed.
 
+(* Expansion of interface validity *)
+Lemma intValid_unfold : ∀ I, ✓ I →
+                             inf_map I ##ₘ nzmap_car (out_map I)
+                             ∧ (inf_map I = ∅ → out_map I = ∅).
+Proof.
+  intros I HIv.
+  unfold valid, flowint_valid in HIv.
+  destruct I.
+  - unfold inf_map, out_map. trivial.
+  - contradiction.
+Qed.
+ 
+
 (* Valid interfaces don't give outflow to nodes in their domain. *)
 Lemma intValid_in_dom_not_out : ∀ I n, ✓ I → n ∈ domm I → out I n = 0.
 Proof.
