@@ -176,15 +176,27 @@ Proof.
 Qed.
 
 (* Expansion of interface validity *)
-Lemma intValid_unfold : ∀ I, ✓ I →
-                             inf_map I ##ₘ nzmap_car (out_map I)
+Lemma intValid_unfold : ∀ I, ✓ I ↔
+                             I ≠ intUndef
+                             ∧ inf_map I ##ₘ nzmap_car (out_map I)
                              ∧ (inf_map I = ∅ → out_map I = ∅).
 Proof.
-  intros I HIv.
-  unfold valid, flowint_valid in HIv.
-  destruct I.
-  - unfold inf_map, out_map. trivial.
-  - contradiction.
+  intros I.
+  split.
+  - intros HIv.
+    unfold valid, flowint_valid in HIv.
+    destruct I as [Ir |].
+    + split.
+      * discriminate.
+      * unfold inf_map, out_map. trivial.
+    + contradiction.
+        
+  - intros HIv.
+    destruct HIv as [HIv0 HIv1].
+    destruct I as [Ir |].
+    + unfold valid, flowint_valid.
+      unfold inf_map, out_map in HIv1. trivial.
+    + contradiction.
 Qed.
  
 
