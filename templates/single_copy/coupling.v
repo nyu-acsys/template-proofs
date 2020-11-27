@@ -20,8 +20,8 @@ Section Coupling_Cameras.
 
   (* RA for authoritative flow interfaces over multisets of keys *)
   Class flowintG Σ :=
-    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+    FlowintG { flowint_inG :> inG Σ (authR (multiset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (multiset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
@@ -93,7 +93,7 @@ Section Coupling_Template.
    * Matching definitions can be found in GRASShopper file list-coupling.spl *)
 
   (* The node predicate is specific to each template implementation. *)
-  Parameter node : Node → Node → inset_flowint_ur K → gset K → iProp.
+  Parameter node : Node → Node → multiset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * root-order separation logic. *)
@@ -107,7 +107,7 @@ Section Coupling_Template.
   (* The node-local invariant.
    * See list-coupling.spl for the corresponding GRASShopper definition.*)
   (* TODO there's a slight discrepancy between this and grasshopper. *)
-  Definition nodeinv root n (In : inset_flowint_ur K) Cn : Prop :=
+  Definition nodeinv root n (In : multiset_flowint_ur K) Cn : Prop :=
     domm In = {[n]}
     ∧ Cn ⊆ keyset K In n
     ∧ (∀ k : K, default 0 (inf In n !! k) ≤ 1)
@@ -133,7 +133,7 @@ Section Coupling_Template.
     destruct (decide (n = root)).
     destruct GI as (VI & root_in_I & I_closed & I_inf_out).
     rewrite <- cmra_assoc in IDef.
-    (*unfold op, cmra_op, ucmra_cmraR, inset_flowint_ur, flowintUR, ucmra_op in IDef.*)
+    (*unfold op, cmra_op, ucmra_cmraR, multiset_flowint_ur, flowintUR, ucmra_op in IDef.*)
     rewrite IDef in VI.
     pose proof (intComp_valid_proj1 _ _ VI) as V1.
     pose proof (intComp_valid_proj2 _ _ VI) as V23.
@@ -217,7 +217,7 @@ Section Coupling_Template.
    * (see list-coupling.spl) *)
 
   (* TODO ghp spec doesn't match *)
-  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K) root,
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K) root,
      ⊢ ({{{ node root n In C ∗ ⌜in_inset K k In n⌝ }}}
            findNext #n #k
        {{{ (succ: bool) (np: Node) (res: bool),
@@ -226,7 +226,7 @@ Section Coupling_Template.
                ∗ (match succ with true  => ⌜in_outset K k In np⌝
                                 | false => ⌜¬in_outsets K k In⌝ ∗ ⌜n ≠ root⌝ end) }}})%I.
 
-  Parameter decisiveOp_insert_spec : ∀ root (p n m: Node) (k: K) (Ip In: inset_flowint_ur K) (Cp Cn: gset K),
+  Parameter decisiveOp_insert_spec : ∀ root (p n m: Node) (k: K) (Ip In: multiset_flowint_ur K) (Cp Cn: gset K),
      ⊢ ({{{       ⌜k ∈ KS⌝
                 ∗ ⌜keyset K Ip p ## keyset K In n⌝
                 ∗ node root p Ip Cp
@@ -507,7 +507,11 @@ Section Coupling_Template.
     iPoseProof (own_valid with "HIn") as "%".
     (* Prove the preconditions of ghost_snapshot_fp *)
     assert (n' ∈ domm Io).
-    { apply (flowint_step I In Io k n' root); try done. }
+    { apply (flowint_step I In Io k n'); try done.
+      rewrite auth_auth_valid in H4 *. done.
+      unfold globalinv in Hglob.
+      destruct Hglob as (_ & _ & cI & _). done.
+    }
     assert (domm I = domm In ∪ domm Io). {
       rewrite incl. rewrite flowint_comp_fp. done.
       rewrite <- incl. by apply auth_auth_valid.
@@ -615,7 +619,7 @@ Section Coupling_Template.
     iModIntro. iExists C'. iFrame "∗ # %".
   Qed.
 
-  Lemma ghost_update_cssOp_interface γ_I γ_f root p n m (I Ip In Ip' In' Im': inset_flowint_ur K) :
+  Lemma ghost_update_cssOp_interface γ_I γ_f root p n m (I Ip In Ip' In' Im': multiset_flowint_ur K) :
       ⊢ ⌜m ∉ domm I⌝
       ∗ ⌜globalinv K root I⌝
       ∗ ⌜contextualLeq K_multiset (Ip ⋅ In) (Ip' ⋅ In' ⋅ Im')⌝
@@ -963,7 +967,11 @@ Section Coupling_Template.
     rename H0 into Ir_incl_I2.
     assert (n ∈ domm I2) as n_in_I2.
     { assert (n ∈ domm Io'').
-      { apply (flowint_step I2 Ir Io'' k n root); try done. }
+      { apply (flowint_step I2 Ir Io'' k n); try done.
+        rewrite auth_auth_valid in Valid_I2*. done.
+        unfold globalinv in Hglob2.
+        destruct Hglob2 as (_ & _ & cI & _). done.
+      }
       rewrite Ir_incl_I2. rewrite flowint_comp_fp. set_solver.
       rewrite <-Ir_incl_I2. by apply auth_auth_valid. }
     iMod (ghost_snapshot_fp γ_f (domm I2) n with "[$Hdom] [% //]")

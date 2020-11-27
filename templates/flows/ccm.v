@@ -693,6 +693,60 @@ Proof.
   auto.
 Qed.
   
+Definition nzmap_map `{Countable K} `{CCM A} (f : A -> A) (k: K) (m: nzmap K A) : nzmap K A :=
+  <<[ k := f (m ! k) ]>> m.
+
+Lemma nzmap_lookup_total_map `{Countable K} `{CCM A} f k (m: nzmap K A) :
+      nzmap_map f k m ! k = f (m ! k).
+Proof.
+  unfold nzmap_map.
+  rewrite nzmap_lookup_total_insert.
+  trivial.
+Qed.
+
+Definition nzmap_map_set `{Countable K} `{CCM A} f (s: gset K) (m : nzmap K A) : nzmap K A :=
+  let g := λ k m', nzmap_map f k m' in
+  set_fold g m s.
+
+
+Lemma nzmap_lookup_total_map_set_aux `{Countable K} `{CCM A} f s (m : nzmap K A) :
+      ∀ k, (k ∈ s → nzmap_map_set f s m ! k = f (m ! k))
+         ∧ (k ∉ s → nzmap_map_set f s m ! k = m ! k).
+Proof.
+    set (P := λ (m': nzmap K A) (X: gset K),
+                    ∀ x, (x ∈ X → m' ! x = f (m ! x))
+                       ∧ (x ∉ X → m' ! x = m ! x) ).
+    apply (set_fold_ind_L P); try done.
+    intros x X r Hx HP.
+    unfold P in HP. unfold P.
+    intros x'.
+    destruct (decide (x' = x));
+      split; intros Hx'.
+    - rewrite e. rewrite nzmap_lookup_total_insert.
+      apply HP in Hx. by rewrite Hx.
+    - rewrite e in Hx'.
+      assert (x ∈ X). set_solver. contradiction.
+    - assert (x' ∈ X) as x'_in_X. set_solver.
+      apply HP in x'_in_X.
+      rewrite nzmap_lookup_total_insert_ne.
+      done. done.
+    - assert (x' ∉ X) as x'_nin_X. set_solver.
+      apply HP in x'_nin_X.
+      rewrite nzmap_lookup_total_insert_ne.
+      done. done.
+Qed.
+
+Lemma nzmap_lookup_total_map_set `{Countable K} `{CCM A} f k s (m : nzmap K A) :
+      k ∈ s → nzmap_map_set f s m ! k = f (m ! k).
+Proof.
+  apply nzmap_lookup_total_map_set_aux.
+Qed.
+
+Lemma nzmap_lookup_total_map_set_ne `{Countable K} `{CCM A} f k s (m : nzmap K A) :
+      k ∉ s → nzmap_map_set f s m ! k = m ! k.
+Proof.
+  apply nzmap_lookup_total_map_set_aux.
+Qed.
 
 Close Scope ccm_scope.
 

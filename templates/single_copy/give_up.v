@@ -21,8 +21,8 @@ Section Give_Up_Cameras.
 
   (* RA for authoritative flow interfaces over multisets of keys *)
   Class flowintG Σ :=
-    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+    FlowintG { flowint_inG :> inG Σ (authR (multiset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (multiset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
@@ -79,7 +79,7 @@ Section Give_Up_Template.
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b+-tree.spl and hashtbl-give-up.spl for the concrete definitions. *)
-  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
+  Parameter node : Node → multiset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
@@ -98,12 +98,12 @@ Section Give_Up_Template.
   (* The following specs are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl) *)
 
-  Parameter inRange_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+  Parameter inRange_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K),
    ⊢ ({{{ node n In C }}}
         inRange #n #k
       {{{ (res: bool), RET #res; node n In C ∗ ⌜res → in_inset K k In n⌝ }}})%I.
 
-  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ }}}
          findNext #n #k
        {{{ (succ: bool) (n': Node),
@@ -112,7 +112,7 @@ Section Give_Up_Template.
                                   false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
-      (In: inset_flowint_ur K) (C: gset K),
+      (In: multiset_flowint_ur K) (C: gset K),
       ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝
              ∗ ⌜¬in_outsets K k In⌝ }}}
            decisiveOp dop #n #k
@@ -133,7 +133,7 @@ Section Give_Up_Template.
                     ∗ ⌜domm In = {[n]}⌝.
 
   Definition nodeFull γ_I γ_k n : iProp :=
-    (∃ (b: bool) (In: inset_flowint_ur K),
+    (∃ (b: bool) (In: multiset_flowint_ur K),
         lockLoc n ↦ #b
         ∗ (if b then True else (∃ Cn, nodePred γ_I γ_k n In Cn))).
 
@@ -258,7 +258,10 @@ Section Give_Up_Template.
     iPoseProof (own_valid with "HIn") as "%".
     (* Prove the preconditions of ghost_snapshot_fp *)
     assert (n' ∈ domm Io). 
-    { apply (flowint_step I In Io k n' r); try done. }
+    { apply (flowint_step I In Io k n'); try done.
+      rewrite auth_auth_valid in H4 *. trivial.
+      unfold globalinv in Hglob.
+      destruct Hglob as (_ & _ & cI & _). trivial. }
     assert (domm I = domm In ∪ domm Io). {
       rewrite incl. rewrite flowint_comp_fp. done.
       rewrite <- incl. by apply auth_auth_valid.
@@ -356,7 +359,7 @@ Section Give_Up_Template.
    ⊢ ⌜k ∈ KS⌝ ∗ inFP γ_f n -∗
      <<< ∀ C, CSS γ_I γ_f γ_k r C >>>
        traverse r #n #k @ ⊤
-     <<< ∃ (n': Node) (I_n': inset_flowint_ur K) (C_n': gset K),
+     <<< ∃ (n': Node) (I_n': multiset_flowint_ur K) (C_n': gset K),
           CSS γ_I γ_f γ_k r C
         ∗ nodePred γ_I γ_k n' I_n' C_n' 
         ∗ ⌜in_inset K k I_n' n'⌝ ∗ ⌜¬in_outsets K k I_n'⌝, RET #n' >>>.
