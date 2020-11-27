@@ -21,7 +21,7 @@ Global Canonical Structure multiset_flowint_ur : ucmraT := flowintUR K_multiset.
 
 Implicit Type I : multiset_flowint_ur.
 
-(** Insets, outsets, and keysets of flow interfaces *)
+(** Insets and outsets of flow interfaces *)
 
 Definition inset I n := dom_ms (inf I n).
 
@@ -35,6 +35,7 @@ Definition in_outsets k In := ∃ n, in_outset k In n.
 
 Definition closed I := ∀ k n, k ∉ outset I n.
 
+(** Assorted lemmas for multiset flow interfaces *)
 
 Lemma composable_outflow_leq_inflow I1 I2 k n :
   n ∈ domm I2 →
@@ -235,8 +236,7 @@ Proof.
   assert (inf I2 n ! k ≠ 0). lia. trivial. contradiction.
 Qed.
 
-
-(** The following few definitions and lemmas can also be moved to ccm.v *)
+(** Function and lemmas for frame-preserving updates of flow interfaces *)
 
 Definition outflow_map_set f I (n: Node) (s: gset K) : multiset_flowint_ur := 
   let I_out_n := (nzmap_map_set f s (out I n)) in
