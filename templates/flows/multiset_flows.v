@@ -36,6 +36,31 @@ Definition in_outset k I n := k ∈ dom_ms (out I n).
 
 Definition in_outsets k In := ∃ n, in_outset k In n.
 
+Lemma composable_outflow_leq_inflow I1 I2 k n :
+  n ∈ domm I2 →
+  intComposable I1 I2 →
+  out I1 n ! k ≤ inf I2 n ! k.
+Proof.
+  intros Hn_in_I2 HiC.
+  unfold intComposable in HiC.
+  destruct HiC as (_ & _ & _ & Hinf1 & Hinf2).
+  unfold map_Forall in Hinf1.
+  unfold map_Forall in Hinf2.
+  pose proof (Hinf2 n (inf I2 n)).
+  rewrite H0.
+  unfold ccmop, ccm_op, lift_op.
+  simpl. unfold lift_op.
+  rewrite nzmap_lookup_merge.
+  unfold ccmop, ccm_op, nat_ccm, nat_op.
+  lia.
+  unfold domm, dom, flowint_dom in Hn_in_I2.
+  apply elem_of_dom in Hn_in_I2.
+  unfold is_Some in Hn_in_I2.
+  destruct Hn_in_I2.
+  unfold inf.
+  rewrite H1. auto.
+Qed.
+  
 Lemma inset_monotone : ∀ I I1 I2 k n,
     ✓ I → I = I1 ⋅ I2 → k ∈ inset I n → n ∈ domm I1 → k ∈ inset I1 n.
 Proof.
@@ -500,13 +525,14 @@ Proof.
   unfold domm, dom, flowint_dom. trivial.
 Qed.
 
-Lemma flowint_insert_infComp I1 I1' I2 I2' n S :
+Lemma flowint_map_set_infComp f I1 I1' I2 I2' n S :
+      (∀ k, k ∈ S → (inf I2 n ! k) - (out I1 n ! k) = f (inf I2 n ! k) - f (out I1 n ! k)) →
       n ∈ domm I2 → 
-        I1' = outflow_insert_set I1 n S →
-        I2' = inflow_insert_set I2 n S →
+        I1' = outflow_map_set f I1 n S →
+        I2' = inflow_map_set f I2 n S →
           infComp I1 I2 = infComp I1' I2'.
 Proof.
-  intros n_in_I2 Hi1 Hi2. apply map_eq.
+  intros Hf n_in_I2 Hi1 Hi2. apply map_eq.
   intros n'. unfold infComp. rewrite !gmap_imerge_prf.
   unfold infComp_op.
   destruct (decide (n' = n)).
@@ -534,9 +560,10 @@ Proof.
         rewrite !nzmap_lookup_merge.
         destruct (decide (k ∈ S)).
         ** rewrite !nzmap_lookup_total_map_set.
-           assert (∀ (x y: nat), x - y = x + 1 - (y + 1)) as Heq. lia.
-           apply Heq; try done.
-           done. done.
+           pose proof Hf k e0.
+           unfold inf, out at 1 in H0.
+           rewrite Hi2n in H0. simpl in H0.
+           apply H0; try done. done. done.
         ** rewrite !nzmap_lookup_total_map_set_ne; try done.
       * unfold domm, dom, flowint_dom in n_in_I2.
         rewrite elem_of_dom in n_in_I2 *; intros n_in_I2.
@@ -554,7 +581,7 @@ Proof.
       unfold inf_map at 2. simpl.
       rewrite lookup_insert_ne; try done. }
     assert (out I1 n' = out I1' n') as Eq4.
-    { replace I1'. unfold outflow_insert_set.
+    { replace I1'. unfold outflow_map_set.
       unfold out, out_map at 2. simpl.
       rewrite nzmap_lookup_total_insert_ne; try done. }
     by rewrite Eq1 Eq2 Eq3 Eq4.
@@ -674,29 +701,31 @@ Proof.
       trivial.
 Qed.
 
-Lemma flowint_insert_intComposable I1 I1' I2 I2' n S :
+Lemma flowint_map_set_intComposable f I1 I1' I2 I2' n S :
+       (∀ x y, x ≤ y → f x ≤ f y) →
+       (∀ k, k ∈ S → (inf I2 n ! k) - (out I1 n ! k) = f (inf I2 n ! k) - f (out I1 n ! k)) →
        n ∈ domm I2 → domm I1 ≠ ∅ →
-         (∀ k, k ∈ S → out I1 n ! k ≤ inf I2 n ! k) →
-          I1' = outflow_insert_set I1 n S →
-            I2' = inflow_insert_set I2 n S →
+          I1' = outflow_map_set f I1 n S →
+            I2' = inflow_map_set f I2 n S →
             intComposable I1 I2 → 
             intComposable I1' I2'.
 Proof.
-  intros n_in_I2 domm_I1 I2_ge_I1 Hi1 Hi2 Intcomp.
+  intros Hfm Hf n_in_I2 domm_I1 Hi1 Hi2 Intcomp.
   assert (n ∉ domm I1) as n_notin_I1.
   { unfold intComposable in Intcomp.
     destruct Intcomp as [_ [_ [H' _]]].
     clear -H' n_in_I2. set_solver. }
   unfold intComposable. repeat split.
-  - apply (outflow_map_set_valid (λ n, n + 1) I1 I1' n S); try done.
+  - apply (outflow_map_set_valid f I1 I1' n S); try done.
     by destruct Intcomp as [H' _].
-  - apply (inflow_map_set_valid (λ n, n + 1) I2 I2' n S); try done.
+  - apply (inflow_map_set_valid f I2 I2' n S); try done.
     by destruct Intcomp as [_ [H' _]].
-  - pose proof (flowint_inflow_map_set_dom (λ n, n + 1) I2 n S I2' Hi2) as domm_2.
+  - pose proof (flowint_inflow_map_set_dom f I2 n S I2' Hi2) as domm_2.
     assert (domm I1' = domm I1) as domm_1. 
     { unfold domm, dom, flowint_dom. replace I1'.
       unfold outflow_map_set. unfold inf_map. by simpl. }
-    destruct Intcomp as [_ [_ [H' _]]].
+    pose proof Intcomp as Intcomp0.
+    destruct Intcomp0 as [_ [_ [H' _]]].
     set_solver.
   - unfold map_Forall.
     intros n' m. intros Hin'. apply nzmap_eq. intros kt'.
@@ -727,7 +756,8 @@ Proof.
     simpl. unfold ccmop_inv, ccm_opinv.
     simpl. unfold lift_opinv. unfold ccmop_inv, ccm_opinv. simpl.
     rewrite !nzmap_lookup_merge. unfold nat_op, nat_opinv.
-    destruct Intcomp as [_ [_ [_ [_ H']]]].
+    pose proof Intcomp as Intcomp0.
+    destruct Intcomp0 as [_ [_ [_ [_ H']]]].
     unfold map_Forall in H'. pose proof H' n' as H'.  
     unfold ccmop, ccm_op in H'. simpl in H'. unfold lift_op, ccmop, ccm_op in H'.
     simpl in H'. unfold ccmop_inv, ccm_opinv in H'.
@@ -747,9 +777,10 @@ Proof.
         unfold inf at 2. unfold inf_map at 1. simpl.
         rewrite lookup_insert. simpl.
         rewrite nzmap_lookup_total_map_set.
-        assert (∀ (x y: nat), y ≤ x →
-            x + 1 = y + 1 + (x + 1 - (y + 1))) as Heq. lia.
-        apply Heq. apply I2_ge_I1. done. done. done.
+        pose proof composable_outflow_leq_inflow I1 I2 k n n_in_I2 Intcomp as Hleq. 
+        pose proof Hfm (out I1 n ! k) (inf I2 n ! k) Hleq.
+        pose proof Hf k e0. lia.
+        done. done.
       * unfold inf. rewrite e in Hin'. rewrite Hin'. simpl.
         replace I2' in Hin'. unfold inflow_map_set in Hin'. 
         unfold inf_map at 1 in Hin'. simpl in Hin'. 
@@ -782,45 +813,40 @@ Proof.
       rewrite !nzmap_lookup_merge in H'.
       unfold nat_op, nat_opinv in H'.
       assert (out I1' n' = out I1 n') as Hout.
-      { replace I1'. unfold outflow_insert_set, outflow_map_set.
+      { replace I1'. unfold outflow_map_set.
         unfold out at 1, out_map at 1. simpl.
         rewrite nzmap_lookup_total_insert_ne; try done. }
       by rewrite Hout.  
 Qed.
 
 
-Lemma flowint_insert_valid I1 I1' I2 I2' n S :
+Lemma flowint_map_set_valid f I1 I1' I2 I2' n S :
+  (∀ x y, x ≤ y → f x ≤ f y) →
+  (∀ k, k ∈ S → (inf I2 n ! k) - (out I1 n ! k) = f (inf I2 n ! k) - f (out I1 n ! k)) →
       n ∈ domm I2 → domm I1 ≠ ∅ →
-        I1' = outflow_insert_set I1 n S →
-          I2' = inflow_insert_set I2 n S →
+        I1' = outflow_map_set f I1 n S →
+          I2' = inflow_map_set f I2 n S →
             ✓ (I1 ⋅ I2) → ✓ (I1' ⋅ I2').
 Proof.
-  intros n_in_I2 domm_I1 Hi1 Hi2 Valid_12.
+  intros Hfm Hf n_in_I2 domm_I1 Hi1 Hi2 Valid_12.
   pose proof intComposable_valid I1 I2 Valid_12 as Intcomp_12.
   apply intValid_composable. 
-  apply (flowint_insert_intComposable I1 I1' I2 I2' n S); try done.
-  pose proof intComp_unfold_inf_2 I1 I2 Valid_12 n n_in_I2 as H'.
-  unfold ccmop, ccm_op in H'. simpl in H'.
-  unfold lift_op, ccmop, ccm_op in H'. simpl in H'.
-  rewrite nzmap_eq in H' *; intros H' k k_in_S.
-  pose proof H' k as H'. unfold nat_op in H'.
-  rewrite nzmap_lookup_merge in H'. 
-  rewrite H'.
-  assert (∀ (x y: nat), x ≤ y + x) as Heq by lia.
-  apply Heq.  
+  apply (flowint_map_set_intComposable f I1 I1' I2 I2' n S); try done.
 Qed.
 
 
-Lemma flowint_insert_set_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
+Lemma flowint_map_set_eq f (I1 I1' I2 I2': multiset_flowint_ur) n S :
+  (∀ x y, x ≤ y → f x ≤ f y) →
+  (∀ k, k ∈ S → (inf I2 n ! k) - (out I1 n ! k) = f (inf I2 n ! k) - f (out I1 n ! k)) →
   n ∈ domm I2 → domm I1 ≠ ∅ →
-  I1' = outflow_insert_set I1 n S →
-  I2' = inflow_insert_set I2 n S →
+  I1' = outflow_map_set f I1 n S →
+  I2' = inflow_map_set f I2 n S →
   ✓ (I1 ⋅ I2) → I1 ⋅ I2 = I1' ⋅ I2'.
 Proof.
-  intros n_in_I2 domm_I1 Hi1 Hi2 Valid_12.
+  intros Hfm Hf n_in_I2 domm_I1 Hi1 Hi2 Valid_12.
   pose proof (intComposable_valid _ _ Valid_12) as HintComp.
-  pose proof (flowint_insert_valid I1 I1' I2 I2' n S 
-                n_in_I2 domm_I1 Hi1 Hi2 Valid_12) as Valid_12'.
+  pose proof (flowint_map_set_valid f I1 I1' I2 I2' n S 
+                Hfm Hf n_in_I2 domm_I1 Hi1 Hi2 Valid_12) as Valid_12'.
   pose proof (intComposable_valid _ _ Valid_12') as HintComp'.   
   destruct (I1⋅I2) as [ [i o] | ] eqn: Hi12; [| exfalso; try done].
   unfold op, intComp in Hi12.
@@ -832,9 +858,36 @@ Proof.
   inversion Hi12'.
   apply intValid_composable in HintComp.
   assert (infComp I1 I2 = infComp I1' I2') as Hinfcomp.
-  { apply (flowint_insert_infComp I1 I1' I2 I2' n S); try done. }
+  { apply (flowint_map_set_infComp f I1 I1' I2 I2' n S); try done. }
   pose proof (flowint_map_set_outComp _ I1 I1' I2 I2' n S n_in_I2 Hi1 Hi2) as Houtcomp.
     by rewrite Hinfcomp Houtcomp.
+Qed.
+
+Lemma flowint_insert_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
+  n ∈ domm I2 → domm I1 ≠ ∅ →
+  I1' = outflow_insert_set I1 n S →
+  I2' = inflow_insert_set I2 n S →
+  ✓ (I1 ⋅ I2) → I1 ⋅ I2 = I1' ⋅ I2'.
+Proof.
+  apply flowint_map_set_eq.
+  lia.
+  lia.
+Qed.
+
+Lemma flowint_delete_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
+  (∀ k, k ∈ S → 1 ≤ out I1 n ! k) →
+  n ∈ domm I2 → domm I1 ≠ ∅ →
+  I1' = outflow_delete_set I1 n S →
+  I2' = inflow_delete_set I2 n S →
+  ✓ (I1 ⋅ I2) → I1 ⋅ I2 = I1' ⋅ I2'.
+Proof.
+  intros.
+  apply (flowint_map_set_eq (λ n, n - 1) I1 I1' I2 I2' n S).
+  lia.
+  intros.
+  pose proof H0 k H6.
+  lia.
+  auto. auto. auto. auto. auto.
 Qed.
 
 
