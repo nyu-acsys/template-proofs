@@ -466,12 +466,12 @@ Proof.
     split.
     rewrite nzmap_elem_of_dom_total.
     unfold out in H0.
-    done. done. done.
+    all: done.
   - intros. rewrite nzmap_lookup_total_map_set_ne.
     rewrite elem_of_difference in H0 *; intros.
     destruct H0 as [H0 _].
     rewrite nzmap_elem_of_dom_total in H0 *; intros.
-    unfold out. done. done.
+    unfold out. all: done.
 Qed.    
 
 Lemma outflow_insert_set_outset_ne I n S I' n' :
@@ -625,7 +625,7 @@ Proof.
            pose proof Hf k e0.
            unfold inf, out at 1 in H0.
            rewrite Hi2n in H0. simpl in H0.
-           apply H0; try done. done. done.
+           apply H0. all: done.
         ** rewrite !nzmap_lookup_total_map_set_ne; try done.
       * unfold domm, dom, flowint_dom in n_in_I2.
         rewrite elem_of_dom in n_in_I2 *; intros n_in_I2.
@@ -932,8 +932,7 @@ Lemma flowint_insert_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
   ✓ (I1 ⋅ I2) → I1 ⋅ I2 = I1' ⋅ I2'.
 Proof.
   apply flowint_map_set_eq.
-  lia.
-  lia.
+  all: lia.
 Qed.
 
 Lemma flowint_delete_eq (I1 I1' I2 I2': multiset_flowint_ur) n S :
@@ -949,106 +948,9 @@ Proof.
   intros.
   pose proof H0 k H6.
   lia.
-  auto. auto. auto. auto. auto.
+  all: auto.
 Qed.
 
-
-(*
-Lemma keyset_def : ∀ k I_n n, k ∈ inset I_n n → ¬ in_outsets k I_n
-  → k ∈ keyset I_n n.
-Proof.
-  intros ? ? ? k_in_inset k_not_in_outsets.
-  unfold keyset.
-  unfold inset in k_in_inset.
-  unfold in_outsets in k_not_in_outsets.
-  rewrite elem_of_difference.
-  naive_solver.
-Qed.
-
-(* The global invariant ϕ. *)
-Definition globalinv root I :=
-  ✓I
-  ∧ (root ∈ domm I)
-  ∧ (∀ k n, k ∉ outset I n) 
-  ∧ (∀ k, k ∈ KS → k ∈ inset I root).
-
-(** Assorted lemmas about inset flows used in the template proofs *)
-
-Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ domm I.
-Proof.
-  intros I root Hglob. unfold globalinv in Hglob.
-  destruct Hglob as [H1 [H2 H3]]. done.
-Qed.
-
-
-
-Lemma contextualLeq_impl_globalinv : ∀ I I' root,
-    globalinv root I →
-    contextualLeq K_multiset I I' →
-    (∀ n, n ∈ domm I' ∖ domm I → inset I' n = ∅) →
-    globalinv root I'.
-Proof.
-  intros ? ? ? GI CLeq InfI'.
-  unfold contextualLeq in CLeq.
-  unfold globalinv in GI.
-  destruct GI as (_ & DomR & OutI & InfI).
-  destruct CLeq as (VI & VI' & DS & InfR & OutR).
-  unfold globalinv.
-  repeat split.
-  - trivial.
-  - set_solver.
-  - intros.
-    destruct (decide (n ∈ domm I')).
-    * apply flowint_valid_unfold in VI'.
-      destruct VI' as [Ir' (I'_def & I'_disj & _)].
-      rewrite (@map_disjoint_dom Node (gmap Node) (gset Node)) in I'_disj *.
-      intros.
-      assert (out_map I' ! n = 0%CCM).
-      { unfold out_map. rewrite I'_def.
-        assert (¬ (n ∈ dom (gset Node) (out_map I'))).
-        { unfold domm, dom, flowint_dom in e.
-          set_solver.
-        }
-        rewrite I'_def in H1.
-        rewrite nzmap_elem_of_dom_total in H1 *.
-        intros.
-        apply dec_stable in H1.
-        unfold out_map in H1.
-        by rewrite H1.
-      }
-      unfold outset, dom_ms, nzmap_dom, out.
-      rewrite H1. simpl.
-      rewrite dom_empty.
-      apply not_elem_of_empty.
-    * assert (n ∉ domm I) by set_solver.
-      pose proof (OutR n n0).
-      unfold outset. rewrite <- H1.
-      pose proof (OutI k n).
-      unfold outset in H2.
-      trivial.
-  - intros.
-    (*destruct H2 as (H2 & _).*)
-    specialize (InfI k).
-    (*rewrite <- H0 in DomR.*)
-    specialize (InfR root DomR).
-    unfold inset.
-    unfold inset in InfR.
-    rewrite <- InfR.
-    apply InfI in H0.
-    trivial.
-Qed.
-
-Lemma globalinv_root_ins : ∀ I Ir root k,
-    globalinv root I ∧ Ir ≼ I ∧ domm Ir = {[root]} ∧ k ∈ KS
-    → k ∈ inset Ir root.
-Proof.
-  intros I Ir root k ((Hv & _ & _ & Hl) & [I2 Hincl] & Hdom & kKS).
-  specialize (Hl k kKS). 
-  apply (inset_monotone I Ir I2 k root); try done.
-  set_solver.
-Qed.
-
-*)
 End multiset_flows.
 
 Arguments multiset_flowint_ur _ {_ _} : assert.
