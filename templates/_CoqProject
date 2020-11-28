@@ -17,18 +17,21 @@ flows/gmap_more.v
 flows/flows.v
 flows/multiset_flows.v
 
-single_copy/search_str.v
-single_copy/keyset_ra.v
-single_copy/auth_ext.v
-single_copy/lock.v
-single_copy/inset_flows.v
-single_copy/single_node.v
-single_copy/two_node.v
-single_copy/give_up.v
-single_copy/link.v
-single_copy/coupling.v
+#single_copy/search_str.v
+#single_copy/keyset_ra.v
+#single_copy/auth_ext.v
+#single_copy/lock.v
+#single_copy/inset_flows.v
+#single_copy/single_node.v
+#single_copy/two_node.v
+#single_copy/give_up.v
+#single_copy/link.v
+#single_copy/coupling.v
 
 multicopy/inset_flows_multicopy.v
 multicopy/KT_flows.v
 multicopy/general_multicopy.v
+multicopy/general_multicopy_compact.v
+multicopy/general_multicopy_search.v
+multicopy/general_multicopy_upsert.v
 

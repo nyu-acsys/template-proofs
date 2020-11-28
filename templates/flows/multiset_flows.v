@@ -481,6 +481,14 @@ Proof.
   apply outflow_map_set_outset_ne.
 Qed.
 
+Lemma outflow_delete_set_outset_ne I n S I' n' :
+      n' ≠ n → I' = outflow_delete_set I n S → 
+           outset I' n' = outset I n'.
+Proof.
+  apply outflow_map_set_outset_ne.
+Qed.
+
+
 Lemma inflow_insert_set_out_eq I n S I' n' :
       I' = inflow_insert_set I n S →
           out I' n' = out I n'.
@@ -509,6 +517,7 @@ Proof.
   unfold inf.
   rewrite H0. auto. auto.
 Qed.
+
 
 Lemma inflow_insert_set_inset_ne I n S I' n' :
       n' ≠ n → I' = inflow_insert_set I n S → 
@@ -949,6 +958,158 @@ Proof.
   pose proof H0 k H6.
   lia.
   all: auto.
+Qed.
+
+Lemma inflow_insert_set_inset I n S I' :
+      I' = inflow_insert_set I n S → 
+           inset I' n = inset I n ∪ S.
+Proof.
+  intros Heq. unfold inset.
+  unfold multiset_flows.dom_ms.
+  replace I'. unfold inflow_insert_set.
+  unfold inflow_map_set. unfold inf at 1; simpl.
+  rewrite lookup_insert. simpl.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x. 
+  rewrite !nzmap_elem_of_dom_total.
+  destruct (decide (x ∈ S)); split.
+  - set_solver.
+  - rewrite nzmap_lookup_total_map_set.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    unfold ccmunit, ccm_unit. simpl.
+    unfold nat_unit. lia. done.
+  - rewrite nzmap_lookup_total_map_set_ne.
+    rewrite elem_of_union.
+    rewrite !nzmap_elem_of_dom_total.
+    intro.
+    left.
+    trivial. trivial.
+  - rewrite elem_of_union.
+    intro.
+    destruct H0.
+    rewrite nzmap_lookup_total_map_set_ne.
+    rewrite nzmap_elem_of_dom_total in H0 *.
+    trivial. trivial.
+    contradiction.
+Qed.
+
+Lemma inflow_delete_set_inset I n S I' :
+      (∀ k, k ∈ S → inf I n ! k ≤ 1) →
+        I' = inflow_delete_set I n S → 
+           inset I' n = inset I n ∖ S.
+Proof.
+  intros Hkb Heq. unfold inset.
+  unfold multiset_flows.dom_ms.
+  replace I'. unfold inflow_delete_set.
+  unfold inf at 1. simpl.
+  rewrite lookup_insert. simpl.
+  apply leibniz_equiv.
+  apply elem_of_equiv. intros x. 
+  rewrite !nzmap_elem_of_dom_total.
+  destruct (decide (x ∈ S)); split.
+  - intros. apply Hkb in e as HxB.
+    rewrite nzmap_lookup_total_map_set in H0.
+    unfold ccmunit, ccm_unit, nat_ccm, nat_unit in H0. simpl.
+    assert (inf I n ! x - 1 = 0). lia.
+    contradiction. done.
+  - intros. set_solver.
+  - intros. rewrite nzmap_lookup_total_map_set_ne in H0.
+    rewrite elem_of_difference.
+    split.
+    rewrite nzmap_elem_of_dom_total.
+    all: done.
+  - intros. rewrite nzmap_lookup_total_map_set_ne.
+    rewrite elem_of_difference in H0 *; intros.
+    destruct H0 as [H0 _].
+    rewrite nzmap_elem_of_dom_total in H0 *; intros.
+    unfold out. all: done.
+Qed.
+
+Lemma inflow_delete_set_inset_ne I n S I' n' :
+      n' ≠ n → I' = inflow_delete_set I n S → 
+           inset I' n' = inset I n'.
+Proof.
+  unfold inset.
+  pose proof (inflow_map_set_ne (λ n, n - 1) I n S I' n').
+  intros.
+  unfold inf.
+  rewrite H0; done.
+Qed.
+
+
+Lemma flowint_inflow_delete_set_dom (I: multiset_flowint_ur) n S I':
+    I' = inflow_delete_set I n S
+    → domm I' = domm I ∪ {[n]}.
+Proof.
+  intros Heq.
+  unfold domm, dom, flowint_dom.
+  apply leibniz_equiv.
+  apply elem_of_equiv.
+  intros n'.
+  pose proof (inflow_map_set_ne (λ n, n - 1) I n S I' n').
+  unfold inset, inf in H0.
+  destruct (decide (n = n')).
+  - rewrite <- e. split.
+    * intros. rewrite elem_of_union. right. set_solver.
+    * rewrite elem_of_dom.
+      intros.
+      rewrite Heq.
+      unfold inflow_insert_set.
+      unfold inflow_map_set.
+      simpl.
+      rewrite lookup_partial_alter.
+      rewrite <- not_eq_None_Some.
+      discriminate.
+  - split.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      rewrite H0.
+      auto. auto. auto.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      intros.
+      destruct H1.
+      rewrite H0.
+      auto. auto. auto.
+      set_solver.
+Qed.      
+
+Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S I':
+    I' = inflow_insert_set I n S
+    → domm I' = domm I ∪ {[n]}.
+Proof.
+  intros Heq.
+  unfold domm, dom, flowint_dom.
+  apply leibniz_equiv.
+  apply elem_of_equiv.
+  intros n'.
+  pose proof (inflow_map_set_ne (λ n, n + 1) I n S I' n').
+  unfold inset, inf in H0.
+  destruct (decide (n = n')).
+  - rewrite <- e. split.
+    * intros. rewrite elem_of_union. right. set_solver.
+    * rewrite elem_of_dom.
+      intros.
+      rewrite Heq.
+      unfold inflow_insert_set.
+      unfold inflow_map_set.
+      simpl.
+      rewrite lookup_partial_alter.
+      rewrite <- not_eq_None_Some.
+      discriminate.
+  - split.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      rewrite H0.
+      auto. auto. auto.
+    * rewrite elem_of_union.
+      repeat rewrite elem_of_dom.
+      intros.
+      destruct H1.
+      rewrite H0.
+      auto. auto. auto.
+      set_solver.
 Qed.
 
 End multiset_flows.
