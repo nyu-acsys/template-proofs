@@ -355,52 +355,47 @@ Proof.
   apply H0.
 Qed.
 
+
 Definition gmap_insert_map {A} `{Countable K} (m s: gmap K A) : (gmap K A) :=
       let f := λ k a m', <[k := a]> m' in
       map_fold f m s.
 
+Lemma gmap_lookup_insert_map_aux {A} `{Countable K} (m s: gmap K A) :
+      ∀ k, (k ∈ dom (gset K) s → gmap_insert_map m s !! k = s !! k)
+          ∧ (k ∉ dom (gset K) s → gmap_insert_map m s !! k = m !! k).
+Proof.
+  set (P := λ (m': gmap K A) (X: gmap K A),
+              ∀ j, (j ∈ dom (gset K) X → m' !! j = X !! j)
+                  ∧ (j ∉ dom (gset K) X → m' !! j = m !! j)).
+  apply (map_fold_ind P); try done.
+  intros k a m' r Hmi HP. unfold P. unfold P in HP.
+  intros j. split.
+  - intros Hj. rewrite <-not_elem_of_dom in Hmi.
+    rewrite dom_insert in Hj. rewrite elem_of_union in Hj.
+    destruct Hj as [Hj | Hj].
+    + assert (j = k) by set_solver; subst j.
+      by rewrite !lookup_insert.
+    + assert (j ≠ k) by set_solver.
+      rewrite !lookup_insert_ne; try done.
+      by apply HP.
+  - intros Hj. rewrite <-not_elem_of_dom in Hmi.
+    rewrite dom_insert in Hj.
+    assert (j ≠ k) by set_solver. 
+    rewrite !lookup_insert_ne; try done. 
+    apply HP. set_solver.
+Qed.                              
+
 Lemma gmap_lookup_insert_map {A} `{Countable K} (m s: gmap K A) (k: K) :
       k ∈ dom (gset K) s → gmap_insert_map m s !! k = s !! k.
 Proof.
-  set (P := λ (m': gmap K A) (X: gmap K A),
-              ∀ j, j ∈ dom (gset K) X → m' !! j = X !! j).
-  apply (map_fold_ind P); try done.
-  intros k' a' m' r Hm HP. unfold P.
-  unfold P in HP. intros kx Hkx.
-  
-  
-
-Admitted.
+  apply gmap_lookup_insert_map_aux.
+Qed.
 
 Lemma gmap_lookup_insert_map_ne {A} `{Countable K} (m s: gmap K A) (k: K) :
       k ∉ dom (gset K) s → gmap_insert_map m s !! k = m !! k.
 Proof.
-  intros Hk. unfold gmap_insert_map.
-Admitted.
-
-Definition gmap_delete_set {A} `{Countable K} (m: gmap K A) (s: gset K) 
-                                              : (gmap K A) :=
-      let f := λ k m', delete k m' in
-      set_fold f m s.
-
-Lemma gmap_lookup_delete_set {A} `{Countable K} 
-                          (m: gmap K A) (s: gset K) (k: K) :
-      k ∈ s → gmap_delete_set m s !! k = None.
-Proof.
-  set (P := λ (m': gmap K A) (X: gset K),
-                ∀ x, (x ∈ X → m' !! x = None)
-                    ∧ (x ∉ X → m' !! x = m !! x) ).
-  apply (set_fold_ind_L P); try done.
-  - 
-Admitted.
-
-Lemma gmap_lookup_delete_set_ne {A} `{Countable K} 
-                          (m: gmap K A) (s: gset K) (k: K) :
-      k ∉ s → gmap_delete_set m s !! k = m !! k.
-Proof.
-  intros Hk. unfold gmap_delete_set.
-Admitted.
-
+  apply gmap_lookup_insert_map_aux.
+Qed.
 
                
 

@@ -395,11 +395,6 @@ Definition nzmap_delete_set `{Countable K} `{CCM A} :=
     set_fold f m s.
 
 
-(*
-Class NonZero A `(CCM A) (a : A) : Prop :=
-  nonzero : a ≠ 0.
-*)
-
 Lemma nzmap_insert_wf `{Countable K} `{CCM A}
       (i : K) (a: A) (m1 : gmap K A) :
   a ≠ 0 → nzmap_wf m1 → nzmap_wf (<[i := a]> m1).
@@ -467,19 +462,6 @@ Proof.
   rewrite lookup_delete_ne; try done.
 Qed.
 
-Lemma nzmap_lookup_total_delete_set `{Countable K} `{CCM A} 
-    (i: K) (s : gset K) (m : nzmap K A) : 
-    i ∈ s → nzmap_delete_set s m ! i = 0.
-Proof.
-Admitted.    
-    
-Lemma nzmap_lookup_total_delete_set_ne `{Countable K} `{CCM A} 
-    (i: K) (s : gset K) (m : nzmap K A) : 
-    i ∉ s → nzmap_delete_set s m ! i = m ! i.
-Proof.
-Admitted.    
-
-
 Lemma nzmap_lookup_total_insert `{Countable K} `{CCM A} 
     (i : K) (a: A) (m : nzmap K A): <<[i:=a]>>m ! i = a.
 Proof.
@@ -505,18 +487,6 @@ Proof.
   - simpl. rewrite lookup_delete_ne; try done.
   - rewrite lookup_insert_ne; try done.
 Qed.
-
-Lemma nzmap_lookup_total_insert_map `{Countable K} `{CCM A} 
-    (i : K) (s: gmap K A) (m : nzmap K A): 
-    i ∈ dom (gset K) s → nzmap_insert_map s m ! i = default 0 (s !! i).
-Proof.
-Admitted.
-
-Lemma nzmap_lookup_total_insert_map_ne `{Countable K} `{CCM A} 
-    (i : K) (s: gmap K A) (m : nzmap K A): 
-    i ∉ dom (gset K) s → nzmap_insert_map s m ! i = m ! i.
-Proof.
-Admitted.
 
 Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
 Proof.

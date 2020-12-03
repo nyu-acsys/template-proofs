@@ -238,6 +238,7 @@ Qed.
 
 (** Function and lemmas for frame-preserving updates of flow interfaces *)
 
+
 Definition outflow_map_set f I (n: Node) (s: gset K) : multiset_flowint_ur := 
   let I_out_n := (nzmap_map_set f s (out I n)) in
   let I'_out := (<<[n := I_out_n]>> (out_map I)) in

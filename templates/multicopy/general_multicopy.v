@@ -892,14 +892,6 @@ Section multicopy.
     by exists n. done.
   Qed.
   
-  Lemma contents_in_reach_bigS_update (S : gset K) (γ: gmap K gname) 
-                                          (Bm Bm': gmap K nat) :
-        ⌜∀ k, k ∈ S → Bm !!! k ≤ Bm' !!! k⌝ -∗ 
-          [∗ set] k ∈ S, own (γ !!! k) (● (MaxNat (Bm !!! k))) -∗
-            |==>  [∗ set] k ∈ S, own (γ !!! k) (● (MaxNat (Bm' !!! k))).
-  Proof.
-  Admitted.
-  
   Definition map_subset (S: gset K) (C: gmap K nat) :=
               let f := λ a s', s' ∪ {[(a, C !!! a)]} in
                         set_fold f (∅: gset KT) S.          
