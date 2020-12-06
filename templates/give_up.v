@@ -193,7 +193,7 @@ Section Give_Up_Template.
 
   Lemma node_nodeFull_equal γ_I γ_k n In Cn :
     node n In Cn -∗ nodeFull γ_I γ_k n
-    -∗ (lockR true n (node n In Cn)).
+    -∗ ((lockR true n (∃ In Cn, nodePred γ_I γ_k n In Cn)) ∗(node n In Cn)).
   Proof.
     iIntros "Hn Hnf".
     iDestruct "Hnf" as (b) "(Hlock & Hnp)". destruct b.
@@ -207,11 +207,12 @@ Section Give_Up_Template.
   Lemma CSS_unfold_node_wand γ_I γ_f γ_k r C I n In Cn :
     CSSi γ_I γ_f γ_k r C I
     -∗ node n In Cn -∗ ⌜n ∈ domm I⌝
-    -∗  globalGhost γ_I γ_f γ_k r C I
+    -∗ (node n In Cn
+        ∗ globalGhost γ_I γ_f γ_k r C I
         ∗ (lockR true n (∃ Cn, nodePred γ_I γ_k n In Cn))
         ∗ (∀ C',
            globalGhost γ_I γ_f γ_k r C' I ∗ nodeFull γ_I γ_k n
-           -∗ CSS γ_I γ_f γ_k r C').
+           -∗ CSS γ_I γ_f γ_k r C')).
   Proof.
     iIntros "Hcssi Hn %".
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
@@ -306,27 +307,19 @@ Section Give_Up_Template.
     iPoseProof (inFP_domm with "[$] [$]") as "%". rename H0 into n_in_I.
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iSpecialize ("Hcss'" $! C).
-    iDestruct "Hnf" as (b) "(Hlock & Hnp)".
-   (* iAssert (⌜b = true⌝)%I with "[-]" as "%".
-    {
-      destruct b.
-      - by iPureIntro.
-      - iExFalso. 
-      iDestruct "Hnp" as (In Cn) "(H & _)".
-      iApply (node_sep_star r with "[H]"). iFrame.
-    }
-    I was trying this because it still does not work *)
+    iDestruct "Hnf" as (b) "Hlock". 
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iPoseProof ("Hcss'" with "[-]") as "Hcss".
-      { iFrame. iExists b, In. iFrame. }
+      { iFrame. iExists b. iFrame. }
       eauto with iFrame.
     }
-    iIntros "(Hlockn & %)". iModIntro.
-    subst b. iDestruct "Hnp" as (Cn) "Hn".
-    iPoseProof ("Hcss'" with "[-Hn]") as "Hcss".
-    { iFrame. iExists true, In. iFrame. }
-    iExists In, Cn. eauto with iFrame.
+    iIntros "Hlockn". iModIntro. 
+    iDestruct "Hlockn" as "(Hlockn & H)".
+    iDestruct "H" as (In Cn) "H".
+    iPoseProof ("Hcss'" with "[-H]") as "Hcss".
+    { iFrame. iExists true. iFrame. }
+    iExists In, Cn. iSplitL. iSplitL "Hcss". iFrame. iFrame. eauto with iFrame.
   Qed.
 
   Lemma unlockNode_spec_high γ_I γ_f γ_k r n In Cn :
@@ -343,16 +336,17 @@ Section Give_Up_Template.
     iPoseProof (int_domm with "[$] [$] [$]") as "%".
     iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
       as "(Hn & Hg & Hlock & Hcss')"; try done.
+    iDestruct "Hlock" as "(Hlock & _)".
     iAaccIntro with "Hlock".
     { iIntros "Hlock". iModIntro.
       iPoseProof ("Hcss'" with "[-Hn Hk Hi Dom_In]") as "Hcss".
-      { iFrame. iExists true, In. iFrame. }
+      { iFrame. iExists true. iFrame. }
       iFrame "Hcss". iIntros "AU". iModIntro.
       iSplitR "AU". iFrame "∗ #". done.
     }
     iIntros "Hlock". iModIntro.
     iPoseProof ("Hcss'" with "[-]") as "Hcss".
-    { iFrame. iExists false, In. iFrame. iExists Cn. iFrame "∗ #". }
+    { iFrame. iExists false. iFrame. iExists In, Cn. iFrame "∗ #". }
     eauto with iFrame.
  Qed.
 
@@ -476,10 +470,11 @@ Section Give_Up_Template.
       iPoseProof (int_domm with "[$] [$] [$]") as "%".      
       iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
         as "(Hn & Hg & Hlock & Hcss')"; try done.
+      iDestruct "Hlock" as "(Hlock & _)".
       iAaccIntro with "Hlock".
       { iIntros "Hlock". iModIntro.
         iPoseProof ("Hcss'" with "[-Hn Hk Hi Dom_In]") as "Hcss".
-        { iFrame. iExists true, In. iFrame. }
+        { iFrame. iExists true. iFrame. }
         iFrame "Hcss". iIntros "AU". iModIntro. iFrame.
       }
       iIntros "Hlock".
@@ -499,8 +494,8 @@ Section Give_Up_Template.
       iModIntro.
       (* Close AU *)
       iExists C2', res. iSplitL. iFrame "HΨC".
-      iApply "Hcss'". iFrame "∗ % #". iExists false, In. iFrame "∗ # %".
-      iExists Cn'. iFrame. iIntros. iModIntro. by wp_pures. 
+      iApply "Hcss'". iFrame "∗ % #". iExists false. iFrame "∗ # %".
+      iExists In, Cn'. iFrame. iIntros. iModIntro. by wp_pures. 
     - (* Case : decisiveOp fails *) 
       wp_match. iDestruct "Hb" as "%". subst Cn'.
       (* Open AU and apply unlockNode spec *)
