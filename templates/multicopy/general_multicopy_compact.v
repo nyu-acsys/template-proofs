@@ -674,7 +674,7 @@ Section compact_proof.
         iMod ((frac_update γ_en γ_cn γ_bn γ_qn esn Cn Bn Qn esn' Cn Bn0' Qn0') 
              with "[$HnP_frac $HnS_frac]") as "(HnP_frac & HnS_frac)".
 
-        iPoseProof ((node_edgeset_disjoint r n) with "[$node_n]") as "%".
+        iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
         rename H into Disj_esn'.                        
 
         iAssert (closed γ_f esn')%I with "[HnS_cl]" as "HnS_cl".
@@ -1210,7 +1210,7 @@ Section compact_proof.
     set (Im_temp := inflow_delete_set Im m Qn_old).
     set (Im' := inflow_insert_set Im_temp m Qn_new).
 
-    iPoseProof ((node_edgeset_disjoint r n) with "[$node_n]") as "%".
+    iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
     rename H0 into Disj_esn'.                        
 
     iMod ((frac_update γ_en γ_cn γ_bn γ_qn esn' Cn Bn0' Qn0' esn' Cn' Bn0' Qn') 
@@ -2022,7 +2022,7 @@ Section compact_proof.
     iIntros (Cn Bn Qn)"HnP_n". iModIntro.
     wp_pures. iDestruct "HnP_n" as (γ_en γ_cn γ_bn γ_qn γ_cirn esn T)"(node_n   
                             & HnP_gh & HnP_frac & HnP_C & HnP_t)".
-    iPoseProof ((node_edgeset_disjoint r n) with "[$node_n]") as "%".
+    iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
     rename H into Disj_esn.                        
     wp_apply (atCapacity_spec with "node_n").
     iIntros (b) "(node_n & _)". destruct b; last first; wp_pures.
@@ -2298,7 +2298,7 @@ Section compact_proof.
         rename H into m_in_I0.  
         
         iAssert (⌜m ≠ n ∧ m ≠ r⌝)%I as %H'.
-        { iPoseProof (node_edgeset_empty_root_self with "[$node_n]") as "%".
+        { iPoseProof (node_es_empty with "[$node_n]") as "%".
           destruct H as [Esn_r Esn_n]. iPureIntro. split.
           - destruct (decide (m = n)); try done.
             subst m. clear -es_ne Esn_n. set_solver.

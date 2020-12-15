@@ -73,6 +73,7 @@ define node(r, n, es, Cn) {
   &*& (forall y: Node :: -1 <= n.indices[y] <= n.len)
   &*& (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
   &*& n.indices[n] == -1
+  &*& n.indices[r] == -1
 }
 
 lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
@@ -104,6 +105,14 @@ lemma node_es_disjoint(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
     }
   }
 }
+
+lemma node_es_empty(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
+  requires node(r, n, es, C)
+  ensures node(r, n, es, C)
+  ensures forall k: K :: (k !in es[r] && k !in es[n])
+{
+}  
+
 
 procedure init()
   returns (r: Node, es: Map<Node, Set<K>>, Cr: Map<K, Int>)

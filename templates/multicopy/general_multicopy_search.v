@@ -86,7 +86,7 @@ Section search_proof.
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n1] [$Hf]") as "H'". }
         iAssert (⌜n ≠ n1⌝)%I as %n_neq_n1.
         { destruct (decide (n = n1)); try done.
-          iPoseProof (node_edgeset_empty_root_self with "node_n") as "%".
+          iPoseProof (node_es_empty with "node_n") as "%".
           destruct H1 as [_ Es_n]. rewrite <-e in k_in_es.
           clear -k_in_es Es_n. set_solver. } 
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n1); last by set_solver.
@@ -374,5 +374,17 @@ Section search_proof.
       iIntros "_". iModIntro. iIntros "HΦ". by wp_pures.
       Unshelve. try done. try done.
   Qed.
+
+  Lemma search_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r 
+                           (k: K) t0 :
+    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r -∗
+            own γ_s (◯ {[(k, t0)]}) -∗
+              <<< ∀ t H, MCS γ_te γ_he t H >>> 
+                  search r #k @ ⊤ ∖ ↑N
+              <<< ∃ (t': nat), MCS γ_te γ_he t H ∗ ⌜(k, t') ∈ H⌝ 
+                                             ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
+  Proof.
+  Admitted.
+
 
 End search_proof.

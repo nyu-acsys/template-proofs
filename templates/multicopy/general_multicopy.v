@@ -155,10 +155,10 @@ Section multicopy.
   Parameter node_sep_star: ∀ r n es C es' C',
     node r n es C ∗ node r n es' C' -∗ False.
 
-  Parameter node_edgeset_disjoint: ∀ r n es C,
+  Parameter node_es_disjoint: ∀ r n es C,
     node r n es C -∗ ⌜∀ n1 n2, n1 ≠ n2 → es !!! n1 ∩ es !!! n2 = ∅⌝.  
 
-  Parameter node_edgeset_empty_root_self: ∀ r n es C,
+  Parameter node_es_empty: ∀ r n es C,
     node r n es C -∗ ⌜es !!! r = ∅ ∧ es !!! n = ∅⌝.
 
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
