@@ -122,7 +122,7 @@ Section compact_proof.
         iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".   
 
-        iAssert (⌜n ∈ domm I0⌝)%I as "%". 
+        iAssert (⌜n ∈ domm I0⌝)%I as "%".
         { by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rename H into n_in_I0.  
 

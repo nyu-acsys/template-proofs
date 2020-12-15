@@ -94,7 +94,7 @@ Section Link_Template.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
-  Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
+  Hypothesis node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
@@ -284,7 +284,7 @@ Section Link_Template.
     iIntros. 
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
   Qed.
@@ -296,7 +296,7 @@ Section Link_Template.
     iIntros.
     iMod (own_update (γ_i n) (● Ks) (● Ks ⋅ ◯ Ks) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ks. by iFrame.
   Qed.
@@ -353,7 +353,7 @@ Section Link_Template.
       iPoseProof ((own_op γ_I (◯ In) (◯ In' )) with "[HIn HIn']") as "H";
         first by eauto with iFrame.
       iPoseProof (own_valid with "H") as "%". iPureIntro.
-      apply (auth_frag_valid (◯ (In ⋅ In'))). rewrite auth_frag_op. done.
+      apply auth_frag_valid. rewrite auth_frag_op. done.
     }
     (* Use that with flowint_inset_step to get k ∈ inset In' *)
     assert (k ∈ inset K In' n'). {
@@ -399,7 +399,7 @@ Section Link_Template.
     iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
     iMod (own_update (γ_i r) _ (● (inset K Ir r) ⋅ ◯ (inset K Ir r))
             with "Hins") as "(Hins & #Hinr)".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     (* Hksr -> Hinr *)
     iAssert (inInr γ_i k r)%I as "#Hininr".
     {

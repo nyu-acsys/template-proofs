@@ -406,7 +406,7 @@ Section Coupling_Template.
     iIntros.
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
   Qed.
@@ -460,7 +460,7 @@ Section Coupling_Template.
     destruct (decide (n ∈ domm I)).
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
     iDestruct "Hbigstar" as "(Hn & Hbigstar)". iDestruct "Hn" as (b0 In Cn) "(Hlockn & Hb)".
-    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. done.
+    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. destruct H0. by compute in H0.
     by iPureIntro.
   Qed.
 
@@ -844,7 +844,7 @@ Section Coupling_Template.
     iCombine "Hip" "Hin" as "H".
     iPoseProof (own_valid with "[$]") as "%". rename H0 into Valid_Inp.
     assert (in_inset K k In n) as in_inset_In.
-    { apply (flowint_inset_step Ip In k n); try done. set_solver. }
+    { apply (flowint_inset_step Ip In k n); try done. apply auth_frag_valid. done. set_solver. }
     wp_apply ((findNext_spec n k In Cn root) with "[noden]").
     { iFrame "∗ %". } iDestruct "H" as "(Hip & Hin)".
     iIntros (b n' res) "(noden & % & Hb)". rename H0 into Hres. destruct b.
@@ -910,6 +910,7 @@ Section Coupling_Template.
       (* Apply continuation *)
       iSpecialize ("HCont" $! p n Ip In Cp Cn).
       destruct suc; wp_pures; iApply "HCont"; iFrame "∗ # %".
+      done. done.
   Qed.
 
   Theorem searchStrOp_spec γ_I γ_f γ_k γ_c root (k: K) :

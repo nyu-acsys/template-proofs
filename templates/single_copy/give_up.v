@@ -228,7 +228,7 @@ Section Give_Up_Template.
     iIntros. 
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
   Qed.
