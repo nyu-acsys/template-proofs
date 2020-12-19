@@ -66,3 +66,7 @@ jobs:
       - name: Check template proofs
         working-directory: templates
         run: bash xp_pldi20.sh
+
+      - name: Check implementation proofs
+        working-directory: implementations
+        run: bash xp_pldi20.sh
