@@ -19,6 +19,8 @@ jobs:
       GHP_COMMIT: 108473b0a678f0d93fffec6da2ad6bcdce5bddb9
       # Change this to update OCaml version
       OCAML_VERSION: 4.07.1
+      # Change this to update Iris version
+      IRIS_VERSION: dev.2020-08-07.2.b2b558ac
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -43,7 +45,7 @@ jobs:
           opam install -y ocamlfind ocamlbuild
           opam repo add coq-released https://coq.inria.fr/opam/released
           opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-          opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
+          opam install -y coq-iris.$IRIS_VERSION
 
       - name: Cache Grasshopper
         id: cache_ghp
