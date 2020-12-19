@@ -40,7 +40,7 @@ run()
     for f in $@ ; do
         #echo "processessing $f"
         python ../grasshopper/bin/line-counter.py $SPLPATH/$f.spl >> $locfile
-        echo "grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f"
+        echo "../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f"
         { TIMEFORMAT=%3R; time ../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
