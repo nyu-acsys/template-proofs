@@ -14,29 +14,51 @@ jobs:
   build:
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      # Change this to update Grasshopper version
+      GHP_COMMIT: 108473b0a678f0d93fffec6da2ad6bcdce5bddb9
+      # Change this to update OCaml version
+      OCAML_VERSION: 4.07.1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: Try to restore opam cache
+      - name: Cache opam
         if: runner.os != 'Windows'
-        id: opam-cache
+        id: cache_opam
         uses: actions/cache@v2
         with:
           path: "~/.opam"
-          key: 4.07.1  # OCaml version is key to cache
+          key: opam-${{ env.OCAML_VERSION }}
 
       - name: Use OCaml
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: 4.07.1
-          
-      - run: opam install -y ocamlfind ocamlbuild
-      - run: opam repo add coq-released https://coq.inria.fr/opam/released
-      - run: opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
-      - run: opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
+          ocaml-version: ${{ env.OCAML_VERSION }}
+
+      - name: Install Iris
+        run: |
+          opam install -y ocamlfind ocamlbuild
+          opam repo add coq-released https://coq.inria.fr/opam/released
+          opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+          opam install -y coq-iris.dev.2020-08-07.2.b2b558ac
+
+      - name: Cache Grasshopper
+        id: cache_ghp
+        uses: actions/cache@v2
+        with:
+          path: grasshopper
+          key: ghp-${{ env.GHP_COMMIT }}
+
+      - name: Install Grasshopper
+        if: steps.cache_ghp.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/wies/grasshopper.git
+          pushd grasshopper
+          ./build.sh
+          popd
 
       - name: Check template proofs
         working-directory: templates
