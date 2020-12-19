@@ -20,7 +20,7 @@ jobs:
       # Change this to update OCaml version
       OCAML_VERSION: 4.07.1
       # Change this to update Iris version
-      IRIS_VERSION: dev.2020-08-07.2.b2b558ac
+      IRIS_VERSION: dev.2020-12-11.0.57e2e0d5
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:

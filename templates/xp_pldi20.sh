@@ -40,12 +40,13 @@ make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow library" "ccm flows inset_flows keyset_ra lock auth_ext"
-run "Single-node template" "single_node"
-run "Two-node template" "two_node"
-run "Link template" "link"
-run "Give-up template" "give_up"
-run "Lock-coupling template" "coupling"
+run "Flow library" "flows/gmap_more flows/ccm flows/flows flows/multiset_flows"
+run "Single-copy flows" "single_copy/inset_flows single_copy/keyset_ra single_copy/lock single_copy/auth_ext single_copy/search_str"
+run "Single-node template" "single_copy/single_node"
+run "Two-node template" "single_copy/two_node"
+run "Link template" "single_copy/link"
+run "Give-up template" "single_copy/give_up"
+run "Lock-coupling template" "single_copy/coupling"
 
 echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
