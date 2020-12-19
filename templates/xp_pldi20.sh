@@ -1,15 +1,12 @@
 #!/bin/bash
 
-FILES1="ccm flows inset_flows keyset_ra lock auth_ext"
-FILES2="give_up"
-FILES3="link"
-FILES4="coupling"
-
 timesfile=/tmp/times-iris
 timestotalfile=/tmp/times-total-iris
 locfile=/tmp/loc-iris
 loctotalfile=/tmp/loc-total-iris
 outputfile=/tmp/templates-table
+
+fail=0
 
 run()
 {
@@ -26,6 +23,7 @@ run()
         { TIMEFORMAT=%3R; time make $f.vo 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
+            fail=1
             echo -e "\nCoq exited with errors in file $f.v.\n"
         fi
         echo 1 >> $timesfile
@@ -36,17 +34,18 @@ run()
     awk '{sum+=$1;} END{printf("%d\n", int(sum+0.5));}' $timesfile >> $timestotalfile
 }
 
+eval $(opam env)
 coq_makefile -f _CoqProject -o Makefile
 make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow library" $FILES1
+run "Flow library" "ccm flows inset_flows keyset_ra lock auth_ext"
 run "Single-node template" "single_node"
 run "Two-node template" "two_node"
-run "Link template" $FILES3
-run "Give-up template" $FILES2
-run "Lock-coupling template" $FILES4
+run "Link template" "link"
+run "Give-up template" "give_up"
+run "Lock-coupling template" "coupling"
 
 echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
@@ -55,3 +54,7 @@ awk '{sum+=$1;} END{printf("\t& %d\\\\\n", int(sum+0.5));}' $timestotalfile >> $
 
 echo ""
 cat $outputfile
+
+if [ $fail -ne 0 ]; then
+    exit 1
+fi
