@@ -10,16 +10,6 @@
 #echo "Building Grasshopper"
 #./build.sh
 
-FILES1="flows ccm multiset-ccm inset-flows lock-coupling"
-FILES2="hashtbl-give-up"
-FILES3="hashtbl-link"
-FILES4="b+-tree"
-FILES5="b-link-core"
-FILES6="b-link-half"
-FILES7="b-link-full"
-FILES8="ordered_type array_util"
-FILES9="list-coupling"
-
 timesfile=/tmp/times-grasshopper
 locfile=/tmp/loc-grasshopper
 timestotalfile=/tmp/times-total-grasshopper
@@ -27,6 +17,8 @@ loctotalfile=/tmp/loc-total-grasshopper
 outputfile=/tmp/implementations-table
 
 SPLPATH=.
+
+fail=0
 
 run()
 {
@@ -44,6 +36,7 @@ run()
         { TIMEFORMAT=%3R; time ../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
+            fail=1
             echo -e "\nGrasshopper exited with errors on file $f.spl.\n"
         fi
     done
@@ -56,15 +49,15 @@ run()
 rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow library" $FILES1
-run "Array library" $FILES8
-run "B+ tree" $FILES4
-run "B-link (core)" $FILES5
-run "B-link (half split)" $FILES6
-run "B-link (full split)" $FILES7
-run "Hash table (link)" $FILES2
-run "Hash table (give-up)" $FILES3
-run "Lock-coupling list" $FILES9
+run "Flow library" "flows ccm multiset-ccm inset-flows lock-coupling"
+run "Array library" "ordered_type array_util"
+run "B+ tree" "b+-tree"
+run "B-link (core)" "b-link-core"
+run "B-link (half split)" "b-link-half"
+run "B-link (full split)" "b-link-full"
+run "Hash table (link)" "hashtbl-give-up"
+run "Hash table (give-up)" "hashtbl-link"
+run "Lock-coupling list" "list-coupling"
 
 echo -n -e "Total\t\t" >> $outputfile
 awk -F "\t" '{progs+=$1; specs+=$2; total+=$3} END{printf("\t& %d\t& %d\t& %d", progs, specs, total);}' $loctotalfile >> $outputfile
@@ -73,3 +66,6 @@ awk '{sum+=$1;} END{printf("\t& %d\n", int(sum+0.5));}' $timestotalfile >> $outp
 echo ""
 cat $outputfile
 
+if [ $fail -ne 0 ]; then
+    exit 1
+fi
