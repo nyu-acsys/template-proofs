@@ -55,6 +55,7 @@ jobs:
       - name: Install Grasshopper
         if: steps.cache_ghp.outputs.cache-hit != 'true'
         run: |
+          eval $(opam config env)
           git clone https://github.com/wies/grasshopper.git
           pushd grasshopper
           ./build.sh
