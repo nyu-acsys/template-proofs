@@ -10,4 +10,5 @@
 Makefile
 Makefile.conf
 .Makefile.d
+CoqMakefile.conf
 grasshopper

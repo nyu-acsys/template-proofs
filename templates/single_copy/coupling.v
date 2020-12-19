@@ -20,8 +20,8 @@ Section Coupling_Cameras.
 
   (* RA for authoritative flow interfaces over multisets of keys *)
   Class flowintG Σ :=
-    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+    FlowintG { flowint_inG :> inG Σ (authR (multiset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (multiset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
@@ -93,7 +93,7 @@ Section Coupling_Template.
    * Matching definitions can be found in GRASShopper file list-coupling.spl *)
 
   (* The node predicate is specific to each template implementation. *)
-  Parameter node : Node → Node → inset_flowint_ur K → gset K → iProp.
+  Parameter node : Node → Node → multiset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * root-order separation logic. *)
@@ -107,7 +107,7 @@ Section Coupling_Template.
   (* The node-local invariant.
    * See list-coupling.spl for the corresponding GRASShopper definition.*)
   (* TODO there's a slight discrepancy between this and grasshopper. *)
-  Definition nodeinv root n (In : inset_flowint_ur K) Cn : Prop :=
+  Definition nodeinv root n (In : multiset_flowint_ur K) Cn : Prop :=
     domm In = {[n]}
     ∧ Cn ⊆ keyset K In n
     ∧ (∀ k : K, default 0 (inf In n !! k) ≤ 1)
@@ -133,7 +133,7 @@ Section Coupling_Template.
     destruct (decide (n = root)).
     destruct GI as (VI & root_in_I & I_closed & I_inf_out).
     rewrite <- cmra_assoc in IDef.
-    (*unfold op, cmra_op, ucmra_cmraR, inset_flowint_ur, flowintUR, ucmra_op in IDef.*)
+    (*unfold op, cmra_op, ucmra_cmraR, multiset_flowint_ur, flowintUR, ucmra_op in IDef.*)
     rewrite IDef in VI.
     pose proof (intComp_valid_proj1 _ _ VI) as V1.
     pose proof (intComp_valid_proj2 _ _ VI) as V23.
@@ -217,7 +217,7 @@ Section Coupling_Template.
    * (see list-coupling.spl) *)
 
   (* TODO ghp spec doesn't match *)
-  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K) root,
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K) root,
      ⊢ ({{{ node root n In C ∗ ⌜in_inset K k In n⌝ }}}
            findNext #n #k
        {{{ (succ: bool) (np: Node) (res: bool),
@@ -226,7 +226,7 @@ Section Coupling_Template.
                ∗ (match succ with true  => ⌜in_outset K k In np⌝
                                 | false => ⌜¬in_outsets K k In⌝ ∗ ⌜n ≠ root⌝ end) }}})%I.
 
-  Parameter decisiveOp_insert_spec : ∀ root (p n m: Node) (k: K) (Ip In: inset_flowint_ur K) (Cp Cn: gset K),
+  Parameter decisiveOp_insert_spec : ∀ root (p n m: Node) (k: K) (Ip In: multiset_flowint_ur K) (Cp Cn: gset K),
      ⊢ ({{{       ⌜k ∈ KS⌝
                 ∗ ⌜keyset K Ip p ## keyset K In n⌝
                 ∗ node root p Ip Cp
@@ -298,26 +298,25 @@ Section Coupling_Template.
   Instance CSS_timeless  γ_I γ_f γ_k γ_c root :
     Timeless (CSS γ_I γ_f γ_k γ_c root).
   Proof.
-   (* rewrite /CSS. apply bi.exist_timeless; intros.
+    rewrite /CSS. apply bi.exist_timeless; intros.
     apply bi.exist_timeless; intros.
     repeat apply bi.sep_timeless; try apply _.
     apply big_sepS_timeless.
     intros. apply bi.exist_timeless. intros.
-    apply bi.exist_timeless. 
-    intros.
-    apply bi.exist_timeless. intros.
     apply bi.sep_timeless; try apply _.
     destruct x2; try apply _.
-  Qed.*) Admitted.
+  Qed.
 
   (** Some useful lemmas *)
 
   Lemma auth_agree γ xs ys :
   own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
   Proof.
-   (* iIntros "Hγ● Hγ◯". by iDestruct (own_valid_2 with "Hγ● Hγ◯")
+  (*
+    iIntros "Hγ● Hγ◯". by iDestruct (own_valid_2 with "Hγ● Hγ◯")
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid.
-  Qed.*) Admitted.
+  *)
+  Admitted.
 
 
   Lemma flowint_update_result γ I I_n I_n' x :
@@ -326,7 +325,8 @@ Section Coupling_Template.
           ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝
           ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
-    (*unfold flowint_update_P.
+  (*
+    unfold flowint_update_P.
     case_eq (auth_auth_proj x); last first.
     - intros Hx. iIntros "(% & ?)". iExFalso. done.
     - intros p. intros Hx. case_eq p. intros q a Hp.
@@ -341,7 +341,8 @@ Section Coupling_Template.
       assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'.
       { rewrite <-Hdefx. by rewrite Hx Hp Hq Hagree HIn. }
       iEval (rewrite -auth_both_op). by iEval (rewrite <-H').
-  Qed.*) Admitted.
+  *)
+  Admitted.
 
   Lemma inFP_domm γ_I γ_f γ_k γ_c root I C n  :
     inFP γ_f n -∗ CSSi γ_I γ_f γ_k γ_c root I C -∗ ⌜n ∈ domm I⌝.
@@ -400,13 +401,13 @@ Section Coupling_Template.
   Lemma ghost_snapshot_fp γ_f (Ns: gset Node) n:
     ⊢ own γ_f (● Ns) -∗ ⌜n ∈ Ns⌝ ==∗ own γ_f (● Ns) ∗ inFP γ_f n.
   Proof.
-   (* iIntros.
+    iIntros.
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
-  Qed.*) Admitted.
+  Qed.
 
   (* root is in footprint *)
   Lemma ghost_update_root γ_I γ_f γ_k γ_c root :
@@ -460,23 +461,25 @@ Section Coupling_Template.
     iDestruct "Hbigstar" as "(Hn & Hbigstar)".
     iDestruct "Hn" as (b0) "(Hlockn & Hb)".
     iDestruct (mapsto_valid_2 with "Hlock Hlockn") as "%". exfalso. destruct H0 as [H1 H2]. done.
+    (* iDestruct "Hbigstar" as "(Hn & Hbigstar)". iDestruct "Hn" as (b0 In Cn) "(Hlockn & Hb)".
+    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. destruct H0. by compute in H0. *)
     by iPureIntro.
   Qed.
 
   Lemma CSS_unfold_node_wand γ_I γ_f γ_k γ_c root I C n In Cn :
-  CSSi γ_I γ_f γ_k γ_c root I C
-  -∗ node root n In Cn -∗ ⌜n ∈ domm I⌝
-  -∗ (node root n In Cn
-      ∗ globalGhost γ_I γ_f γ_k γ_c root I C
-      ∗ (lockR true n (∃ C, nodePred γ_I γ_k root n I C))
-      ∗ (∀ C',
-         globalGhost γ_I γ_f γ_k γ_c root I C' ∗ nodeFull γ_I γ_k root n
-         -∗ CSSi γ_I γ_f γ_k γ_c root I C')).
+    CSSi γ_I γ_f γ_k γ_c root I C
+    -∗ node root n In Cn -∗ ⌜n ∈ domm I⌝
+    -∗ (node root n In Cn
+        ∗ globalGhost γ_I γ_f γ_k γ_c root I C
+        ∗ (lockR true n (∃ C, nodePred γ_I γ_k root n I C))
+        ∗ (∀ C',
+           globalGhost γ_I γ_f γ_k γ_c root I C' ∗ nodeFull γ_I γ_k root n
+           -∗ CSSi γ_I γ_f γ_k γ_c root I C')).
   Proof.
     iIntros "Hcssi Hn %".
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iPoseProof (node_nodeFull_equal with "[$] [$]")
-      as "(Hlock & Hn)". 
+      as "(Hlock & Hn)".
     iFrame.
   Qed.
 
@@ -505,7 +508,11 @@ Section Coupling_Template.
     iPoseProof (own_valid with "HIn") as "%".
     (* Prove the preconditions of ghost_snapshot_fp *)
     assert (n' ∈ domm Io).
-    { apply (flowint_step I In Io k n' root); try done. }
+    { apply (flowint_step I In Io k n'); try done.
+      rewrite auth_auth_valid in H4 *. done.
+      unfold globalinv in Hglob.
+      destruct Hglob as (_ & _ & cI & _). done.
+    }
     assert (domm I = domm In ∪ domm Io). {
       rewrite incl. rewrite flowint_comp_fp. done.
       rewrite <- incl. by apply auth_auth_valid.
@@ -613,7 +620,7 @@ Section Coupling_Template.
     iModIntro. iExists C'. iFrame "∗ # %".
   Qed.
 
-  Lemma ghost_update_cssOp_interface γ_I γ_f root p n m (I Ip In Ip' In' Im': inset_flowint_ur K) :
+  Lemma ghost_update_cssOp_interface γ_I γ_f root p n m (I Ip In Ip' In' Im': multiset_flowint_ur K) :
       ⊢ ⌜m ∉ domm I⌝
       ∗ ⌜globalinv K root I⌝
       ∗ ⌜contextualLeq K_multiset (Ip ⋅ In) (Ip' ⋅ In' ⋅ Im')⌝
@@ -636,7 +643,8 @@ Section Coupling_Template.
               ∗ ⌜domm I' = domm I ∪ {[m]}⌝
               ∗ ⌜domm I' ∖ {[m]} = domm I⌝.
   Proof.
-   (* iIntros "(m_not_in_I & Hglob & ContLeq & HI & HIpn &
+  (*
+    iIntros "(m_not_in_I & Hglob & ContLeq & HI & HIpn &
                           Hdomm & Dom_Ip & Dom_In & Dom_Ip' & Dom_In' & Dom_Im' & Hinf)".
     iDestruct "m_not_in_I" as %m_not_in_I.
     iDestruct "Hglob" as %Hglob.
@@ -649,7 +657,7 @@ Section Coupling_Template.
     iDestruct "Hinf" as %m_inf.
     iCombine "HI" "HIpn" as "Hownint".
     iPoseProof (own_valid with "Hownint") as "%". rename H0 into Valid_I_pn.
-    apply auth_both_valid in Valid_I_pn. destruct Valid_I_pn as [Ipn_incl_I Valid_I]. 
+    apply auth_both_valid in Valid_I_pn. destruct Valid_I_pn as [Ipn_incl_I Valid_I].
     destruct Ipn_incl_I as [Iz Ipn_incl_I].
     iDestruct "Hownint" as "[HI H']".
     destruct ContLeq as (Valid_Ipn & Valid_Ipnm & Hsub & Hinf_pn & Hout).
@@ -747,9 +755,10 @@ Section Coupling_Template.
     iEval (rewrite auth_frag_op) in "HIpn'". iDestruct "HIpn'" as "(HIp' & HIn')".
     iDestruct "H" as "(Hdomm & _)". iEval (rewrite <-domm_I'') in "Hdomm".
     iFrame "∗ # %". iPureIntro. clear - domm_I'' m_not_in_I. set_solver.
-  Qed.*) Admitted.
-
-
+  Qed.
+*)
+  Admitted.
+  
   (** High-level lock specs **)
 
   Lemma lockNode_spec_high γ_I γ_f γ_k γ_c root n :
@@ -825,7 +834,7 @@ Section Coupling_Template.
         ∗ ⌜res ↔ k ∈ Cn'⌝
     }}}.
   Proof.
-   (* iIntros "(% & #HInv)". iIntros (Φ) "!# H HCont".
+    iIntros "(% & #HInv)". iIntros (Φ) "!# H HCont".
     iLöb as "IH" forall (p n Ip In Cp Cn).
     iDestruct "H" as "(#Hfpn & #Hfpp & #Hfpr & % & Hnp_n & Hnp_p & % & %)".
     rename H0 into k_in_KS. rename H1 into n_neq_root.
@@ -839,7 +848,7 @@ Section Coupling_Template.
     iCombine "Hip" "Hin" as "H".
     iPoseProof (own_valid with "[$]") as "%". rename H0 into Valid_Inp.
     assert (in_inset K k In n) as in_inset_In.
-    { apply (flowint_inset_step Ip In k n); try done. set_solver. }
+    { apply (flowint_inset_step Ip In k n); try done. apply auth_frag_valid. done. set_solver. }
     wp_apply ((findNext_spec n k In Cn root) with "[noden]").
     { iFrame "∗ %". } iDestruct "H" as "(Hip & Hin)".
     iIntros (b n' res) "(noden & % & Hb)". rename H0 into Hres. destruct b.
@@ -905,7 +914,8 @@ Section Coupling_Template.
       (* Apply continuation *)
       iSpecialize ("HCont" $! p n Ip In Cp Cn).
       destruct suc; wp_pures; iApply "HCont"; iFrame "∗ # %".
-  Qed.*) Admitted.
+      done. done.
+  Qed.
 
   Theorem searchStrOp_spec γ_I γ_f γ_k γ_c root (k: K) :
     ⊢ ⌜k ∈ KS⌝ ∗ css_inv γ_I γ_f γ_k γ_c root -∗
@@ -914,7 +924,7 @@ Section Coupling_Template.
     <<< ∃ (C' : gset K) (res: bool), css_cont γ_c C'
                         ∗ ⌜Ψ insertOp k C C' res⌝, RET #res >>>.
   Proof.
-   (* iIntros "(k_in_KS & #HInv)". iIntros (Φ) "AU".
+    iIntros "(k_in_KS & #HInv)". iIntros (Φ) "AU".
     iDestruct "k_in_KS" as %k_in_KS.
     wp_lam. wp_bind (lockNode _)%E.
     iApply fupd_wp. iInv "HInv" as ">Hcss".
@@ -962,7 +972,11 @@ Section Coupling_Template.
     rename H0 into Ir_incl_I2.
     assert (n ∈ domm I2) as n_in_I2.
     { assert (n ∈ domm Io'').
-      { apply (flowint_step I2 Ir Io'' k n root); try done. }
+      { apply (flowint_step I2 Ir Io'' k n); try done.
+        rewrite auth_auth_valid in Valid_I2*. done.
+        unfold globalinv in Hglob2.
+        destruct Hglob2 as (_ & _ & cI & _). done.
+      }
       rewrite Ir_incl_I2. rewrite flowint_comp_fp. set_solver.
       rewrite <-Ir_incl_I2. by apply auth_auth_valid. }
     iMod (ghost_snapshot_fp γ_f (domm I2) n with "[$Hdom] [% //]")
@@ -1155,6 +1169,6 @@ Section Coupling_Template.
       iAaccIntro with "[]"; first done.
       { eauto with iFrame. }
       iIntros "_". iModIntro. iIntros "HΦ". wp_pures. done.
-  Qed.*) Admitted.
+  Qed.
 
 End Coupling_Template.

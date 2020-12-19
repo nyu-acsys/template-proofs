@@ -20,8 +20,8 @@ Section Link_Cameras.
 
   (* RA for authoritative flow interfaces over pairs of multisets of keys *)
   Class flowintG Σ :=
-    FlowintG { flowint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-  Definition flowintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+    FlowintG { flowint_inG :> inG Σ (authR (multiset_flowint_ur K)) }.
+  Definition flowintΣ : gFunctors := #[GFunctor (authR (multiset_flowint_ur K))].
 
   Instance subG_flowintΣ {Σ} : subG flowintΣ Σ → flowintG Σ.
   Proof. solve_inG. Qed.
@@ -45,8 +45,8 @@ Section Link_Cameras.
 
   (* RA for fractional interfaces *)
   Class fracintG Σ :=
-    FracinthG { fracint_inG :> inG Σ (authR (inset_flowint_ur K)) }.
-  Definition fracintΣ : gFunctors := #[GFunctor (authR (inset_flowint_ur K))].
+    FracinthG { fracint_inG :> inG Σ (authR (multiset_flowint_ur K)) }.
+  Definition fracintΣ : gFunctors := #[GFunctor (authR (multiset_flowint_ur K))].
 
   Instance subG_fracintΣ {Σ} : subG fracintΣ Σ → fracintG Σ.
   Proof. solve_inG. Qed.
@@ -90,11 +90,11 @@ Section Link_Template.
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
      b-link.spl and hashtbl-link.spl for the concrete definitions. *)
-  Parameter node : Node → inset_flowint_ur K → gset K → iProp.
+  Parameter node : Node → multiset_flowint_ur K → gset K → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
-  Parameter node_timeless_proof : ∀ n I C, Timeless (node n I C).
+  Hypothesis node_timeless_proof : ∀ n I C, Timeless (node n I C).
   Instance node_timeless n I C: Timeless (node n I C).
   Proof. apply node_timeless_proof. Qed.
 
@@ -109,7 +109,7 @@ Section Link_Template.
   (* The following specs are proved for each implementation in GRASShopper
    * (see b-link.spl and hashtbl-link.spl *)
 
-  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : inset_flowint_ur K) (C: gset K),
+  Parameter findNext_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ }}}
          findNext #n #k
        {{{ (succ: bool) (np: Node),
@@ -119,7 +119,7 @@ Section Link_Template.
                           | false => ⌜¬in_outsets K k In⌝ end) }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K)
-      (In: inset_flowint_ur K) (C: gset K),
+      (In: multiset_flowint_ur K) (C: gset K),
     ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n In C ∗ ⌜in_inset K k In n⌝ ∗ ⌜¬in_outsets K k In⌝ }}}
          decisiveOp dop #n #k
        {{{ (succ: bool) (res: bool) (C1: gset K),
@@ -286,25 +286,25 @@ Section Link_Template.
   Lemma ghost_snapshot_fp γ_f (Ns: gset Node) n:
     ⊢ own γ_f (● Ns) -∗ ⌜n ∈ Ns⌝ ==∗ own γ_f (● Ns) ∗ inFP γ_f n.
   Proof.
-   (* iIntros. 
+   iIntros. 
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ns. by iFrame.
-  Qed.*) Admitted.
+  Qed.
 
   (* Can we unify this with the above? *)
   Lemma ghost_snapshot_fp_k γ_i (Ks: gset K) k n :
     ⊢ own (γ_i n) (● Ks) -∗ ⌜k ∈ Ks⌝ ==∗ own (γ_i n) (● Ks) ∗ inInr γ_i k n.
   Proof.
-   (* iIntros.
+   iIntros.
     iMod (own_update (γ_i n) (● Ks) (● Ks ⋅ ◯ Ks) with "[$]")
       as "H".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     iDestruct "H" as "(Haa & Haf)". iFrame. iModIntro.
     iExists Ks. by iFrame.
-  Qed.*) Admitted.
+  Qed.
     
   Lemma ghost_update_step γ_I γ_f γ_k γ_i γ_h r C n In Cn k n' :
     ⊢ CSS γ_I γ_f γ_k γ_i γ_h r C
@@ -314,7 +314,7 @@ Section Link_Template.
       ==∗ CSS γ_I γ_f γ_k γ_i γ_h r C ∗ nodePred γ_f γ_h γ_k n In Cn
       ∗ inFP γ_f n' ∗ inInr γ_i k n'.
   Proof.
-    (*iIntros "Hcss Hnp % %".
+    iIntros "Hcss Hnp % %".
     iDestruct "Hnp" as "(Hn & HnhIn & HkIn & #Hinfp & %)".
     iPoseProof (CSS_unfold_node with "[$] [$] [$] [$]")
       as (I) "(Hn & HhIn & (HI & % & Hks & Hdom) & Hlock & Hns & Hbigstar)".
@@ -327,7 +327,11 @@ Section Link_Template.
     iPoseProof (own_valid with "HI") as "%".
     iPoseProof (own_valid with "HIn") as "%".
     (* Prove the preconditions of ghost_snapshot_fp *)
-    assert (n' ∈ domm Io). by eauto using flowint_step.
+    assert (n' ∈ domm Io). 
+    { apply (flowint_step I In Io k); try done.
+        by rewrite auth_auth_valid in H5 *.
+        unfold globalinv in H3. destruct H3 as (_ & _ & cI & _). done.
+    }
     assert (domm I = domm In ∪ domm Io). {
       rewrite incl. rewrite flowint_comp_fp. done.
       rewrite <- incl. by apply auth_auth_valid.
@@ -354,7 +358,7 @@ Section Link_Template.
       iPoseProof ((own_op γ_I (◯ In) (◯ In' )) with "[HIn HInn]") as "H";
         first by eauto with iFrame.
       iPoseProof (own_valid with "H") as "%". iPureIntro.
-      apply (auth_frag_valid (◯ (In ⋅ In'))). rewrite auth_frag_op. done.
+      apply auth_frag_valid. rewrite auth_frag_op. done.
     }
     (* Use that with flowint_inset_step to get k ∈ inset In' *)
     assert (k ∈ inset K In' n'). {
@@ -377,14 +381,14 @@ Section Link_Template.
       iExists b, In'. eauto with iFrame.
     }
     iFrame "#". iFrame "∗". by iPureIntro.
-  Qed.*) Admitted. 
+  Qed.
 
   Lemma ghost_update_root γ_I γ_f γ_k γ_i γ_h r C k :
     ⊢ CSS γ_I γ_f γ_k γ_i γ_h r C -∗ ⌜k ∈ KS⌝
       ==∗
       CSS γ_I γ_f γ_k γ_i γ_h r C ∗ inFP γ_f r ∗ inInr γ_i k r.
   Proof.
-    (*iIntros "Hcss %".
+    iIntros "Hcss %".
     (* Open CSS to get r ∈ domm I *)
     iDestruct "Hcss" as (I) "((HI & #Hglob & Hks & Hdom) & Hbigstar)".
     iDestruct "Hglob" as %Hglob.
@@ -401,7 +405,7 @@ Section Link_Template.
     iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
     iMod (own_update (γ_i r) _ (● (inset K Ir r) ⋅ ◯ (inset K Ir r))
             with "Hins") as "(Hins & #Hinr)".
-    { apply auth_update_core_id. apply gset_core_id. done. }
+    { apply auth_update_frac_alloc. apply gset_core_id. done. }
     (* Hksr -> Hinr *)
     iAssert (inInr γ_i k r)%I as "#Hininr".
     {
@@ -411,7 +415,7 @@ Section Link_Template.
     iModIntro. iSplitL. iExists I. iFrame "∗". iSplitR; first by iPureIntro.
     iApply "Hbigstar". iExists b, Ir. iFrame "∗". by iPureIntro.
     iFrame "#".
-  Qed.*) Admitted.
+  Qed.
 
   (** High-level lock specs *)
 
@@ -480,7 +484,7 @@ Section Link_Template.
     ⊢ ⌜k ∈ KS⌝ -∗ inFP γ_f n -∗ inInr γ_i k n -∗
         <<< ∀ C, CSS γ_I γ_f γ_k γ_i γ_h r C >>>
             traverse #n #k @ ⊤
-        <<< ∃ (n': Node) (In': inset_flowint_ur K) (Cn': gset K),
+        <<< ∃ (n': Node) (In': multiset_flowint_ur K) (Cn': gset K),
             CSS γ_I γ_f γ_k γ_i γ_h r C
             ∗ nodePred γ_f γ_h γ_k n' In' Cn'
             ∗ ⌜in_inset K k In' n'⌝ ∗ ⌜¬in_outsets K k In'⌝,
