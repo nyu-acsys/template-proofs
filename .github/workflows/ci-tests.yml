@@ -33,7 +33,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: "~/.opam"
-          key: opam-${{ env.OCAML_VERSION }}-${{ IRIS_VERSION }}
+          key: opam-${{ env.OCAML_VERSION }}-${{ env.IRIS_VERSION }}
           restore-keys: |
             opam-${{ env.OCAML_VERSION }}
 
