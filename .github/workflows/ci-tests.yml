@@ -73,9 +73,12 @@ jobs:
       - name: Check template proofs
         working-directory: templates
         # run: bash xp_pldi20.sh
-        run: echo "Yay"
+        run: |
+          eval $(opam config env)
+          coq_makefile -f _CoqProject -o Makefile
+          make clean
+          TIMER=1 make
 
       - name: Check implementation proofs
         working-directory: implementations
-        # run: bash xp_pldi20.sh
-        run: echo "Yay"
+        run: bash xp_pldi20.sh
