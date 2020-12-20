@@ -46,6 +46,7 @@ jobs:
           opam repo add coq-released https://coq.inria.fr/opam/released
           opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
           opam install -y coq-iris.$IRIS_VERSION
+          opam install -y coq-iris-heap-lang.$IRIS_VERSION
 
       - name: Cache Grasshopper
         id: cache_ghp
