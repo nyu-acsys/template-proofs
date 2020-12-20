@@ -13,7 +13,7 @@ Section Lock_module.
   (** Assumed functions to retrieve lock bit from a node *)
   Parameter lockLoc : Node → loc.
   Parameter getLockLoc : val.
-  
+
   Parameter getLockLoc_spec : ∀ (n: Node),
     ⊢ ({{{ True }}}
         getLockLoc #n

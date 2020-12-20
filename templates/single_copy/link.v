@@ -208,9 +208,9 @@ Section Link_Template.
   Qed.
 
   Lemma node_nodeFull_equal γ_I γ_f γ_k γ_i γ_h n In Cn :
-  node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
-  -∗ ((lockR true n (∃ In Cn, nodePred γ_f γ_h γ_k n In Cn)) ∗ node n In Cn ∗ own (γ_h n) (●{1/2} In)
-      ∗ nodeShared γ_I γ_i γ_h n In).
+    node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
+    -∗ ((lockR true n (∃ In Cn, nodePred γ_f γ_h γ_k n In Cn)) ∗ node n In Cn ∗ own (γ_h n) (●{1/2} In)
+        ∗ nodeShared γ_I γ_i γ_h n In).
   Proof.
     iIntros "Hn HhIn Hnf".
     iDestruct "Hnf" as (b) "(Hlock & Hns)". 
@@ -228,18 +228,18 @@ Section Link_Template.
   Qed.
 
   Lemma CSS_unfold_node_wand γ_I γ_f γ_k γ_i γ_h r C n In Cn :
-  CSS γ_I γ_f γ_k γ_i γ_h r C
-  -∗ node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ inFP γ_f n
-  -∗ (∃ I, node n In Cn ∗ own (γ_h n) (●{1/2} In)
-      ∗ globalGhost γ_I γ_k γ_f r I C
-      ∗ (lockR true n (∃ In Cn, nodePred γ_f γ_h γ_k n In Cn)) ∗ nodeShared γ_I γ_i γ_h n In
-      ∗ (∀ C',
-         globalGhost γ_I γ_k γ_f r I C' ∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
-         -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
+    CSS γ_I γ_f γ_k γ_i γ_h r C
+    -∗ node n In Cn -∗ own (γ_h n) (●{1/2} In) -∗ inFP γ_f n
+    -∗ (∃ I, node n In Cn ∗ own (γ_h n) (●{1/2} In)
+        ∗ globalGhost γ_I γ_k γ_f r I C
+        ∗ (lockR true n (∃ In Cn, nodePred γ_f γ_h γ_k n In Cn)) ∗ nodeShared γ_I γ_i γ_h n In
+        ∗ (∀ C',
+          globalGhost γ_I γ_k γ_f r I C' ∗ nodeFull γ_I γ_f γ_k γ_i γ_h n
+          -∗ CSS γ_I γ_f γ_k γ_i γ_h r C')).
   Proof.
     iIntros "Hcss Hn HhIn #Hfp".
     iPoseProof (CSS_unfold with "[$] [$]") as (I) "(Hg & Hnf & Hcss')".
-    iExists I. 
+    iExists I.
     iPoseProof (node_nodeFull_equal with "[$] [$] [$]")
       as "(Hlock & H' & Hn & Hn')". 
       iDestruct "Hlock" as "(Hlock' & H)".
@@ -286,7 +286,7 @@ Section Link_Template.
   Lemma ghost_snapshot_fp γ_f (Ns: gset Node) n:
     ⊢ own γ_f (● Ns) -∗ ⌜n ∈ Ns⌝ ==∗ own γ_f (● Ns) ∗ inFP γ_f n.
   Proof.
-   iIntros. 
+    iIntros. 
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
     { apply auth_update_frac_alloc. apply gset_core_id. done. }
@@ -298,7 +298,7 @@ Section Link_Template.
   Lemma ghost_snapshot_fp_k γ_i (Ks: gset K) k n :
     ⊢ own (γ_i n) (● Ks) -∗ ⌜k ∈ Ks⌝ ==∗ own (γ_i n) (● Ks) ∗ inInr γ_i k n.
   Proof.
-   iIntros.
+    iIntros.
     iMod (own_update (γ_i n) (● Ks) (● Ks ⋅ ◯ Ks) with "[$]")
       as "H".
     { apply auth_update_frac_alloc. apply gset_core_id. done. }

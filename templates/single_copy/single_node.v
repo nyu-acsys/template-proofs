@@ -195,7 +195,7 @@ Qed.
   Proof.
     iIntros "%" (Φ) "AU". wp_lam. wp_bind(lockNode _)%E.
     (* Open AU to get lockNode precondition *)
-    awp_apply (lockNode_spec_high γ r); try done. 
+    awp_apply (lockNode_spec_high γ r); try done.
     iApply (aacc_aupd_abort with "AU"); first done.
     iIntros (C0) "HInv". iAaccIntro with "HInv".
     { iIntros "HInv". iModIntro. eauto with iFrame. }

@@ -224,7 +224,7 @@ Section Give_Up_Template.
   Lemma ghost_snapshot_fp γ_f (Ns: gset Node) n:
     ⊢ own γ_f (● Ns) -∗ ⌜n ∈ Ns⌝ ==∗ own γ_f (● Ns) ∗ inFP γ_f n.
   Proof.
-   iIntros. 
+    iIntros. 
     iMod (own_update γ_f (● Ns) (● Ns ⋅ ◯ Ns) with "[$]")
       as "H".
     { apply auth_update_frac_alloc. apply gset_core_id. done. }
@@ -271,7 +271,7 @@ Section Give_Up_Template.
         as "(Hdom & #Hinfp')".
     iModIntro. iFrame "Hinfp'".
     iSplitL "Hcss' Hnf HI Hks Hdom". iApply "Hcss'". iFrame "∗ %".
-    iFrame. iFrame "∗ %". 
+    iFrame. iFrame "∗ %".
   Qed.
 
   (* root is in footprint *)
@@ -310,7 +310,7 @@ Section Give_Up_Template.
     iPoseProof (inFP_domm with "[$] [$]") as "%". rename H0 into n_in_I.
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iSpecialize ("Hcss'" $! C).
-    iDestruct "Hnf" as (b) "Hlock". 
+    iDestruct "Hnf" as (b) "Hlock".
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iPoseProof ("Hcss'" with "[-]") as "Hcss".

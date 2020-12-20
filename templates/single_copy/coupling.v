@@ -258,8 +258,7 @@ Section Coupling_Template.
   Parameter alloc_spec :
      ⊢ ({{{ True }}}
            alloc #()
-       {{{ (m: Node) (l:loc), RET #m; hrepSpatial m ∗ 
-       ⌜lockLoc m = l⌝ }}})%I.
+       {{{ (m: Node) (l:loc), RET #m; hrepSpatial m ∗ ⌜lockLoc m = l⌝ }}})%I.
 
 
   (** The concurrent search structure invariant *)
@@ -524,7 +523,7 @@ Section Coupling_Template.
         as "(Hdom & #Hinfp')".
     iModIntro. iFrame "Hinfp'".
     iSplitL "Hcss' Hnf HI Hks Hdom Hc". iExists I, C.
-    iApply "Hcss'". iFrame "∗ %". 
+    iApply "Hcss'". iFrame "∗ %".
     iFrame. iFrame "∗ %".
   Qed.
 
