@@ -1,0 +1,86 @@
+name: CI
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      # Change this to update Grasshopper version
+      GHP_COMMIT: 108473b0a678f0d93fffec6da2ad6bcdce5bddb9
+      # Change this to update OCaml version
+      OCAML_VERSION: 4.07.1
+      # Change this to update Iris version
+      IRIS_VERSION: dev.2020-12-11.0.57e2e0d5
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Cache opam
+        if: runner.os != 'Windows'
+        id: cache_opam
+        uses: actions/cache@v2
+        with:
+          path: "~/.opam"
+          key: opam-${{ env.OCAML_VERSION }}-${{ env.IRIS_VERSION }}
+          restore-keys: |
+            opam-${{ env.OCAML_VERSION }}
+
+      - name: Use OCaml
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ env.OCAML_VERSION }}
+
+      - name: Install Iris
+        run: |
+          opam install -y ocamlfind ocamlbuild
+          opam repo add coq-released https://coq.inria.fr/opam/released
+          opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+          opam install -y coq-iris.$IRIS_VERSION
+          opam install -y coq-iris-heap-lang.$IRIS_VERSION
+
+      - name: Cache Grasshopper
+        id: cache_ghp
+        uses: actions/cache@v2
+        with:
+          path: grasshopper
+          key: ghp-${{ env.GHP_COMMIT }}
+
+      - name: Install Grasshopper
+        if: steps.cache_ghp.outputs.cache-hit != 'true'
+        run: |
+          eval $(opam config env)
+          git clone https://github.com/wies/grasshopper.git
+          pushd grasshopper
+          ./build.sh
+          popd
+
+      - name: Install Z3
+        run: |
+          wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip -O ~/z3.zip
+          unzip ~/z3.zip -d ~/z3
+          echo "$HOME/z3/z3-4.8.7-x64-ubuntu-16.04/bin" >> $GITHUB_PATH
+
+      - name: Check template proofs
+        working-directory: templates
+        # run: bash xp_pldi20.sh
+        run: |
+          eval $(opam config env)
+          coq_makefile -f _CoqProject -o Makefile
+          make clean
+          TIMER=1 make
+
+      - name: Check implementation proofs
+        working-directory: implementations
+        run: bash xp_pldi20.sh
