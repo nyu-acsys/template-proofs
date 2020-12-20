@@ -33,7 +33,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: "~/.opam"
-          key: opam-${{ env.OCAML_VERSION }}
+          key: opam-${{ env.OCAML_VERSION }}-${{ IRIS_VERSION }}
+          restore-keys: |
+            opam-${{ env.OCAML_VERSION }}
 
       - name: Use OCaml
         uses: avsm/setup-ocaml@v1
