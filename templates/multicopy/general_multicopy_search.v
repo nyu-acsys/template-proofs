@@ -391,7 +391,7 @@ Section search_proof.
     ⌜k ∈ KS⌝ -∗ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
       helping_inv N1 N2 thN γ_sy γ_te γ_he γ_fr γ_td -∗ 
       <<< ∀ t M, MCS_high γ_te γ_he t M >>>
-            search' r #k @ ⊤ ∖ (↑N1 ∪ ↑N2)
+            search' r #k @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN)
       <<<  ∃ (t': nat), MCS_high γ_te γ_he t M ∗ ⌜M !!! k = t'⌝, RET #t' >>>.
   Proof.
     iIntros "% % % % #HInv #HInv_h" (Φ) "AU". wp_lam.
@@ -539,7 +539,6 @@ Section search_proof.
       iRight. iFrame "∗%".
       
       iModIntro. wp_pures. by rewrite H'.
-  
   Admitted.      
   
   

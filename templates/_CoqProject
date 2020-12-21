@@ -33,5 +33,5 @@ multicopy/typed_proph.v
 multicopy/general_multicopy.v
 #multicopy/general_multicopy_compact.v
 multicopy/general_multicopy_search.v
-#multicopy/general_multicopy_upsert.v
+multicopy/general_multicopy_upsert.v
 

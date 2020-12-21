@@ -395,8 +395,8 @@ Section multicopy.
   Definition MCS_high (γ_te γ_he: gname) (t: nat) (M: gmap K nat) : iProp :=
     ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝.  
 
-  Definition pau N1 N2 γ_ce γ_he P (Q : val → iProp) k := 
-    (▷ P -∗ ◇ AU << ∀ t M, MCS_high γ_ce γ_he t M >> @ ⊤ ∖ (↑N1 ∪ ↑N2), ∅
+  Definition pau N1 N2 thN γ_ce γ_he P (Q : val → iProp) k := 
+    (▷ P -∗ ◇ AU << ∀ t M, MCS_high γ_ce γ_he t M >> @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN), ∅
                  << ∃ (t': nat), MCS_high γ_ce γ_he t M ∗ ⌜M !!! k = t'⌝, 
                                                           COMM Q #t' >>)%I.
 
@@ -420,7 +420,7 @@ Section multicopy.
     ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: nat) (vt: val) (γ_tk: gname), 
         proph1 t_id vt
       ∗ own (γ_sy t_id) (to_frac_agree (1/2) H)
-      ∗ □ pau N1 N2 γ_ce γ_he P Q k
+      ∗ □ pau N1 N2 thN γ_ce γ_he P Q k
       ∗ inv thN (∃ H, get_op_state γ_sy t_id γ_tk P Q H (k: K) (vp: nat)).
 
   Definition helping (N1 N2 thN: namespace) (γ_sy: proph_id → gname) 
