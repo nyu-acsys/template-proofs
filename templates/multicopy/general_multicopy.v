@@ -9,7 +9,7 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 Require Export multiset_flows auth_ext one_shot_proph typed_proph.
 
-(** Algorithms **)
+(** Declarations of implementation-specific helper functions **)
 
 Variable inContents : val.
 Variable findNext : val.
@@ -19,6 +19,8 @@ Variable addContents: val.
 Variable mergeContents: val.
 Variable chooseNext: val.
 Variable atCapacity: val.
+
+(** Template algorithms *)
 
 Definition lockNode : val :=
   rec: "lockN" "x" :=
@@ -54,7 +56,7 @@ Definition traverse : val :=
               
 Definition search (r: Node) : val := 
   λ: "k", traverse #r "k".
-
+  
 Definition search' (r: Node) : val :=
   λ: "k",
     let: "t_id" := NewProph in
@@ -98,12 +100,16 @@ Definition compact : val :=
 
 (** Proof setup **)
 
+(* Keys and timestamps *)
+
 Definition K := Z.
 Definition KT : Type := K * nat.
 Parameter KS : gset K.
 
 Definition esT : Type := gmap Node (gset K).
 Canonical Structure esRAC := leibnizO esT.
+
+(* RAs used in proof *)
 
 Definition prod5O A B C D E :=
   prodO (prodO (prodO (prodO A B) C) D) E.
@@ -161,14 +167,20 @@ Section multicopy.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
-  (** Definitions **)
+  (** Assumptions on the implementation made by the template algorithms. *)
 
+  (* The node predicate is specific to each template implementation. See GRASShopper files
+     <TODO>.spl for the concrete definition. *)
   Parameter node : Node → Node → esT → (gmap K natUR) → iProp.
 
+  (* The following assumption is justified by the fact that GRASShopper uses a
+   * first-order separation logic. *)
   Parameter node_timeless_proof : ∀ r n es C, Timeless (node r n es C).
   Global Instance node_timeless r n es C: Timeless (node r n es C).
   Proof. apply node_timeless_proof. Qed.
 
+  (* The following hypothesis are proved as a GRASShopper lemma in
+   * <TODO>.spl *)
   Parameter node_sep_star: ∀ r n es C es' C',
     node r n es C ∗ node r n es' C' -∗ False.
 
@@ -178,6 +190,8 @@ Section multicopy.
   Parameter node_es_empty: ∀ r n es C,
     node r n es C -∗ ⌜es !!! r = ∅ ∧ es !!! n = ∅⌝.
 
+  (** The multicopy structure invariant *)
+  
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
 
   Definition closed γ_f (es: esT) : iProp := ∀ n, ⌜es !!! n  ≠ ∅⌝ → inFP γ_f n.
@@ -216,10 +230,10 @@ Section multicopy.
   Definition φ0 (es: esT) (Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → ((∀ n', k ∉ es !!! n') → Qn !! k = None).
 
-  (** This constraint is implicit in the paper. We track B_n 
-      explicitly as ghost state here. That is the following 
-      captures the definition of B_n in terms of C_n/Q_n given 
-      in the paper. *)
+  (* This constraint is implicit in the paper. We track B_n 
+     explicitly as ghost state here. That is the following 
+     captures the definition of B_n in terms of C_n/Q_n given 
+     in the paper. *)
   Definition φ1 (Bn Cn Qn: gmap K natUR) := 
               ∀ k t, k ∈ KS → ((Cn !! k = Some t → Bn !! k = Some t)
                  ∧ (Cn !! k = None → Bn !! k = Qn !! k)). 
@@ -277,7 +291,7 @@ Section multicopy.
   Definition MCS (γ_te γ_he: gname) (t: nat) (H: gset KT) : iProp := 
       own γ_te (◯ Excl' t) ∗ own γ_he (◯ Excl' H).
 
-  Definition frac_ghost_state γ_en γ_cn γ_bn γ_qn (es: esT) 
+  Definition frac_ghost_state γ_en γ_cn γ_bn γ_qn (es: esT)
                                   (Cn Bn Qn: gmap K natUR): iProp :=
       own (γ_en) (to_frac_agree (1/2) (es))
     ∗ own (γ_cn) (to_frac_agree (1/2) (Cn))
@@ -303,7 +317,7 @@ Section multicopy.
   Definition ghost_loc γ_en γ_cn γ_bn γ_qn (γ_cirn: gmap K gnameO) : per_node_gl := 
         to_agree (γ_en, γ_cn, γ_bn, γ_qn, γ_cirn).
 
-  (** Predicate N_L *)
+  (** Predicate N_L in the paper *)
   Definition nodePred γ_gh γ_t γ_s lc r n (Cn Bn Qn : gmap K natUR) : iProp :=
     ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es t,
       node r n es Cn
@@ -312,7 +326,7 @@ Section multicopy.
     ∗ own γ_s (◯ set_of_map Cn)
     ∗ (if decide (n = r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else ⌜True⌝)%I.
 
-  (** Predicate N_S *)
+  (** Predicate N_S in the paper *)
   Definition nodeShared (γ_I γ_R γ_f: gname) γ_gh r n 
           (Cn Bn Qn : gmap K natUR) H t: iProp :=
     ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es In Rn,
@@ -327,7 +341,7 @@ Section multicopy.
     ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ1 Bn Cn Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Rn⌝ 
     ∗ ⌜φ4 n Rn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ6 Bn t⌝ ∗ ⌜φ7 n es Rn Qn⌝ ∗ ⌜φ8 n In⌝. 
 
-  (** Predicate G *)
+  (** Predicate G in the paper *)
   Definition global_state (γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr: gname) 
           (r: Node) (t: nat) (H: gset KT) 
           (hγ: gmap Node per_node_gl) (I: multiset_flowint_ur KT) 
@@ -344,7 +358,7 @@ Section multicopy.
     ∗ ⌜maxTS t H⌝
     ∗ ⌜domm I = domm R⌝ ∗ ⌜domm I = dom (gset Node) hγ⌝.
 
-  (** Invariant Inv *)
+  (** Invariant Inv in the paper *)
   Definition mcs γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r : iProp :=
     ∃ t (H: gset KT) hγ
       (I: multiset_flowint_ur KT) (R: multiset_flowint_ur K),
@@ -419,9 +433,11 @@ Section multicopy.
   Definition helping_inv (N1 N2 thN: namespace) (γ_sy: proph_id → gname) 
                             (γ_ce γ_he γ_fr γ_td: gname) : iProp :=
     inv N2 (helping N1 N2 thN γ_sy γ_ce γ_he γ_fr γ_td).   
-
   
-  (** Helper functions Spec **)
+  (** Helper functions specs *)
+
+  (* The following specs are proved for each implementation in GRASShopper
+   * (see <TODO>.spl *)
     
   Parameter inContents_spec : ∀ r n es (Cn: gmap K natUR) (k: K),
      ⊢ ({{{ node r n es Cn }}}
