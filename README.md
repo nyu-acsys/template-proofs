@@ -1,6 +1,6 @@
 ## Artifact for PLDI'20 paper: Verifying Concurrent Search Structure Templates
 
-### Getting Started Instructions Wohoo
+### Getting Started Instructions
 
 The artifact has the following external dependencies
 
