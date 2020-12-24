@@ -79,7 +79,7 @@ Section compact_proof.
       iModIntro; iFrame.
   Qed.
 
-  Lemma ghost_update_contExt γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r lc
+  Lemma ghost_update_contExt γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r lc
                 T0' H0 hγ0 I0 R0 
                 m Cm0 esm0 Bm0 Qm0 Im0 Rm0
                 n Cn Bn Qn γ_en γ_cn γ_bn γ_qn γ_cirn (esn: esT) T In0 Rn0 :
@@ -96,7 +96,7 @@ Section compact_proof.
                          γ_en γ_cn γ_bn γ_qn γ_cirn esn T  
           ∗ nodeShared' γ_I γ_R γ_f γ_gh r n Cn Bn Qn H0 T0' 
                         γ_en γ_cn γ_bn γ_qn γ_cirn esn In0 Rn0
-          ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r T0' H0 hγ0 I0 R0
+          ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r T0' H0 hγ0 I0 R0
           ==∗
           ∃ hγ' I0' R0' γ_em γ_cm γ_bm γ_qm γ_cirm,
             inFP γ_f m
@@ -108,7 +108,7 @@ Section compact_proof.
                          γ_em γ_cm γ_bm γ_qm γ_cirm esm0 T
           ∗ nodeShared_aux γ_I γ_R γ_f γ_gh r m Cm0 Bm0 Qm0 H0 
                             γ_em γ_cm γ_bm γ_qm γ_cirm esm0 Im0 Rm0
-          ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r T0' H0 hγ' I0' R0'
+          ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r T0' H0 hγ' I0' R0'
           ∗ ⌜esn !!! m = ∅⌝
           ∗ ⌜out In0 m = 0%CCM⌝
           ∗ ⌜out Rn0 m = 0%CCM⌝
@@ -119,7 +119,7 @@ Section compact_proof.
     rename H into m_notin_I0. rename H1 into Em_Cm0. rename H2 into Hesm.
     rename H3 into HBm0. rename H4 into HQm0. rename H5 into HIm0.
     rename H6 into HRm0.
-        iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".   
 
         iAssert (⌜n ∈ domm I0⌝)%I as "%".
@@ -1147,7 +1147,7 @@ Section compact_proof.
   Qed.          
 
   
-  Lemma mergeContents_ghost_update γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh 
+  Lemma mergeContents_ghost_update γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr 
               lc r T' H hγ I R
               n Cn Bn0' Qn0' γ_en γ_cn γ_bn γ_qn γ_cirn esn' T Cn'
               m Cm Bm Qm γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm Cm' :
@@ -1165,13 +1165,13 @@ Section compact_proof.
                                           γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm
         ∗ nodeShared γ_I γ_R γ_f γ_gh r n Cn Bn0' Qn0' H T'
         ∗ nodeShared γ_I γ_R γ_f γ_gh r m Cm Bm Qm H T'
-        ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r T' H hγ I R
+        ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r T' H hγ I R
         ==∗
           ∃ Qn' Bm', nodePred γ_gh γ_t γ_s lc r n Cn' Bn0' Qn'
         ∗ nodeShared γ_I γ_R γ_f γ_gh r n Cn' Bn0' Qn' H T' 
         ∗ nodePred γ_gh γ_t γ_s lc r m Cm' Bm' Qm
         ∗ nodeShared γ_I γ_R γ_f γ_gh r m Cm' Bm' Qm H T'
-        ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r T' H hγ I R.
+        ∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r T' H hγ I R.
   Proof.
     iIntros "(%&%&%&%&%&%)". rename H0 into m_neq_r. 
     rename H1 into Subset_Cn. rename H2 into Subset_Cm.
@@ -1438,7 +1438,7 @@ Section compact_proof.
         { iPureIntro; intros k Hk; apply Bm_le_Bm'. }
 
 
-        iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
 
         iAssert (⌜set_of_map Cn ⊆ H⌝)%I as %Cn_sub_H.
@@ -1486,8 +1486,8 @@ Section compact_proof.
         iClear "HnP_C HnP_Cm".
         iDestruct "HH" as "(HH & (HnP_C & HnP_Cm))".
         
-        iAssert (global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r T' H hγ I R)
-          with "[MCS_auth HH Hist Ht HI Out_I HR Out_R 
+        iAssert (global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r T' H hγ I R)
+          with "[MCS_auth HH Hist HfrH Ht HI Out_I HR Out_R 
             Inf_R Hf Hγ FP_r Max_ts domm_IR domm_Iγ]" as "Hglob".
         { iFrame. }     
         
@@ -2009,11 +2009,11 @@ Section compact_proof.
 
 
 
-  Lemma compact_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r (n: Node) :
-      ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh lc r -∗
-          inFP γ_f n -∗ <<< ∀ t H, MCS γ_te γ_he t H >>> 
-                              compact #n @ ⊤ ∖ ↑N
-                        <<< MCS γ_te γ_he t H, RET #() >>>.
+  Lemma compact_spec N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r (n: Node) :
+      ⊢ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+          inFP γ_f n -∗ <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
+                              compact #n @ ⊤ ∖ ↑N1
+                        <<< MCS_high γ_te γ_he t M, RET #() >>>.
   Proof.
     iIntros "#HInv". iLöb as "IH" forall (n).
     iIntros "#FP_n". iIntros (Φ) "AU". wp_lam.
@@ -2029,8 +2029,8 @@ Section compact_proof.
     - awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
       iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, T. iFrame.
       iAaccIntro with ""; try eauto with iFrame.
-      iIntros "_". iMod "AU" as (t H)"[MCS [_ Hclose]]".
-      iMod ("Hclose" with "MCS") as "HΦ".
+      iIntros "_". iMod "AU" as (t H)"[MCS_high [_ Hclose]]".
+      iMod ("Hclose" with "MCS_high") as "HΦ".
       by iModIntro.
     - wp_apply (chooseNext_spec with "node_n").
       iIntros (m esn' esm0 Cm0)"(node_n & es_ne & Hor)".
@@ -2049,12 +2049,12 @@ Section compact_proof.
           rewrite (big_sepS_delete _ (domm I0) m); last by eauto.
           iDestruct "Hstar" as "(Hm & _)".
           iDestruct "Hm" as (bm Cm Bm Qm)"(Hl_m' & _)".
-          iDestruct (mapsto_valid_2 with "Hl_m Hl_m'") as "%".
+          iDestruct (mapsto_valid_2 with "Hl_m Hl_m'") as "(% & _)".
           exfalso. done. }
           
 
         iAssert (⌜n ∈ domm I0⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rename H into m_notin_I0. rename H1 into n_in_I0.  
@@ -2089,7 +2089,7 @@ Section compact_proof.
         set (Rm0 := int {| infR := {[m := ∅]} ; outR := ∅|}: multiset_flowint_ur K).
                
 
-        iMod ((ghost_update_contExt γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r lc
+        iMod ((ghost_update_contExt γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr r lc
                 T0' H0 hγ0 I0 R0 
                 m Cm0 esm0 Bm0 Qm0 Im0 Rm0
                 n Cn Bn Qn γ_en γ_cn γ_bn γ_qn γ_cirn (esn: esT) T In0 Rn0) with 
@@ -2111,8 +2111,9 @@ Section compact_proof.
         iDestruct "m_neq_n" as %m_neq_n.                   
 
         iAssert (⌜history_init H0⌝)%I as %Hist.
-        { by iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)". }
+        { by iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht 
+            & HI & Out_I & HR & Out_R & Inf_R & Hf & Hγ 
+            & FP_r & Max_ts & domm_IR & domm_Iγ)". }
 
         iMod ((ghost_update_interface_mod) with 
                 "[] [$node_n $HnP_aux $HnS_n' $node_m $HnP_auxm $HnS_auxm]") 
@@ -2168,7 +2169,7 @@ Section compact_proof.
         iApply fupd_wp. iInv "HInv" as ">H".
         iDestruct "H" as (T' H hγ I R) "(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rename H1 into n_in_I.  
@@ -2185,7 +2186,7 @@ Section compact_proof.
         destruct H1 as [Hes [Hc [Hb Hq]]]. 
         subst es'. subst Cn''. subst Bn''. subst Qn''.
         iAssert (⌜m ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_m] [$Hf]") as "H'". }
         rename H1 into m_in_I.
@@ -2270,7 +2271,7 @@ Section compact_proof.
       iInv "HInv" as ">H".
       iDestruct "H" as (T0' H0 hγ0 I0 R0) "(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I0⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
       rename H into n_in_I0.    
@@ -2292,7 +2293,7 @@ Section compact_proof.
         { iApply "HnS_cl". iPureIntro; clear -es_ne; set_solver. }
         
         iAssert (⌜m ∈ domm I0⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_m] [$Hf]") as "H'". }
         rename H into m_in_I0.  
@@ -2340,7 +2341,7 @@ Section compact_proof.
         iApply fupd_wp. iInv "HInv" as ">H".
         iDestruct "H" as (T' H hγ I R) "(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rename H1 into n_in_I.  
@@ -2357,7 +2358,7 @@ Section compact_proof.
         destruct H1 as [Hes [Hc [Hb Hq]]]. 
         subst es'. subst Cn''. subst Bn''. subst Qn''.
         iAssert (⌜m ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
+        { iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
           by iPoseProof (inFP_domm _ _ _ with "[$FP_m] [$Hf]") as "H'". }
         rename H1 into m_in_I.

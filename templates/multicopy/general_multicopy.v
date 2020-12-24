@@ -118,7 +118,8 @@ Definition per_node_gl :=
     agreeR 
       (prod5O gnameO gnameO gnameO gnameO (gmapO K gnameO)).
 
-Definition ghost_heapUR := gmapUR Node $ per_node_gl.  
+Definition ghost_heapUR := gmapUR Node $ per_node_gl.
+Definition ghost_heap'UR := gmapUR proph_id $ agreeR (gnameO).  
 
 Definition flow_KTR := authR (multiset_flowint_ur KT).
 Definition flow_KR := authR (multiset_flowint_ur K).
@@ -132,7 +133,8 @@ Definition histR := authR (gsetUR (KT)).
 Definition hist_exclR := authR $ optionUR $ exclR (gsetO KT).
 Definition time_exclR := authR $ optionUR $ exclR natUR.
 Definition ghR := authR $ ghost_heapUR.
-Definition tokenUR    := exclR unitO.
+Definition gh'R := authR $ ghost_heap'UR.
+Definition tokenUR := exclR unitO.
 
 
 Class multicopyG Σ := MULTICOPY {
@@ -148,6 +150,7 @@ Class multicopyG Σ := MULTICOPY {
                         multicopy_hist_exclG :> inG Σ hist_exclR;
                         multicopy_time_exclG :> inG Σ time_exclR;
                         multicopy_ghG :> inG Σ ghR;
+                        multicopy_gh'G :> inG Σ gh'R;
                         multicopy_tokenG :> inG Σ tokenUR;
                        }.
 
@@ -156,7 +159,7 @@ Definition multicopyΣ : gFunctors :=
     GFunctor set_tidR; GFunctor frac_contR; GFunctor frac_esR; 
     GFunctor frac_histR; GFunctor timeR; GFunctor histR; 
     GFunctor hist_exclR; GFunctor time_exclR; GFunctor ghR; 
-    GFunctor tokenUR ].
+    GFunctor gh'R; GFunctor tokenUR ].
 
 Instance subG_multicopyΣ {Σ} : subG multicopyΣ Σ → multicopyG Σ.
 Proof. solve_inG. Qed.
@@ -193,6 +196,8 @@ Section multicopy.
   (** The multicopy structure invariant *)
   
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
+  
+  Definition mcs_sr γ_s (kt: KT) : iProp := own γ_s (◯ {[kt]}).  
 
   Definition closed γ_f (es: esT) : iProp := ∀ n, ⌜es !!! n  ≠ ∅⌝ → inFP γ_f n.
 
@@ -395,9 +400,9 @@ Section multicopy.
   Definition MCS_high (γ_te γ_he: gname) (t: nat) (M: gmap K nat) : iProp :=
     ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝.  
 
-  Definition pau N1 N2 thN γ_ce γ_he P (Q : val → iProp) k := 
-    (▷ P -∗ ◇ AU << ∀ t M, MCS_high γ_ce γ_he t M >> @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN), ∅
-                 << ∃ (t': nat), MCS_high γ_ce γ_he t M ∗ ⌜M !!! k = t'⌝, 
+  Definition pau N1 N2 thN γ_te γ_he P (Q : val → iProp) k := 
+    (▷ P -∗ ◇ AU << ∀ t M, MCS_high γ_te γ_he t M >> @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN), ∅
+                 << ∃ (t': nat), MCS_high γ_te γ_he t M ∗ ⌜M !!! k = t'⌝, 
                                                           COMM Q #t' >>)%I.
 
 
@@ -408,31 +413,33 @@ Section multicopy.
                               (H: gset KT) (k: K) (vp : nat) : iProp := 
     (Q #vp ∨ own γ_tk (Excl ())) ∗ ⌜(k, vp) ∈ H⌝. 
 
-  Definition get_op_state (γ_sy: proph_id → gname) (t_id: proph_id) 
+  Definition get_op_state γ_sy (t_id: proph_id) 
                           γ_tk P Q H (k: K) (vp: nat) : iProp :=
-                        own (γ_sy t_id) (to_frac_agree (1/2) H) 
+                        own γ_sy (to_frac_agree (1/2) H) 
                      ∗ (state_lin_pending P H k vp 
                         ∨ state_lin_done γ_tk Q H k vp).
 
-  Definition registered (N1 N2 thN: namespace) (γ_sy: proph_id → gname) 
-                            (γ_ce γ_he: gname) 
+  Definition registered (N1 N2 thN: namespace) 
+                            (γ_ce γ_he γ_ght: gname) 
                             (H: gset KT) (t_id: proph_id) : iProp :=
-    ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: nat) (vt: val) (γ_tk: gname), 
+    ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: nat) (vt: val) (γ_tk γ_sy: gname), 
         proph1 t_id vt
-      ∗ own (γ_sy t_id) (to_frac_agree (1/2) H)
+      ∗ own γ_ght (◯ {[t_id := to_agree γ_sy]})  
+      ∗ own (γ_sy) (to_frac_agree (1/2) H)
       ∗ □ pau N1 N2 thN γ_ce γ_he P Q k
       ∗ inv thN (∃ H, get_op_state γ_sy t_id γ_tk P Q H (k: K) (vp: nat)).
 
-  Definition helping (N1 N2 thN: namespace) (γ_sy: proph_id → gname) 
-                            (γ_ce γ_he γ_fr γ_td: gname) : iProp :=
-    ∃ (H: gset KT) (TD: gset proph_id),
+  Definition helping (N1 N2 thN: namespace)
+                            (γ_ce γ_he γ_fr γ_td γ_ght: gname) : iProp :=
+    ∃ (H: gset KT) (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
         own γ_fr (to_frac_agree (1/2) H)
-      ∗ own γ_td (● TD)  
-      ∗ ([∗ set] t_id ∈ TD, registered N1 N2 thN γ_sy γ_ce γ_he H t_id).
+      ∗ own γ_td (● TD)
+      ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = TD⌝  
+      ∗ ([∗ set] t_id ∈ TD, registered N1 N2 thN γ_ce γ_he γ_ght H t_id).
   
-  Definition helping_inv (N1 N2 thN: namespace) (γ_sy: proph_id → gname) 
-                            (γ_ce γ_he γ_fr γ_td: gname) : iProp :=
-    inv N2 (helping N1 N2 thN γ_sy γ_ce γ_he γ_fr γ_td).   
+  Definition helping_inv (N1 N2 thN: namespace) 
+                            (γ_ce γ_he γ_fr γ_td γ_ght: gname) : iProp :=
+    inv N2 (helping N1 N2 thN γ_ce γ_he γ_fr γ_td γ_ght).
   
   (** Helper functions specs *)
 
@@ -1095,7 +1102,21 @@ Section multicopy.
       destruct H' as [H' _].
       pose proof H' T as H'.
       set_solver.   
-  Qed.            
+  Qed.
+  
+  Lemma map_of_set_lookup_lb H k t :
+    (k,t) ∈ H → t ≤ map_of_set H !!! k.
+  Proof.
+    intros kt_in_H.
+    pose proof map_of_set_lookup_cases H k as [H' | H'].
+    - destruct H' as [T [kT_in_H [H' H_k]]].
+      rewrite lookup_total_alt. rewrite H_k.
+      simpl. apply H'; try done.
+    - destruct H' as [H' _].
+      pose proof H' t as H'.
+      contradiction.  
+  Qed.   
+            
 
   (** Lock module **)
   
@@ -1197,7 +1218,8 @@ Section multicopy.
     by apply auth_auth_valid.
   Qed.
 *)
-  Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r n Cn Bn Qn:
+  Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+                                                          n Cn Bn Qn:
     ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
         inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn -∗
               <<< True >>>
