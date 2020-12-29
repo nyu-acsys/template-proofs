@@ -7,21 +7,21 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Import general_multicopy.
+Require Import general_multicopy util.
 
 Section search_proof.
   Context {Σ} `{!heapG Σ, !multicopyG Σ}.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
-  Lemma traverse_spec N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma traverse_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
                           γ_en γ_cn γ_bn γ_qn γ_cirn n (k: K) t0 t1 :
-    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
         inFP γ_f n -∗ 
           own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]}) -∗ 
             own (γ_cirn !!! k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
               <<< True >>> 
-                  traverse #n #k @ ⊤ ∖ ↑N1
+                  traverse #n #k @ ⊤ ∖ ↑(mcsN N)
               <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
   Proof.
     iIntros "k_in_KS #HInv". 
@@ -373,13 +373,13 @@ Section search_proof.
   Qed.
   
 
-  Lemma search_recency N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma search_recency N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
                            (k: K) t0 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
           mcs_sr γ_s (k, t0) -∗
               <<< True >>> 
-                  search r #k @ ⊤ ∖ ↑N1
+                  search r #k @ ⊤ ∖ ↑(mcsN N)
               <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
   Proof.
     iIntros "% #HInv #mcs_sr" (Φ) "AU".
@@ -440,18 +440,16 @@ Section search_proof.
     by iModIntro.
   Qed.
 
-  Lemma search_spec N1 N2 thN γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma search_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
                            (k: K) γ_td γ_ght:
-  ⊢ ⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗
-    ⌜k ∈ KS⌝ -∗ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
-      helping_inv N1 N2 thN γ_te γ_he γ_fr γ_td γ_ght -∗ 
+  ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+      helping_inv N γ_te γ_he γ_fr γ_td γ_ght -∗ 
       <<< ∀ t M, MCS_high γ_te γ_he t M >>>
-            search' r #k @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN)
+            search' r #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
       <<<  ∃ (t': nat), MCS_high γ_te γ_he t M ∗ ⌜M !!! k = t'⌝, RET #t' >>>.
   Proof.
-    iIntros "% % % % #HInv #HInv_h" (Φ) "AU". wp_lam.
-    rename H into Disj_ns1. rename H0 into Disj_ns2.
-    rename H1 into Disj_ns3. rename H2 into k_in_KS.
+    iIntros "% #HInv #HInv_h" (Φ) "AU". wp_lam.
+    rename H into k_in_KS.
     wp_apply wp_new_proph1; try done.
     iIntros (tid vt)"Htid". wp_pures.
     wp_apply (typed_proph_wp_new_proph1 NatTypedProph); first done.
@@ -551,7 +549,7 @@ Section search_proof.
         apply leibniz_equiv_iff in V_H.
         by iPureIntro. } subst H'.
       iAssert (▷ (⌜tid ∉ TD⌝ 
-                ∗ ([∗ set] t_id ∈ TD, registered N1 N2 thN γ_te γ_he γ_ght H t_id) 
+                ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H t_id) 
                 ∗ proph1 tid vt))%I with "[Hstar_reg Htid]" 
                 as "(>% & Hstar_reg & Htid)".
       { destruct (decide (tid ∈ TD)); try done.
@@ -597,7 +595,7 @@ Section search_proof.
       { destruct (decide ((k, tp) ∈ H)); try done.
         pose proof Max_t0 tp e as H'.
         clear -H' tp_ge_t0. lia. } 
-      iMod (inv_alloc thN _
+      iMod (inv_alloc (threadN N) _
               (∃ H, get_op_state γ_sy tid γ_tk' AU_later (Φ) H k tp) 
                                     with "[AU Hreg_sy1]") as "#HthInv".
       { iNext. iExists H. unfold get_op_state. iFrame "Hreg_sy1".
@@ -637,7 +635,7 @@ Section search_proof.
         iPureIntro. set_solver. }
         
       iAssert (▷ (⌜H1' = H1⌝
-               ∗ ([∗ set] t_id ∈ TD1, registered N1 N2 thN γ_te γ_he γ_ght H1' t_id)
+               ∗ ([∗ set] t_id ∈ TD1, registered N γ_te γ_he γ_ght H1' t_id)
                ∗ own (γ_sy) (to_frac_agree (1 / 2) H1) ))%I
                 with "[Hstar_reg Hth_sy]" as "(>% & Hstar_reg & >Hth_sy)". 
       { iEval (rewrite (big_sepS_elem_of_acc _ (TD1) tid); 
@@ -705,6 +703,6 @@ Section search_proof.
       
       iModIntro. wp_pures. by rewrite H'.
   Qed.      
-  
+
   
 End search_proof.

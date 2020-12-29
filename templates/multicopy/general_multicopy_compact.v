@@ -7,7 +7,7 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Import general_multicopy.
+Require Import general_multicopy util.
 
 Section compact_proof.
   Context {Σ} `{!heapG Σ, !multicopyG Σ}.
@@ -1157,7 +1157,8 @@ Section compact_proof.
         ∗ ⌜set_of_map Cm' ⊆ set_of_map Cn ∪ set_of_map Cm⌝
         ∗ ⌜set_of_map Cn ∩ set_of_map Cm' ## set_of_map Cn'⌝
         ∗ ⌜dom (gset K) Cm ⊆ dom (gset K) Cm'⌝
-        ∗ ⌜merge Cn (esn' !!! m) Cm = merge Cn' (esn' !!! m) Cm'⌝ 
+        ∗ ⌜general_multicopy.merge Cn (esn' !!! m) Cm = 
+                general_multicopy.merge Cn' (esn' !!! m) Cm'⌝ 
         -∗
           node r n esn' Cn' ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn0' Qn0' 
                                           γ_en γ_cn γ_bn γ_qn γ_cirn esn' T
@@ -2009,10 +2010,10 @@ Section compact_proof.
 
 
 
-  Lemma compact_spec N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r (n: Node) :
-      ⊢ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+  Lemma compact_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r (n: Node) :
+      ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
           inFP γ_f n -∗ <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
-                              compact #n @ ⊤ ∖ ↑N1
+                              compact #n @ ⊤ ∖ ↑(mcsN N)
                         <<< MCS_high γ_te γ_he t M, RET #() >>>.
   Proof.
     iIntros "#HInv". iLöb as "IH" forall (n).

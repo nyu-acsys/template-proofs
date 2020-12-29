@@ -7,29 +7,25 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Import general_multicopy.
+Require Import general_multicopy util.
 
 Section upsert_proof.
   Context {Σ} `{!heapG Σ, !multicopyG Σ}.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
-  Lemma ghost_update_registered (k: K) (T: nat) (N1 N2 thN: namespace) 
+  Lemma ghost_update_registered (k: K) (T: nat) (N: namespace) 
                 (γ_te γ_he γ_ght: gname) 
                 (H1: gset KT) (TD: gset proph_id)  :
-      ⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗
         ⌜map_of_set (H1 ∪ {[k, T]}) !!! k = T⌝ -∗
            MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}) -∗          
-      ([∗ set] t_id ∈ TD, registered N1 N2 thN γ_te γ_he γ_ght H1 t_id) 
-        ={⊤ ∖ ↑N1 ∖ ↑N2}=∗ 
-      ([∗ set] t_id ∈ TD, registered N1 N2 thN γ_te γ_he γ_ght 
-                                            (H1 ∪ {[(k, T)]}) t_id)
+      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H1 t_id) 
+        ={⊤ ∖ ↑(mcsN N) ∖ ↑(helpN N)}=∗ 
+      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght 
+                                      (H1 ∪ {[(k, T)]}) t_id)
        ∗ MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}).
   Proof.
-    iIntros "Disj_ns1 Disj_ns2 Disj_ns3 H1_k MCS_auth".
-    iDestruct "Disj_ns1" as %Disj_ns1.
-    iDestruct "Disj_ns2" as %Disj_ns2.
-    iDestruct "Disj_ns3" as %Disj_ns3.
+    iIntros "H1_k MCS_auth".
     iDestruct "H1_k" as %H1_k.
     iInduction TD as [|x TD' x_notin_TD IH] "HInd" using set_ind_L; 
       auto using big_sepS_empty'.
@@ -107,18 +103,19 @@ Section upsert_proof.
   Qed.  
 
 
-  Lemma upsert_spec N1 N2 thN γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma upsert_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
                     (k: K) γ_td γ_ght :
-    ⊢ ⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
-          helping_inv N1 N2 thN γ_te γ_he γ_fr γ_td γ_ght -∗
+    ⊢ (*⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗*) ⌜k ∈ KS⌝ -∗ 
+        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+          helping_inv N γ_te γ_he γ_fr γ_td γ_ght -∗
             <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
-                   upsert lc r #k @ ⊤ ∖ (↑N1 ∪ ↑N2 ∪ ↑thN)
+                   upsert lc r #k @ ⊤ ∖ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
             <<< MCS_high γ_te γ_he (t + 1) (<[k := t]> M), RET #() >>>.
   Proof.
-    iIntros "% % % %". iLöb as "IH".
-    rename H into Disj_ns1. rename H0 into Disj_ns2.
-    rename H1 into Disj_ns3. rename H2 into k_in_KS.    
+    iIntros "%". iLöb as "IH".
+(*    rename H into Disj_ns1. rename H0 into Disj_ns2.
+    rename H1 into Disj_ns3. *) 
+    rename H into k_in_KS.    
     iIntros "#HInv #HInv_h" (Φ) "AU". wp_lam.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
@@ -366,7 +363,7 @@ Section upsert_proof.
       iDestruct "H'" as "(HfrH & Hfr)".
             
       (** Linearization **)    
-      iMod "AU" as (t' M)"[MCS_high [_ Hclose]]". set_solver.
+      iMod "AU" as (t' M)"[MCS_high [_ Hclose]]".
       iDestruct "MCS_high" as (H1')"(MCS & %)". 
       rename H into H1_eq_M.
       iAssert (⌜t' = T⌝)%I as %Ht'. 
@@ -407,7 +404,7 @@ Section upsert_proof.
       iMod ("Hclose" with "MCS_high") as "HΦ".
 
       iMod (ghost_update_registered k T with 
-            "[] [] [] [] [MCS_auth] [$Hstar_reg]") 
+            "[] [MCS_auth] [$Hstar_reg]") 
                 as "(Hstar_reg & MCS_auth)"; try done.
       { pose proof map_of_set_lookup (H1 ∪ {[k, T]}) k T as H'.
         iPureIntro. rewrite lookup_total_alt.
