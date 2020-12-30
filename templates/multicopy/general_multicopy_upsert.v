@@ -103,10 +103,10 @@ Section upsert_proof.
   Qed.  
 
 
-  Lemma upsert_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma upsert_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
                     (k: K) γ_td γ_ght :
     ⊢ (*⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗*) ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
           helping_inv N γ_te γ_he γ_fr γ_td γ_ght -∗
             <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
                    upsert lc r #k @ ⊤ ∖ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
@@ -120,11 +120,11 @@ Section upsert_proof.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
     iInv "HInv" as ">H".
-    iDestruct "H" as (T0 H0 hγ0 I0 R0) "(Hglob & Hstar)".
+    iDestruct "H" as (T0 H0 hγ0 I0 J0) "(Hglob & Hstar)".
     iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & #FP_r & Max_ts & domm_IR & domm_Iγ)".
+            & Out_J & Inf_J & Hf & Hγ & #FP_r & Max_ts & domm_IR & domm_Iγ)".
     iModIntro. iSplitR "AU". iNext. 
-    iExists T0, H0, hγ0, I0, R0. iFrame "∗ #". iModIntro.
+    iExists T0, H0, hγ0, I0, J0. iFrame "∗ #". iModIntro.
     (** Lock the node r **)
     awp_apply lockNode_spec_high; try done.
     iAaccIntro with ""; try eauto with iFrame. 
@@ -153,12 +153,12 @@ Section upsert_proof.
       wp_lam. iDestruct "HnP_t" as "(HnP_T & HnP_lc)".
       unfold clock. wp_load. wp_pures. 
       iInv "HInv" as ">H". 
-      iDestruct "H" as (T1 H1 hγ1 I1 R1) "(Hglob & Hstar)".
+      iDestruct "H" as (T1 H1 hγ1 I1 J1) "(Hglob & Hstar)".
       iInv "HInv_h" as (H1' TD hγt)"(>Hfr & >HTD & >Hγt & >Domm_hγt & Hstar_reg)".
       wp_store. 
       
       iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & _ & Max_ts & domm_IR & domm_Iγ)".
+            & Out_J & Inf_J & Hf & Hγ & _ & Max_ts & domm_IR & domm_Iγ)".
       iDestruct "Hif" as %HCr.
       iAssert (⌜T = T1⌝)%I as %HT. 
       { iPoseProof ((own_valid_2 _ _ _) with "[$HnP_T] [$Ht]") as "H'".
@@ -236,7 +236,7 @@ Section upsert_proof.
             (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T')"(node' & _)".
         iPoseProof ((node_sep_star r r) with "[$]") as "%".
         contradiction. } replace br.
-      iDestruct "HnS_r" as (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' Ir Rr) 
+      iDestruct "HnS_r" as (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' Ir Jr) 
                     "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
                               & HnS_cl & HnS_oc & HnS_if & HnS_star & Hφ)".
       iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
@@ -291,20 +291,20 @@ Section upsert_proof.
         done. }
       iMod ((frac_update γ_er γ_cr γ_br γ_qr es Cr Br Qr es Cr' Br' Qr) 
                   with "[$HnP_frac $HnS_frac]") as "(HnP_frac & HnS_frac)".
-      iDestruct "Inf_R" as %Inf_R.
-      iPoseProof ((auth_own_incl γ_R R1 Rr) with "[HR HnS_si]")
+      iDestruct "Inf_J" as %Inf_J.
+      iPoseProof ((auth_own_incl γ_J J1 Jr) with "[HR HnS_si]")
                                     as (Ro) "%". 
       { unfold singleton_interfaces_ghost_state.
         iDestruct "HnS_si" as "(_ & H' & _)". 
-        iFrame. } rename H into Incl_R1.
+        iFrame. } rename H into Incl_J1.
       iPoseProof (own_valid with "HR") as "%".
-      rename H into Valid_R1.
-      iAssert (⌜domm Rr = {[r]}⌝)%I as "%".
+      rename H into Valid_J1.
+      iAssert (⌜domm Jr = {[r]}⌝)%I as "%".
       { by iDestruct "HnS_si" as "(_&_&_&H')". }
-      rename H into Domm_Rr.
+      rename H into Domm_Jr.
       iAssert (⌜φ0 es Qr⌝ ∗ ⌜φ1 Br' Cr' Qr⌝ ∗ ⌜φ2 r Br' Ir⌝ 
-        ∗ ⌜φ3 r Br' Rr⌝ ∗ ⌜φ4 r Rr⌝ ∗ ⌜φ5 Br' Qr⌝ 
-        ∗ ⌜φ6 Br' (T+1)⌝ ∗ ⌜φ7 r es Rr Qr⌝ ∗ ⌜φ8 r Ir⌝)%I 
+        ∗ ⌜φ3 r Br' Jr⌝ ∗ ⌜φ4 r Jr⌝ ∗ ⌜φ5 Br' Qr⌝ 
+        ∗ ⌜φ6 Br' (T+1)⌝ ∗ ⌜φ7 r es Jr Qr⌝ ∗ ⌜φ8 r Ir⌝)%I 
             with "[Hφ]" as "Hφ".
       { iDestruct "Hφ" as %Hφ. 
         destruct Hφ as [Hφ0 [Hφ1 [Hφ2 [Hφ3 [Hφ4 [Hφ5 [Hφ6 [Hφ7 Hφ8]]]]]]]].
@@ -328,11 +328,11 @@ Section upsert_proof.
           rewrite Infz_Ir in Hins.
           exfalso. clear -Hins. set_solver.
         - intros k' HKS. right.
-          apply (inset_monotone R1 Rr Ro); try done.
+          apply (inset_monotone J1 Jr Ro); try done.
           by rewrite <-auth_auth_valid.
-          pose proof Inf_R r k' HKS as Inf_R.
-          by rewrite decide_True in Inf_R.
-          rewrite Domm_Rr. clear. set_solver.
+          pose proof Inf_J r k' HKS as Inf_J.
+          by rewrite decide_True in Inf_J.
+          rewrite Domm_Jr. clear. set_solver.
         - intros k' HKS. subst Br'. destruct (decide (k' = k)).
           + subst k'. rewrite lookup_total_insert.
             apply (Nat.le_trans _ (Br !!! k) _); try done.
@@ -423,12 +423,12 @@ Section upsert_proof.
       
       iModIntro.
       iSplitR "HΦ node_r HnP_gh HnP_t HnP_C HnP_frac".
-      { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}), hγ1, I1, R1.
+      { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}), hγ1, I1, J1.
         iFrame "∗ %".   
         rewrite (big_sepS_delete _ (domm I1) r); last by eauto.
         iSplitR "Hstar'".
         { iExists true, Cr', Br', Qr. iFrame.
-          iExists γ_er, γ_cr, γ_br, γ_qr, γ_cirr, es, Ir, Rr.
+          iExists γ_er, γ_cr, γ_br, γ_qr, γ_cirr, es, Ir, Jr.
           iFrame "∗#". iEval (rewrite decide_True). 
           iFrame "%∗". }        
         iApply (big_sepS_mono 
@@ -436,12 +436,12 @@ Section upsert_proof.
                           general_multicopy.lockLoc y ↦ #bn
                         ∗ (if bn then True
                            else nodePred γ_gh γ_t γ_s lc r y Cn Bn Qn)
-                        ∗ nodeShared γ_I γ_R γ_f γ_gh r y Cn Bn Qn H1 T )%I
+                        ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Bn Qn H1 T )%I
                   (λ y, ∃ (bn : bool) (Cn Bn Qn : gmap K natUR),
                           general_multicopy.lockLoc y ↦ #bn
                         ∗ (if bn then True
                            else nodePred γ_gh γ_t γ_s lc r y Cn Bn Qn)
-                        ∗ nodeShared γ_I γ_R γ_f γ_gh r y Cn Bn Qn 
+                        ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Bn Qn 
                                                 (H1 ∪ {[(k, T)]}) (T + 1))%I
                   (domm I1 ∖ {[r]})); try done.
         intros y y_dom. assert (y ≠ r) as Hy by set_solver. iFrame.
