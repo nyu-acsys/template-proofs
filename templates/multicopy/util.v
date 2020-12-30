@@ -626,8 +626,8 @@ Section util.
       iModIntro. wp_pures. done.
   Qed.
 
-  Lemma lockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r n:
-    ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+  Lemma lockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r n:
+    ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -636,9 +636,9 @@ Section util.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
     awp_apply (lockNode_spec n).
-    iInv "mcsInv" as ">mcs". iDestruct "mcs" as (T H hγ I R) "(Hglob & Hstar)".
-    iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
+    iInv "mcsInv" as ">mcs". iDestruct "mcs" as (T H hγ I J) "(Hglob & Hstar)".
+    iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HJ 
+            & Out_J & Inf_J & Hf & Hγ & FP_r & Max_ts & domm_IJ & domm_Iγ)".
     iPoseProof (inFP_domm with "[$FP_n] [$]") as "%". rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
@@ -647,7 +647,7 @@ Section util.
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iSplitR "AU".
-      { iExists T, H, hγ, I, R. iFrame.
+      { iExists T, H, hγ, I, J. iFrame.
         iPoseProof ("Hstar'" with "[-]") as "Hstar".
         iExists b, Cn, Bn, Qn. iFrame.
         iNext. iFrame.
@@ -658,7 +658,7 @@ Section util.
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[Hnp]") as "HΦ"; try done.
     iModIntro. iSplitR "HΦ".
-    iNext. iExists T, H, hγ, I, R.
+    iNext. iExists T, H, hγ, I, J.
     iPoseProof ("Hstar'" with "[Hlockn Hns]") as "Hstar".
     iExists true, Cn, Bn, Qn. iFrame.
     iSplitR "Hstar". iFrame. iFrame. done.
@@ -681,15 +681,15 @@ Section util.
     iModIntro. done.
   Qed.
 (*  
-  Lemma int_domm γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r t H hγ I R n In :
+  Lemma int_domm γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J n In :
     own γ_I (◯ In) -∗ ⌜domm In = {[n]}⌝
-    -∗ global_state γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh r t H hγ I R
+    -∗ global_state γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J
     -∗ ⌜n ∈ domm I⌝.
   Proof.
     iIntros "Hi Dom_In Hglob".
     iDestruct "Dom_In" as %Dom_In.
-    iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
+    iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HJ 
+            & Out_J & Inf_J & Hf & Hγ & FP_r & Max_ts & domm_IJ & domm_Iγ)".
     iPoseProof ((auth_own_incl γ_I (I) (In)) with "[$]") as "%".
     rename H0 into I_incl. destruct I_incl as [Io I_incl].
     iPoseProof (own_valid with "HI") as "%". rename H0 into Valid_I.
@@ -698,9 +698,9 @@ Section util.
     by apply auth_auth_valid.
   Qed.
 *)
-  Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
                                                           n Cn Bn Qn:
-    ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
+    ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
         inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn -∗
               <<< True >>>
                 unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -708,9 +708,9 @@ Section util.
   Proof.
     iIntros "#mcsInv #FP_n Hnp". iIntros (Φ) "AU".
     awp_apply (unlockNode_spec n).
-    iInv "mcsInv" as ">mcs". iDestruct "mcs" as (T H hγ I R) "(Hglob & Hstar)".
-    iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_R & Inf_R & Hf & Hγ & FP_r & Max_ts & domm_IR & domm_Iγ)".
+    iInv "mcsInv" as ">mcs". iDestruct "mcs" as (T H hγ I J) "(Hglob & Hstar)".
+    iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HJ 
+            & Out_J & Inf_J & Hf & Hγ & FP_r & Max_ts & domm_IJ & domm_Iγ)".
     iPoseProof (inFP_domm with "[$FP_n] [$]") as "%". rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
@@ -731,7 +731,7 @@ Section util.
     iAaccIntro with "Hlock".
     { iIntros "Hlock". iModIntro.
       iSplitR "Hnp AU".
-      iExists T, H, hγ, I, R. iNext. iFrame.
+      iExists T, H, hγ, I, J. iNext. iFrame.
       iPoseProof ("Hstar'" with "[Hlock Hns]") as "Hstar".
       iExists true, Cn', Bn', Qn'. iFrame.
       iFrame. iFrame. 
@@ -740,16 +740,16 @@ Section util.
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[]") as "HΦ"; try done.
     iModIntro. iSplitR "HΦ".
-    iNext. iExists T, H, hγ, I, R.
+    iNext. iExists T, H, hγ, I, J.
     iPoseProof ("Hstar'" with "[Hlock Hns Hnp]") as "Hstar".
     iExists false, Cn, Bn, Qn.
     iAssert (nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn
-                      ∗ nodeShared γ_I γ_R γ_f γ_gh r n Cn Bn Qn H T)%I
+                      ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn Qn H T)%I
       with "[Hns Hnp]" as "(Hns & Hnp)".
     {
       iDestruct "Hnp" as (γ_en γ_cn γ_bn γ_qn γ_cirn esn T')
                              "(node_n & HnP_gh & HnP_frac & HnP_C & HnP_t)".
-      iDestruct "Hns" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In0 Rn0) 
+      iDestruct "Hns" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In0 Jn0) 
                            "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
                             & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
       iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
@@ -761,7 +761,7 @@ Section util.
       iSplitL "node_n HnP_gh HnP_frac HnP_C HnP_t".
       iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, T'.
       iFrame.
-      iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In0, Rn0.
+      iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In0, Jn0.
       iFrame.
     }
     iFrame. iFrame. iFrame.

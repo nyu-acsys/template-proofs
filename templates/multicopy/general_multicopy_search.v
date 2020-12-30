@@ -14,15 +14,9 @@ Section search_proof.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
-<<<<<<< HEAD
-  Lemma traverse_spec N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma traverse_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
                           γ_en γ_cn γ_bn γ_qn γ_cirn n (k: K) t0 t1 :
-    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
-=======
-  Lemma traverse_spec N1 γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
-                          γ_en γ_cn γ_bn γ_qn γ_cirn n (k: K) t0 t1 :
-    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
->>>>>>> ccbc163 (Variable -> Parameter; R interfaces -> J interfaces)
+    ⊢ ⌜k ∈ KS⌝ -∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
         inFP γ_f n -∗ 
           own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]}) -∗ 
             own (γ_cirn !!! k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
@@ -379,17 +373,10 @@ Section search_proof.
   Qed.
   
 
-<<<<<<< HEAD
-  Lemma search_recency N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r 
+  Lemma search_recency N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
                            (k: K) t0 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_R γ_f γ_gh γ_fr lc r -∗
-=======
-  Lemma search_recency N1 γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
-                           (k: K) t0 :
-    ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N1 γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
->>>>>>> ccbc163 (Variable -> Parameter; R interfaces -> J interfaces)
+        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
           mcs_sr γ_s (k, t0) -∗
               <<< True >>> 
                   search r #k @ ⊤ ∖ ↑(mcsN N)
