@@ -353,7 +353,8 @@ Section Link_Template.
     rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n'); last by eauto.
     iDestruct "Hbigstar" as "(Hnf' & Hbigstar)".
     (* Get ✓ (In ⋅ In') *)
-    iDestruct "Hnf'" as (b In') "(? & HInn & (HIn' & ? & Hins'))".
+    iDestruct "Hnf'" as (b) "(? & HInn)".
+    iDestruct "HInn" as (In') "(HInn & (HIn' & % & Hins'))".
     iAssert (✓ (In ⋅ In'))%I as "%". {
       iPoseProof ((own_op γ_I (◯ In) (◯ In' )) with "[HIn HInn]") as "H";
         first by eauto with iFrame.
@@ -375,10 +376,11 @@ Section Link_Template.
       iSplitR. by iPureIntro.
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iSplitL "Hlock HIn HhIn Hins".
-      iExists true, In. eauto with iFrame.
+      iExists true. iSplitR "HIn HhIn Hins". eauto with iFrame. iExists In. iFrame "%". iFrame "∗".
       rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n'); last by eauto.
       iFrame "Hbigstar".
-      iExists b, In'. eauto with iFrame.
+      iExists b. iSplitR "HIn' Hins' HInn". eauto with iFrame.
+      iExists In'. iFrame "%". iFrame "∗". 
     }
     iFrame "#". iFrame "∗". by iPureIntro.
   Qed.
@@ -400,7 +402,8 @@ Section Link_Template.
     (* Unfold bigstar *)
     rewrite (big_sepS_elem_of_acc _ (domm I) r); last by eauto.
     iDestruct "Hbigstar" as "(Hnf & Hbigstar)".
-    iDestruct "Hnf" as (b Ir) "(Hlock & Hnp & (HIn & HhInn & % & Hins))".
+    iDestruct "Hnf" as (b) "(Hlock & Hnp)".
+    iDestruct "Hnp" as (Ir) "(HIn & HhInn & % & Hins)".
     (* Get Ir ≼ I needed for globalinv_root_ins *)
     iPoseProof (auth_own_incl with "[$HI $HIn]") as "%".
     iMod (own_update (γ_i r) _ (● (inset K Ir r) ⋅ ◯ (inset K Ir r))
@@ -413,7 +416,7 @@ Section Link_Template.
       apply (globalinv_root_ins I). done. 
     }
     iModIntro. iSplitL. iExists I. iFrame "∗". iSplitR; first by iPureIntro.
-    iApply "Hbigstar". iExists b, Ir. iFrame "∗". by iPureIntro.
+    iApply "Hbigstar". iExists b. iFrame "∗". iExists Ir. iFrame "%". iFrame "∗".
     iFrame "#".
   Qed.
 
