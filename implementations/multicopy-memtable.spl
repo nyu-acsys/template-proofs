@@ -7,8 +7,6 @@ pure function KS() returns (res: Set<K>)
   { k: K :: lt(k, top) }
 }
 
-datatype KT = pair(key: K, ts: Int)
-
 datatype OptionTS = someTS(tst: Int) | noneTS
 
 datatype OptionNode = someNode(nd: Node) | noneNode
@@ -18,8 +16,8 @@ struct Node {
   var keys: Array<K>;
   var ptrs: Array<Node>;
   ghost var indices: Map<Node, Int>;
-  // TODO why can't we just use an array of keys and an array of timestamps?
-  var table: Array<KT>;
+  var tableK: Array<K>;
+  var tableT: Array<Int>;
   var tableLen: Int;
 }
 
@@ -28,32 +26,104 @@ const B: Int
 axiom B > 1
 
 
+// TODO nodeSpatial
 define hrepSpatial(x) {
-  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.table)
+  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.tableK) &*& acc(x.tableT)
   &*& x.keys.length == 2*B &*& x.ptrs.length == 2*B
+  &*& x.tableK.length == x.tableT.length
+  &*& x.tableK.length == 2*B
 }
 
-define map_of_table(A, Alen, C) {
+function map_of_tables_aux(tableK: Map<Int, K>, tableT: Map<Int, Int>,
+    len: Int, i: Int)
+  returns (Cn: Map<K, Int>)
+{
+  0 <= i ?
+    (i < len ?
+      map_of_tables_aux(tableK, tableT, len, i-1)[tableK[i] := tableT[i]]
+      : map_of_tables_aux(tableK, tableT, len, i-1))
+    : { k: K :: 0 }
+}
+
+define map_of_tables(tableK, tableT, len) {
+  map_of_tables_aux(tableK.map, tableT.map, len, len)
+}
+
+lemma map_of_tables_found(n: Node, k: K, i: Int)
+  requires hrepSpatial(n)
+  requires 0 <= i < n.tableLen && n.tableK[i] == k
+  requires forall j: Int :: i < j < n.tableLen ==> n.tableK[j] != k
+  ensures hrepSpatial(n)
+  ensures map_of_tables(n.tableK, n.tableT, n.tableLen)[k] == n.tableT[i]
+{
+  // TODO missing term/inst?
+  pure assert map_of_tables_aux(n.tableK.map, n.tableT.map, n.tableLen, i)
+    == map_of_tables_aux(n.tableK.map, n.tableT.map, n.tableLen, i-1)[n.tableK[i] := n.tableT[i]];
+
+  var j := i;
+  while (j < n.tableLen)
+    invariant i <= j <= n.tableLen
+    invariant forall j: Int :: i < j < n.tableLen ==> n.tableK[j] != k
+    invariant map_of_tables_aux(n.tableK.map, n.tableT.map, n.tableLen, j)[k]
+      == n.tableT[i]
+  {
+    j := j + 1;
+
+    pure assert j < n.tableLen ==>
+      map_of_tables_aux(n.tableK.map, n.tableT.map, n.tableLen, j)
+      == map_of_tables_aux(n.tableK.map, n.tableT.map, n.tableLen, j-1)[n.tableK[j] := n.tableT[j]];
+  }
+}
+
+lemma map_of_tables_add(tableK: Map<Int, K>, tableT: Map<Int, Int>,
+    old_tableK: Map<Int, K>, old_tableT: Map<Int, Int>,
+    len: Int, k: K, t: Int)
+  requires tableK == old_tableK[len-1 := k]
+  requires tableT == old_tableT[len-1 := t]
+  requires 0 < len //<= tableK.length && tableK.length == tableT.length
+  // requires tableK.length == old_tableK.length && tableT.length == old_tableT.length
+  ensures map_of_tables_aux(tableK, tableT, len, len)
+    == map_of_tables_aux(old_tableK, old_tableT, len-1, len-1)[k := t]
+{
+  assert map_of_tables_aux(tableK, tableT, len, len)
+    == map_of_tables_aux(tableK, tableT, len, len-1);
+  assert map_of_tables_aux(tableK, tableT, len, len-1)
+    == map_of_tables_aux(tableK, tableT, len, len-2)[k := t];
+
+  if (len-2 < 0) {
+    assert map_of_tables_aux(tableK, tableT, len, len-2)
+      == map_of_tables_aux(old_tableK, old_tableT, len-1, len-2);
+  } else {
+    var i := 0;
+    while (i < len-2)
+      invariant 0 <= i <= len-2
+      invariant map_of_tables_aux(tableK, tableT, len, i)
+        == map_of_tables_aux(old_tableK, old_tableT, len-1, i);
+      invariant tableK == old_tableK[len-1 := k]
+      invariant tableT == old_tableT[len-1 := t]
+      invariant 0 < len //<= tableK.length && tableK.length == tableT.length
+      // invariant tableK.length == old_tableK.length
+        // && tableT.length == old_tableT.length
+    {
+      i := i + 1;
+      assert map_of_tables_aux(tableK, tableT, len, i)
+        == map_of_tables_aux(tableK, tableT, len, i-1)[tableK[i] := tableT[i]];
+      assert map_of_tables_aux(old_tableK, old_tableT, len-1, i)
+        == map_of_tables_aux(old_tableK, old_tableT, len-1, i-1)[tableK[i] := tableT[i]];
+    }
+  }
+
+  assert map_of_tables_aux(tableK, tableT, len, len-2)
+    == map_of_tables_aux(old_tableK, old_tableT, len-1, len-2);
+  assert map_of_tables_aux(old_tableK, old_tableT, len-1, len-2)
+    == map_of_tables_aux(old_tableK, old_tableT, len-1, len-1);
+}
+
+define nodePure(r, n, es, Cn) {
   true
-  &*& (forall k: K, i: Int :: 0 <= i < Alen && A[i].key == k
-    && (forall j: Int :: i < j < Alen ==> A[j].key != k)
-    ==> C[k] == A[i].ts)
-  &*& (forall k: K :: (forall j: Int :: 0 <= j < Alen ==> A[j].key != k)
-    ==> C[k] == 0)
-}
-
-// TODO what's the difference between hrep and node?
-define hrep(n, es, C) {
-  hrepSpatial(n)
-  &*& map_of_table(n.table, n.tableLen, C)
-  &*& 0 <= n.tableLen <= n.table.length
-}
-
-// TODO make n first or last arg
-define node(r, n, es, Cn) {
-  hrep(n, es, Cn)
-  &*& (n.ptrs[0] == null  // Leaf
-      &*& (forall n1: Node :: es[n1] == {})
+  && 0 <= n.tableLen <= n.tableK.length
+  && (n.ptrs[0] == null  // Leaf
+      && (forall n1: Node :: es[n1] == {})
     || n.ptrs[0] != null  // Internal
       && (forall i: Int :: 0 <= i <= n.len ==> n != n.ptrs[i])
       && (forall i: Int, j: Int :: 0 <= i < j <= n.len ==> n.ptrs[i] != n.ptrs[j]
@@ -69,17 +139,24 @@ define node(r, n, es, Cn) {
       && (forall n1: Node :: n.indices[n1] == -1 ==> es[n1] == {})
   )
   // Keys are sorted
-  &*& sorted_map_seg(n.keys.map, 0, n.len) == true
-  &*& 0 <= n.len <= n.keys.length
+  && sorted_map_seg(n.keys.map, 0, n.len) == true
+  && 0 <= n.len <= n.keys.length
   // Indices of outgoing pointers are stored in n.indices
-  &*& (forall y: Node :: 0 <= n.indices[y] <= n.len
+  && (forall y: Node :: 0 <= n.indices[y] <= n.len
     ==> n.ptrs.map[n.indices[y]] == y)
-  &*& (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
+  && (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
     ==> n.indices[n.ptrs.map[i]] == i @(noinst i))
-  &*& (forall y: Node :: -1 <= n.indices[y] <= n.len)
-  &*& (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
-  &*& n.indices[n] == -1
-  &*& n.indices[r] == -1
+  && (forall y: Node :: -1 <= n.indices[y] <= n.len)
+  && (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
+  && n.indices[n] == -1
+  && n.indices[r] == -1
+}
+
+// TODO make n first or last arg
+define node(r, n, es, Cn) {
+  hrepSpatial(n)
+  &*& nodePure(r, n, es, Cn)
+  &*& Cn == map_of_tables(n.tableK, n.tableT, n.tableLen)
 }
 
 lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
@@ -127,7 +204,8 @@ procedure init()
   r.keys := new Array<K>(2*B);
   r.ptrs := new Array<Node>(2*B);
   r.indices := { n: Node :: -1 };
-  r.table := new Array<KT>(2*B);
+  r.tableK := new Array<K>(2*B);
+  r.tableT := new Array<Int>(2*B);
   arr_init_node(r.ptrs, 2*B, null);
   r.len := 0;
   r.tableLen := 0;
@@ -150,17 +228,18 @@ procedure inContents(n: Node, k: K,
   while (i >= 0 && !flag)
     invariant node(r, n, es, Cn)
     invariant -1 <= i < n.tableLen
-    invariant flag ==> 0 <= i < n.tableLen && n.table[i].key == k
-    invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+    invariant flag ==> 0 <= i < n.tableLen && n.tableK[i] == k
+    invariant forall j: Int :: i < j < n.tableLen ==> n.tableK[j] != k
   {
-    if (n.table[i].key == k) {
+    if (n.tableK[i] == k) {
       flag := true;
     } else {
       i := i - 1;
     }
   }
   if (flag) {
-    return someTS(n.table[i].ts);
+    map_of_tables_found(n, k, i);
+    return someTS(n.tableT[i]);
   } else {
     return noneTS;
   }
@@ -174,9 +253,18 @@ procedure addContents(n: Node, k: K, t: Int,
   ensures node(r, n, es, Cn1)
   ensures (succ && Cn1 == Cn[k := t]) || (!succ && Cn1 == Cn)
 {
-  if (n.tableLen < n.table.length) {
-    n.table[n.tableLen] := pair(k, t);
+  pure assert Cn == map_of_tables(n.tableK, n.tableT, n.tableLen);
+
+  if (n.tableLen < n.tableK.length) {
+    n.tableK[n.tableLen] := k;
+    n.tableT[n.tableLen] := t;
     n.tableLen := n.tableLen + 1;
+
+    map_of_tables_add(
+      n.tableK.map, n.tableT.map, old(n.tableK.map), old(n.tableT.map),
+      n.tableLen, k, t
+    );
+
     return true;
   } else {
     return false;
