@@ -255,10 +255,11 @@ Section Coupling_Template.
                 ∗ ⌜keyset K Im1 m ## keyset K In1 n⌝
                 ∗ ⌜keyset K Ip1 p ∪ keyset K In1 n ∪ keyset K Im1 m = keyset K Ip p ∪ keyset K In n⌝ }}})%I.
 
+                (*TODO changed back to original spec*)
   Parameter alloc_spec :
      ⊢ ({{{ True }}}
            alloc #()
-       {{{ (m: Node) (l:loc), RET #m; hrepSpatial m ∗ ⌜lockLoc m = l⌝ }}})%I.
+       {{{ (m: Node) (l:loc), RET #m; hrepSpatial m ∗ ⌜lockLoc m = l⌝ ∗ l ↦ #false }}})%I.
 
 
   (** The concurrent search structure invariant *)
@@ -449,19 +450,15 @@ Section Coupling_Template.
     - destruct H1 as [a [b [_ [H1 _]]]].
       split; set_solver.
   Qed.
-
+ (* TODO had to change to original implementation using lockLoc for now *)
   Lemma node_lock_not_in_FP γ_I γ_f γ_k γ_c root I C n b :
-  (lockR b n (nodePred γ_I γ_k root n I C)) -∗ CSSi γ_I γ_f γ_k γ_c root I C -∗ ⌜n ∉ domm I⌝.
+  lockLoc n ↦ #b -∗ CSSi γ_I γ_f γ_k γ_c root I C -∗ ⌜n ∉ domm I⌝.
   Proof.
-    iIntros "(Hlock & H')". iIntros "Hcss".
-    iDestruct "Hcss" as "(Hg' & Hbigstar)". 
-    destruct (decide (n ∈ domm I)). 
+    iIntros "Hl Hcss". iDestruct "Hcss" as "(Hg & Hbigstar)".
+    destruct (decide (n ∈ domm I)).
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
-    iDestruct "Hbigstar" as "(Hn & Hbigstar)".
-    iDestruct "Hn" as (b0) "(Hlockn & Hb)".
-    iDestruct (mapsto_valid_2 with "Hlock Hlockn") as "%". exfalso. destruct H0 as [H1 H2]. done.
-    (* iDestruct "Hbigstar" as "(Hn & Hbigstar)". iDestruct "Hn" as (b0 In Cn) "(Hlockn & Hb)".
-    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. destruct H0. by compute in H0. *)
+    iDestruct "Hbigstar" as "(Hn & Hbigstar)". iDestruct "Hn" as (b0) "(Hlockn & Hb)".
+    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. destruct H0. by compute in H0.
     by iPureIntro.
   Qed.
 
@@ -913,9 +910,9 @@ Section Coupling_Template.
       (* Apply continuation *)
       iSpecialize ("HCont" $! p n Ip In Cp Cn).
       destruct suc; wp_pures; iApply "HCont"; iFrame "∗ # %".
-      done. done.
   Qed.
 
+  (* TODO uses old version of node_lock_not_in_FP *)
   Theorem searchStrOp_spec γ_I γ_f γ_k γ_c root (k: K) :
     ⊢ ⌜k ∈ KS⌝ ∗ css_inv γ_I γ_f γ_k γ_c root -∗
     <<< ∀ (C: gset K), css_cont γ_c C >>>
@@ -1146,7 +1143,7 @@ Section Coupling_Template.
       iNext. iExists I', C5'. iFrame "∗ # %".
       { rewrite (big_sepS_delete _ (domm I') m); last first.
       clear -Dom_I'. set_solver. iEval (rewrite Dom2_I').
-      iFrame. iExists false, Im'', Cm''. iFrame "∗ %". }
+      iFrame. iExists false. iFrame "∗ %". iExists Im'', Cm''. iFrame "∗ %". }
       iModIntro. wp_pures. wp_bind (unlockNode _)%E.
 
       (* ------ linearization over -------*)
