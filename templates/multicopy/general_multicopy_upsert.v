@@ -13,122 +13,34 @@ Section upsert_proof.
   Context {Σ} `{!heapG Σ, !multicopyG Σ}.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
-
-  Lemma ghost_update_registered (k: K) (T: nat) (N: namespace) 
-                (γ_te γ_he γ_ght: gname) 
-                (H1: gset KT) (TD: gset proph_id)  :
-        ⌜map_of_set (H1 ∪ {[k, T]}) !!! k = T⌝ -∗
-           MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}) -∗          
-      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H1 t_id) 
-        ={⊤ ∖ ↑(mcsN N) ∖ ↑(helpN N)}=∗ 
-      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght 
-                                      (H1 ∪ {[(k, T)]}) t_id)
-       ∗ MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}).
-  Proof.
-    iIntros "H1_k MCS_auth".
-    iDestruct "H1_k" as %H1_k.
-    iInduction TD as [|x TD' x_notin_TD IH] "HInd" using set_ind_L; 
-      auto using big_sepS_empty'.
-    rewrite (big_sepS_delete _ ({[x]} ∪ TD') x); last by set_solver.
-    rewrite (big_sepS_delete _ ({[x]} ∪ TD') x); last by set_solver.
-    assert (({[x]} ∪ TD') ∖ {[x]} = TD') as HTD'. set_solver.
-    rewrite HTD'.
-    iIntros "(Hx & Hbigstar)". 
-    iMod ("HInd" with "[$MCS_auth] Hbigstar") as "(H' & MCS_auth)".
-    iFrame "H'".
-    iDestruct "Hx" as (P Q k' vp vt γ_tk γ_sy)
-              "(Hreg_proph & Hreg_gh & Hreg_sy & #Pau & #Hthinv)".
-    iInv "Hthinv" as (H1')"Hstate".
-    iDestruct "Hstate" as "(>Hth_sy & Hstate)".
-    iAssert (⌜H1' = H1⌝)%I as "%". 
-    { iPoseProof (own_valid_2 _ _ _ with "[$Hth_sy] [$Hreg_sy]") as "V_H".
-      iDestruct "V_H" as %V_H.
-      apply frac_agree_op_valid in V_H. destruct V_H as [_ V_H].
-      apply leibniz_equiv_iff in V_H.
-      by iPureIntro. } subst H1'.
-    
-    iCombine "Hreg_sy Hth_sy" as "H'". 
-    iEval (rewrite <-frac_agree_op) in "H'". 
-    iEval (rewrite Qp_half_half) in "H'".
-    iMod ((own_update (γ_sy) (to_frac_agree 1 H1) 
-                  (to_frac_agree 1 (H1 ∪ {[(k, T)]}))) with "[$H']") as "H'".
-    { apply cmra_update_exclusive. 
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
-      split; simpl; try done. }
-    iEval (rewrite <-Qp_half_half) in "H'".
-    iEval (rewrite frac_agree_op) in "H'".  
-    iDestruct "H'" as "(Hreg_sy & Hth_sy)".            
-
-    iDestruct "Hstate" as "[Hpending | Hdone]".
-    - iDestruct "Hpending" as "(P & >%)".
-      rename H into vp_notin_H.
-      destruct (decide ((k', vp) ∈ H1 ∪ {[(k, T)]})).
-      + assert ((k',vp) = (k,T)) as H'. 
-        { clear -vp_notin_H e. set_solver. }
-        inversion H'. subst k' vp.
-        iDestruct ("Pau" with "P") as ">AU".
-        iMod "AU" as (t M)"[MCS_high [_ Hclose]]". set_solver.
-        iDestruct "MCS_high" as (H1')"(MCS & %)".
-        rename H into Def_M.
-        iAssert (⌜H1' = H1 ∪ {[(k, T)]}⌝)%I as "%".
-        { iPoseProof ((auth_agree' γ_he) with "[MCS_auth] [MCS]") as "%".
-          unfold MCS_auth. by iDestruct "MCS_auth" as "(_ & H'')".
-          by iDestruct "MCS" as "(_ & H')". by iPureIntro. } subst H1'.
-        iAssert (⌜M !!! k = T⌝)%I as "%".
-        { iPureIntro. by rewrite <-Def_M. }
-        iMod ("Hclose" with "[MCS]") as "HQ".
-        { iFrame "%". iExists (H1 ∪ {[(k, T)]}).
-          iFrame "∗%". }
-        iModIntro. iSplitL "Hth_sy HQ".
-        iNext. iExists (H1 ∪ {[(k, T)]}). iFrame.
-        iRight. iSplitL. iLeft. done.
-        iPureIntro. clear; set_solver.
-        iModIntro. iFrame.
-        iExists P, Q, k, T, vt, γ_tk, γ_sy.
-        iFrame "∗#".
-      + iModIntro. iSplitR "Hreg_proph Hreg_sy Hreg_gh MCS_auth".
-        iNext. iExists (H1 ∪ {[(k, T)]}). iFrame.
-        iLeft. iFrame. by iPureIntro.
-        iModIntro. iFrame.             
-        iExists P, Q, k', vp, vt, γ_tk, γ_sy.
-        iFrame "∗#".
-    - iModIntro.
-      iSplitR "Hreg_proph Hreg_sy Hreg_gh MCS_auth".
-      iNext. iExists (H1 ∪ {[(k, T)]}). iFrame.
-      iRight. iDestruct "Hdone" as "(HQ & %)".
-      iFrame "HQ". iPureIntro. set_solver.
-      iModIntro. iFrame. 
-      iExists P, Q, k', vp, vt, γ_tk, γ_sy.
-      iFrame "∗#". 
-  Qed.  
-
-
+   
   Lemma upsert_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
-                    (k: K) γ_td γ_ght :
-    ⊢ (*⌜N1 ## N2⌝ -∗ ⌜N2 ## thN⌝ -∗ ⌜N1 ## thN⌝ -∗*) ⌜k ∈ KS⌝ -∗ 
+                    (k: K) protocol_abs :
+    ⊢ ⌜k ∈ KS⌝ -∗ 
+        (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
         mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
-          helping_inv N γ_te γ_he γ_fr γ_td γ_ght -∗
-            <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
-                   upsert lc r #k @ ⊤ ∖ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
-            <<< MCS_high γ_te γ_he (t + 1) (<[k := t]> M), RET #() >>>.
+          helping_inv N γ_fr protocol_abs -∗
+            <<< ∀ t H, MCS γ_te γ_he t H >>> 
+                   upsert lc r #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N))
+            <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]})
+                ∗ ⌜maxTS t H⌝, RET #() >>>.
   Proof.
     iIntros "%". iLöb as "IH".
-(*    rename H into Disj_ns1. rename H0 into Disj_ns2.
-    rename H1 into Disj_ns3. *) 
     rename H into k_in_KS.    
-    iIntros "#HInv #HInv_h" (Φ) "AU". wp_lam.
+    iIntros "Ghost_updP #HInv #HInv_h" (Φ) "AU". wp_lam.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
     iInv "HInv" as ">H".
     iDestruct "H" as (T0 H0 hγ0 I0 J0) "(Hglob & Hstar)".
     iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & Max_ts & domm_IR & domm_Iγ)".
-    iModIntro. iSplitR "AU". iNext. 
+    iModIntro. iSplitR "AU Ghost_updP". iNext. 
     iExists T0, H0, hγ0, I0, J0. iFrame "∗ #". iModIntro.
     (** Lock the node r **)
-    awp_apply lockNode_spec_high; try done.
+    awp_apply lockNode_spec_high without "Ghost_updP"; try done.
     iAaccIntro with ""; try eauto with iFrame. 
-    iIntros (Cr Br Qr)"HnP_n". iModIntro. wp_pures.
+    iIntros (Cr Br Qr)"HnP_n". iModIntro. 
+    iIntros "Ghost_updP". wp_pures.
     iDestruct "HnP_n" as (γ_er γ_cr γ_br γ_qr γ_cirr es T)
                       "(node_r & HnP_gh & HnP_frac & HnP_C & HnP_t)".
     iEval (rewrite decide_True) in "HnP_t".
@@ -141,12 +53,15 @@ Section upsert_proof.
     - (** Case : addContents fails. Unlock root node and apply 
                  inductive hypothesis IH **) 
       iDestruct "Hif" as %HCr. replace Cr'. wp_pures.
-      awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
+      awp_apply (unlockNode_spec_high 
+          with "[] [] [HnP_gh HnP_frac HnP_C HnP_t node_r]") 
+            without "Ghost_updP" ; try done.
       { iExists γ_er, γ_cr, γ_br, γ_qr, γ_cirr, es, T.
         iFrame. iEval (rewrite decide_True); try done. }
       iAaccIntro with ""; try eauto with iFrame.
-      iIntros "_". iModIntro. wp_pures.
-      by iApply "IH".
+      iIntros "_". iModIntro.
+      iIntros "Ghost_updP". wp_pures.
+      iApply ("IH" with "Ghost_updP"); try done.
     - (** Case : addContent successful **)
       (** Linearization Point: open invariant and update the resources **)
       wp_pures. wp_bind (incrementClock _)%E.
@@ -154,11 +69,28 @@ Section upsert_proof.
       unfold clock. wp_load. wp_pures. 
       iInv "HInv" as ">H". 
       iDestruct "H" as (T1 H1 hγ1 I1 J1) "(Hglob & Hstar)".
-      iInv "HInv_h" as (H1' TD hγt)"(>Hfr & >HTD & >Hγt & >Domm_hγt & Hstar_reg)".
+      iInv "HInv_h" as (H1')"(>Hfr & Protocol_abs)".
       wp_store. 
-      
+
       iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & _ & Max_ts & domm_IR & domm_Iγ)".
+      iAssert (⌜H1' = H1⌝)%I as "%".
+      { iPoseProof (own_valid_2 _ _ _ with "[$Hfr] [$HfrH]") as "%".
+        rename H into H'. 
+        apply frac_agree_op_valid in H'. destruct H' as [_ H'].
+        apply leibniz_equiv_iff in H'. by iPureIntro. } subst H1'.
+      iCombine "Hfr HfrH" as "H'". 
+      iEval (rewrite <-frac_agree_op) in "H'". 
+      iEval (rewrite Qp_half_half) in "H'".
+      iMod ((own_update (γ_fr) (to_frac_agree 1 H1) 
+                  (to_frac_agree 1 (H1 ∪ {[(k,T)]}) )) with "[$H']") as "H'".
+      { apply cmra_update_exclusive. 
+        unfold valid, cmra_valid. simpl. unfold prod_valid.
+        split; simpl; try done. }
+      iEval (rewrite <-Qp_half_half) in "H'".
+      iEval (rewrite frac_agree_op) in "H'".  
+      iDestruct "H'" as "(HfrH & Hfr)".
+      
       iDestruct "Hif" as %HCr.
       iAssert (⌜T = T1⌝)%I as %HT. 
       { iPoseProof ((own_valid_2 _ _ _) with "[$HnP_T] [$Ht]") as "H'".
@@ -345,27 +277,9 @@ Section upsert_proof.
             pose proof Hφ6 k' HKS. clear -H. 
             apply (Nat.le_trans _ T _); try done. lia. }
             
-      iAssert (⌜H1' = H1⌝)%I as "%".
-      { iPoseProof (own_valid_2 _ _ _ with "[$Hfr] [$HfrH]") as "%".
-        rename H into H'. 
-        apply frac_agree_op_valid in H'. destruct H' as [_ H'].
-        apply leibniz_equiv_iff in H'. by iPureIntro. } subst H1'.
-      iCombine "Hfr HfrH" as "H'". 
-      iEval (rewrite <-frac_agree_op) in "H'". 
-      iEval (rewrite Qp_half_half) in "H'".
-      iMod ((own_update (γ_fr) (to_frac_agree 1 H1) 
-                  (to_frac_agree 1 (H1 ∪ {[(k,T)]}) )) with "[$H']") as "H'".
-      { apply cmra_update_exclusive. 
-        unfold valid, cmra_valid. simpl. unfold prod_valid.
-        split; simpl; try done. }
-      iEval (rewrite <-Qp_half_half) in "H'".
-      iEval (rewrite frac_agree_op) in "H'".  
-      iDestruct "H'" as "(HfrH & Hfr)".
             
       (** Linearization **)    
-      iMod "AU" as (t' M)"[MCS_high [_ Hclose]]".
-      iDestruct "MCS_high" as (H1')"(MCS & %)". 
-      rename H into H1_eq_M.
+      iMod "AU" as (t' H1')"[MCS [_ Hclose]]". set_solver.
       iAssert (⌜t' = T⌝)%I as %Ht'. 
       { iPoseProof ((auth_agree γ_te) with "[MCS_auth] [MCS]") as "%".
         unfold MCS_auth. by iDestruct "MCS_auth" as "(H' & _)".
@@ -384,28 +298,12 @@ Section upsert_proof.
                                           as "(MCS●h & MCS◯h)".
       iCombine "MCS◯t MCS◯h" as "MCS".
       iCombine "MCS●t MCS●h" as "MCS_auth".
-      iAssert (MCS_high γ_te γ_he (T + 1) (<[k:=T]> M))%I
-        with "[MCS]" as "MCS_high".
-      { iExists (H1 ∪ {[(k, T)]}). iFrame.
-        iPureIntro. apply map_eq. 
-        intros k'. destruct (decide (k' = k)).
-        - subst k'. rewrite (map_of_set_lookup _ _ T).
-          by rewrite lookup_insert. set_solver.
-          intros t. rewrite elem_of_union.
-          intros [H' | H'].
-          destruct Max_tsH1 as [Max_tsH1 _].
-          pose proof Max_tsH1 k t H' as H''; clear -H''; lia.
-          rewrite elem_of_singleton in H'*; intros H'.
-          inversion H'. lia.          
-        - rewrite map_of_set_union_ne; try done.
-          rewrite lookup_insert_ne.
-          rewrite map_eq_iff in H1_eq_M*; intros H1_eq_M.
-          try done. done. }      
-      iMod ("Hclose" with "MCS_high") as "HΦ".
-
-      iMod (ghost_update_registered k T with 
-            "[] [MCS_auth] [$Hstar_reg]") 
-                as "(Hstar_reg & MCS_auth)"; try done.
+      iMod ("Hclose" with "[MCS]") as "HΦ".
+      { iFrame. by iPureIntro. }
+      
+      iSpecialize ("Ghost_updP" $! H1 T).
+      iMod ("Ghost_updP" with "[] [$MCS_auth] [$Protocol_abs]") 
+                        as "(Protocol_abs & MCS_auth)". 
       { pose proof map_of_set_lookup (H1 ∪ {[k, T]}) k T as H'.
         iPureIntro. rewrite lookup_total_alt.
         rewrite H'. by simpl. clear; set_solver.
@@ -418,8 +316,8 @@ Section upsert_proof.
       
       
       iModIntro.
-      iSplitL "Hfr HTD Hγt Domm_hγt Hstar_reg".
-      { iNext. iExists (H1 ∪ {[(k, T)]}), TD, hγt. iFrame. } 
+      iSplitL "Hfr Protocol_abs".
+      { iNext. iExists (H1 ∪ {[(k, T)]}). iFrame. } 
       
       iModIntro.
       iSplitR "HΦ node_r HnP_gh HnP_t HnP_C HnP_frac".
@@ -433,12 +331,12 @@ Section upsert_proof.
           iFrame "%∗". }        
         iApply (big_sepS_mono 
                   (λ y, ∃ (bn : bool) (Cn Bn Qn : gmap K natUR),
-                          general_multicopy.lockLoc y ↦ #bn
+                          lockLoc y ↦ #bn
                         ∗ (if bn then True
                            else nodePred γ_gh γ_t γ_s lc r y Cn Bn Qn)
                         ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Bn Qn H1 T )%I
                   (λ y, ∃ (bn : bool) (Cn Bn Qn : gmap K natUR),
-                          general_multicopy.lockLoc y ↦ #bn
+                          lockLoc y ↦ #bn
                         ∗ (if bn then True
                            else nodePred γ_gh γ_t γ_s lc r y Cn Bn Qn)
                         ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Bn Qn 
@@ -466,6 +364,7 @@ Section upsert_proof.
       iAaccIntro with ""; try done.
       iIntros "_". iModIntro; iIntros "HΦ"; try done.
       Unshelve. try done.
-  Qed.      
+  Qed.
+
 
 End upsert_proof.

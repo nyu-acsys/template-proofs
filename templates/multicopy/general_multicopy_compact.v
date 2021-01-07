@@ -2010,14 +2010,23 @@ Section compact_proof.
 
 
 
-  Lemma compact_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r (n: Node) :
-      ⊢ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
-          inFP γ_f n -∗ <<< ∀ t M, MCS_high γ_te γ_he t M >>> 
-                              compact #n @ ⊤ ∖ ↑(mcsN N)
-                        <<< MCS_high γ_te γ_he t M, RET #() >>>.
+  Lemma compact_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr 
+                      lc r γ_td γ_ght (n: Node) :
+      ⊢ inFP γ_f n -∗ 
+          <<< ∀ t M, MCS_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr 
+                      lc r γ_td γ_ght t M >>> 
+                compact #n @ ⊤ ∖ ↑(mcsN N)
+          <<< MCS_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr 
+                      lc r γ_td γ_ght t M, RET #() >>>.
   Proof.
-    iIntros "#HInv". iLöb as "IH" forall (n).
-    iIntros "#FP_n". iIntros (Φ) "AU". wp_lam.
+    iLöb as "IH" forall (n).
+    iIntros "#FP_n". iIntros (Φ) "AU".
+    iApply fupd_wp. 
+    iMod "AU" as (t0' M0')"[H [Hab _]]".
+    iDestruct "H" as (H0')"(MCS & M_eq_H & #HInv & #HInv_h)".
+    iMod ("Hab" with "[MCS M_eq_H]") as "AU".
+    iExists H0'. iFrame "∗#". iModIntro.    
+    wp_lam.
     awp_apply lockNode_spec_high; try done.
     iAaccIntro with ""; try eauto with iFrame.
     iIntros (Cn Bn Qn)"HnP_n". iModIntro.

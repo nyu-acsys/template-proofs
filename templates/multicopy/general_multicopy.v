@@ -264,9 +264,15 @@ Section multicopy.
   Definition φ5 (Bn Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → (Qn !!! k ≤ Bn !!! k).            
 
+  (** extraneous *)
   Definition φ6 (Bn: gmap K natUR) (t: nat) := 
               ∀ k, k ∈ KS → (Bn !!! k ≤ t).
   
+  (** simplify to dom Qn = out(es) ∩ inset Jn n 
+      to combine φ0 and φ7, where
+      out(es) = { k | ∃ n', k in es(n') }
+      φ0 := dom Qn ⊆ out(es)
+      φ7 := out(es) ∩ inset Jn n ⊆ dom Qn *)
   Definition φ7 n (es: esT) (Jn: multiset_flowint_ur K) (Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → ((∃ n', k ∈ es !!! n') ∧ k ∈ inset K Jn n 
                           → k ∈ dom (gset K) Qn).              
@@ -402,13 +408,21 @@ Section multicopy.
 
   (** Helping Inv **)
 
-  Definition MCS_high (γ_te γ_he: gname) (t: nat) (M: gmap K nat) : iProp :=
-    ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝.  
+  (** Helping Inv **)
 
+  Definition helping (N: namespace) (γ_fr: gname) 
+                      (protocol_abs : gset KT → iProp) : iProp :=
+      ∃ (H: gset KT),  
+        own γ_fr (to_frac_agree (1/2) H)
+      ∗ protocol_abs H.
+  
+  Definition helping_inv N γ_fr protocol_abs : iProp :=
+    inv (helpN N) (helping N γ_fr protocol_abs).
+  
   Definition pau N γ_te γ_he P (Q : val → iProp) k := 
-    (▷ P -∗ ◇ AU << ∀ t M, MCS_high γ_te γ_he t M >> 
+    (▷ P -∗ ◇ AU << ∀ t H, MCS γ_te γ_he t H >> 
                   @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N)), ∅
-                 << ∃ (t': nat), MCS_high γ_te γ_he t M ∗ ⌜M !!! k = t'⌝, 
+                 << ∃ (t': nat), MCS γ_te γ_he t H ∗ ⌜map_of_set H !!! k = t'⌝, 
                                                           COMM Q #t' >>)%I.
 
 
@@ -425,24 +439,34 @@ Section multicopy.
                      ∗ (state_lin_pending P H k vp 
                         ∨ state_lin_done γ_tk Q H k vp).
 
-  Definition registered (N: namespace) (γ_ce γ_he γ_ght: gname) 
+  Definition registered (N: namespace) (γ_te γ_he γ_ght: gname) 
                             (H: gset KT) (t_id: proph_id) : iProp :=
     ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: nat) (vt: val) (γ_tk γ_sy: gname), 
         proph1 t_id vt
       ∗ own γ_ght (◯ {[t_id := to_agree γ_sy]})  
       ∗ own (γ_sy) (to_frac_agree (1/2) H)
-      ∗ □ pau N γ_ce γ_he P Q k
+      ∗ □ pau N γ_te γ_he P Q k
       ∗ inv (threadN N) (∃ H, get_op_state γ_sy t_id γ_tk P Q H (k: K) (vp: nat)).
 
-  Definition helping N (γ_ce γ_he γ_fr γ_td γ_ght: gname) : iProp :=
-    ∃ (H: gset KT) (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
-        own γ_fr (to_frac_agree (1/2) H)
-      ∗ own γ_td (● TD)
+  Definition protocol_conc (N: namespace) (γ_te γ_he γ_fr γ_td γ_ght: gname) 
+                                        (H: gset KT) : iProp :=
+    ∃ (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
+        own γ_td (● TD)
       ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = TD⌝  
-      ∗ ([∗ set] t_id ∈ TD, registered N γ_ce γ_he γ_ght H t_id).
-  
-  Definition helping_inv N (γ_ce γ_he γ_fr γ_td γ_ght: gname) : iProp :=
-    inv (helpN N) (helping N γ_ce γ_he γ_fr γ_td γ_ght).
+      ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H t_id).
+
+  Definition MCS_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr 
+                      lc r γ_td γ_ght t M : iProp :=
+  ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝
+     ∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r
+     ∗ helping_inv N γ_fr (protocol_conc N γ_te γ_he γ_fr γ_td γ_ght).      
+
+  Definition ghost_update_protocol N γ_te γ_he protocol_abs k : iProp :=
+        (∀ H T, ⌜map_of_set (H ∪ {[k, T]}) !!! k = T⌝ -∗  
+                MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]}) -∗ 
+                  protocol_abs H ={⊤ ∖ ↑mcsN N ∖ ↑helpN N}=∗
+                    protocol_abs (H ∪ {[(k, T)]}) 
+                      ∗ MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]})).
   
   (** Helper functions specs *)
 
@@ -475,6 +499,7 @@ Section multicopy.
     iModIntro; done.
   Qed.  
 
+(*
   Lemma incrementClock_spec: ∀ γ_t (lc: loc) t, 
      ⊢ (<<< own γ_t (● MaxNat t)  ∗ clock lc t >>>
            incrementClock #lc @ ⊤
@@ -498,6 +523,7 @@ Section multicopy.
     iEval (rewrite H') in "Hc".
     iFrame. by iModIntro.
   Qed.
+*)
 
   Parameter addContents_spec : ∀ r es (Cn: gmap K natUR) (k: K) (t:nat),
      ⊢ ({{{ node r r es Cn }}}
