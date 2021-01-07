@@ -28,8 +28,13 @@ single_copy/give_up.v
 single_copy/link.v
 single_copy/coupling.v
 
+multicopy/one_shot_proph.v
+multicopy/typed_proph.v
 multicopy/general_multicopy.v
-multicopy/general_multicopy_compact.v
+multicopy/util.v
 multicopy/general_multicopy_search.v
 multicopy/general_multicopy_upsert.v
+multicopy/general_multicopy_search_high.v
+multicopy/general_multicopy_upsert_high.v
+multicopy/general_multicopy_compact.v
 

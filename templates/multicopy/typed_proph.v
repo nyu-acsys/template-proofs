@@ -160,3 +160,25 @@ Section int_proph.
 End int_proph.
 
 Definition IntTypedProph `{!heapG Σ} := make_TypedProph IntProph.
+
+(** Instantiation of the interface with nats. *)
+
+Section nat_proph.
+  Definition nat_from_val (v : val) : option nat :=
+    match v with
+    | LitV(LitInt i) => Some (Z.to_nat i)
+    | _              => None
+    end.
+
+  Definition nat_to_val (i : nat) : val := LitV(LitInt i).
+
+  Lemma nat_inj_prop : ∀ (i : nat), nat_from_val (nat_to_val i) = Some i.
+  Proof. 
+    intros i. simpl. apply f_equal. lia.
+  Qed.
+
+  Definition NatProph : TypedProphSpec :=
+    mkTypedProphSpec nat nat_from_val nat_to_val nat_inj_prop.
+End nat_proph.
+
+Definition NatTypedProph `{!heapG Σ} := make_TypedProph NatProph.
