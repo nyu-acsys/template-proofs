@@ -7,18 +7,19 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Import general_multicopy util.
+Require Export general_multicopy general_multicopy_util.
 
-Section upsert_proof.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ}.
-  Notation iProp := (iProp Σ).  
+Section gen_multicopy_upsert.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+(*   Context (N : namespace). *)
+  Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
-   
-  Lemma upsert_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r 
+  
+  Lemma upsert_spec N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
                     (k: K) protocol_abs :
     ⊢ ⌜k ∈ KS⌝ -∗ 
         (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r -∗
+        mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           helping_inv N γ_fr protocol_abs -∗
             <<< ∀ t H, MCS γ_te γ_he t H >>> 
                    upsert lc r #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N))
@@ -31,11 +32,13 @@ Section upsert_proof.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
     iInv "HInv" as ">H".
-    iDestruct "H" as (T0 H0 hγ0 I0 J0) "(Hglob & Hstar)".
-    iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & #FP_r & Max_ts & domm_IR & domm_Iγ)".
+    iDestruct "H" as (T0 H0)"(mcs_high & mcs_conc)".
+    iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
+    iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
+    iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
+            & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IR & domm_Iγ)".
     iModIntro. iSplitR "AU Ghost_updP". iNext. 
-    iExists T0, H0, hγ0, I0, J0. iFrame "∗ #". iModIntro.
+    iExists T0, H0. iFrame. iExists hγ0, I0, J0. iFrame "∗ #". iModIntro.
     (** Lock the node r **)
     awp_apply lockNode_spec_high without "Ghost_updP"; try done.
     iAaccIntro with ""; try eauto with iFrame. 
@@ -68,12 +71,14 @@ Section upsert_proof.
       wp_lam. iDestruct "HnP_t" as "(HnP_T & HnP_lc)".
       unfold clock. wp_load. wp_pures. 
       iInv "HInv" as ">H". 
-      iDestruct "H" as (T1 H1 hγ1 I1 J1) "(Hglob & Hstar)".
-      iInv "HInv_h" as (H1')"(>Hfr & Protocol_abs)".
+      iDestruct "H" as (T1 H1)"(mcs_high & mcs_conc)".
+      iDestruct "mcs_conc" as (hγ1 I1 J1)"(Hglob & Hstar)".
+      iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
+      iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
+            & Out_J & Inf_J & Hf & Hγ & _ & domm_IR & domm_Iγ)".
+      iInv "HInv_h" as (H1')"(>Hfr & Protocol_abs)".            
       wp_store. 
 
-      iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & _ & Max_ts & domm_IR & domm_Iγ)".
       iAssert (⌜H1' = H1⌝)%I as "%".
       { iPoseProof (own_valid_2 _ _ _ with "[$Hfr] [$HfrH]") as "%".
         rename H into H'. 
@@ -113,16 +118,16 @@ Section upsert_proof.
 
       iPoseProof ((auth_own_incl γ_s H1 _) with "[$HH $HnP_C]") as "%".
       rename H into Cr_sub_H1. apply gset_included in Cr_sub_H1.
-      iDestruct "Max_ts" as %Max_tsH1.
+      iDestruct "MaxTS" as %MaxTS_H1.
       (** Re-establish maxTS for updated T and H **)
       assert (maxTS (T+1) (H1 ∪ {[(k, T)]})) as Max_ts.
       { split. intros k' t' H.
         assert (((k',t') ∈ H1) ∨ (k' = k ∧ t' = T)) as Hor by set_solver.
         destruct Hor as [Hor | Hor]. 
-        destruct Max_tsH1 as [Max_tsH1 _].
-        pose proof Max_tsH1 k' t' Hor as Hres. lia.
+        destruct MaxTS_H1 as [MaxTS_H1 _].
+        pose proof MaxTS_H1 k' t' Hor as Hres. lia.
         destruct Hor as [_ Hor]. replace t'. lia.
-        destruct Max_tsH1 as [_ Max_tsH1]. lia. }       
+        destruct MaxTS_H1 as [_ MaxTS_H1]. lia. }       
       iAssert (⌜set_of_map Cr' ⊆ H1 ∪ {[(k,T)]}⌝)%I as %Cr_sub_H1'.
       { iPureIntro. replace Cr'.
         pose proof (set_of_map_insert_subseteq Cr k T) as H'.
@@ -187,8 +192,8 @@ Section upsert_proof.
       { iPureIntro.
         apply map_of_set_insert_eq; try done.
         intros t. 
-        destruct Max_tsH1 as [Max_tsH1 _].
-        by pose proof Max_tsH1 k t. }
+        destruct MaxTS_H1 as [MaxTS_H1 _].
+        by pose proof MaxTS_H1 k t. }
       iEval (rewrite (big_sepS_delete (_) (KS) k); last by eauto) in "HnS_star".
       iDestruct "HnS_star" as "(Hk & HnS_star')".
       iAssert (⌜Br !!! k ≤ T⌝)%I as %Br_le_T. 
@@ -250,7 +255,7 @@ Section upsert_proof.
         - destruct (decide (k0 = k)).
           + subst k0. subst Cr' Br'.
             rewrite !lookup_insert.
-            destruct Max_tsH1 as [_ H'].
+            destruct MaxTS_H1 as [_ H'].
             intros H''; inversion H''.
           + subst Cr' Br'. 
             rewrite !lookup_insert_ne; try done.
@@ -280,16 +285,9 @@ Section upsert_proof.
             
       (** Linearization **)    
       iMod "AU" as (t' H1')"[MCS [_ Hclose]]". set_solver.
-      iAssert (⌜t' = T⌝)%I as %Ht'. 
-      { iPoseProof ((auth_agree γ_te) with "[MCS_auth] [MCS]") as "%".
-        unfold MCS_auth. by iDestruct "MCS_auth" as "(H' & _)".
-        by iDestruct "MCS" as "(H' & _)".
-        by iPureIntro. } subst t'.
-      iAssert (⌜H1' = H1⌝)%I as "%".
-      { iPoseProof ((auth_agree' γ_he) with "[MCS_auth] [MCS]") as "%".
-        unfold MCS_auth. by iDestruct "MCS_auth" as "(_ & H'')".
-        by iDestruct "MCS" as "(_ & H')".
-        by iPureIntro. } subst H1'.
+      iAssert (⌜t' = T ∧ H1' = H1⌝)%I as "(% & %)". 
+      { iPoseProof (MCS_agree with "[$MCS_auth] [$MCS]") as "(% & %)".
+        by iPureIntro. } subst t' H1'. 
       iDestruct "MCS" as "(MCS◯t & MCS◯h)".
       iDestruct "MCS_auth" as "(MCS●t & MCS●h)".
       iMod ((auth_excl_update γ_te (T+1) T T) with "MCS●t MCS◯t") 
@@ -298,10 +296,9 @@ Section upsert_proof.
                                           as "(MCS●h & MCS◯h)".
       iCombine "MCS◯t MCS◯h" as "MCS".
       iCombine "MCS●t MCS●h" as "MCS_auth".
-      iMod ("Hclose" with "[MCS]") as "HΦ".
-      { iFrame. by iPureIntro. }
+      iMod ("Hclose" with "[$MCS]") as "HΦ". by iPureIntro.
       
-      iSpecialize ("Ghost_updP" $! H1 T).
+      iSpecialize ("Ghost_updP" $! T H1).
       iMod ("Ghost_updP" with "[] [$MCS_auth] [$Protocol_abs]") 
                         as "(Protocol_abs & MCS_auth)". 
       { pose proof map_of_set_lookup (H1 ∪ {[k, T]}) k T as H'.
@@ -309,8 +306,8 @@ Section upsert_proof.
         rewrite H'. by simpl. clear; set_solver.
         intros t. rewrite elem_of_union.
         clear H'. intros [H' | H'].
-        destruct Max_tsH1 as [Max_tsH1 _].
-        pose proof Max_tsH1 k t H' as H''; clear -H''; lia.
+        destruct MaxTS_H1 as [MaxTS_H1 _].
+        pose proof MaxTS_H1 k t H' as H''; clear -H''; lia.
         rewrite elem_of_singleton in H'*; intros H'.
         inversion H'. lia. }          
       
@@ -321,8 +318,8 @@ Section upsert_proof.
       
       iModIntro.
       iSplitR "HΦ node_r HnP_gh HnP_t HnP_C HnP_frac".
-      { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}), hγ1, I1, J1.
-        iFrame "∗ %".   
+      { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}). iFrame "∗%".
+        iExists hγ1, I1, J1. iFrame "∗ %".   
         rewrite (big_sepS_delete _ (domm I1) r); last by eauto.
         iSplitR "Hstar'".
         { iExists true, Cr', Br', Qr. iFrame.
@@ -367,4 +364,6 @@ Section upsert_proof.
   Qed.
 
 
-End upsert_proof.
+End gen_multicopy_upsert.
+    
+  

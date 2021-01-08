@@ -30,11 +30,13 @@ single_copy/coupling.v
 
 multicopy/one_shot_proph.v
 multicopy/typed_proph.v
+multicopy/multicopy.v
+multicopy/multicopy_util.v
+multicopy/multicopy_high.v
 multicopy/general_multicopy.v
-multicopy/util.v
+multicopy/general_multicopy_util.v
 multicopy/general_multicopy_search.v
 multicopy/general_multicopy_upsert.v
-multicopy/general_multicopy_search_high.v
-multicopy/general_multicopy_upsert_high.v
 multicopy/general_multicopy_compact.v
+
 
