@@ -230,6 +230,7 @@ procedure inContents(n: Node, k: K,
   ensures node(r, n, es, Cn)
   ensures res != noneTS ==> Cn[k] == res.tst
   // TODO make Cn Map<K, OptionTS> instead of:
+  // ensures Cn[k] == res
   // ensures res == noneTS ==> (forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k)
 {
   if (n.nodeType == memtableNode) {
@@ -309,6 +310,38 @@ procedure findNext(n: Node, k: K,
 
   return someNode(n.ptrs[i]);
 }
+
+procedure atCapacity(n: Node,
+    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (b: Bool)
+  requires node(r, n, es, Cn)
+  ensures node(r, n, es, Cn)
+{
+  if (n.tableLen < n.tableK.length) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+// procedure chooseNext(n: Node,
+//     ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+//   returns (m: Node,
+//     ghost es1: Map<Node, Set<K>>, ghost es_m: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
+//   requires node(r, n, es, Cn)
+//   ensures node(r, n, es1, Cn) &*& es1[m] != {}
+//   ensures (
+//       es1 == es
+//     ||
+//       es1 == es[m := es1[m]]
+//       &*& node(r, m, es1, Cm)  // TODO lockLoc?
+//       &*& Cm == {k: K :: 0}
+//       &*& es_m == {N: Node :: {}}
+//   )
+// {
+// }
+
+// TODO go with single successor
 
 // addContents is not needed since this is for the non-root nodes
 // TODO However we probably need mergeContents
