@@ -2,11 +2,6 @@ options "-abspreds -simplearrays -propreads -stratify"
 
 include "array_util.spl"
 
-pure function KS() returns (res: Set<K>)
-{
-  { k: K :: lt(k, top) }
-}
-
 datatype OptionTS = someTS(tst: Int) | noneTS
 
 datatype OptionNode = someNode(nd: Node) | noneNode
@@ -30,24 +25,16 @@ define hrepSpatial(x) {
   acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.tableK) &*& acc(x.tableT)
   &*& x.keys.length == 2*B &*& x.ptrs.length == 2*B
   &*& x.tableK.length == x.tableT.length
+  &*& x.tableK.length == 2*B
 }
 
-define map_of_table(tableK, tableT, len, C) {
+define nodePure(r, n, es, Cn) {
   true
-  &*& (forall i: Int :: 0 <= i < len ==> C[tableK[i]] == tableT[i])
-}
-
-define hrep(n, es, C) {
-  hrepSpatial(n)
-  &*& map_of_table(n.tableK, n.tableT, n.tableLen, C)
-  &*& 0 <= n.tableLen <= n.tableK.length
-}
-
-define node(r, n, es, Cn) {
-  hrep(n, es, Cn)
-  &*& sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
-  &*& (n.ptrs[0] == null  // Leaf
-      &*& (forall n1: Node :: es[n1] == {})
+  && 0 <= n.tableLen <= n.tableK.length
+  && sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
+  && (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.tableK[i]] == n.tableT[i])
+  && (n.ptrs[0] == null  // Leaf
+      && (forall n1: Node :: es[n1] == {})
     || n.ptrs[0] != null  // Internal
       && (forall i: Int :: 0 <= i <= n.len ==> n != n.ptrs[i])
       && (forall i: Int, j: Int :: 0 <= i < j <= n.len ==> n.ptrs[i] != n.ptrs[j]
@@ -63,17 +50,22 @@ define node(r, n, es, Cn) {
       && (forall n1: Node :: n.indices[n1] == -1 ==> es[n1] == {})
   )
   // Keys are sorted
-  &*& sorted_map_seg(n.keys.map, 0, n.len) == true
-  &*& 0 <= n.len <= n.keys.length
+  && sorted_map_seg(n.keys.map, 0, n.len) == true
+  && 0 <= n.len <= n.keys.length
   // Indices of outgoing pointers are stored in n.indices
-  &*& (forall y: Node :: 0 <= n.indices[y] <= n.len
+  && (forall y: Node :: 0 <= n.indices[y] <= n.len
     ==> n.ptrs.map[n.indices[y]] == y)
-  &*& (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
+  && (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
     ==> n.indices[n.ptrs.map[i]] == i @(noinst i))
-  &*& (forall y: Node :: -1 <= n.indices[y] <= n.len)
-  &*& (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
-  &*& n.indices[n] == -1
-  &*& n.indices[r] == -1
+  && (forall y: Node :: -1 <= n.indices[y] <= n.len)
+  && (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
+  && n.indices[n] == -1
+  && n.indices[r] == -1
+}
+
+define node(r, n, es, Cn) {
+  hrepSpatial(n)
+  &*& nodePure(r, n, es, Cn)
 }
 
 lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)

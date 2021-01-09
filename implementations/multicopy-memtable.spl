@@ -2,11 +2,6 @@ options "-abspreds -simplearrays -propreads -stratify"
 
 include "array_util.spl"
 
-pure function KS() returns (res: Set<K>)
-{
-  { k: K :: lt(k, top) }
-}
-
 datatype OptionTS = someTS(tst: Int) | noneTS
 
 datatype OptionNode = someNode(nd: Node) | noneNode
