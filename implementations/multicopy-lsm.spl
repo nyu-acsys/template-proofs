@@ -10,13 +10,10 @@ datatype NodeType = memtableNode | sstableNode
 
 struct Node {
   var nodeType: NodeType;
-  var len: Int;
-  var keys: Array<K>;
-  var ptrs: Array<Node>;
-  ghost var indices: Map<Node, Int>;
   var tableK: Array<K>;
   var tableT: Array<Int>;
   var tableLen: Int;
+  var next: Node;
 }
 
 const B: Int
@@ -25,10 +22,9 @@ axiom B > 1
 
 
 define nodeSpatial(x) {
-  acc(x) &*& acc(x.keys) &*& acc(x.ptrs) &*& acc(x.tableK) &*& acc(x.tableT)
-  &*& x.keys.length == 2*B &*& x.ptrs.length == 2*B
+  acc(x) &*& acc(x.tableK) &*& acc(x.tableT)
   &*& x.tableK.length == x.tableT.length
-  &*& x.tableK.length == 2*B
+  &*& x.tableK.length == 2*B  // TODO try without
 }
 
 function contents_memtable_aux(tableK: Map<Int, K>, tableT: Map<Int, Int>,
@@ -128,34 +124,14 @@ define nodePure(r, n, es, Cn) {
       && (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.tableK[i]] == n.tableT[i])
   )
   && 0 <= n.tableLen <= n.tableK.length
-  && (n.ptrs[0] == null  // Leaf
-      && (forall n1: Node :: es[n1] == {})
-    || n.ptrs[0] != null  // Internal
-      && (forall i: Int :: 0 <= i <= n.len ==> n != n.ptrs[i])
-      && (forall i: Int, j: Int :: 0 <= i < j <= n.len ==> n.ptrs[i] != n.ptrs[j]
-        @(noinst i) @(noinst j))
-      && (forall i: Int :: 0 <= i <= n.len ==> n.ptrs[i] != null)
-      && (forall i: Int, k: K :: 0 <= i <= n.len ==>
-        (k in es[n.ptrs[i]]
-          && (0 < i ==> le(n.keys[i-1], k)) && (i < n.len ==> lt(k, n.keys[i]))
-        || k !in es[n.ptrs[i]]
-          && !((i <= 0 || le(n.keys[i-1], k)) && (i >= n.len || lt(k, n.keys[i]))))
-        @(matching n.ptrs[i] yields n.keys[i - 1])
-        @(matching n.ptrs[i] yields n.keys[i]))
-      && (forall n1: Node :: n.indices[n1] == -1 ==> es[n1] == {})
-  )
-  // Keys are sorted
-  && sorted_map_seg(n.keys.map, 0, n.len) == true
-  && 0 <= n.len <= n.keys.length
-  // Indices of outgoing pointers are stored in n.indices
-  && (forall y: Node :: 0 <= n.indices[y] <= n.len
-    ==> n.ptrs.map[n.indices[y]] == y)
-  && (forall i: Int :: n.ptrs[0] != null && 0 <= i <= n.len
-    ==> n.indices[n.ptrs.map[i]] == i @(noinst i))
-  && (forall y: Node :: -1 <= n.indices[y] <= n.len)
-  && (n.ptrs[0] == null ==> (forall y: Node :: n.indices[y] == -1 @(noinst y)))
-  && n.indices[n] == -1
-  && n.indices[r] == -1
+  // No self-loops
+  && n.next != n && n.next != r
+  // Edgeset to next node is KS if non-null
+  && (n.next != null
+    ==> (forall k: K :: k in es[n.next]))
+  // All other nodes have empty edgeset
+  && (forall n1: Node :: n1 != n.next ==> es[n1] == {})
+  && es[null] == {}
 }
 
 // TODO make n first or last arg
@@ -179,17 +155,7 @@ lemma node_es_disjoint(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
     n1 != n2 ==> (k !in es[n1] || k !in es[n2]) 
   with {
     if (n1 != n2) {
-      if (n.indices[n1] > -1) {
-        if (n.indices[n2] > -1) {
-          pure assert n.ptrs[n.indices[n1]] == n1 && n.ptrs[n.indices[n2]] == n2;
-          if (n.indices[n1] == n.indices[n2]) {
-            pure assert false;
-          } else {
-            pure assert (k !in es[n.ptrs[n.indices[n1]]]
-              || k !in es[n.ptrs[n.indices[n2]]]);
-          }
-        }
-      }
+      pure assert true;
     }
   }
 }
@@ -206,14 +172,10 @@ procedure init()
   ensures node(r, r, es, Cr)
 {
   r := new Node;
-  r.keys := new Array<K>(2*B);
-  r.ptrs := new Array<Node>(2*B);
-  r.indices := { n: Node :: -1 };
   r.tableK := new Array<K>(2*B);
   r.tableT := new Array<Int>(2*B);
-  arr_init_node(r.ptrs, 2*B, null);
-  r.len := 0;
   r.tableLen := 0;
+  r.next := null;
   r.nodeType := memtableNode;
 
   es := { n: Node :: {} };
@@ -298,17 +260,11 @@ procedure findNext(n: Node, k: K,
   ensures res != noneNode ==> k in es[res.nd]
   ensures res == noneNode ==> (forall n2: Node :: k !in es[n2])
 {
-  if (n.ptrs[0] == null) {  // Leaf node
+  if (n.next == null) {  // Leaf node
     return noneNode;
+  } else {
+    return someNode(n.next);
   }
-
-  var found, i := arr_find(n.keys, n.len, k);
-
-  if (i < n.len && k == n.keys[i]) {  // arr_find finds upper bound, we want lower
-    i := i + 1;
-  }
-
-  return someNode(n.ptrs[i]);
 }
 
 procedure atCapacity(n: Node,
