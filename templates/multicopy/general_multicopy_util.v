@@ -62,12 +62,12 @@ Section gen_multicopy_util.
   Qed.
 
 
-  Lemma ghost_heap_sync γ_gh n γ_en γ_cn γ_bn γ_qn γ_cirn 
-                                      γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' : 
-    own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]}) 
-      -∗ own γ_gh (◯ {[n := ghost_loc γ_en' γ_cn' γ_bn' γ_qn' γ_cirn']}) 
-          -∗ ⌜γ_en = γ_en'⌝ ∗ ⌜γ_cn = γ_cn'⌝ ∗ ⌜γ_bn = γ_bn'⌝ 
-             ∗ ⌜γ_qn = γ_qn'⌝ ∗ ⌜γ_cirn = γ_cirn'⌝.
+  Lemma ghost_heap_sync γ_gh n γ_en γ_cn γ_qn γ_cirn 
+                                      γ_en' γ_cn' γ_qn' γ_cirn' : 
+    own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) 
+      -∗ own γ_gh (◯ {[n := ghost_loc γ_en' γ_cn' γ_qn' γ_cirn']}) 
+          -∗ ⌜γ_en = γ_en'⌝ ∗ ⌜γ_cn = γ_cn'⌝ 
+              ∗ ⌜γ_qn = γ_qn'⌝ ∗ ⌜γ_cirn = γ_cirn'⌝.
   Proof.
     iIntros "H1 H2". iCombine "H1" "H2" as "H".
     iPoseProof (own_valid with "H") as "Valid".
@@ -81,16 +81,16 @@ Section gen_multicopy_util.
   Qed.
 
   Lemma ghost_heap_update γ_gh (hγ: gmap Node per_node_gl) n 
-                                γ_en γ_cn γ_bn γ_qn γ_cirn :
+                                γ_en γ_cn γ_qn γ_cirn :
     ⌜n ∉ dom (gset Node) hγ⌝ -∗ 
           own γ_gh (● hγ) ==∗ 
-            own γ_gh (● <[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]> hγ)
-          ∗ own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]}).
+            own γ_gh (● <[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]> hγ)
+          ∗ own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}).
   Proof.
     iIntros "%". rename H into n_notin_hγ.
-    iIntros "Hown". set (<[ n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn ]> hγ) as hγ'.
+    iIntros "Hown". set (<[ n := ghost_loc γ_en γ_cn γ_qn γ_cirn ]> hγ) as hγ'.
     iDestruct (own_update _ _ 
-        (● hγ' ⋅ ◯ {[ n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn ]})
+        (● hγ' ⋅ ◯ {[ n := ghost_loc γ_en γ_cn γ_qn γ_cirn ]})
                with "Hown") as "Hown".
     { apply auth_update_alloc. 
       rewrite /hγ'.
@@ -100,49 +100,42 @@ Section gen_multicopy_util.
     iModIntro. iFrame.
   Qed.    
 
-  Lemma frac_eq γ_e γ_c γ_b γ_q es Cn Bn Qn es' Cn' Bn' Qn' : 
-              frac_ghost_state γ_e γ_c γ_b γ_q es Cn Bn Qn -∗
-                  frac_ghost_state γ_e γ_c γ_b γ_q es' Cn' Bn' Qn' -∗ 
-                    ⌜es = es'⌝ ∗ ⌜Cn = Cn'⌝ ∗ ⌜Bn = Bn'⌝ ∗ ⌜Qn = Qn'⌝.
+  Lemma frac_eq γ_e γ_c γ_q es Cn Qn es' Cn' Qn' : 
+              frac_ghost_state γ_e γ_c γ_q es Cn Qn -∗
+                  frac_ghost_state γ_e γ_c γ_q es' Cn' Qn' -∗ 
+                    ⌜es = es'⌝ ∗ ⌜Cn = Cn'⌝ ∗ ⌜Qn = Qn'⌝.
   Proof.
     iIntros "H1 H2". unfold frac_ghost_state.
-    iDestruct "H1" as "(H1_es & H1_c & H1_b & H1_q)".
-    iDestruct "H2" as "(H2_es & H2_c & H2_b & H2_q)".
+    iDestruct "H1" as "(H1_es & H1_c & H1_q)".
+    iDestruct "H2" as "(H2_es & H2_c & H2_q)".
     iPoseProof (own_valid_2 _ _ _ with "[$H1_es] [$H2_es]") as "Hes".
     iPoseProof (own_valid_2 _ _ _ with "[$H1_c] [$H2_c]") as "Hc".
-    iPoseProof (own_valid_2 _ _ _ with "[$H1_b] [$H2_b]") as "Hb".
     iPoseProof (own_valid_2 _ _ _ with "[$H1_q] [$H2_q]") as "Hq".
-    iDestruct "Hes" as %Hes. iDestruct "Hc" as %Hc.
-    iDestruct "Hb" as %Hb. iDestruct "Hq" as %Hq.
+    iDestruct "Hes" as %Hes. iDestruct "Hc" as %Hc. iDestruct "Hq" as %Hq.
     apply frac_agree_op_valid in Hes. destruct Hes as [_ Hes].
     apply frac_agree_op_valid in Hc. destruct Hc as [_ Hc].
-    apply frac_agree_op_valid in Hb. destruct Hb as [_ Hb].
     apply frac_agree_op_valid in Hq. destruct Hq as [_ Hq].
     apply leibniz_equiv_iff in Hes.
     apply leibniz_equiv_iff in Hc. 
-    apply leibniz_equiv_iff in Hb.
     apply leibniz_equiv_iff in Hq.
     iPureIntro. repeat split; try done.   
   Qed.
 
-  Lemma frac_update γ_e γ_c γ_b γ_q es Cn Bn Qn es' Cn' Bn' Qn' : 
-              frac_ghost_state γ_e γ_c γ_b γ_q es Cn Bn Qn ∗ 
-                 frac_ghost_state γ_e γ_c γ_b γ_q es Cn Bn Qn ==∗ 
-                      frac_ghost_state γ_e γ_c γ_b γ_q es' Cn' Bn' Qn' ∗ 
-                        frac_ghost_state γ_e γ_c γ_b γ_q es' Cn' Bn' Qn'.
+  Lemma frac_update γ_e γ_c γ_q es Cn Qn es' Cn' Qn' : 
+              frac_ghost_state γ_e γ_c γ_q es Cn Qn ∗ 
+                 frac_ghost_state γ_e γ_c γ_q es Cn Qn ==∗ 
+                      frac_ghost_state γ_e γ_c γ_q es' Cn' Qn' ∗ 
+                        frac_ghost_state γ_e γ_c γ_q es' Cn' Qn'.
   Proof.
     iIntros "(H1 & H2)". 
-    iDestruct "H1" as "(H1_es & H1_c & H1_b & H1_q)".
-    iDestruct "H2" as "(H2_es & H2_c & H2_b & H2_q)".
+    iDestruct "H1" as "(H1_es & H1_c & H1_q)".
+    iDestruct "H2" as "(H2_es & H2_c & H2_q)".
     iCombine "H1_es H2_es" as "Hes". 
     iEval (rewrite <-frac_agree_op) in "Hes". 
     iEval (rewrite Qp_half_half) in "Hes". 
     iCombine "H1_c H2_c" as "Hc". 
     iEval (rewrite <-frac_agree_op) in "Hc". 
     iEval (rewrite Qp_half_half) in "Hc". 
-    iCombine "H1_b H2_b" as "Hb". 
-    iEval (rewrite <-frac_agree_op) in "Hb". 
-    iEval (rewrite Qp_half_half) in "Hb".
     iCombine "H1_q H2_q" as "Hq". 
     iEval (rewrite <-frac_agree_op) in "Hq". 
     iEval (rewrite Qp_half_half) in "Hq".
@@ -162,14 +155,6 @@ Section gen_multicopy_util.
     iEval (rewrite <-Qp_half_half) in "Hc".
     iEval (rewrite frac_agree_op) in "Hc".  
     iDestruct "Hc" as "(H1_c & H2_c)".
-    iMod ((own_update (γ_b) (to_frac_agree 1 Bn) 
-                  (to_frac_agree 1 Bn')) with "[$Hb]") as "Hb".
-    { apply cmra_update_exclusive. 
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
-      split; simpl; try done. }
-    iEval (rewrite <-Qp_half_half) in "Hb".
-    iEval (rewrite frac_agree_op) in "Hb".  
-    iDestruct "Hb" as "(H1_b & H2_b)".
     iMod ((own_update (γ_q) (to_frac_agree 1 Qn) 
                   (to_frac_agree 1 Qn')) with "[$Hq]") as "Hq".
     { apply cmra_update_exclusive. 
@@ -450,6 +435,31 @@ Section gen_multicopy_util.
       set_solver.  
   Qed.          
 
+  Lemma nodePred_nodeShared_eq γ_I γ_J γ_f γ_gh r n 
+                               γ_en γ_cn γ_qn γ_cirn
+                               γ_en' γ_cn' γ_qn' γ_cirn'
+                               es Cn Qn es' Cn' Qn'
+                               Bn In Jn H :
+        own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) -∗
+          frac_ghost_state γ_en γ_cn γ_qn es Cn Qn -∗
+            nodeShared' γ_I γ_J γ_f γ_gh r n Cn' Qn' H 
+                        γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn -∗
+              frac_ghost_state γ_en γ_cn γ_qn es Cn Qn
+              ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H 
+                          γ_en γ_cn γ_qn γ_cirn es Bn In Jn
+              ∗ ⌜es' = es⌝ ∗ ⌜Cn' = Cn⌝  ∗ ⌜Qn' = Qn⌝.
+  Proof.
+    iIntros "HnP_gh HnP_frac HnS".
+    iDestruct "HnS" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                        & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
+    iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
+                              as "(% & % & % & %)".
+    subst γ_en'. subst γ_cn'. subst γ_qn'. subst γ_cirn'.
+    iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
+    destruct H0 as [Hes [Hc Hq]]. 
+    subst es'. subst Cn'. subst Qn'.
+    iFrame. by iPureIntro.
+  Qed.                                        
   
   (** Lock module **)
   
@@ -485,7 +495,7 @@ Section gen_multicopy_util.
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
-              <<< ∃ Cn Bn Qn, nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn, RET #() >>>.
+              <<< ∃ Cn Qn, nodePred γ_gh γ_t γ_s lc r n Cn Qn, RET #() >>>.
   Proof.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
@@ -500,14 +510,14 @@ Section gen_multicopy_util.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn Bn Qn) "(Hlock & Hnp & Hns)".
+    iDestruct "Hn" as (b Cn Qn) "(Hlock & Hnp & Hns)".
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iSplitR "AU".
       { iExists T, H. iNext. iFrame.
         iExists hγ, I, J. iFrame.
         iPoseProof ("Hstar'" with "[-]") as "Hstar".
-        iExists b, Cn, Bn, Qn. iFrame.
+        iExists b, Cn, Qn. iFrame.
         iFrame.
       }
       iFrame.
@@ -519,7 +529,7 @@ Section gen_multicopy_util.
     iNext. iExists T, H. iFrame.
     iExists hγ, I, J. iFrame.
     iPoseProof ("Hstar'" with "[Hlockn Hns]") as "Hstar".
-    iExists true, Cn, Bn, Qn. iFrame.
+    iExists true, Cn, Qn. iFrame.
     iFrame. done.
   Qed.
 
@@ -558,9 +568,9 @@ Section gen_multicopy_util.
   Qed.
 *)
   Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
-                                                          n Cn Bn Qn:
+                                                          n Cn Qn:
     ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
-        inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn -∗
+        inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn -∗
               <<< True >>>
                 unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
               <<< True, RET #() >>>.
@@ -577,17 +587,17 @@ Section gen_multicopy_util.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn' Bn' Qn') "(Hlock & Hnp' & Hns)".
+    iDestruct "Hn" as (b Cn' Qn') "(Hlock & Hnp' & Hns)".
     iAssert (general_multicopy.lockLoc n ↦ #true 
-              ∗ nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn)%I
+              ∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn)%I
       with "[Hlock Hnp Hnp']" as "(Hlock & Hnp)".
     {
       destruct b.
     - (* Case n locked *)
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (? ? ? ? ? ? ?) "(n & _)".
-      iDestruct "Hnp'" as (? ? ? ? ? ? ?) "(n' & _)".
+      iDestruct "Hnp" as (? ? ? ? ? ?) "(n & _)".
+      iDestruct "Hnp'" as (? ? ? ? ? ?) "(n' & _)".
       iExFalso. iApply (node_sep_star r n). iFrame.
     }
     iAaccIntro with "Hlock".
@@ -596,7 +606,7 @@ Section gen_multicopy_util.
       iExists T, H. iNext. iFrame.
       iExists hγ, I, J. iFrame.
       iPoseProof ("Hstar'" with "[Hlock Hns]") as "Hstar".
-      iExists true, Cn', Bn', Qn'. iFrame.
+      iExists true, Cn', Qn'. iFrame.
       iFrame. iFrame. 
     }
     iIntros "Hlock".
@@ -606,27 +616,21 @@ Section gen_multicopy_util.
     iNext. iExists T, H. iFrame.
     iExists hγ, I, J. iFrame.
     iPoseProof ("Hstar'" with "[Hlock Hns Hnp]") as "Hstar".
-    iExists false, Cn, Bn, Qn.
-    iAssert (nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn
-                      ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn Qn H T)%I
+    iExists false, Cn, Qn.
+    iAssert (nodePred γ_gh γ_t γ_s lc r n Cn Qn
+                      ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I
       with "[Hns Hnp]" as "(Hns & Hnp)".
     {
-      iDestruct "Hnp" as (γ_en γ_cn γ_bn γ_qn γ_cirn esn T')
-                             "(node_n & HnP_gh & HnP_frac & HnP_C & HnP_t)".
-      iDestruct "Hns" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In0 Jn0) 
-                           "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                            & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-      iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-        as "(% & % & % & % & %)".
-      subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-      iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-      destruct H0 as [Hes [Hc [Hb Hq]]]. 
-      subst es'. subst Cn'. subst Bn'. subst Qn'.
-      iSplitL "node_n HnP_gh HnP_frac HnP_C HnP_t".
-      iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, T'.
-      iFrame.
-      iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In0, Jn0.
-      iFrame.
+      iDestruct "Hnp" as (γ_en γ_cn γ_qn γ_cirn esn T')
+                             "(node_n & #HnP_gh & HnP_frac & HnP_C & HnP_t)".
+      iDestruct "Hns" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn' In0 Jn0) "Hns'".
+      iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$Hns']")
+         as "(HnP_frac & Hns' & % & % & %)".
+      iSplitR "Hns'".                          
+      - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T'.
+        iFrame "∗#".
+      - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Bn', In0, Jn0.
+        iFrame.
     }
     iFrame. iFrame. iFrame.
   Qed.

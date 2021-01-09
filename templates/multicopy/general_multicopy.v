@@ -107,12 +107,12 @@ Canonical Structure esRAC := leibnizO esT.
 
 (* RAs used in proof *)
 
-Definition prod5O A B C D E :=
-  prodO (prodO (prodO (prodO A B) C) D) E.
+Definition prod4O A B C D :=
+  prodO (prodO (prodO A B) C) D.
 
 Definition per_node_gl :=
     agreeR 
-      (prod5O gnameO gnameO gnameO gnameO (gmapO K gnameO)).
+      (prod4O gnameO gnameO gnameO (gmapO K gnameO)).
 
 Definition ghost_heapUR := gmapUR Node $ per_node_gl.
 
@@ -200,17 +200,13 @@ Section gen_multicopy.
   Definition outflow_constraint_J (Rn: multiset_flowint_ur K) (es: esT) n := 
     ∀ n' k, k ∈ KS → (k ∈ outset K Rn n' ↔ k ∈ es !!! n' ∧ k ∈ inset K Rn n).
 
-(*
-  Definition map_of_set (C: gset KT) : gmap K nat := 
-              let f := λ (kt: KT) (M: gmap K nat), 
-                         if (decide (M !!! kt.1 <= kt.2)) 
-                         then (<[kt.1 := kt.2]> M : gmap K nat) else M in
-              set_fold f (∅: gmap K nat) C.
-
-  Definition set_of_map (C: gmap K nat) : gset KT := 
-             let f := λ k t H, H ∪ {[(k,t)]} in
-             map_fold f (∅: gset KT) C.
-*)
+  (* This constraint is implicit in the paper. We track B_n 
+     explicitly as ghost state here. That is the following 
+     captures the definition of B_n in terms of C_n/Q_n given 
+     in the paper. *)
+  Definition contents_in_reach (Bn Cn Qn: gmap K natUR) :=
+              ∀ k t, k ∈ KS → ((Cn !! k = Some t → Bn !! k = Some t)
+                 ∧ (Cn !! k = None → Bn !! k = Qn !! k)). 
 
   (** ϕ_1 in the paper *)
   Definition φ0 (es: esT) (Qn: gmap K natUR) :=
@@ -219,10 +215,10 @@ Section gen_multicopy.
   (* This constraint is implicit in the paper. We track B_n 
      explicitly as ghost state here. That is the following 
      captures the definition of B_n in terms of C_n/Q_n given 
-     in the paper. *)
+     in the paper.
   Definition φ1 (Bn Cn Qn: gmap K natUR) := 
               ∀ k t, k ∈ KS → ((Cn !! k = Some t → Bn !! k = Some t)
-                 ∧ (Cn !! k = None → Bn !! k = Qn !! k)). 
+                 ∧ (Cn !! k = None → Bn !! k = Qn !! k)). *)
 
   (** ϕ_2 in the paper *)
   Definition φ2 n (Bn: gmap K natUR) In := 
@@ -240,9 +236,11 @@ Section gen_multicopy.
   Definition φ5 (Bn Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → (Qn !!! k ≤ Bn !!! k).            
 
+(*
   (** extraneous *)
   Definition φ6 (Bn: gmap K natUR) (t: nat) := 
               ∀ k, k ∈ KS → (Bn !!! k ≤ t).
+*)
   
   (** simplify to dom Qn = out(es) ∩ inset Jn n 
       to combine φ0 and φ7, where
@@ -286,11 +284,10 @@ Section gen_multicopy.
       own γ_te (◯ Excl' t) ∗ own γ_he (◯ Excl' H).
 *)
 
-  Definition frac_ghost_state γ_en γ_cn γ_bn γ_qn (es: esT)
-                                  (Cn Bn Qn: gmap K natUR): iProp :=
+  Definition frac_ghost_state γ_en γ_cn γ_qn (es: esT)
+                                  (Cn Qn: gmap K natUR): iProp :=
       own (γ_en) (to_frac_agree (1/2) (es))
     ∗ own (γ_cn) (to_frac_agree (1/2) (Cn))
-    ∗ own (γ_bn) (to_frac_agree (1/2) (Bn))
     ∗ own (γ_qn) (to_frac_agree (1/2) (Qn)).
 
   Definition singleton_interfaces_ghost_state (γ_I γ_J: gname) (n: Node) 
@@ -309,33 +306,44 @@ Section gen_multicopy.
   
   Definition history_init (H: gset KT) := ∀ k, k ∈ KS → (k, 0) ∈ H.
 
-  Definition ghost_loc γ_en γ_cn γ_bn γ_qn (γ_cirn: gmap K gnameO) : per_node_gl := 
-        to_agree (γ_en, γ_cn, γ_bn, γ_qn, γ_cirn).
+  Definition ghost_loc γ_en γ_cn γ_qn (γ_cirn: gmap K gnameO) : per_node_gl := 
+        to_agree (γ_en, γ_cn, γ_qn, γ_cirn).
 
-  (** Predicate N_L in the paper *)
-  Definition nodePred γ_gh γ_t γ_s lc r n (Cn Bn Qn : gmap K natUR) : iProp :=
-    ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es t,
+  Definition nodePred' γ_gh γ_t γ_s lc r n (Cn Qn : gmap K natUR) 
+                        γ_en γ_cn γ_qn γ_cirn es t: iProp :=
       node r n es Cn
-    ∗ own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})  
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn
+    ∗ own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]})  
+    ∗ frac_ghost_state γ_en γ_cn γ_qn es Cn Qn
     ∗ own γ_s (◯ set_of_map Cn)
     ∗ (if decide (n = r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else True)%I.
 
-  (** Predicate N_S in the paper *)
-  Definition nodeShared (γ_I γ_J γ_f: gname) γ_gh r n 
-          (Cn Bn Qn : gmap K natUR) H t: iProp :=
-    ∃ γ_en γ_cn γ_bn γ_qn γ_cirn es In Jn,
-      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn  
+  (** Predicate N_L in the paper *)
+  Definition nodePred γ_gh γ_t γ_s lc r n (Cn Qn : gmap K natUR) : iProp :=
+    ∃ γ_en γ_cn γ_qn γ_cirn es t, nodePred' γ_gh γ_t γ_s lc r n Cn Qn 
+                                             γ_en γ_cn γ_qn γ_cirn es t.
+
+  Definition nodeShared' (γ_I γ_J γ_f: gname) γ_gh r n 
+          (Cn Qn : gmap K natUR) H γ_en γ_cn γ_qn γ_cirn 
+          es Bn In Jn: iProp :=
+      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]})
+    ∗ frac_ghost_state γ_en γ_cn γ_qn es Cn Qn  
     ∗ singleton_interfaces_ghost_state γ_I γ_J n In Jn 
     ∗ inFP γ_f n
     ∗ closed γ_f es
     ∗ outflow_constraints n In Jn es Qn
+    ∗ ⌜contents_in_reach Bn Cn Qn⌝
     ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
     ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k))))
-    ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ1 Bn Cn Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn⌝ 
-    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ6 Bn t⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝. 
+    ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn⌝ 
+    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝.
 
+  (** Predicate N_S in the paper *)
+  Definition nodeShared (γ_I γ_J γ_f: gname) γ_gh r n 
+          (Cn Qn : gmap K natUR) H: iProp :=
+    ∃ γ_en γ_cn γ_qn γ_cirn es Bn In Jn, 
+        nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H 
+                    γ_en γ_cn γ_qn γ_cirn es Bn In Jn.
+                    
 (*
   Definition mcs_inv_high γ_te γ_he γ_s γ_fr t H : iProp :=
       MCS_auth γ_te γ_he t H
@@ -344,7 +352,7 @@ Section gen_multicopy.
     ∗ ⌜maxTS t H⌝.
 *)
   
-  (* Remove H as parameter *)  
+  (* TODO: Remove H as parameter *)  
   (** Predicate G in the paper *)
   Definition global_state (γ_t γ_I γ_J γ_f γ_gh: gname) 
           (r: Node) (t: nat) (H: gset KT) 
@@ -363,10 +371,10 @@ Section gen_multicopy.
     ∃ hγ
       (I: multiset_flowint_ur KT) (R: multiset_flowint_ur K),
       global_state γ_t γ_I γ_J γ_f γ_gh r t H hγ I R
-    ∗ ([∗ set] n ∈ (domm I), ∃ (bn: bool) Cn Bn Qn, 
+    ∗ ([∗ set] n ∈ (domm I), ∃ (bn: bool) Cn Qn, 
           lockLoc n ↦ #bn  
-        ∗ (if bn then True else nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn)
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn Qn H t)%I.  
+        ∗ (if bn then True else nodePred γ_gh γ_t γ_s lc r n Cn Qn)
+        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I.  
 
   Global Instance mcs_conc_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
     Timeless (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).

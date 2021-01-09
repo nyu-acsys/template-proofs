@@ -14,6 +14,7 @@ Section gen_multicopy_compact.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
+(*
   Definition nodePred' γ_gh γ_t γ_s lc r n Cn Bn Qn 
                   γ_en γ_cn γ_bn γ_qn γ_cirn es t : iProp :=
       node r n es Cn
@@ -22,7 +23,7 @@ Section gen_multicopy_compact.
     ∗ own γ_s (◯ set_of_map Cn)
     ∗ (if decide (n = r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else ⌜True⌝)%I.
 
-  Definition nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H t 
+  Definition nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H 
                         γ_en γ_cn γ_bn γ_qn γ_cirn es In Jn: iProp :=
       own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})
     ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn  
@@ -33,22 +34,26 @@ Section gen_multicopy_compact.
     ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
     ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k))))
     ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ1 Bn Cn Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn⌝ 
-    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ6 Bn t⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝. 
-
-  Definition nodePred_aux γ_gh γ_t γ_s lc r n (Cn Bn Qn : gmap K natUR) 
-                          γ_en γ_cn γ_bn γ_qn γ_cirn es t: iProp :=
-      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})  
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn
+    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝. 
+*)
+  
+  (* nodePred without node(r, n, es, C) *)
+  Definition nodePred_aux γ_gh γ_t γ_s lc r n (Cn Qn : gmap K natUR) 
+                          γ_en γ_cn γ_qn γ_cirn es t: iProp :=
+      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]})  
+    ∗ frac_ghost_state γ_en γ_cn γ_qn es Cn Qn
     ∗ own γ_s (◯ set_of_map Cn)
     ∗ (if decide (n = r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else ⌜True⌝)%I.
 
-  Definition nodeShared_aux γ_I γ_J γ_f γ_gh r n Cn Bn Qn H
-                γ_en γ_cn γ_bn γ_qn γ_cirn es In Jn : iProp :=
-      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn  
+  (* nodeShared without outflow_constraints and φ_i's *)  
+  Definition nodeShared_aux γ_I γ_J γ_f γ_gh r n Cn Qn H
+                γ_en γ_cn γ_qn γ_cirn es Bn In Jn : iProp :=
+      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]})
+    ∗ frac_ghost_state γ_en γ_cn γ_qn es Cn Qn  
     ∗ singleton_interfaces_ghost_state γ_I γ_J n In Jn 
     ∗ inFP γ_f n
     ∗ closed γ_f es
+    ∗ ⌜contents_in_reach Bn Cn Qn⌝
     ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
     ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k)))).
 
@@ -82,7 +87,7 @@ Section gen_multicopy_compact.
   Lemma ghost_update_contExt γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh r lc
                 T0' H0 hγ0 I0 R0 
                 m Cm0 esm0 Bm0 Qm0 Im0 Jm0
-                n Cn Bn Qn γ_en γ_cn γ_bn γ_qn γ_cirn (esn: esT) T In0 Jn0 :
+                n Cn Bn Qn γ_en γ_cn γ_qn γ_cirn (esn: esT) T In0 Jn0 :
             ⌜m ∉ domm I0⌝
           ∗ ⌜Cm0 = ∅⌝
           ∗ ⌜esm0 = ∅⌝
@@ -92,23 +97,23 @@ Section gen_multicopy_compact.
           ∗ ⌜Jm0 = int {| infR := {[m := ∅]} ; outR := ∅ |}⌝          
           -∗
             inFP γ_f n
-          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                         γ_en γ_cn γ_bn γ_qn γ_cirn esn T  
-          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H0 T0' 
-                        γ_en γ_cn γ_bn γ_qn γ_cirn esn In0 Jn0
+          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn 
+                         γ_en γ_cn γ_qn γ_cirn esn T  
+          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H0 
+                        γ_en γ_cn γ_qn γ_cirn esn Bn In0 Jn0
           ∗ mcs_inv_high γ_te γ_he γ_s γ_fr T0' H0              
           ∗ global_state γ_t γ_I γ_J γ_f γ_gh r T0' H0 hγ0 I0 R0
           ==∗
-          ∃ hγ' I0' R0' γ_em γ_cm γ_bm γ_qm γ_cirm,
+          ∃ hγ' I0' R0' γ_em γ_cm γ_qm γ_cirm,
             inFP γ_f m
-          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                         γ_en γ_cn γ_bn γ_qn γ_cirn esn T
-          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H0 T0' 
-                        γ_en γ_cn γ_bn γ_qn γ_cirn esn In0 Jn0
-          ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm0 Bm0 Qm0 
-                         γ_em γ_cm γ_bm γ_qm γ_cirm esm0 T
-          ∗ nodeShared_aux γ_I γ_J γ_f γ_gh r m Cm0 Bm0 Qm0 H0 
-                            γ_em γ_cm γ_bm γ_qm γ_cirm esm0 Im0 Jm0
+          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn 
+                         γ_en γ_cn γ_qn γ_cirn esn T
+          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H0 
+                        γ_en γ_cn γ_qn γ_cirn esn Bn In0 Jn0
+          ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm0 Qm0 
+                         γ_em γ_cm γ_qm γ_cirm esm0 T
+          ∗ nodeShared_aux γ_I γ_J γ_f γ_gh r m Cm0 Qm0 H0 
+                            γ_em γ_cm γ_qm γ_cirm esm0 Bm0 Im0 Jm0
           ∗ mcs_inv_high γ_te γ_he γ_s γ_fr T0' H0                  
           ∗ global_state γ_t γ_I γ_J γ_f γ_gh r T0' H0 hγ' I0' R0'
           ∗ ⌜esn !!! m = ∅⌝
@@ -118,7 +123,7 @@ Section gen_multicopy_compact.
           ∗ ⌜m ≠ r⌝ ∗ ⌜m ≠ n⌝.
   Proof.
     iIntros "(%&%&%&%&%&%&%) (#FP_n & HnP_aux & HnS_n' & mcs_high & Hglob)".
-    rename H into m_notin_I0. rename H1 into Em_Cm0. rename H2 into Hesm.
+    rename H into m_notin_I0. rename H1 into HCm0. rename H2 into Hesm.
     rename H3 into HBm0. rename H4 into HQm0. rename H5 into HIm0.
     rename H6 into HJm0.
     iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
@@ -132,7 +137,7 @@ Section gen_multicopy_compact.
     iDestruct "HnP_aux" as "(HnP_gh & HnP_frac & HnP_C & HnP_t)".
     iDestruct "HnS_n'" as 
                   "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                            & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
+                        & HnS_cl & HnS_oc & HnS_Bn & HnS_H & HnS_star & Hφ)".
 
     iAssert (⌜r ∈ domm I0⌝)%I as "%". 
     { by iPoseProof (inFP_domm _ _ _ with "[$FP_r] [$Hf]") as "H'". }
@@ -494,21 +499,15 @@ Section gen_multicopy_compact.
     iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hcm_f". 
     iDestruct "Hcm_f" as "(HnS_cm & HnP_cm)".        
 
-    iMod (own_alloc (to_frac_agree (1) (Bm0))) 
-          as (γ_bm)"Hbm_f". { try done. }
-    iEval (rewrite <-Qp_half_half) in "Hbm_f".      
-    iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hbm_f". 
-    iDestruct "Hbm_f" as "(HnS_bm & HnP_bm)".        
-
     iMod (own_alloc (to_frac_agree (1) (Qm0))) 
           as (γ_qm)"Hqm_f". { try done. }
     iEval (rewrite <-Qp_half_half) in "Hqm_f".      
     iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hqm_f". 
     iDestruct "Hqm_f" as "(HnS_qm & HnP_qm)".
         
-    iAssert (frac_ghost_state γ_em γ_cm γ_bm γ_qm esm0 Cm0 Bm0 Qm0
-            ∗ frac_ghost_state γ_em γ_cm γ_bm γ_qm esm0 Cm0 Bm0 Qm0)%I
-            with "[HnS_esm HnP_esm HnS_cm HnP_cm HnS_bm HnP_bm HnS_qm HnP_qm]"
+    iAssert (frac_ghost_state γ_em γ_cm γ_qm esm0 Cm0 Qm0
+            ∗ frac_ghost_state γ_em γ_cm γ_qm esm0 Cm0 Qm0)%I
+            with "[HnS_esm HnP_esm HnS_cm HnP_cm HnS_qm HnP_qm]"
             as "(HnS_fracm & HnP_fracm)".
     { iFrame. }               
 
@@ -517,7 +516,7 @@ Section gen_multicopy_compact.
         
     iDestruct "domm_IR" as "#domm_IR".
     iDestruct "domm_Iγ" as "#domm_Iγ".
-    iMod ((ghost_heap_update γ_gh hγ0 m γ_em γ_cm γ_bm γ_qm γ_cirm) 
+    iMod ((ghost_heap_update γ_gh hγ0 m γ_em γ_cm γ_qm γ_cirm) 
                 with "[] [$Hγ]") as "(Hγ & #HnS_ghm)".
     { iDestruct "domm_Iγ" as %H'. iPureIntro.
       rewrite <-H'. apply m_notin_I0. }            
@@ -576,16 +575,19 @@ Section gen_multicopy_compact.
         by rewrite Out_J. }  
 
         
-    iModIntro. iExists (<[m:=ghost_loc γ_em γ_cm γ_bm γ_qm γ_cirm]> hγ0), 
-                    I0', R0', γ_em, γ_cm, γ_bm, γ_qm, γ_cirm. 
+    iModIntro. iExists (<[m:=ghost_loc γ_em γ_cm γ_qm γ_cirm]> hγ0), 
+                    I0', R0', γ_em, γ_cm, γ_qm, γ_cirm. 
     iSplitR. iFrame "FP_m".
     iSplitL "HnP_gh HnP_frac HnP_C HnP_t". { iFrame. }
-    iSplitL "HnS_gh HnS_frac HnS_FP HnS_cl HnS_oc HnS_H HnS_star HIn HJn Hφ".
+    iSplitL "HnS_gh HnS_frac HnS_FP HnS_cl HnS_oc HnS_Bn HnS_H HnS_star HIn HJn Hφ".
     { iFrame. by iPureIntro. }
     iSplitL "HnP_fracm HnP_Cm". 
     { iFrame "∗#". destruct (decide (m = r)); try done. }
     iSplitL "HnS_fracm HnS_starm HIm HJm".
     { iFrame "∗#". iSplitR. by iPureIntro.
+      iSplitR. iPureIntro. 
+      { intros k0 t0 HKS. subst Cm0 Bm0 Qm0.
+        split; try done. }  
       iSplitR. destruct (decide (m = r)); try done. 
       iApply (big_sepS_mono 
                 (λ y, own (γ_cirm !!! y) (● {| max_nat_car := 0 |}) )%I
@@ -602,10 +604,10 @@ Section gen_multicopy_compact.
     rewrite Domm_I0' domm_Iγ. clear; set_solver.
   Qed.
   
-  Lemma ghost_update_interface_mod γ_I γ_J γ_f γ_gh γ_t γ_s lc r H0 T0'  
-                m Cm0 esm0 Bm0 Qm0 γ_em γ_cm γ_bm γ_qm
+  Lemma ghost_update_interface_mod γ_I γ_J γ_f γ_gh γ_t γ_s lc r H0  
+                m Cm0 esm0 Bm0 Qm0 γ_em γ_cm γ_qm
                γ_cirm Im0 Jm0
-                n Cn Bn Qn γ_en γ_cn γ_bn γ_qn γ_cirn esn esn' T In0 Jn0 :
+                n Cn Bn Qn γ_en γ_cn γ_qn γ_cirn esn esn' T In0 Jn0 :
             ⌜Cm0 = ∅⌝
           ∗ ⌜esm0 = ∅⌝
           ∗ ⌜Bm0 = ∅⌝
@@ -620,27 +622,27 @@ Section gen_multicopy_compact.
           ∗ ⌜m ≠ r⌝
           -∗
             node r n esn' Cn
-          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                         γ_en γ_cn γ_bn γ_qn γ_cirn esn T  
-          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H0 T0' 
-                        γ_en γ_cn γ_bn γ_qn γ_cirn esn In0 Jn0
+          ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn 
+                         γ_en γ_cn γ_qn γ_cirn esn T  
+          ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H0 
+                        γ_en γ_cn γ_qn γ_cirn esn Bn In0 Jn0
           ∗ node r m esm0 Cm0
-          ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm0 Bm0 Qm0 γ_em γ_cm γ_bm γ_qm
-               γ_cirm esm0 T
-          ∗ nodeShared_aux γ_I γ_J γ_f γ_gh r m Cm0 Bm0 Qm0 H0 γ_em γ_cm γ_bm
-               γ_qm γ_cirm esm0 Im0 Jm0     
+          ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm0 Qm0 
+                          γ_em γ_cm γ_qm γ_cirm esm0 T
+          ∗ nodeShared_aux γ_I γ_J γ_f γ_gh r m Cm0 Qm0 H0 
+                            γ_em γ_cm γ_qm γ_cirm esm0 Bm0 Im0 Jm0     
           ==∗
-          ∃ Bn0' Qn0',
-            nodePred' γ_gh γ_t γ_s lc r n Cn Bn0' Qn0' 
-                      γ_en γ_cn γ_bn γ_qn γ_cirn esn' T 
-          ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn0' Qn0' H0 T0' 
-          ∗ nodePred' γ_gh γ_t γ_s lc r m Cm0 Bm0 Qm0 
-                         γ_em γ_cm γ_bm γ_qm γ_cirm esm0 T
-          ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm0 Bm0 Qm0 H0 T0'.
+          ∃ Qn0',
+            nodePred' γ_gh γ_t γ_s lc r n Cn Qn0' 
+                      γ_en γ_cn γ_qn γ_cirn esn' T 
+          ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn0' H0 
+          ∗ nodePred' γ_gh γ_t γ_s lc r m Cm0 Qm0 
+                      γ_em γ_cm γ_qm γ_cirm esm0 T
+          ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm0 Qm0 H0.
   Proof.
     iIntros "(%&%&%&%&%&%&%&%&%&%&%&%) (node_n & HnP_aux & HnS_n' & 
                             node_m & HnP_auxm & HnS_auxm)".
-    rename H into Em_Cm0. rename H1 into Hesm. rename H2 into HBm0. 
+    rename H into HCm0. rename H1 into Hesm. rename H2 into HBm0. 
     rename H3 into HQm0. rename H4 into HIm0. rename H5 into HJm0. 
     rename H6 into Hesn'. rename H7 into Esn_empty.
     rename H8 into Out_In_m. rename H9 into Out_Jn_m.
@@ -648,10 +650,10 @@ Section gen_multicopy_compact.
     
     iDestruct "HnP_aux" as "(HnP_gh & HnP_frac & HnP_C & HnP_t)".
     iDestruct "HnS_auxm" as "(HnS_ghm & HnS_fracm & HnS_sim & #HnS_FPm 
-                                & HnS_clm & HnS_Hm & HnS_starm)".
+                                & HnS_clm & HnS_Bnm & HnS_Hm & HnS_starm)".
     iDestruct "HnS_n'" as  
                   "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                            & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
+                      & HnS_cl & HnS_oc & HnS_Bn & HnS_H & HnS_star & Hφ)".
 
     iDestruct "HnS_si" as "(HIn & HJn & Domm_In0 & Domm_Jn0)".
     iDestruct "HnS_sim" as "(HIm & HJm & Domm_Im0 & Domm_Jm0)".
@@ -672,7 +674,7 @@ Section gen_multicopy_compact.
     set (Jn0' := outflow_insert_set Jn0 m Sr).
     set (Jm0' := inflow_insert_set Jm0 m Sr).
 
-    iMod ((frac_update γ_en γ_cn γ_bn γ_qn esn Cn Bn Qn esn' Cn Bn0' Qn0') 
+    iMod ((frac_update γ_en γ_cn γ_qn esn Cn Qn esn' Cn Qn0') 
          with "[$HnP_frac $HnS_frac]") as "(HnP_frac & HnS_frac)".
 
     iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
@@ -703,7 +705,7 @@ Section gen_multicopy_compact.
     rename H into Hφ0.
 
     iAssert (⌜∀ k, k ∈ Sb → Bn !!! k = 0⌝)%I as %HSb.
-    { iDestruct "Hφ" as "(_&%&_)". rename H into Hφ1.
+    { iDestruct "HnS_Bn" as %HBn.
       iPureIntro. intros k Hk. subst Sb. 
       rewrite elem_of_intersection in Hk *; intros Hk.
       destruct Hk as [_ Hk].
@@ -712,7 +714,7 @@ Section gen_multicopy_compact.
       rewrite not_elem_of_dom in Hk2*; intros Hk2.
       pose proof (Esn_not k Hk1) as Hk'.
       subst Sr.  rewrite elem_of_intersection in Hk1*; intros Hk1.
-      destruct Hk1 as [H' H'']. apply Hφ1 in Hk2.
+      destruct Hk1 as [H' H'']. apply HBn in Hk2.
       apply Hφ0 in Hk'. rewrite lookup_total_alt.
       rewrite Hk2 Hk'; by simpl. try done.
       try done. try done. }
@@ -937,18 +939,45 @@ Section gen_multicopy_compact.
         simpl. unfold lift_unit. rewrite nzmap_lookup_empty.
         unfold ccmunit, ccm_unit; simpl. unfold nat_unit. lia. }
 
-    iAssert (⌜φ0 esn' Qn0'⌝ ∗ ⌜φ1 Bn0' Cn Qn0'⌝ ∗ ⌜φ2 n Bn0' In0'⌝ 
+    iAssert (⌜contents_in_reach Bn0' Cn Qn0'⌝)%I with "[HnS_Bn]" as "HnS_Bn".
+    { iDestruct "HnS_Bn" as %HBn. iPureIntro.
+      intros k t HKS. destruct (decide (k ∈ Sr)).
+      + split.
+        * intros HCn.
+          assert (is_Some(Cn !! k)). by exists t; try done.
+          rewrite <-elem_of_dom in H.
+          assert (k ∉ Sb) as Hk.
+          { destruct (decide (k ∈ Sb)); try done.
+            subst Sb. rewrite elem_of_intersection in e0*; intros e0.
+            destruct e0 as [_ e0].
+            clear -e0 H. set_solver. }
+          rewrite (Lookup_Bn0'_ne k Hk).
+          by apply HBn.
+        * intros HCn. rewrite <-not_elem_of_dom in HCn.
+          assert (k ∈ Sb) as Hk.
+          { subst Sb. clear -e HCn HKS. set_solver. }
+          rewrite (Lookup_Bn0' k Hk).
+          rewrite (Lookup_Qn0' k e).
+          done.
+      + assert (k ∉ Sb) as Hk.
+        { destruct (decide (k ∈ Sb)); try done.
+          subst Sb. rewrite elem_of_intersection in e*; intros e.
+          destruct e as [_ e]. clear -e n0. set_solver. }
+        rewrite (Lookup_Bn0'_ne k Hk).
+        rewrite (Lookup_Qn0'_ne k n0).
+        apply HBn. done. }
+
+    iAssert (⌜φ0 esn' Qn0'⌝ ∗ ⌜φ2 n Bn0' In0'⌝ 
        ∗ ⌜φ3 n Bn0' Jn0'⌝ ∗ ⌜φ4 n Jn0'⌝ ∗ ⌜φ5 Bn0' Qn0'⌝ 
-       ∗ ⌜φ6 Bn0' T0'⌝ ∗ ⌜φ7 n esn' Jn0' Qn0'⌝ ∗ ⌜φ8 n In0'⌝)%I 
+       ∗ ⌜φ7 n esn' Jn0' Qn0'⌝ ∗ ⌜φ8 n In0'⌝)%I 
             with "[Hφ]" as "Hφ".
-    { iDestruct "Hφ" as "(%&%&%&%&%&%&%&%&%)".         
-      clear H. rename H1 into Hφ1. 
-      rename H2 into Hφ2. rename H3 into Hφ3.
-      rename H4 into Hφ4. rename H5 into Hφ5.
-      rename H6 into Hφ6. rename H7 into Hφ7.
-      rename H8 into Hφ8.
+    { iDestruct "Hφ" as "(%&%&%&%&%&%&%)".         
+      clear H. rename H1 into Hφ2. 
+      rename H2 into Hφ3. rename H3 into Hφ4.
+      rename H4 into Hφ5. rename H5 into Hφ7.
+      rename H6 into Hφ8.
       iPureIntro. split; last split; last split; 
-      last split; last split; last split; last split; last split.
+      last split; last split; last split.
       - intros k HKS Hnot. destruct (decide (k ∈ Sr)). 
         + subst Sr. rewrite !elem_of_intersection in e*; intros e. 
           destruct e as [_ [e _]]. pose proof Hnot m as Hnot. 
@@ -960,31 +989,6 @@ Section gen_multicopy_compact.
           * pose proof Hnot n' as Hnot.
             rewrite Hesn' in Hnot.
             rewrite lookup_total_insert_ne in Hnot; try done.
-      - intros k t HKS. destruct (decide (k ∈ Sr)).
-        + split.
-          * intros HCn.
-            assert (is_Some(Cn !! k)). by exists t; try done.
-            rewrite <-elem_of_dom in H.
-            assert (k ∉ Sb) as Hk.
-            { destruct (decide (k ∈ Sb)); try done.
-              subst Sb. rewrite elem_of_intersection in e0*; intros e0.
-              destruct e0 as [_ e0].
-              clear -e0 H. set_solver. }
-            rewrite (Lookup_Bn0'_ne k Hk).
-            by apply Hφ1.
-          * intros HCn. rewrite <-not_elem_of_dom in HCn.
-            assert (k ∈ Sb) as Hk.
-            { subst Sb. clear -e HCn HKS. set_solver. }
-            rewrite (Lookup_Bn0' k Hk).
-            rewrite (Lookup_Qn0' k e).
-            done.
-        + assert (k ∉ Sb) as Hk.
-          { destruct (decide (k ∈ Sb)); try done.
-            subst Sb. rewrite elem_of_intersection in e*; intros e.
-            destruct e as [_ e]. clear -e n0. set_solver. }
-          rewrite (Lookup_Bn0'_ne k Hk).
-          rewrite (Lookup_Qn0'_ne k n0).
-          apply Hφ1. done.
       - intros k t HKS. assert (inset KT In0' n = inset KT In0 n) as Hin. 
         { assert (In0' = outflow_insert_set In0 m Sr_mset) by done.
           by pose proof (outflow_insert_set_inset In0 m Sr_mset In0' n H). }
@@ -1019,12 +1023,14 @@ Section gen_multicopy_compact.
             rewrite (Lookup_Qn0'_ne k n1).
             rewrite <-!lookup_total_alt.
             by apply Hφ5.
+(*
       - intros k HKS. rewrite lookup_total_alt. 
         destruct (decide (k ∈ Sb)).
         * rewrite (Lookup_Bn0' k e). simpl. lia.
         * rewrite (Lookup_Bn0'_ne k n0).
           rewrite <-lookup_total_alt.
           by pose proof Hφ6 k HKS.
+*)
       - intros k HKS. intros [H' H''].
         destruct H' as [n' H'].
         destruct (decide (n' = m)).
@@ -1048,9 +1054,9 @@ Section gen_multicopy_compact.
             split; try done. by exists n'.
       - try done. }
       
-    iAssert (⌜φ0 esm0 Qm0⌝ ∗ ⌜φ1 Bm0 Cm0 Qm0⌝ ∗ ⌜φ2 m Bm0 Im0'⌝ 
+    iAssert (⌜φ0 esm0 Qm0⌝ ∗ ⌜φ2 m Bm0 Im0'⌝ 
           ∗ ⌜φ3 m Bm0 Jm0'⌝ ∗ ⌜φ4 m Jm0'⌝ ∗ ⌜φ5 Bm0 Qm0⌝  
-          ∗ ⌜φ6 Bm0 T0'⌝ ∗ ⌜φ7 m esm0 Jm0' Qm0⌝ ∗ ⌜φ8 m Im0'⌝)%I
+          ∗ ⌜φ7 m esm0 Jm0' Qm0⌝ ∗ ⌜φ8 m Im0'⌝)%I
              as "Hφm".
     { iPureIntro. subst esm0 Cm0 Bm0 Qm0.
       repeat split; try done.
@@ -1089,9 +1095,11 @@ Section gen_multicopy_compact.
       - intros k HKS. rewrite /(∅ !!! k).
         unfold finmap_lookup_total.
         rewrite lookup_empty. by simpl.  
+(*
       - unfold φ6. intros k HKS. rewrite /(∅ !!! k). 
         unfold finmap_lookup_total. rewrite lookup_empty.
         simpl. lia.
+*)
       - intros k HKS [Hkt1 Hkt2].
         destruct Hkt1 as [n' H'].
         clear -H'. set_solver.
@@ -1110,35 +1118,35 @@ Section gen_multicopy_compact.
           unfold ccmunit, ccm_unit; simpl. unfold nat_unit; lia. }
 
                     
-    iModIntro. iExists Bn0', Qn0'.
+    iModIntro. iExists Qn0'.
     iSplitL "node_n HnP_gh HnP_C HnP_frac HnP_t". { iFrame. }
-    iSplitL "HnS_gh HnS_FP HnS_H HnS_frac HnS_cl HnS_star HJn HIn Hφ".
-    { iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn', In0', Jn0'.
+    iSplitL "HnS_gh HnS_FP HnS_H HnS_frac HnS_cl HnS_Bn HnS_star HJn HIn Hφ".
+    { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn', Bn0', In0', Jn0'.
       iFrame. iFrame "HnS_oc". iSplitR. by iPureIntro.
       destruct (decide (n = r)); try done.
       - subst n. iDestruct "HnS_H" as "(%&%)".
-              rename H into Bn_eq_H0. rename H1 into Infz_In0. 
-              iPureIntro. repeat split; try done.
-              apply map_eq. intros k.
-              destruct (decide (k ∈ Sb)).
-              + rewrite (Lookup_Bn0' k e).
-                rewrite map_eq_iff in Bn_eq_H0*; intros Bn_eq_H0.
-                pose proof Bn_eq_H0 k as H'. 
-                pose proof (HSb k e) as H''.
-                subst Sb. rewrite elem_of_intersection in e*; intros e.
-                destruct e as [e _].                
-                pose proof Hist k e as Hist.
-                pose proof (map_of_set_lookup_some H0 k 0 Hist) as Hm.
-                destruct Hm as [u Hm]. rewrite Hm.
-                rewrite lookup_total_alt in H''.
-                rewrite H' in H''. rewrite Hm in H''. 
-                simpl in H''. by rewrite H''.
-              + subst Bn0'. rewrite gmap_lookup_insert_map_ne.
-                rewrite map_eq_iff in Bn_eq_H0*; intros Bn_eq_H0.
-                by pose proof Bn_eq_H0 k as H'.
-                by rewrite Domm_Sbmap. }
+        rename H into Bn_eq_H0. rename H1 into Infz_In0. 
+        iPureIntro. repeat split; try done.
+        apply map_eq. intros k.
+        destruct (decide (k ∈ Sb)).
+        + rewrite (Lookup_Bn0' k e).
+          rewrite map_eq_iff in Bn_eq_H0*; intros Bn_eq_H0.
+          pose proof Bn_eq_H0 k as H'. 
+          pose proof (HSb k e) as H''.
+          subst Sb. rewrite elem_of_intersection in e*; intros e.
+          destruct e as [e _].                
+          pose proof Hist k e as Hist.
+          pose proof (map_of_set_lookup_some H0 k 0 Hist) as Hm.
+          destruct Hm as [u Hm]. rewrite Hm.
+          rewrite lookup_total_alt in H''.
+          rewrite H' in H''. rewrite Hm in H''. 
+          simpl in H''. by rewrite H''.
+        + subst Bn0'. rewrite gmap_lookup_insert_map_ne.
+          rewrite map_eq_iff in Bn_eq_H0*; intros Bn_eq_H0.
+          by pose proof Bn_eq_H0 k as H'.
+          by rewrite Domm_Sbmap. }
     iSplitL "node_m HnP_auxm". { iFrame. }
-    iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm0, Im0', Jm0'.
+    iExists γ_em, γ_cm, γ_qm, γ_cirm, esm0, Bm0, Im0', Jm0'.
     iFrame "∗#". iSplitR. by iPureIntro.
     destruct (decide (m = r)); try done.               
   Qed.          
@@ -1146,8 +1154,8 @@ Section gen_multicopy_compact.
 
   Lemma mergeContents_ghost_update γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh 
               lc r T' H hγ I R
-              n Cn Bn0' Qn0' γ_en γ_cn γ_bn γ_qn γ_cirn esn' T Cn'
-              m Cm Bm Qm γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm Cm' :
+              n Cn Qn0' γ_en γ_cn γ_qn γ_cirn esn' T Cn'
+              m Cm Qm γ_em γ_cm γ_qm γ_cirm esm Tm Cm' :
 
           ⌜m ≠ r⌝
         ∗ ⌜set_of_map Cn' ⊆ set_of_map Cn⌝
@@ -1157,19 +1165,19 @@ Section gen_multicopy_compact.
         ∗ ⌜general_multicopy.merge Cn (esn' !!! m) Cm = 
                 general_multicopy.merge Cn' (esn' !!! m) Cm'⌝ 
         -∗
-          node r n esn' Cn' ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn0' Qn0' 
-                                          γ_en γ_cn γ_bn γ_qn γ_cirn esn' T
-        ∗ node r m esm Cm' ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm Bm Qm 
-                                          γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn0' Qn0' H T'
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm Bm Qm H T'
+          node r n esn' Cn' ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn0' 
+                                          γ_en γ_cn γ_qn γ_cirn esn' T
+        ∗ node r m esm Cm' ∗ nodePred_aux γ_gh γ_t γ_s lc r m Cm Qm 
+                                          γ_em γ_cm γ_qm γ_cirm esm Tm
+        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn0' H
+        ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm Qm H
         ∗ mcs_inv_high γ_te γ_he γ_s γ_fr T' H
         ∗ global_state γ_t γ_I γ_J γ_f γ_gh r T' H hγ I R
         ==∗
-          ∃ Qn' Bm', nodePred γ_gh γ_t γ_s lc r n Cn' Bn0' Qn'
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn' Bn0' Qn' H T' 
-        ∗ nodePred γ_gh γ_t γ_s lc r m Cm' Bm' Qm
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm' Bm' Qm H T'
+          ∃ Qn', nodePred γ_gh γ_t γ_s lc r n Cn' Qn'
+        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn' Qn' H 
+        ∗ nodePred γ_gh γ_t γ_s lc r m Cm' Qm
+        ∗ nodeShared γ_I γ_J γ_f γ_gh r m Cm' Qm H
         ∗ mcs_inv_high γ_te γ_he γ_s γ_fr T' H
         ∗ global_state γ_t γ_I γ_J γ_f γ_gh r T' H hγ I R.
   Proof.
@@ -1181,24 +1189,19 @@ Section gen_multicopy_compact.
 
     iIntros "(node_n & HnP_aux & node_m & HnP_auxm & HnS_n & HnS_m 
                                             & mcs_high & Hglob)".
-    iDestruct "HnP_aux" as "(HnP_gh & HnP_frac & HnP_C & HnP_t)".
-    iDestruct "HnP_auxm" as "(HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
-    iDestruct "HnS_n" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In Jn) 
-                  "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                            & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-    iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-                              as "(% & % & % & % & %)".
-    subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-    iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-    destruct H0 as [Hes _]. subst es'.
-    iDestruct "HnS_m" as (γ_em' γ_cm' γ_bm' γ_qm' γ_cirm' es' Im Jm) 
-                  "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
-                            & HnS_clm & HnS_ocm & HnS_Hm & HnS_starm & Hφm)".
-    iPoseProof (ghost_heap_sync with "[$HnP_ghm] [$HnS_ghm]") 
-                              as "(% & % & % & % & %)".
-    subst γ_em'. subst γ_cm'. subst γ_bm'. subst γ_qm'. subst γ_cirm'.
-    iPoseProof (frac_eq with "[$HnP_fracm] [$HnS_fracm]") as "%".
-    destruct H0 as [Hes _]. subst es'.
+    iDestruct "HnP_aux" as "(#HnP_gh & HnP_frac & HnP_C & HnP_t)".
+    iDestruct "HnP_auxm" as "(#HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
+    iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn) "HnS_n'".
+    iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
+           as "(HnP_frac & HnS_n' &%&_&_)". subst es'.   
+    iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                          & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
+
+    iDestruct "HnS_m" as (γ_em' γ_cm' γ_qm' γ_cirm' es' Bm Im Jm) "HnS_m'".
+    iPoseProof (nodePred_nodeShared_eq with "[$HnP_ghm] [$HnP_fracm] [$HnS_m']")
+           as "(HnP_fracm & HnS_m' &%&_&_)". subst es'.   
+    iDestruct "HnS_m'" as "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
+                      & HnS_clm & HnS_ocm & HnS_Bnm & HnS_Hm  & HnS_starm & Hφm)".
 
     set (S := KS ∩ (dom (gset K) Cn ∖ dom (gset K) Cn')).
     set (S_map := map_restriction S Cn).
@@ -1214,10 +1217,10 @@ Section gen_multicopy_compact.
     iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
     rename H0 into Disj_esn'.                        
 
-    iMod ((frac_update γ_en γ_cn γ_bn γ_qn esn' Cn Bn0' Qn0' esn' Cn' Bn0' Qn') 
+    iMod ((frac_update γ_en γ_cn γ_qn esn' Cn Qn0' esn' Cn' Qn') 
          with "[$HnP_frac $HnS_frac]") as "(HnP_frac & HnS_frac)".
 
-    iMod ((frac_update γ_em γ_cm γ_bm γ_qm esm Cm Bm Qm esm Cm' Bm' Qm) 
+    iMod ((frac_update γ_em γ_cm γ_qm esm Cm Qm esm Cm' Qm) 
          with "[$HnP_fracm $HnS_fracm]") as "(HnP_fracm & HnS_fracm)".
 
     assert (S ⊆ esn' !!! m) as S_sub_es.
@@ -1287,8 +1290,9 @@ Section gen_multicopy_compact.
       rewrite H'; try done. }
         
     iAssert (⌜∀ k, k ∈ S → k ∈ inset K Jn n⌝)%I as %S_sub_insetn.
-    { iDestruct "Hφ" as "(_&%&_&%&_)".
-      rename H0 into Hφ1. rename H1 into Hφ3. iPureIntro.
+    { iDestruct "Hφ" as "(_&_&%&_)".
+      rename H0 into Hφ3. 
+      iDestruct "HnS_Bn" as %HBn. iPureIntro.
       intros k Hk. subst S. 
       rewrite elem_of_intersection in Hk*; intros Hk.
       destruct Hk as [HKS Hk].
@@ -1297,7 +1301,7 @@ Section gen_multicopy_compact.
       pose proof Hφ3 k as Hφ3.
       destruct Hφ3 as [H' | H']; try done.
       rewrite elem_of_dom in Hk*; intros Hk.
-      destruct Hk as [t Hk]. apply Hφ1 in Hk.
+      destruct Hk as [t Hk]. apply HBn in Hk.
       rewrite H' in Hk. done. done. }
 
     iAssert(⌜S ⊆ KS⌝)%I as %S_sub_KS.
@@ -1348,7 +1352,7 @@ Section gen_multicopy_compact.
     iAssert (⌜∀ k, k ∈ S → (k, Qn0' !!! k) ∈ outset KT In m⌝)%I 
                                             as %Out_In_m.
     { iDestruct "HnS_oc" as "(%&_)". 
-      iDestruct "Hφ" as "(_&_&_&_&_&_&_&%&_)". 
+      iDestruct "Hφ" as "(_&_&_&_&_&%&_)". 
       rename H0 into OC1. rename H1 into Hφ7.
       iPureIntro; intros k Hk. apply OC1.
       by apply S_sub_KS in Hk.
@@ -1399,7 +1403,7 @@ Section gen_multicopy_compact.
       clear -Hin. lia. }
 
     iAssert (⌜∀ k, k ∈ S → Bm !!! k = Qn0' !!! k⌝)%I as %Bm_eq_Qn.
-    { iDestruct "Hφm" as "(_&_&%&_)".
+    { iDestruct "Hφm" as "(_&%&_)".
       rename H0 into Hφ2.
       iPureIntro. intros k Hk.
       pose proof Ins_Im k Hk as H'.
@@ -1407,9 +1411,10 @@ Section gen_multicopy_compact.
       by pose proof Hφ2 k (Qn0' !!! k) Hk H' as H''. }
 
     iAssert (⌜∀ k, Bm !!! k ≤ Bm' !!! k⌝)%I as "%".
-    { iDestruct "Hφ" as "(_&%&_&_&_&%&_)".
-      rename H0 into Hφ1. rename H1 into Hφ5.
-      iPureIntro. intros k. subst Bm'.
+    { iDestruct "Hφ" as "(_&_&_&_&%&_)".
+      rename H0 into Hφ5. 
+      iDestruct "HnS_Bn" as %HBn. iPureIntro.
+      intros k. subst Bm'.
       destruct (decide (k ∈ S)).
       - pose proof Bm_eq_Qn k e as H'.
         rewrite H'. rewrite /(gmap_insert_map Bm S_map !!! k).
@@ -1422,7 +1427,7 @@ Section gen_multicopy_compact.
         destruct e as [Hc _].
         rewrite elem_of_dom in Hc*; intros Hc.
         destruct Hc as [t Hc].
-        pose proof Hφ1 k t as [Hc' _]. done.
+        pose proof HBn k t as [Hc' _]. done.
         pose proof Hc' Hc.
         rewrite lookup_total_alt.
         rewrite Hc. apply leibniz_equiv_iff in H0. 
@@ -1693,19 +1698,58 @@ Section gen_multicopy_compact.
       iEval (rewrite auth_frag_op) in "HInm".
       iDestruct "HInm" as "(?&?)". iFrame. by iPureIntro. }
 
+    iDestruct "HnS_Bn" as %HBn.
+    iAssert (⌜contents_in_reach Bn Cn' Qn'⌝)%I as "HnS_Bn".
+    { iPureIntro. intros k t' HKS.
+      rewrite map_eq_iff in MergeEq*; intros MergeEq.
+      pose proof MergeEq k as MergeEq.
+      rewrite !gmap_imerge_prf in MergeEq.
+      unfold f_merge in MergeEq. split.
+      + intros HCn'k. destruct (Cn !! k) as [t |] eqn: HCnk.
+        * destruct (decide (Some t ≠ None)); try done.
+          ** destruct (decide (Cn' !! k ≠ None)); try done.
+             pose proof HBn k t as [H' _]. done.
+             pose proof H' HCnk as H'.
+             rewrite <-HCn'k, H'. by rewrite MergeEq.
+             exfalso; apply n1. rewrite HCn'k; try done.
+          ** exfalso; apply n0. intros H'; inversion H'.    
+        * pose proof set_of_map_member_ne Cn k HCnk t' as H'.
+          pose proof set_of_map_member Cn' k t' HCn'k as H''.
+          apply Subset_Cn in H''. clear -H' H''.
+          set_solver.
+      + intros HCn'. destruct (Cn !! k) as [t |] eqn: HCnk.
+        * assert (k ∈ S) as Hk.
+          { assert (k ∈ dom (gset K) Cn) as H1'.
+            rewrite elem_of_dom. rewrite HCnk; by exists t.
+            assert (k ∉ dom (gset K) Cn') as H2'.
+            rewrite not_elem_of_dom. done. 
+            subst S. clear - HKS H1' H2'. set_solver. }
+          rewrite (Lookup_Qn' k Hk).
+          pose proof HBn k t as H'.
+          destruct H' as [H' _]. done.
+          pose proof H' HCnk as H'. 
+          by rewrite H'.
+        * assert (k ∉ S) as Hk.
+          { assert (k ∉ dom (gset K) Cn) as H1'.
+            rewrite not_elem_of_dom. done. 
+            subst S. clear -H1'. set_solver. }
+          rewrite (Lookup_Qn'_ne k Hk).
+          pose proof HBn k 0 as H'.
+          destruct H' as [_ H']. done.
+          by pose proof H' HCnk as H'. }
+
         
-    iAssert (⌜φ0 esn' Qn'⌝ ∗ ⌜φ1 Bn0' Cn' Qn'⌝ ∗ ⌜φ2 n Bn0' In'⌝ 
-              ∗ ⌜φ3 n Bn0' Jn⌝ ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn0' Qn'⌝ 
-              ∗ ⌜φ6 Bn0' T'⌝ ∗ ⌜φ7 n esn' Jn Qn'⌝ ∗ ⌜φ8 n In'⌝)%I
+    iAssert (⌜φ0 esn' Qn'⌝ ∗ ⌜φ2 n Bn In'⌝ 
+              ∗ ⌜φ3 n Bn Jn⌝ ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn'⌝ 
+              ∗ ⌜φ7 n esn' Jn Qn'⌝ ∗ ⌜φ8 n In'⌝)%I
             with "[Hφ]" as "Hφ".
-    { iDestruct "Hφ" as "(%&%&%&%&%&%&%&%&%)". 
-      rename H0 into Hφ0. rename H1 into Hφ1.
-      rename H2 into Hφ2. rename H3 into Hφ3.
-      rename H4 into Hφ4. rename H5 into Hφ5. 
-      rename H6 into Hφ6. rename H7 into Hφ7.
-      rename H8 into Hφ8.
+    { iDestruct "Hφ" as "(%&%&%&%&%&%&%)". 
+      rename H0 into Hφ0. rename H1 into Hφ2.
+      rename H2 into Hφ3. rename H3 into Hφ4.
+      rename H4 into Hφ5. rename H5 into Hφ7. 
+      rename H6 into Hφ8. 
       iPureIntro. split; last split; last split; 
-      last split; last split; last split; last split; last split.
+      last split; last split; last split.
       - unfold φ0. intros k HKS Hnot.
         assert (k ∉ S) as Hk.
         { destruct (decide (k ∈ S)); try done.
@@ -1713,43 +1757,6 @@ Section gen_multicopy_compact.
           clear -e Hnot. set_solver. }
         rewrite (Lookup_Qn'_ne k Hk).
         apply Hφ0; try done.  
-      - unfold φ1. intros k t' HKS.
-        rewrite map_eq_iff in MergeEq*; intros MergeEq.
-        pose proof MergeEq k as MergeEq.
-        rewrite !gmap_imerge_prf in MergeEq.
-        unfold f_merge in MergeEq. split.
-        + intros HCn'k. destruct (Cn !! k) as [t |] eqn: HCnk.
-          * destruct (decide (Some t ≠ None)); try done.
-            ** destruct (decide (Cn' !! k ≠ None)); try done.
-               pose proof Hφ1 k t as [H' _]. done.
-               pose proof H' HCnk as H'.
-               rewrite <-HCn'k, H'. by rewrite MergeEq.
-               exfalso; apply n1. rewrite HCn'k; try done.
-            ** exfalso; apply n0. intros H'; inversion H'.    
-          * pose proof set_of_map_member_ne Cn k HCnk t' as H'.
-            pose proof set_of_map_member Cn' k t' HCn'k as H''.
-            apply Subset_Cn in H''. clear -H' H''.
-            set_solver.
-        + intros HCn'. destruct (Cn !! k) as [t |] eqn: HCnk.
-          * assert (k ∈ S) as Hk.
-            { assert (k ∈ dom (gset K) Cn) as H1'.
-              rewrite elem_of_dom. rewrite HCnk; by exists t.
-              assert (k ∉ dom (gset K) Cn') as H2'.
-              rewrite not_elem_of_dom. done. 
-              subst S. clear - HKS H1' H2'. set_solver. }
-            rewrite (Lookup_Qn' k Hk).
-            pose proof Hφ1 k t as H'.
-            destruct H' as [H' _]. done.
-            pose proof H' HCnk as H'. 
-            by rewrite H'.
-          * assert (k ∉ S) as Hk.
-            { assert (k ∉ dom (gset K) Cn) as H1'.
-              rewrite not_elem_of_dom. done. 
-              subst S. clear -H1'. set_solver. }
-            rewrite (Lookup_Qn'_ne k Hk).
-            pose proof Hφ1 k 0 as H'.
-            destruct H' as [_ H']. done.
-            by pose proof H' HCnk as H'. 
       - unfold φ2. try done.
       - unfold φ3. try done.
       - try done.
@@ -1758,20 +1765,22 @@ Section gen_multicopy_compact.
           unfold finmap_lookup_total. 
           rewrite (Lookup_Qn' k e).
           destruct (Cn !! k) as [t |] eqn: HCnk.
-          * pose proof Hφ1 k t as H'.
+          * pose proof HBn k t as H'.
             destruct H' as [H' _]. done.
             pose proof H' HCnk as H'.
             rewrite lookup_total_alt.
             by rewrite H'.
           * by simpl; lia.
         + rewrite /(Qn' !!! k).
-          rewrite /(Bn0' !!! k). 
+          rewrite /(Bn !!! k). 
           unfold finmap_lookup_total. 
           rewrite (Lookup_Qn'_ne k n0).
           pose proof Hφ5 k HKS as H'.    
           rewrite /(Qn0' !!! k) in H'.
-          by rewrite /(Bn0' !!! k) in H'. 
+          by rewrite /(Bn !!! k) in H'. 
+(*
       - try done.
+*)      
       - intros k. intros H'. rewrite elem_of_dom.
         apply Hφ7 in H'. rewrite elem_of_dom in H'*; intros H'.
         destruct (decide (k ∈ S)).
@@ -1782,131 +1791,134 @@ Section gen_multicopy_compact.
         * by rewrite (Lookup_Qn'_ne k n0).
       - try done. }
                               
-    iAssert (⌜φ0 esm Qm⌝ ∗ ⌜φ1 Bm' Cm' Qm⌝ ∗ ⌜φ2 m Bm' Im'⌝ 
-              ∗ ⌜φ3 m Bm' Jm⌝ ∗ ⌜φ4 m Jm⌝ ∗ ⌜φ5 Bm' Qm⌝ 
-              ∗ ⌜φ6 Bm' T'⌝ ∗ ⌜φ7 m esm Jm Qm⌝ ∗ ⌜φ8 m Im'⌝)%I
-            with "[Hφm]" as "Hφm".
-    { iDestruct "Hφm" as "(%&%&%&%&%&%&%&%&%)". 
-      rename H0 into Hφ0. rename H1 into Hφ1.
-      rename H2 into Hφ2. rename H3 into Hφ3.
-      rename H4 into Hφ4. rename H5 into Hφ5. 
-      rename H6 into Hφ6. rename H7 into Hφ7.
-      rename H8 into Hφ8. 
-      iPureIntro. split; last split; last split; 
-      last split; last split; last split; 
-      last split; last split.
-      - unfold φ0. try done.
-      - unfold φ1. intros k t HKS.
-        rewrite map_eq_iff in MergeEq*; intros MergeEq.
-        pose proof MergeEq k as MergeEq.
-        rewrite !gmap_imerge_prf in MergeEq.
-        unfold f_merge in MergeEq. split.
-        + intros HCm'k. assert (H' := HCm'k). 
-          apply set_of_map_member in H'.
-          apply Subset_Cm in H'.
-          rewrite elem_of_union in H'*; intros H'.
-          destruct H' as [H' | H'].
-          * apply set_of_map_member_rev in H'.
-            subst Bm'. destruct (Cn' !! k) as [t' | ] eqn: HCn'k.
-            ** rewrite decide_True in MergeEq.
-               destruct (decide (Some t' ≠ None)).
-               assert (t' = t) as Ht.
-               { rewrite H' in MergeEq.
-                 by inversion MergeEq. }
-               subst t'. 
-               apply set_of_map_member in H'.
-               apply set_of_map_member in HCm'k.
-               apply set_of_map_member in HCn'k.
-               clear -H' HCm'k  HCn'k Subset_disj. set_solver.
-               exfalso; apply n0. intros H''; inversion H''.
-               rewrite H'; try done.
-            ** rewrite decide_True in MergeEq.
-               destruct (decide (None ≠ None)).
-               exfalso; apply n0; done.
-               destruct (decide (k ∈ esn' !!! m)).
-               *** assert (k ∈ S) as Hk.
-                   { subst S. rewrite elem_of_intersection.
-                     split; try done.
-                     rewrite elem_of_difference.
-                     split. rewrite elem_of_dom.
-                     rewrite H'. by exists t.
-                     by rewrite not_elem_of_dom. }
-                   rewrite gmap_lookup_insert_map.
-                   rewrite (Lookup_Smap k Hk).
-                   rewrite /(Cn !!! k). 
-                   unfold finmap_lookup_total.
-                   rewrite H'; by simpl.
-                   rewrite Dom_Smap. done.
-               *** rewrite H' in MergeEq.
-                   inversion MergeEq.
-               *** rewrite H'. done.
-            * apply set_of_map_member_rev in H'.
-              pose proof Hφ1 k t as H''.
-              destruct H'' as [H'' _]. done.
-              pose proof H'' H' as HBm.
-              destruct (decide (k ∈ S)).
-              ** subst Bm'.
+    iAssert (⌜contents_in_reach Bm' Cm' Qm⌝)%I with "[HnS_Bnm]" as "HnS_Bnm".
+    { iDestruct "HnS_Bnm" as %HBnm. iPureIntro.
+      intros k t HKS.
+      rewrite map_eq_iff in MergeEq*; intros MergeEq.
+      pose proof MergeEq k as MergeEq.
+      rewrite !gmap_imerge_prf in MergeEq.
+      unfold f_merge in MergeEq. split.
+      + intros HCm'k. assert (H' := HCm'k). 
+        apply set_of_map_member in H'.
+        apply Subset_Cm in H'.
+        rewrite elem_of_union in H'*; intros H'.
+        destruct H' as [H' | H'].
+        * apply set_of_map_member_rev in H'.
+          subst Bm'. destruct (Cn' !! k) as [t' | ] eqn: HCn'k.
+          ** rewrite decide_True in MergeEq.
+             destruct (decide (Some t' ≠ None)).
+             assert (t' = t) as Ht.
+             { rewrite H' in MergeEq.
+               by inversion MergeEq. }
+             subst t'. 
+             apply set_of_map_member in H'.
+             apply set_of_map_member in HCm'k.
+             apply set_of_map_member in HCn'k.
+             clear -H' HCm'k  HCn'k Subset_disj. set_solver.
+             exfalso; apply n0. intros H''; inversion H''.
+             rewrite H'; try done.
+          ** rewrite decide_True in MergeEq.
+             destruct (decide (None ≠ None)).
+             exfalso; apply n0; done.
+             destruct (decide (k ∈ esn' !!! m)).
+             *** assert (k ∈ S) as Hk.
+                 { subst S. rewrite elem_of_intersection.
+                   split; try done.
+                   rewrite elem_of_difference.
+                   split. rewrite elem_of_dom.
+                   rewrite H'. by exists t.
+                   by rewrite not_elem_of_dom. }
                  rewrite gmap_lookup_insert_map.
-                 rewrite (Lookup_Smap k e).
-                 destruct (Cn !! k) as [t' | ] eqn: HCnk.
-                 *** destruct (decide (Some t' ≠ None)); last first.
-                     exfalso; apply n0. intros H'''; inversion H'''. 
-                     destruct (Cn' !! k) as [t'' | ] eqn: HCn'k.
-                     **** assert (k ∉ S) as Hk.
-                          { assert (k ∈ dom (gset K) Cn). 
-                            rewrite elem_of_dom. rewrite HCnk.
-                            by exists t'.
-                            assert (k ∈ dom (gset K) Cn'). 
-                            rewrite elem_of_dom. rewrite HCn'k.
-                            by exists t''. subst S.
-                            clear -H1 H0. set_solver. }
-                          clear -Hk e.
-                          set_solver.
-                     **** rewrite decide_True in MergeEq.
-                          apply f_equal. apply lookup_total_correct.
-                          rewrite HCnk. apply leibniz_equiv.
-                          apply leibniz_equiv_iff in HCm'k. 
-                          rewrite <-HCm'k. by rewrite MergeEq. 
-                          by apply S_sub_es in e. 
-                 *** assert (k ∉ S) as Hk.
-                     { assert (k ∉ dom (gset K) Cn). 
-                       rewrite not_elem_of_dom. rewrite HCnk.
-                       done. subst S. clear -H0; set_solver. }
-                     clear -Hk e. set_solver.
-                 *** by rewrite Dom_Smap.
-              ** rewrite gmap_lookup_insert_map_ne.
-                 done. by rewrite Dom_Smap.
-        + intros HCm'. assert (Cm !! k = None) as HCm.
-          { destruct (Cm !! k) eqn: HCmk; try done.
-            assert (k ∈ dom (gset K) Cm).
-            { rewrite elem_of_dom. rewrite HCmk.
-              by exists n0. }
-            assert (k ∉ dom (gset K) Cm').
-            { by rewrite not_elem_of_dom. }
-            clear -H0 H1 Cm_sub_Cm'.
-            set_solver. }
-          pose proof Hφ1 k 0 as H'.
-          destruct H' as [_ H']. done.
-          pose proof H' HCm as H'.
-          assert (k ∉ S) as Hk.
-          { destruct (decide (k ∈ S)); try done.
-            subst S. assert (k ∈ dom (gset K) Cn) as H1'.
-            { clear -e. set_solver. }
-            assert (k ∉ dom (gset K) Cn') as H2'.
-            { clear -e. set_solver. }
-            rewrite elem_of_dom in H1'*; intros H1'.
-            rewrite not_elem_of_dom in H2'*; intros H2'.
-            destruct H1' as [t' H1'].
-            rewrite decide_True in MergeEq.
-            rewrite decide_False in MergeEq.
-            rewrite decide_True in MergeEq.
-            rewrite HCm' in MergeEq.
-            rewrite MergeEq in H1'. inversion H1'.
-            by apply S_sub_es in e.
-            rewrite H2'. intros ?; try done.
-            rewrite H1'; try done. }
-          subst Bm'. rewrite gmap_lookup_insert_map_ne.
-          done. by rewrite Dom_Smap.
+                 rewrite (Lookup_Smap k Hk).
+                 rewrite /(Cn !!! k). 
+                 unfold finmap_lookup_total.
+                 rewrite H'; by simpl.
+                 rewrite Dom_Smap. done.
+             *** rewrite H' in MergeEq.
+                 inversion MergeEq.
+             *** rewrite H'. done.
+          * apply set_of_map_member_rev in H'.
+            pose proof HBnm k t as H''.
+            destruct H'' as [H'' _]. done.
+            pose proof H'' H' as HBm.
+            destruct (decide (k ∈ S)).
+            ** subst Bm'.
+               rewrite gmap_lookup_insert_map.
+               rewrite (Lookup_Smap k e).
+               destruct (Cn !! k) as [t' | ] eqn: HCnk.
+               *** destruct (decide (Some t' ≠ None)); last first.
+                   exfalso; apply n0. intros H'''; inversion H'''. 
+                   destruct (Cn' !! k) as [t'' | ] eqn: HCn'k.
+                   **** assert (k ∉ S) as Hk.
+                        { assert (k ∈ dom (gset K) Cn). 
+                          rewrite elem_of_dom. rewrite HCnk.
+                          by exists t'.
+                          assert (k ∈ dom (gset K) Cn'). 
+                          rewrite elem_of_dom. rewrite HCn'k.
+                          by exists t''. subst S.
+                          clear -H1 H0. set_solver. }
+                        clear -Hk e.
+                        set_solver.
+                   **** rewrite decide_True in MergeEq.
+                        apply f_equal. apply lookup_total_correct.
+                        rewrite HCnk. apply leibniz_equiv.
+                        apply leibniz_equiv_iff in HCm'k. 
+                        rewrite <-HCm'k. by rewrite MergeEq. 
+                        by apply S_sub_es in e. 
+               *** assert (k ∉ S) as Hk.
+                   { assert (k ∉ dom (gset K) Cn). 
+                     rewrite not_elem_of_dom. rewrite HCnk.
+                     done. subst S. clear -H0; set_solver. }
+                   clear -Hk e. set_solver.
+               *** by rewrite Dom_Smap.
+            ** rewrite gmap_lookup_insert_map_ne.
+               done. by rewrite Dom_Smap.
+      + intros HCm'. assert (Cm !! k = None) as HCm.
+        { destruct (Cm !! k) eqn: HCmk; try done.
+          assert (k ∈ dom (gset K) Cm).
+          { rewrite elem_of_dom. rewrite HCmk.
+            by exists n0. }
+          assert (k ∉ dom (gset K) Cm').
+          { by rewrite not_elem_of_dom. }
+          clear -H0 H1 Cm_sub_Cm'.
+          set_solver. }
+        pose proof HBnm k 0 as H'.
+        destruct H' as [_ H']. done.
+        pose proof H' HCm as H'.
+        assert (k ∉ S) as Hk.
+        { destruct (decide (k ∈ S)); try done.
+          subst S. assert (k ∈ dom (gset K) Cn) as H1'.
+          { clear -e. set_solver. }
+          assert (k ∉ dom (gset K) Cn') as H2'.
+          { clear -e. set_solver. }
+          rewrite elem_of_dom in H1'*; intros H1'.
+          rewrite not_elem_of_dom in H2'*; intros H2'.
+          destruct H1' as [t' H1'].
+          rewrite decide_True in MergeEq.
+          rewrite decide_False in MergeEq.
+          rewrite decide_True in MergeEq.
+          rewrite HCm' in MergeEq.
+          rewrite MergeEq in H1'. inversion H1'.
+          by apply S_sub_es in e.
+          rewrite H2'. intros ?; try done.
+          rewrite H1'; try done. }
+        subst Bm'. rewrite gmap_lookup_insert_map_ne.
+        done. by rewrite Dom_Smap. }
+    
+
+
+    iAssert (⌜φ0 esm Qm⌝ ∗ ⌜φ2 m Bm' Im'⌝ 
+              ∗ ⌜φ3 m Bm' Jm⌝ ∗ ⌜φ4 m Jm⌝ ∗ ⌜φ5 Bm' Qm⌝ 
+              ∗ ⌜φ7 m esm Jm Qm⌝ ∗ ⌜φ8 m Im'⌝)%I
+            with "[Hφm]" as "Hφm".
+    { iDestruct "Hφm" as "(%&%&%&%&%&%&%)". 
+      rename H0 into Hφ0. rename H1 into Hφ2.
+      rename H2 into Hφ3. rename H3 into Hφ4.
+      rename H4 into Hφ5. rename H5 into Hφ7. 
+      rename H6 into Hφ8. 
+      iPureIntro. split; last split; last split; 
+      last split; last split; last split.
+      - unfold φ0. try done.
       - unfold φ2. intros k t HKS Hkt.
         assert (inset KT Im' m = 
                       inset KT Im m ∖ Qn_old ∪ Qn_new) as Hinset.
@@ -1951,6 +1963,7 @@ Section gen_multicopy_compact.
       - intros k HKS. 
         apply (Nat.le_trans _ (Bm !!! k) _).
         apply Hφ5. done. apply Bm_le_Bm'.
+(*
       - intros k HKS. destruct (decide (k ∈ S)).
         + rewrite /(Bm' !!! k).
           unfold finmap_lookup_total.
@@ -1963,6 +1976,7 @@ Section gen_multicopy_compact.
           subst Bm'.
           rewrite gmap_lookup_insert_map_ne.
           apply Hφ6. done. by rewrite Dom_Smap.
+*)
       - try done.
       - intros kt. subst Im'. unfold inflow_insert_set.
         unfold inflow_map_set. unfold inf; simpl.
@@ -1997,18 +2011,16 @@ Section gen_multicopy_compact.
             pose proof Hφ8 kt as H'. clear -H'; lia.
           * rewrite nzmap_lookup_total_map_set_ne; try done. }
 
-    iModIntro. iExists Qn', Bm'. iFrame "Hglob mcs_high". 
+    iModIntro. iExists Qn'. iFrame "Hglob mcs_high". 
     iSplitL "node_n HnP_gh HnP_t HnP_C HnP_frac".
-    { iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn', T. iFrame. }
-    iSplitL "HnS_gh HnS_FP HnS_cl HnS_H HnS_star HnS_frac Hφ HnS_si".
-    { iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn', In', Jn. iFrame "∗#". }
+    { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn', T. iFrame "∗#". }
+    iSplitL "HnS_gh HnS_FP HnS_cl HnS_Bn HnS_H HnS_star HnS_frac Hφ HnS_si".
+    { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn', Bn, In', Jn. iFrame "∗#". }
     iSplitL "node_m HnP_ghm HnP_tm HnP_Cm HnP_fracm".
-    { iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm, Tm. iFrame. }
-    iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm, Im', Jm. iFrame "∗#".
+    { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Tm. iFrame "∗#". }
+    iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm', Im', Jm. iFrame "∗#".
     destruct (decide (m = r)); try done.
   Qed.     
-
-
 
 
   Lemma compact_spec N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh 
@@ -2032,15 +2044,15 @@ Section gen_multicopy_compact.
     wp_lam.
     awp_apply lockNode_spec_high; try done.
     iAaccIntro with ""; try eauto with iFrame.
-    iIntros (Cn Bn Qn)"HnP_n". iModIntro.
-    wp_pures. iDestruct "HnP_n" as (γ_en γ_cn γ_bn γ_qn γ_cirn esn T)"(node_n   
-                            & HnP_gh & HnP_frac & HnP_C & HnP_t)".
+    iIntros (Cn Qn)"HnP_n". iModIntro.
+    wp_pures. iDestruct "HnP_n" as (γ_en γ_cn γ_qn γ_cirn esn T)"(node_n   
+                            & #HnP_gh & HnP_frac & HnP_C & HnP_t)".
     iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
     rename H into Disj_esn.                        
     wp_apply (atCapacity_spec with "node_n").
     iIntros (b) "(node_n & _)". destruct b; last first; wp_pures.
     - awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
-      iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, T. iFrame.
+      iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T. iFrame "∗#".
       iAaccIntro with ""; try eauto with iFrame.
       iIntros "_". iMod "AU" as (t H)"[MCS_high [_ Hclose]]".
       iMod ("Hclose" with "MCS_high") as "HΦ".
@@ -2061,7 +2073,7 @@ Section gen_multicopy_compact.
         { destruct (decide (m ∈ domm I0)); try done.
           rewrite (big_sepS_delete _ (domm I0) m); last by eauto.
           iDestruct "Hstar" as "(Hm & _)".
-          iDestruct "Hm" as (bm Cm Bm Qm)"(Hl_m' & _)".
+          iDestruct "Hm" as (bm Cm Qm)"(Hl_m' & _)".
           iDestruct (mapsto_valid_2 with "Hl_m Hl_m'") as "(% & _)".
           exfalso. done. }
           
@@ -2074,26 +2086,22 @@ Section gen_multicopy_compact.
 
         rewrite (big_sepS_delete _ (domm I0) n); last by eauto.
         iDestruct "Hstar" as "(H_n & Hstar')".
-        iDestruct "H_n" as (bn Cn' Bn' Qn')"(Hl_n & Hlif_n & HnS_n)".
-        iDestruct "HnS_n" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In0 Jn0) 
-                      "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                                & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-        iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-                                  as "(% & % & % & % & %)".
-        subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-        iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-        destruct H as [Hes [Hc [Hb Hq]]]. 
-        subst es'. subst Cn'. subst Bn'. subst Qn'.
+        iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & Hlif_n & HnS_n)".
+        iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In0 Jn0) "HnS_n'".
+        iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
+             as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn' Qn'.   
+        iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                            & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
 
-        iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                                          γ_en γ_cn γ_bn γ_qn γ_cirn esn T)%I
+        iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn 
+                              γ_en γ_cn γ_qn γ_cirn esn T)%I
                    with "[HnP_gh HnP_frac HnP_C HnP_t]" as "HnP_aux".
-        { iFrame. }
+        { iFrame "∗#". }
         
-        iAssert (nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H0 T0' 
-                        γ_en γ_cn γ_bn γ_qn γ_cirn esn In0 Jn0) with
+        iAssert (nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H0 
+                            γ_en γ_cn γ_qn γ_cirn esn Bn In0 Jn0) with
                   "[HnS_gh HnS_frac HnS_si HnS_FP 
-                        HnS_cl HnS_oc HnS_H HnS_star Hφ]" as "HnS_n'".
+                        HnS_cl HnS_oc HnS_Bn HnS_H HnS_star Hφ]" as "HnS_n'".
         { iFrame. }                
 
         set (Qm0 := ∅ : gmap K nat).  
@@ -2105,13 +2113,12 @@ Section gen_multicopy_compact.
         iMod ((ghost_update_contExt γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh r lc
                 T0' H0 hγ0 I0 J0 
                 m Cm0 esm0 Bm0 Qm0 Im0 Jm0
-                n Cn Bn Qn γ_en γ_cn γ_bn γ_qn γ_cirn (esn: esT) T In0 Jn0) with 
+                n Cn Bn Qn γ_en γ_cn γ_qn γ_cirn (esn: esT) T In0 Jn0) with 
                 "[] [$FP_n $HnP_aux HnS_n' $mcs_high $Hglob]") 
-                    as (hγ' I0' R0' γ_em γ_cm γ_bm γ_qm γ_cirm)"H".
+                    as (hγ' I0' R0' γ_em γ_cm γ_qm γ_cirm)"H".
         { iPureIntro; try done. }
-        { iDestruct "HnS_n'" as 
-                      "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                      & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)". iFrame. }
+        { iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+             & HnS_cl & HnS_oc & HnS_Bn & HnS_H & HnS_star & Hφ)". iFrame. }
             
         iDestruct "H" as "(#FP_m & HnP_aux & HnS_n' & HnP_auxm & HnS_auxm 
                   & mcs_high & Hglob & Esn_empty & Out_In_m & Out_Jn_m 
@@ -2131,13 +2138,13 @@ Section gen_multicopy_compact.
                     as "H".
         { iPureIntro; try repeat split; try done. }            
 
-        iDestruct "H" as (Bn0' Qn0')"(HnP_n' & HnS_n & HnP_m' & HnS_m)".
+        iDestruct "H" as (Qn0')"(HnP_n' & HnS_n & HnP_m' & HnS_m)".
         
         iAssert (⌜bn = true⌝)%I as "%".
         { destruct bn; try done.
           iDestruct "HnP_n'" as "(node_n & _)".
           iDestruct "Hlif_n" as 
-              (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+              (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
           iPoseProof ((node_sep_star r n) with "[$]") as "%".
           contradiction. } subst bn.
 
@@ -2148,27 +2155,27 @@ Section gen_multicopy_compact.
           rewrite (big_sepS_delete _ (domm I0 ∪ {[m]}) m); 
               last first. { clear; set_solver. }
           iSplitL "Hl_m HnP_m' HnS_m".
-          { iExists false, Cm0, Bm0, Qm0. iFrame "Hl_m".
+          { iExists false, Cm0, Qm0. iFrame "Hl_m".
             iFrame "HnS_m". 
-            iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm0, T.
+            iExists γ_em, γ_cm, γ_qm, γ_cirm, esm0, T.
             iFrame. }
           assert ((domm I0 ∪ {[m]}) ∖ {[m]} = domm I0) as H'.
           { clear -m_notin_I0. set_solver. }
           rewrite H'. rewrite (big_sepS_delete _ (domm I0) n); 
               last apply n_in_I0.
-          iFrame "Hstar'". iExists true, Cn, Bn0', Qn0'.
+          iFrame "Hstar'". iExists true, Cn, Qn0'.
           iFrame. } 
             
         iModIntro.
-        clear γ_em γ_cm γ_bm γ_qm γ_cirm.
+        clear γ_em γ_cm γ_qm γ_cirm.
         
         awp_apply lockNode_spec_high; try done.
         iAaccIntro with ""; try eauto with iFrame.
-        iIntros (Cm Bm Qm)"HnP_m". iModIntro.
+        iIntros (Cm Qm)"HnP_m". iModIntro.
         wp_pures.
-        iDestruct "HnP_m" as (γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm)"(node_m   
-                            & HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
-        iDestruct "HnP_n'" as "(node_n & HnP_gh & HnP_frac & HnP_C & HnP_t)".
+        iDestruct "HnP_m" as (γ_em γ_cm γ_qm γ_cirm esm Tm)"(node_m   
+                            & #HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
+        iDestruct "HnP_n'" as "(node_n & _ & HnP_frac & HnP_C & HnP_t)".
         wp_apply (mergeContents_spec with "[$node_n $node_m]"); try done.
         iIntros (Cn' Cm') "(node_n & node_m & Subset_Cn & Subset_Cm 
                                      & Subset_disj & Cm_sub_Cm' & MergeEq)".  
@@ -2187,16 +2194,14 @@ Section gen_multicopy_compact.
         rename H1 into n_in_I.  
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iDestruct "Hstar" as "(H_n & Hstar')".
-        iDestruct "H_n" as (bn Cn'' Bn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
-        iDestruct "HnS_n" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In Jn) 
-                      "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                                & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-        iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-                                  as "(% & % & % & % & %)".
-        subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-        iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-        destruct H1 as [Hes [Hc [Hb Hq]]]. 
-        subst es'. subst Cn''. subst Bn''. subst Qn''.
+        iDestruct "H_n" as (bn Cn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
+        clear γ_en' γ_cn' γ_qn' γ_cirn'.
+        iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn' In Jn) "HnS_n'".
+        iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
+             as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn'' Qn''.   
+        iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                            & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
+
         iAssert (⌜m ∈ domm I⌝)%I as "%". 
         { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
@@ -2204,56 +2209,52 @@ Section gen_multicopy_compact.
         rename H1 into m_in_I.
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) m); last by set_solver.
         iDestruct "Hstar'" as "(H_m & Hstar')".
-        iDestruct "H_m" as (bm Cm'' Bm'' Qm'')"(Hl_m & Hlif_m & HnS_m)".
-        iDestruct "HnS_m" as (γ_em' γ_cm' γ_bm' γ_qm' γ_cirm' es' Im Jm) 
-                      "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
-                                & HnS_clm & HnS_ocm & HnS_Hm & HnS_starm & Hφm)".
-        iPoseProof (ghost_heap_sync with "[$HnP_ghm] [$HnS_ghm]") 
-                                  as "(% & % & % & % & %)".
-        subst γ_em'. subst γ_cm'. subst γ_bm'. subst γ_qm'. subst γ_cirm'.
-        iPoseProof (frac_eq with "[$HnP_fracm] [$HnS_fracm]") as "%".
-        destruct H1 as [Hes [Hc [Hb Hq]]]. 
-        subst es'. subst Cm''. subst Bm''. subst Qm''.
+        iDestruct "H_m" as (bm Cm'' Qm'')"(Hl_m & Hlif_m & HnS_m)".
+        iDestruct "HnS_m" as (γ_em' γ_cm' γ_qm' γ_cirm' es' Bm Im Jm) "HnS_m'".
+        iPoseProof (nodePred_nodeShared_eq with "[$HnP_ghm] [$HnP_fracm] [$HnS_m']")
+             as "(HnP_fracm & HnS_m' &%&%&%)". subst es' Cm'' Qm''.   
+        iDestruct "HnS_m'" as "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
+                         & HnS_clm & HnS_ocm & HnS_Bnm & HnS_Hm & HnS_starm & Hφm)".
 
         iAssert (⌜bn = true⌝)%I as "%".
         { destruct bn; try done.
           iDestruct "Hlif_n" as 
-              (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+              (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
           iPoseProof ((node_sep_star r n) with "[$]") as "%".
           contradiction. } subst bn.
                 
         iAssert (⌜bm = true⌝)%I as "%".
         { destruct bm; try done.
           iDestruct "Hlif_m" as 
-              (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+              (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
           iPoseProof ((node_sep_star r m) with "[$]") as "%".
           contradiction. } subst bm.
 
-        iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn0' Qn0' 
-                                          γ_en γ_cn γ_bn γ_qn γ_cirn esn' T)%I
+        iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn0' 
+                              γ_en γ_cn γ_qn γ_cirn esn' T)%I
                    with "[HnP_gh HnP_frac HnP_C HnP_t]" as "HnP_aux".
-        { iFrame. }           
+        { iFrame "∗#". }           
 
-        iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm Bm Qm 
-                                          γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm)%I
+        iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm Qm 
+                              γ_em γ_cm γ_qm γ_cirm esm Tm)%I
                    with "[HnP_ghm HnP_fracm HnP_Cm HnP_tm]" as "HnP_auxm".
-        { iFrame. }
+        { iFrame "∗#". }
         
-        iAssert (nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn0' Qn0' H T')%I
+        iAssert (nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn0' H)%I
                   with "[HnS_gh HnS_frac HnS_si HnS_FP HnS_cl 
-                    HnS_oc HnS_H HnS_star Hφ]" as "HnS_n".
-        { iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn', In, Jn. iFrame. }
+                    HnS_oc HnS_Bn HnS_H HnS_star Hφ]" as "HnS_n".
+        { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn', Bn', In, Jn. iFrame. }
                               
-        iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm Bm Qm H T')%I
+        iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm Qm H)%I
                   with "[HnS_ghm HnS_fracm HnS_sim HnS_FPm HnS_clm 
-                    HnS_ocm HnS_Hm HnS_starm Hφm]" as "HnS_m".
-        { iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm, Im, Jm. iFrame. }
+                    HnS_ocm HnS_Bnm HnS_Hm HnS_starm Hφm]" as "HnS_m".
+        { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm, Im, Jm. iFrame. }
         
         iMod (mergeContents_ghost_update with 
                 "[] [$node_n $HnP_aux $node_m $HnP_auxm $HnS_n $HnS_m 
-                                                        $mcs_high $Hglob]") 
-                    as (Qn' Bm') "(HnP_n & HnS_n & HnP_m & HnS_m 
-                                                        & mcs_high & Hglob)".
+                          $mcs_high $Hglob]") 
+                    as (Qn') "(HnP_n & HnS_n & HnP_m & HnS_m 
+                                  & mcs_high & Hglob)".
         { iPureIntro; try done. }            
         
         iModIntro.
@@ -2262,11 +2263,11 @@ Section gen_multicopy_compact.
           iExists hγ, I, J. iFrame "Hglob".
           rewrite (big_sepS_delete _ (domm I) n); last by eauto.
           iSplitL "Hl_n HnS_n".
-          { iExists true, Cn', Bn0', Qn'. iFrame "Hl_n".
+          { iExists true, Cn', Qn'. iFrame "Hl_n".
             iSplitR; try done. }
           rewrite (big_sepS_delete _ (domm I ∖ {[n]}) m); last first.
           clear - m_neq_n m_in_I. set_solver. 
-          iFrame "Hstar'". iExists true, Cm', Bm', Qm.
+          iFrame "Hstar'". iExists true, Cm', Qm.
           iFrame "Hl_m Hlif_m". iFrame. }
         iModIntro.
         awp_apply (unlockNode_spec_high with "[] [] 
@@ -2294,16 +2295,12 @@ Section gen_multicopy_compact.
 
       rewrite (big_sepS_delete _ (domm I0) n); last by eauto.
       iDestruct "Hstar" as "(H_n & Hstar')".
-      iDestruct "H_n" as (bn Cn'' Bn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
-      iDestruct "HnS_n" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In0 Jn0) 
-                    "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                              & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-      iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-                                as "(% & % & % & % & %)".
-      subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-      iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-      destruct H as [Hes [Hc [Hb Hq]]]. 
-      subst es'. subst Cn''. subst Bn''. subst Qn''.
+      iDestruct "H_n" as (bn Cn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
+      iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In0 Jn0) "HnS_n'".
+      iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
+           as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn'' Qn''.   
+      iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                            & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
       
       iAssert (inFP γ_f m)%I as "#FP_m".
       { iApply "HnS_cl". iPureIntro; clear -es_ne; set_solver. }
@@ -2326,7 +2323,7 @@ Section gen_multicopy_compact.
       iAssert (⌜bn = true⌝)%I as "%".
       { destruct bn; try done.
         iDestruct "Hlif_n" as 
-            (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+            (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
         iPoseProof ((node_sep_star r n) with "[$]") as "%".
         contradiction. } subst bn.
         
@@ -2334,19 +2331,17 @@ Section gen_multicopy_compact.
       { iNext. iExists T0', H0. iFrame "mcs_high".
         iExists hγ0, I0, J0. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I0) n); last by eauto.
-        iFrame "Hstar'". iExists true, Cn, Bn, Qn. iFrame.
-        iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In0, Jn0.
+        iFrame "Hstar'". iExists true, Cn, Qn. iFrame.
+        iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Bn, In0, Jn0.
         iFrame. } 
         
       iModIntro.
-     
-
       awp_apply lockNode_spec_high; try done.
       iAaccIntro with ""; try eauto with iFrame.
-      iIntros (Cm Bm Qm)"HnP_m". iModIntro.
+      iIntros (Cm Qm)"HnP_m". iModIntro.
       wp_pures.
-      iDestruct "HnP_m" as (γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm)"(node_m   
-                          & HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
+      iDestruct "HnP_m" as (γ_em γ_cm γ_qm γ_cirm esm Tm)"(node_m   
+                          & #HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
       wp_apply (mergeContents_spec with "[$node_n $node_m]"); try done.
       iIntros (Cn' Cm') "(node_n & node_m & Subset_Cn & Subset_Cm 
                                    & Subset_disj & Cm_sub_Cm' & MergeEq)".  
@@ -2366,16 +2361,14 @@ Section gen_multicopy_compact.
       rename H1 into n_in_I.  
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iDestruct "Hstar" as "(H_n & Hstar')".
-      iDestruct "H_n" as (bn Cn'' Bn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
-      iDestruct "HnS_n" as (γ_en' γ_cn' γ_bn' γ_qn' γ_cirn' es' In Jn) 
-                    "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
-                              & HnS_cl & HnS_oc & HnS_H & HnS_star & Hφ)".
-      iPoseProof (ghost_heap_sync with "[$HnP_gh] [$HnS_gh]") 
-                                as "(% & % & % & % & %)".
-      subst γ_en'. subst γ_cn'. subst γ_bn'. subst γ_qn'. subst γ_cirn'.
-      iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
-      destruct H1 as [Hes [Hc [Hb Hq]]]. 
-      subst es'. subst Cn''. subst Bn''. subst Qn''.
+      iDestruct "H_n" as (bn Cn'' Qn'')"(Hl_n & Hlif_n & HnS_n)".
+      clear γ_en' γ_cn' γ_qn' γ_cirn'.
+      iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn' In Jn) "HnS_n'".
+      iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
+           as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn'' Qn''.   
+      iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
+                            & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
+
       iAssert (⌜m ∈ domm I⌝)%I as "%". 
       { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
           & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
@@ -2383,55 +2376,51 @@ Section gen_multicopy_compact.
       rename H1 into m_in_I.
       rewrite (big_sepS_delete _ (domm I ∖ {[n]}) m); last by set_solver.
       iDestruct "Hstar'" as "(H_m & Hstar')".
-      iDestruct "H_m" as (bm Cm'' Bm'' Qm'')"(Hl_m & Hlif_m & HnS_m)".
-      iDestruct "HnS_m" as (γ_em' γ_cm' γ_bm' γ_qm' γ_cirm' es' Im Jm) 
-                    "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
-                              & HnS_clm & HnS_ocm & HnS_Hm & HnS_starm & Hφm)".
-      iPoseProof (ghost_heap_sync with "[$HnP_ghm] [$HnS_ghm]") 
-                                as "(% & % & % & % & %)".
-      subst γ_em'. subst γ_cm'. subst γ_bm'. subst γ_qm'. subst γ_cirm'.
-      iPoseProof (frac_eq with "[$HnP_fracm] [$HnS_fracm]") as "%".
-      destruct H1 as [Hes [Hc [Hb Hq]]]. 
-      subst es'. subst Cm''. subst Bm''. subst Qm''.
+      iDestruct "H_m" as (bm Cm'' Qm'')"(Hl_m & Hlif_m & HnS_m)".
+      iDestruct "HnS_m" as (γ_em' γ_cm' γ_qm' γ_cirm' es' Bm Im Jm) "HnS_m'".
+      iPoseProof (nodePred_nodeShared_eq with "[$HnP_ghm] [$HnP_fracm] [$HnS_m']")
+             as "(HnP_fracm & HnS_m' &%&%&%)". subst es' Cm'' Qm''.   
+      iDestruct "HnS_m'" as "(HnS_ghm & HnS_fracm & HnS_sim & HnS_FPm 
+                       & HnS_clm & HnS_ocm & HnS_Bnm & HnS_Hm & HnS_starm & Hφm)".
 
       iAssert (⌜bn = true⌝)%I as "%".
       { destruct bn; try done.
         iDestruct "Hlif_n" as 
-            (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+            (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
         iPoseProof ((node_sep_star r n) with "[$]") as "%".
         contradiction. } subst bn.
                 
       iAssert (⌜bm = true⌝)%I as "%".
       { destruct bm; try done.
         iDestruct "Hlif_m" as 
-            (γ_er' γ_cr' γ_br' γ_qr' γ_cirr' es' T'')"(node' & _)".
+            (γ_er' γ_cr' γ_qr' γ_cirr' es' T'')"(node' & _)".
         iPoseProof ((node_sep_star r m) with "[$]") as "%".
         contradiction. } subst bm.
 
-      iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                                        γ_en γ_cn γ_bn γ_qn γ_cirn esn T)%I
+      iAssert (nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn 
+                            γ_en γ_cn γ_qn γ_cirn esn T)%I
                  with "[HnP_gh HnP_frac HnP_C HnP_t]" as "HnP_aux".
-      { iFrame. }           
+      { iFrame "∗#". }           
 
-      iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm Bm Qm 
-                                        γ_em γ_cm γ_bm γ_qm γ_cirm esm Tm)%I
-                 with "[HnP_ghm HnP_fracm HnP_Cm HnP_tm]" as "HnP_auxm".
-      { iFrame. }
+      iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm Qm 
+                            γ_em γ_cm γ_qm γ_cirm esm Tm)%I
+                 with "[HnP_fracm HnP_Cm HnP_tm]" as "HnP_auxm".
+      { iFrame "∗#". }
        
-      iAssert (nodeShared γ_I γ_J γ_f γ_gh r n Cn Bn Qn H T')%I
+      iAssert (nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I
                 with "[HnS_gh HnS_frac HnS_si HnS_FP HnS_cl 
-                  HnS_oc HnS_H HnS_star Hφ]" as "HnS_n".
-      { iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In, Jn. iFrame. }
+                  HnS_oc HnS_Bn HnS_H HnS_star Hφ]" as "HnS_n".
+      { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Bn', In, Jn. iFrame. }
                               
-      iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm Bm Qm H T')%I
+      iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm Qm H)%I
                 with "[HnS_ghm HnS_fracm HnS_sim HnS_FPm HnS_clm 
-                  HnS_ocm HnS_Hm HnS_starm Hφm]" as "HnS_m".
-      { iExists γ_em, γ_cm, γ_bm, γ_qm, γ_cirm, esm, Im, Jm. iFrame. }
+                  HnS_ocm HnS_Bnm HnS_Hm HnS_starm Hφm]" as "HnS_m".
+      { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm, Im, Jm. iFrame. }
         
       iMod (mergeContents_ghost_update with 
               "[] [$node_n $HnP_aux $node_m $HnP_auxm $HnS_n $HnS_m
                                                             $mcs_high $Hglob]") 
-                  as (Qn' Bm') "(HnP_n & HnS_n & HnP_m & HnS_m 
+                  as (Qn') "(HnP_n & HnS_n & HnP_m & HnS_m 
                                                   & mcs_high & Hglob)".
       { iPureIntro; repeat split; try done. }
         
@@ -2441,11 +2430,11 @@ Section gen_multicopy_compact.
         iExists hγ, I, J. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iSplitL "Hl_n HnS_n".
-        { iExists true, Cn', Bn, Qn'. iFrame "Hl_n".
+        { iExists true, Cn', Qn'. iFrame "Hl_n".
           iSplitR; try done. }
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) m); last first.
         clear - m_neq_n m_in_I. set_solver. 
-        iFrame "Hstar'". iExists true, Cm', Bm', Qm.
+        iFrame "Hstar'". iExists true, Cm', Qm.
         iFrame "Hl_m Hlif_m". iFrame. }
       iModIntro.
       awp_apply (unlockNode_spec_high with "[] [] 
