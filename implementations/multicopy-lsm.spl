@@ -112,7 +112,7 @@ lemma contents_memtable_add(tableK: Map<Int, K>, tableT: Map<Int, Int>,
     == contents_memtable_aux(old_tableK, old_tableT, len-1, len-1);
 }
 
-define nodePure(r, n, es, Cn) {
+define nodePure(r, n, esn, Cn) {
   true
   // Node is either memtable or sstable:
   && (n.nodeType == memtableNode
@@ -128,31 +128,31 @@ define nodePure(r, n, es, Cn) {
   && n.next != n && n.next != r
   // Edgeset to next node is KS if non-null
   && (n.next != null
-    ==> (forall k: K :: k in es[n.next]))
+    ==> (forall k: K :: k in esn[n.next]))
   // All other nodes have empty edgeset
-  && (forall n1: Node :: n1 != n.next ==> es[n1] == {})
-  && es[null] == {}
+  && (forall n1: Node :: n1 != n.next ==> esn[n1] == {})
+  && esn[null] == {}
 }
 
 // TODO make n first or last arg
-define node(r, n, es, Cn) {
+define node(r, n, esn, Cn) {
   nodeSpatial(n)
-  &*& nodePure(r, n, es, Cn)
+  &*& nodePure(r, n, esn, Cn)
 }
 
-lemma node_sep_star(r: Node, n: Node, es: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
-  requires node(r, n, es, C) &*& node(r, n, es1, C1)
+lemma node_sep_star(r: Node, n: Node, esn: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
+  requires node(r, n, esn, C) &*& node(r, n, es1, C1)
   ensures false
 {}
 
-lemma node_es_disjoint(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
-  requires node(r, n, es, C)
-  ensures node(r, n, es, C)
+lemma node_es_disjoint(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, Int>)
+  requires node(r, n, esn, C)
+  ensures node(r, n, esn, C)
   ensures forall k: K, n1: Node, n2: Node ::
-    n1 != n2 ==> (k !in es[n1] || k !in es[n2]) 
+    n1 != n2 ==> (k !in esn[n1] || k !in esn[n2]) 
 {
   pure assert forall k: K, n1: Node, n2: Node ::
-    n1 != n2 ==> (k !in es[n1] || k !in es[n2]) 
+    n1 != n2 ==> (k !in esn[n1] || k !in esn[n2]) 
   with {
     if (n1 != n2) {
       pure assert true;
@@ -160,16 +160,16 @@ lemma node_es_disjoint(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
   }
 }
 
-lemma node_es_empty(r: Node, n: Node, es: Map<Node, Set<K>>, C: Map<K, Int>)
-  requires node(r, n, es, C)
-  ensures node(r, n, es, C)
-  ensures forall k: K :: (k !in es[r] && k !in es[n])
+lemma node_es_empty(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, Int>)
+  requires node(r, n, esn, C)
+  ensures node(r, n, esn, C)
+  ensures forall k: K :: (k !in esn[r] && k !in esn[n])
 {}
 
 
 procedure init()
-  returns (r: Node, es: Map<Node, Set<K>>, Cr: Map<K, Int>)
-  ensures node(r, r, es, Cr)
+  returns (r: Node, esr: Map<Node, Set<K>>, Cr: Map<K, Int>)
+  ensures node(r, r, esr, Cr)
 {
   r := new Node;
   r.tableK := new Array<K>(2*B);
@@ -178,18 +178,18 @@ procedure init()
   r.next := null;
   r.nodeType := memtableNode;
 
-  es := { n: Node :: {} };
+  esr := { n: Node :: {} };
   Cr := { k: K :: 0 };
 
-  return r, es, Cr;
+  return r, esr, Cr;
 }
 
 // TODO which ones need to be implicit?
 procedure inContents(n: Node, k: K,
-    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (res: OptionTS)
-  requires node(r, n, es, Cn)
-  ensures node(r, n, es, Cn)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
   ensures res != noneTS ==> Cn[k] == res.tst
   // TODO make Cn Map<K, OptionTS> instead of:
   // ensures Cn[k] == res
@@ -199,7 +199,7 @@ procedure inContents(n: Node, k: K,
     var i := n.tableLen - 1;
     var flag := false;
     while (i >= 0 && !flag)
-      invariant node(r, n, es, Cn)
+      invariant node(r, n, esn, Cn)
       invariant -1 <= i < n.tableLen
       invariant flag ==> 0 <= i < n.tableLen && n.tableK[i] == k
       invariant forall j: Int :: i < j < n.tableLen ==> n.tableK[j] != k
@@ -227,10 +227,10 @@ procedure inContents(n: Node, k: K,
 }
 
 procedure addContents(n: Node, k: K, t: Int,
-    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (succ: Bool, implicit ghost Cn1: Map<K, Int>)
-  requires node(r, n, es, Cn) &*& n == r
-  ensures node(r, n, es, Cn1)
+  requires node(r, n, esn, Cn) &*& n == r
+  ensures node(r, n, esn, Cn1)
   ensures (succ && Cn1 == Cn[k := t]) || (!succ && Cn1 == Cn)
 {
   pure assert n.nodeType == memtableNode;
@@ -253,12 +253,12 @@ procedure addContents(n: Node, k: K, t: Int,
 }
 
 procedure findNext(n: Node, k: K,
-    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (res: OptionNode)
-  requires node(r, n, es, Cn)
-  ensures node(r, n, es, Cn)
-  ensures res != noneNode ==> k in es[res.nd]
-  ensures res == noneNode ==> (forall n2: Node :: k !in es[n2])
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures res != noneNode ==> k in esn[res.nd]
+  ensures res == noneNode ==> (forall n1: Node :: k !in esn[n1])
 {
   if (n.next == null) {  // Leaf node
     return noneNode;
@@ -268,10 +268,11 @@ procedure findNext(n: Node, k: K,
 }
 
 procedure atCapacity(n: Node,
-    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (b: Bool)
-  requires node(r, n, es, Cn)
-  ensures node(r, n, es, Cn)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures b == true || b == false
 {
   if (n.tableLen < n.tableK.length) {
     return false;
@@ -280,17 +281,17 @@ procedure atCapacity(n: Node,
   }
 }
 
-define needsNewNode(n) {
+define needsNewNode(r, n, esn, Cn) {
   n.next == null
 }
 
 procedure chooseNext(n: Node,
-    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (res: OptionNode)
-  requires node(r, n, es, Cn)
-  ensures node(r, n, es, Cn)
-  ensures (res == noneNode && needsNewNode(n)
-    || res != noneNode && es[res.nd] != {})
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures (res == noneNode && needsNewNode(r, n, esn, Cn)
+    || res != noneNode && esn[res.nd] != {})
 {
   if (n.next != null) {
     return someNode(n.next);
@@ -303,8 +304,10 @@ procedure insertNode(n: Node, m: Node,
     ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
   returns (ghost esn1: Map<Node, Set<K>>, ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
   requires node(r, n, esn, Cn) &*& nodeSpatial(m)
-  requires needsNewNode(n) &*& m != r
-  ensures node(r, n, esn1, Cn) &*& node(r, m, esm, Cm) &*& esn1[m] != {}
+  requires needsNewNode(r, n, esn, Cn) &*& m != r
+  ensures node(r, n, esn1, Cn) &*& node(r, m, esm, Cm)
+  ensures esn1[m] != {} && esn1 == esn[m := esn1[m]]
+  ensures esm == { x: Node :: {} } && Cm == { k: K :: 0 }
 {
   n.next := m;
   esn1 := { x: Node :: x == m ? { k: K :: true } : {} };
