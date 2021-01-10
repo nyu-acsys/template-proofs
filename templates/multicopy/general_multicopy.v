@@ -16,9 +16,11 @@ Parameter lockLoc : Node → loc.
 Parameter getLockLoc: val.
 *)
 Parameter addContents: val.
-Parameter mergeContents: val.
-Parameter chooseNext: val.
 Parameter atCapacity: val.
+Parameter chooseNext: val.
+Parameter mergeContents: val.
+Parameter allocNode: val.
+Parameter insertNode: val.
 
 (** Template algorithms *)
 
@@ -72,8 +74,8 @@ Definition readClock : val :=
   λ: "l", !"l".
   
 Definition incrementClock : val :=
-  λ: "l", let: "n" := !"l" in
-          "l" <- "n" + #1.
+  λ: "l", let: "t" := !"l" in
+          "l" <- "t" + #1.
 
 Definition upsert (lc: loc) (r: Node) : val :=
   rec: "upsert_rec" "k" := 
@@ -87,16 +89,24 @@ Definition upsert (lc: loc) (r: Node) : val :=
       unlockNode #r;;
       "upsert_rec" "k".
 
-Definition compact : val :=
+Definition compact (r: Node) : val :=
   rec: "compact_rec" "n" :=
     lockNode "n" ;;
     if: atCapacity "n" then
-      let: "m" := chooseNext "n" in
-      lockNode "m" ;;
-      mergeContents "n" "m" ;;
-      unlockNode "n" ;;
-      unlockNode "m" ;;
-      "compact_rec" "m"
+      match: (chooseNext "n") with
+        SOME "m" =>
+          lockNode "m" ;;
+          mergeContents "n" "m" ;;
+          unlockNode "n" ;;
+          unlockNode "m" ;;
+          "compact_rec" "m"
+      | NONE =>
+          let: "m" := allocNode #() in
+          insertNode #r "n" "m";;
+          mergeContents "n" "m" ;;
+          unlockNode "n" ;;
+          unlockNode "m";;
+          "compact_rec" "m" end
     else
       unlockNode "n".          
 
@@ -181,6 +191,10 @@ Section gen_multicopy.
 
   Parameter node_es_empty: ∀ r n es C,
     node r n es C -∗ ⌜es !!! r = ∅ ∧ es !!! n = ∅⌝.
+
+  Parameter nodeSpatial : Node → iProp.
+  
+  Parameter needsNewNode : Node → Node → esT → (gmap K nat) → iProp. 
 
   (** The multicopy structure invariant *)
   
@@ -515,20 +529,16 @@ Section gen_multicopy.
            atCapacity #n
        {{{ (b: bool), RET #b;
            node r n es Cn ∗ ⌜b = true ∨ b = false⌝ }}})%I.
-    
+
   (* Change formatting in the paper *)         
   Parameter chooseNext_spec : ∀ r n esn (Cn: gmap K natUR),
      ⊢ ({{{ node r n esn Cn }}}
            chooseNext #n
-       {{{ (m: Node) (esn' esm: esT) Cm, RET #m;
-           node r n esn' Cn ∗ ⌜esn' !!! m ≠ ∅⌝
-           ∗ (  ⌜esn' = esn⌝ 
-              ∨ ⌜esn' = <[m := (esn' !!! m)]> esn⌝ 
-                ∗ node r m esm Cm 
-                ∗ lockLoc m ↦ #false
-                ∗ ⌜Cm = ∅⌝ 
-                ∗ ⌜esm = ∅⌝) }}})%I.
-
+       {{{ (succ: bool) (m: Node), 
+              RET (match succ with true => SOMEV #m | false => NONEV end);
+           node r n esn Cn ∗ (if succ then ⌜esn !!! m ≠ ∅⌝ else
+                              needsNewNode r n esn Cn) }}})%I.  
+    
   Parameter mergeContents_spec : ∀ r n m esn esm (Cn Cm: gmap K natUR),
      ⊢ ({{{ node r n esn Cn ∗ node r m esm Cm ∗ ⌜esn !!! m ≠ ∅⌝ }}}
            mergeContents #n #m
@@ -539,5 +549,24 @@ Section gen_multicopy.
            ∗ ⌜set_of_map Cn ∩ set_of_map Cm' ## set_of_map Cn'⌝
            ∗ ⌜dom (gset K) Cm ⊆ dom (gset K) Cm'⌝
            ∗ ⌜merge Cn (esn !!! m) Cm = merge Cn' (esn !!! m) Cm'⌝ }}})%I.
+
+  Parameter allocNode_spec :
+     ⊢ ({{{ True }}}
+           allocNode #()
+       {{{ (m: Node) (l:loc), RET #m; 
+            nodeSpatial m 
+            ∗ ⌜lockLoc m = l⌝ 
+            ∗ l ↦ #true }}})%I.
+            
+  Parameter insertNode_spec : ∀ r n m esn Cn,
+    ⊢ {{{ node r n esn Cn ∗ needsNewNode r n esn Cn 
+          ∗ nodeSpatial m ∗ ⌜m ≠ r⌝ }}}
+          insertNode #r #n #m
+      {{{ esn' esm Cm, RET #();
+          node r n esn' Cn ∗ node r m esm Cm
+          ∗ ⌜esn' = <[m:=esn' !!! m]> esn⌝
+          ∗ ⌜esn' !!! m ≠ ∅⌝
+          ∗ ⌜Cm = ∅⌝ ∗ ⌜esm = ∅⌝ }}}.
+
 
 End gen_multicopy.

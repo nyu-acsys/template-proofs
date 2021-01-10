@@ -599,7 +599,7 @@ Section gen_multicopy_compact.
     apply leibniz_equiv. rewrite dom_insert.
     rewrite Domm_I0' domm_Iγ. clear; set_solver.
   Qed.
-      
+        
   Lemma ghost_update_interface_mod γ_I γ_J γ_f γ_gh γ_t γ_s lc r H0  
                 m Cm0 esm0 Bm0 Qm0 γ_em γ_cm γ_qm
                γ_cirm Im0 Jm0
@@ -1146,7 +1146,7 @@ Section gen_multicopy_compact.
     iFrame "∗#". iSplitR. by iPureIntro.
     destruct (decide (m = r)); try done.               
   Qed.          
-
+  
   Lemma mergeContents_ghost_update γ_s γ_t γ_I γ_J γ_f γ_gh 
               lc r T' H hγ I R
               n Cn Qn0' γ_en γ_cn γ_qn γ_cirn esn' T Cn'
@@ -2014,14 +2014,14 @@ Section gen_multicopy_compact.
     iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm', Im', Jm. iFrame "∗#".
     destruct (decide (m = r)); try done.
   Qed.     
-  
+    
   Lemma compact_spec N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh 
                       lc r γ_td γ_ght (n: Node) :
       ⊢ inFP γ_f n -∗ 
           <<< ∀ t M, MCS_high N γ_te γ_he γ_s 
                       (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
                       γ_td γ_ght t M >>> 
-                compact #n @ ⊤ ∖ ↑(mcsN N)
+                compact r #n @ ⊤ ∖ ↑(mcsN N)
           <<< MCS_high N γ_te γ_he γ_s 
                 (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
                  γ_td γ_ght t M, RET #() >>>.
@@ -2050,14 +2050,51 @@ Section gen_multicopy_compact.
       iMod ("Hclose" with "MCS_high") as "HΦ".
       by iModIntro.
     - wp_apply (chooseNext_spec with "node_n").
-      iIntros (m esn' esm0 Cm0)"(node_n & es_ne & Hor)".
-      iDestruct "es_ne" as %es_ne.
-      iDestruct "Hor" as "[ Hesn' | 
-                      (Hesn' & node_m & Hl_m & Hcm & Hesm) ]"; last first.
-      + iDestruct "Hesn'" as %Hesn'.
+      iIntros (succ m)"(node_n & Hif)".
+      destruct succ; last first.
+      + wp_pures. iDestruct "Hif" as "NeedsNew".
+        wp_apply allocNode_spec; try done.
+        clear m.
+        iIntros (m lm)"(NodeSp_m & % & Hl_m)".
+        subst lm. wp_pures.
+        iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >mcs_conc)".
+        iDestruct "mcs_conc" as (hγ'' I'' J'')"(Hglob & Hstar)".
+        iAssert (⌜m ∉ domm I''⌝)%I as "%".
+        { destruct (decide (m ∈ domm I'')); try done.
+          rewrite (big_sepS_delete _ (domm I'') m); last by eauto.
+          iDestruct "Hstar" as "(Hm & _)".
+          iDestruct "Hm" as (bm Cm Qm)"((Hl_m' & _) & _)".
+          iDestruct (mapsto_valid_2 with "Hl_m Hl_m'") as "(% & _)".
+          exfalso. done. } rename H into m_notin_I''.
+        iAssert (inFP γ_f r) as "#FP_r".
+        { by iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
+            & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IR & domm_Iγ)". }
+
+        iPoseProof (inFP_domm_glob with "[$FP_r] [$Hglob]") as "%".
+        rename H into r_in_I''.
+        
+        assert (m ≠ r) as m_neq_r.
+        { clear -m_notin_I'' r_in_I''. set_solver. }  
+
+        iModIntro. iSplitL "Hglob Hstar mcs_high".
+        iNext. iExists T'', H''; iFrame.
+        iExists hγ'', I'', J''. iFrame.
+                       
+   
+        iModIntro.
+        wp_apply (insertNode_spec with "[$node_n $NeedsNew $NodeSp_m]").
+        { by iPureIntro. }
+        
+        iIntros (esn' esm0 Cm0)"(node_n & node_m & Hesn' & Hesn_m' & Hcm & Hesm)". 
+        iDestruct "Hesn'" as %Hesn'.
+        iDestruct "Hesn_m'" as %Hesn_m'.
         iDestruct "Hcm" as %Hcm.
         iDestruct "Hesm" as %Hesm.
+(*
         wp_pures.
+        wp_apply (mergeContents_spec with "[$node_n $node_m]").
+        { by iPureIntro. }
+*)         
         iApply fupd_wp. iInv "HInv" as (T0' H0)"(mcs_high & >mcs_conc)".
         iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
         iAssert (⌜m ∉ domm I0⌝)%I as "%".
@@ -2118,7 +2155,6 @@ Section gen_multicopy_compact.
         iDestruct "Out_In_m" as %Out_In_m.
         iDestruct "Out_Jn_m" as %Out_Jn_m.
         iDestruct "Domm_I0'" as %Domm_I0'.
-        iDestruct "m_neq_r" as %m_neq_r.
         iDestruct "m_neq_n" as %m_neq_n.                   
         
         iMod ((ghost_update_interface_mod) with 
@@ -2135,17 +2171,15 @@ Section gen_multicopy_compact.
             as "%". try done. } subst bn.
 
 
-        iModIntro. iSplitR "AU HnP_n'".
+        iModIntro. iSplitR "AU HnP_n' HnP_m'".
         { iNext. iExists T0', H0. iFrame.
           iSplitR; first by iPureIntro.
           iExists hγ', I0', R0'. iFrame "Hglob". rewrite Domm_I0'.     
           rewrite (big_sepS_delete _ (domm I0 ∪ {[m]}) m); 
               last first. { clear; set_solver. }
-          iSplitL "Hl_m HnP_m' HnS_m".
-          { iExists false, Cm0, Qm0. iFrame "Hl_m".
-            iFrame "HnS_m". 
-            iExists γ_em, γ_cm, γ_qm, γ_cirm, esm0, T.
-            iFrame. }
+          iSplitL "Hl_m HnS_m".
+          { iExists true, Cm0, Qm0. iFrame "Hl_m".
+            iFrame "HnS_m". }
           assert ((domm I0 ∪ {[m]}) ∖ {[m]} = domm I0) as H'.
           { clear -m_notin_I0. set_solver. }
           rewrite H'. rewrite (big_sepS_delete _ (domm I0) n); 
@@ -2154,14 +2188,13 @@ Section gen_multicopy_compact.
           iFrame. } 
             
         iModIntro.
-        clear γ_em γ_cm γ_qm γ_cirm.
-        
+        (* clear γ_em γ_cm γ_qm γ_cirm.
         awp_apply lockNode_spec_high; try done.
         iAaccIntro with ""; try eauto with iFrame.
-        iIntros (Cm Qm)"HnP_m". iModIntro.
+        iIntros (Cm Qm)"HnP_m". iModIntro.*)
+
         wp_pures.
-        iDestruct "HnP_m" as (γ_em γ_cm γ_qm γ_cirm esm Tm)"(node_m   
-                            & #HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
+        iDestruct "HnP_m'" as "(node_m & #HnP_ghm & HnP_fracm & HnP_Cm & HnP_tm)".
         iDestruct "HnP_n'" as "(node_n & _ & HnP_frac & HnP_C & HnP_t)".
         wp_apply (mergeContents_spec with "[$node_n $node_m]"); try done.
         iIntros (Cn' Cm') "(node_n & node_m & Subset_Cn & Subset_Cm 
@@ -2208,8 +2241,8 @@ Section gen_multicopy_compact.
                    with "[HnP_gh HnP_frac HnP_C HnP_t]" as "HnP_aux".
         { iFrame "∗#". }           
 
-        iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm Qm 
-                              γ_em γ_cm γ_qm γ_cirm esm Tm)%I
+        iAssert (nodePred_aux γ_gh γ_t γ_s lc r m Cm0 Qm0 
+                              γ_em γ_cm γ_qm γ_cirm esm0 T)%I
                    with "[HnP_ghm HnP_fracm HnP_Cm HnP_tm]" as "HnP_auxm".
         { iFrame "∗#". }
         
@@ -2218,10 +2251,10 @@ Section gen_multicopy_compact.
                     HnS_oc HnS_Bn HnS_H HnS_star Hφ]" as "HnS_n".
         { iExists γ_en, γ_cn, γ_qn, γ_cirn, esn', Bn', In, Jn. iFrame. }
                               
-        iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm Qm H)%I
+        iAssert (nodeShared γ_I γ_J γ_f γ_gh r m Cm0 Qm0 H)%I
                   with "[HnS_ghm HnS_fracm HnS_sim HnS_FPm HnS_clm 
                     HnS_ocm HnS_Bnm HnS_Hm HnS_starm Hφm]" as "HnS_m".
-        { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm, Im, Jm. iFrame. }
+        { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm0, Bm, Im, Jm. iFrame. }
 
         iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >% & Prot_conc)".
         rename H1 into MaxTS.
@@ -2245,7 +2278,7 @@ Section gen_multicopy_compact.
             iApply lockR_true; try done. }
           rewrite (big_sepS_delete _ (domm I ∖ {[n]}) m); last first.
           clear - m_neq_n m_in_I. set_solver. 
-          iFrame "Hstar'". iExists true, Cm', Qm.
+          iFrame "Hstar'". iExists true, Cm', Qm0.
           iFrame"HnS_m". iApply lockR_true; try done. }
         iModIntro.
         awp_apply (unlockNode_spec_high with "[] [] 
@@ -2258,8 +2291,7 @@ Section gen_multicopy_compact.
         iIntros "_"; iModIntro. wp_pures.
         iApply "IH"; try done.
     + wp_pures.
-      iDestruct "Hesn'" as "%".
-      subst esn'.
+      iDestruct "Hif" as %es_ne.
     
       iApply fupd_wp.
       iInv "HInv" as (T0' H0)"(mcs_high & >mcs_conc)".
