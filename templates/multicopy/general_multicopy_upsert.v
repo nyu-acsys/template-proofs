@@ -15,24 +15,21 @@ Section gen_multicopy_upsert.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma upsert_spec N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
-                    (k: K) protocol_abs :
+  Lemma upsert_spec N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r (k: K) :
     ⊢ ⌜k ∈ KS⌝ -∗ 
         (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
-          helping_inv N γ_fr protocol_abs -∗
+        mcs_inv N γ_te γ_he γ_s protocol_abs 
+          (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
             <<< ∀ t H, MCS γ_te γ_he t H >>> 
-                   upsert lc r #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N))
-            <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]})
-                ∗ ⌜maxTS t H⌝, RET #() >>>.
+                   upsert lc r #k @ ⊤ ∖ (↑(mcsN N))
+            <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
   Proof.
     iIntros "%". iLöb as "IH".
     rename H into k_in_KS.    
-    iIntros "Ghost_updP #HInv #HInv_h" (Φ) "AU". wp_lam.
+    iIntros "Ghost_updP #HInv" (Φ) "AU". wp_lam.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
-    iInv "HInv" as ">H".
-    iDestruct "H" as (T0 H0)"(mcs_high & mcs_conc)".
+    iInv "HInv" as (T0 H0)"(mcs_high & >mcs_conc)".
     iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IR & domm_Iγ)".
@@ -70,31 +67,12 @@ Section gen_multicopy_upsert.
       wp_pures. wp_bind (incrementClock _)%E.
       wp_lam. iDestruct "HnP_t" as "(HnP_T & HnP_lc)".
       unfold clock. wp_load. wp_pures. 
-      iInv "HInv" as ">H". 
-      iDestruct "H" as (T1 H1)"(mcs_high & mcs_conc)".
+      iInv "HInv" as (T1 H1)"(mcs_high & >mcs_conc)".
       iDestruct "mcs_conc" as (hγ1 I1 J1)"(Hglob & Hstar)".
-      iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
       iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & _ & domm_IR & domm_Iγ)".
-      iInv "HInv_h" as (H1')"(>Hfr & Protocol_abs)".            
       wp_store. 
-
-      iAssert (⌜H1' = H1⌝)%I as "%".
-      { iPoseProof (own_valid_2 _ _ _ with "[$Hfr] [$HfrH]") as "%".
-        rename H into H'. 
-        apply frac_agree_op_valid in H'. destruct H' as [_ H'].
-        apply leibniz_equiv_iff in H'. by iPureIntro. } subst H1'.
-      iCombine "Hfr HfrH" as "H'". 
-      iEval (rewrite <-frac_agree_op) in "H'". 
-      iEval (rewrite Qp_half_half) in "H'".
-      iMod ((own_update (γ_fr) (to_frac_agree 1 H1) 
-                  (to_frac_agree 1 (H1 ∪ {[(k,T)]}) )) with "[$H']") as "H'".
-      { apply cmra_update_exclusive. 
-        unfold valid, cmra_valid. simpl. unfold prod_valid.
-        split; simpl; try done. }
-      iEval (rewrite <-Qp_half_half) in "H'".
-      iEval (rewrite frac_agree_op) in "H'".  
-      iDestruct "H'" as "(HfrH & Hfr)".
       
       iDestruct "Hif" as %HCr.
       iAssert (⌜T = T1⌝)%I as %HT. 
@@ -282,23 +260,24 @@ Section gen_multicopy_upsert.
             
             
       (** Linearization **)    
-      iMod "AU" as (t' H1')"[MCS [_ Hclose]]". set_solver.
+      iMod "AU" as (t' H1')"[MCS [_ Hclose]]".
       iAssert (⌜t' = T ∧ H1' = H1⌝)%I as "(% & %)". 
       { iPoseProof (MCS_agree with "[$MCS_auth] [$MCS]") as "(% & %)".
         by iPureIntro. } subst t' H1'. 
-      iDestruct "MCS" as "(MCS◯t & MCS◯h)".
+      iDestruct "MCS" as "(MCS◯t & MCS◯h & _)".
       iDestruct "MCS_auth" as "(MCS●t & MCS●h)".
       iMod ((auth_excl_update γ_te (T+1) T T) with "MCS●t MCS◯t") 
                                           as "(MCS●t & MCS◯t)".
       iMod ((auth_excl_update γ_he (H1 ∪ {[(k, T)]}) H1 H1) with "MCS●h MCS◯h") 
                                           as "(MCS●h & MCS◯h)".
-      iCombine "MCS◯t MCS◯h" as "MCS".
+      iCombine "MCS◯t MCS◯h" as "(MCS_t & MCS_h)".
       iCombine "MCS●t MCS●h" as "MCS_auth".
-      iMod ("Hclose" with "[$MCS]") as "HΦ". by iPureIntro.
+      iMod ("Hclose" with "[MCS_t MCS_h]") as "HΦ".
+      iFrame. by iPureIntro.
       
       iSpecialize ("Ghost_updP" $! T H1).
-      iMod ("Ghost_updP" with "[] [$MCS_auth] [$Protocol_abs]") 
-                        as "(Protocol_abs & MCS_auth)". 
+      iMod ("Ghost_updP" with "[] [$MCS_auth] [$Prot_abs]") 
+                        as "(Prot_abs & MCS_auth)". 
       { pose proof map_of_set_lookup (H1 ∪ {[k, T]}) k T as H'.
         iPureIntro. rewrite lookup_total_alt.
         rewrite H'. by simpl. clear; set_solver.
@@ -308,12 +287,7 @@ Section gen_multicopy_upsert.
         pose proof MaxTS_H1 k t H' as H''; clear -H''; lia.
         rewrite elem_of_singleton in H'*; intros H'.
         inversion H'. lia. }          
-      
-      
-      iModIntro.
-      iSplitL "Hfr Protocol_abs".
-      { iNext. iExists (H1 ∪ {[(k, T)]}). iFrame. } 
-      
+            
       iModIntro.
       iSplitR "HΦ node_r HnP_t HnP_C HnP_frac".
       { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}). iFrame "∗".

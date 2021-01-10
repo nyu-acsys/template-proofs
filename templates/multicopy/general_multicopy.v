@@ -149,10 +149,11 @@ Section gen_multicopy.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
+(*
   Global Definition mcsN N := N .@ "mcs".
   Global Definition helpN N := N .@ "help".
   Global Definition threadN N := N .@ "thread".
-
+*)
 (*
   Definition lockR (b: bool) (n: Node) (R: iProp) : iProp :=
       ((lockLoc n) ↦ #b ∗ (if b then True else R))%I.
@@ -313,8 +314,6 @@ Section gen_multicopy.
 
   Definition clock lc (t: nat) : iProp := lc ↦ #t.
   
-  Definition history_init (H: gset KT) := ∀ k, k ∈ KS → (k, 0) ∈ H.
-
   Definition ghost_loc γ_en γ_cn γ_qn (γ_cirn: gmap K gnameO) : per_node_gl := 
         to_agree (γ_en, γ_cn, γ_qn, γ_cirn).
 

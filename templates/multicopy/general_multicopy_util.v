@@ -501,8 +501,9 @@ Section gen_multicopy_util.
       iModIntro. wp_pures. done.
   Qed.
 *)
-  Lemma lockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r n:
-    ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+  Lemma lockNode_spec_high N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r n:
+    ⊢ mcs_inv N γ_te γ_he γ_s protocol_abs 
+                (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -511,8 +512,7 @@ Section gen_multicopy_util.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
     awp_apply (lockNode_spec n).
-    iInv "mcsInv" as ">mcs". 
-    iDestruct "mcs" as (T H) "(mcs_high & mcs_conc)".
+    iInv "mcsInv" as (T H) "(mcs_high & >mcs_conc)". 
     iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.
@@ -606,8 +606,7 @@ Section gen_multicopy_util.
   Proof.
     iIntros "#mcsInv #FP_n Hnp". iIntros (Φ) "AU".
     awp_apply (unlockNode_spec n).
-    iInv "mcsInv" as ">mcs".
-    iDestruct "mcs" as (T H) "(mcs_high & mcs_conc)".
+    iInv "mcsInv" as (T H) "(mcs_high & >mcs_conc)".
     iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.

@@ -16,7 +16,7 @@ Section multicopy_util.
   Lemma MCS_agree γ_te γ_he t H t' H':
     MCS_auth γ_te γ_he t H -∗ MCS γ_te γ_he t' H' -∗ ⌜t = t'⌝ ∗ ⌜H = H'⌝.
   Proof.
-    iIntros "(Ht● & HH●) (Ht'◯ & HH'◯)".
+    iIntros "(Ht● & HH●) (Ht'◯ & HH'◯ & _)".
     iDestruct (own_valid_2 with "Ht● Ht'◯")
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid_discrete.
     iDestruct (own_valid_2 with "HH● HH'◯")

@@ -77,29 +77,32 @@ Section multicopy.
       own γ_te (● Excl' T) ∗ own γ_he (● Excl' H).
 
   Definition MCS (γ_te γ_he: gname) (T: nat) (H: gset KT) : iProp := 
-      own γ_te (◯ Excl' T) ∗ own γ_he (◯ Excl' H).
+      own γ_te (◯ Excl' T) ∗ own γ_he (◯ Excl' H) ∗ ⌜maxTS T H⌝.
   
   Definition history_init (H: gset KT) := ∀ k, k ∈ KS → (k, 0) ∈ H.
 
-  Definition mcs_inv_high γ_te γ_he γ_s γ_fr T H : iProp :=
+  Definition mcs_inv_high (γ_te γ_he γ_s: gname) (protocol_abs: gset KT → iProp) 
+                          (T: nat) (H: gset KT) : iProp :=
       MCS_auth γ_te γ_he T H
-    ∗ own γ_s (● H) ∗ ⌜history_init H⌝
-    ∗ own γ_fr (to_frac_agree (1/2) H)
-    ∗ ⌜maxTS T H⌝.
+    ∗ own γ_s (● H) 
+    ∗ ⌜history_init H⌝
+    ∗ ⌜maxTS T H⌝
+    ∗ protocol_abs H.
     
   (** Invariant Inv in the paper *)
-  Definition mcs (γ_te γ_he γ_s γ_fr: gname) 
+  Definition mcs (γ_te γ_he γ_s: gname) (protocol_abs: gset KT → iProp) 
                     (mcs_abs: nat → gset KT → iProp) : iProp :=
     ∃ (T: nat) (H: gset KT),
-      mcs_inv_high γ_te γ_he γ_s γ_fr T H
+      mcs_inv_high γ_te γ_he γ_s protocol_abs T H
     ∗ mcs_abs T H.  
 
-  Definition mcs_inv (N: namespace) (γ_te γ_he γ_s γ_fr: gname) 
+  Definition mcs_inv (N: namespace) (γ_te γ_he γ_s: gname)
+                      (protocol_abs: gset KT → iProp) 
                       (mcs_abs: nat → gset KT → iProp) := 
-    inv (mcsN N) (mcs γ_te γ_he γ_s γ_fr mcs_abs).
+    inv (mcsN N) (mcs γ_te γ_he γ_s protocol_abs mcs_abs).
 
   (** Helping Inv **)
-
+(*
   Definition helping (N: namespace) (γ_fr: gname) 
                       (protocol_abs : gset KT → iProp) : iProp :=
       ∃ (H: gset KT),  
@@ -108,10 +111,10 @@ Section multicopy.
   
   Definition helping_inv N γ_fr protocol_abs : iProp :=
     inv (helpN N) (helping N γ_fr protocol_abs).
-  
+*)  
   Definition pau N γ_te γ_he P (Q : val → iProp) k := 
     (▷ P -∗ ◇ AU << ∀ t H, MCS γ_te γ_he t H >> 
-                  @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N)), ∅
+                  @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N)), ∅
                  << ∃ (t': nat), MCS γ_te γ_he t H ∗ ⌜map_of_set H !!! k = t'⌝, 
                                                           COMM Q #t' >>)%I.
 
@@ -138,22 +141,21 @@ Section multicopy.
       ∗ □ pau N γ_te γ_he P Q k
       ∗ inv (threadN N) (∃ H, get_op_state γ_sy t_id γ_tk P Q H (k: K) (vp: nat)).
 
-  Definition protocol_conc (N: namespace) (γ_te γ_he γ_fr γ_td γ_ght: gname) 
+  Definition protocol_conc (N: namespace) (γ_te γ_he γ_td γ_ght: gname) 
                                         (H: gset KT) : iProp :=
     ∃ (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
         own γ_td (● TD)
       ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = TD⌝  
       ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H t_id).
 
-  Definition MCS_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght t M : iProp :=
+  Definition MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght t M : iProp :=
   ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝
-     ∗ mcs_inv N γ_te γ_he γ_s γ_fr mcs_abs
-     ∗ helping_inv N γ_fr (protocol_conc N γ_te γ_he γ_fr γ_td γ_ght).      
+     ∗ mcs_inv N γ_te γ_he γ_s (protocol_conc N γ_te γ_he γ_td γ_ght) mcs_abs.      
 
   Definition ghost_update_protocol N γ_te γ_he protocol_abs k : iProp :=
         (∀ T H, ⌜map_of_set (H ∪ {[k, T]}) !!! k = T⌝ -∗  
                 MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]}) -∗ 
-                  protocol_abs H ={⊤ ∖ ↑mcsN N ∖ ↑helpN N}=∗
+                  protocol_abs H ={⊤ ∖ ↑mcsN N}=∗
                     protocol_abs (H ∪ {[(k, T)]}) 
                       ∗ MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]})).
 

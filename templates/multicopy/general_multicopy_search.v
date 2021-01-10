@@ -15,10 +15,11 @@ Section gen_multicopy_search.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma traverse_spec N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
+  Lemma traverse_spec N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
                       n γ_en γ_cn γ_qn γ_cirn t0 t1 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        mcs_inv N γ_te γ_he γ_s protocol_abs 
+                  (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           inFP γ_f n -∗ 
             own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) -∗ 
               own (γ_cirn !!! k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
@@ -59,13 +60,10 @@ Section gen_multicopy_search.
         (** Open invariant to establish resources
             required to apply induction hypothesis IH
             on node n' **)
-        iInv "HInv" as ">H".
-        iDestruct "H" as (T' H)"(mcs_high & mcs_conc)".
+        iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
         iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
-        iAssert (⌜n ∈ domm I⌝)%I as "%". 
-        { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
-          by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
+        iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
+        rename H0 into n_in_I.
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iDestruct "Hstar" as "(H_n & Hstar')".
         iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & HnS_n)".
@@ -78,14 +76,12 @@ Section gen_multicopy_search.
         { iApply "HnS_cl". iPureIntro. 
           clear -k_in_es. set_solver. }
              
-        iAssert (⌜n1 ∈ domm I⌝)%I as %n_in_I.
-        { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
-          by iPoseProof (inFP_domm _ _ _ with "[$FP_n1] [$Hf]") as "H'". }
+        iPoseProof (inFP_domm_glob with "[$FP_n1] [$Hglob]") as "%".
+        rename H0 into n1_in_I.
         iAssert (⌜n ≠ n1⌝)%I as %n_neq_n1.
         { destruct (decide (n = n1)); try done.
           iPoseProof (node_es_empty with "node_n") as "%".
-          destruct H1 as [_ Es_n]. rewrite <-e in k_in_es.
+          destruct H0 as [_ Es_n]. rewrite <-e in k_in_es.
           clear -k_in_es Es_n. set_solver. } 
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n1); last by set_solver.
         iDestruct "Hstar'" as "(H_n1 & Hstar'')".
@@ -111,7 +107,7 @@ Section gen_multicopy_search.
         iAssert (⌜t0 ≤ Bn1 !!! k⌝)%I as "%".
         { iAssert (⌜t1 ≤ Bn !!! k⌝)%I as %lb_t1.
           { iPoseProof (own_valid_2 with "[$Hcirk_n] [$Hlb]") as "%".
-            rename H1 into Valid_Bnt.
+            rename H0 into Valid_Bnt.
             apply auth_both_valid_discrete in Valid_Bnt.
             destruct Valid_Bnt as [H' _].
             apply max_nat_included in H'.
@@ -128,15 +124,15 @@ Section gen_multicopy_search.
             iAssert (⌜(k, Qn !!! k) ∈ inset KT In1 n1⌝)%I as %inflow_n1.
             { iDestruct "HnS_si" as "(H'&_)".
               iDestruct "HnS_si1" as "(H1'&_&%&_)".
-              rename H1 into Domm_In1.
+              rename H0 into Domm_In1.
               assert (n1 ∈ domm In1) as H''. 
               { clear -Domm_In1. set_solver. }
               iCombine "H'" "H1'" as "H'".
               iPoseProof (own_valid with "[$H']") as "%".
-              rename H1 into Valid_InIn1.
+              rename H0 into Valid_InIn1.
               rewrite auth_frag_valid in Valid_InIn1 *; intros Valid_InIn1.
               pose proof intComp_unfold_inf_2 In In1 Valid_InIn1 n1 H''.
-              rename H1 into H'. unfold ccmop, ccm_op in H'.
+              rename H0 into H'. unfold ccmop, ccm_op in H'.
               simpl in H'. unfold lift_op in H'.
               iPureIntro. rewrite nzmap_eq in H' *; intros H'.
               pose proof H' (k, Qn !!! k) as H'.
@@ -159,7 +155,7 @@ Section gen_multicopy_search.
               clear -Hin. lia. }
             iAssert (⌜Bn1 !!! k = Qn !!! k⌝)%I as %Bn1_eq_Bn.
             { iDestruct "Hφ1" as "(_ & % & _)". 
-              rename H1 into Hφ2. 
+              rename H0 into Hφ2. 
               pose proof Hφ2 k (Qn !!! k) k_in_KS inflow_n1 as H'.
               iPureIntro. done. } 
             iAssert (⌜Bn !!! k = Qn !!! k⌝)%I as %Bn_eq_Qn.
@@ -212,8 +208,7 @@ Section gen_multicopy_search.
         (** Linearization Point: key k has not been found in the 
             data structure. Open invariant to obtain resources 
             required to establish post-condition **)
-        iInv "HInv" as ">H".
-        iDestruct "H" as (T' H)"(mcs_high & mcs_conc)".
+        iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
         iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
         { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
@@ -253,23 +248,21 @@ Section gen_multicopy_search.
           clear -lb_t1 t0_le_t1. lia. } subst t0.
         (** Linearization **)  
         iMod "AU" as "[_ [_ Hclose]]". 
+        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
         iAssert (⌜(k,0) ∈ H⌝)%I as "%". 
-        { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
-          iDestruct "Hist" as %Hist. iPureIntro. 
+        { iDestruct "Hist" as %Hist. iPureIntro. 
           by pose proof Hist k k_in_KS as Hist. }
         rename H1 into k0_in_H.  
         iSpecialize ("Hclose" $! 0).
-        iDestruct "mcs_high" as "(MCS_auth & HH & mcs_high')".
         iMod (own_update γ_s (● H) (● H ⋅ ◯ {[(k,0)]}) with "[$HH]") as "HH".
         { apply (auth_update_frac_alloc _ H ({[(k,0)]})).
           apply gset_included. clear -k0_in_H. set_solver. }
         iDestruct "HH" as "(HH & #mcs_sr)".
-        iCombine "MCS_auth HH mcs_high'" as "mcs_high".        
         iMod ("Hclose" with "[]") as "HΦ". iFrame "mcs_sr". 
         by iPureIntro.
         (** Closing the invariant **)
         iModIntro. iSplitR "node_n HnP_gh HnP_frac HnP_C HnP_t HΦ". iNext.
-        iExists T', H. iFrame "mcs_high". iExists hγ, I, J. iFrame "Hglob".
+        iExists T', H. iFrame. iExists hγ, I, J. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iFrame "Hstar'". iExists bn, Cn, Qn.
         iFrame "Hl_n". 
@@ -287,13 +280,10 @@ Section gen_multicopy_search.
       (** Linearization Point: key k has been found. Open 
           invariant to obtain resources required to 
           establish post-condition **)
-      iInv "HInv" as ">H".
-      iDestruct "H" as (T' H)"(mcs_high & mcs_conc)".
+      iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
       iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
-      iAssert (⌜n ∈ domm I⌝)%I as "%". 
-      { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
-        by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
+      iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
+      rename H0 into n_in_I.
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iDestruct "Hstar" as "(H_n & Hstar')".
       iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & HnS_n)".
@@ -307,7 +297,7 @@ Section gen_multicopy_search.
       iDestruct "HnS_star" as "(Hcirk_n & HnS_star')".
       iAssert (⌜t1 ≤ Bn !!! k⌝)%I as %lb_t1.
       { iPoseProof (own_valid_2 with "[$Hcirk_n] [$Hlb]") as "%".
-        rename H1 into Valid_Bnt.
+        rename H0 into Valid_Bnt.
         apply auth_both_valid_discrete in Valid_Bnt.
         destruct Valid_Bnt as [H' _].
         apply max_nat_included in H'.
@@ -319,10 +309,10 @@ Section gen_multicopy_search.
         rewrite !lookup_total_alt.
         pose proof H' Cn_val as H'.
         by rewrite Cn_val H'. }          
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
       iAssert (⌜set_of_map Cn ⊆ H⌝)%I as %Cn_Sub_H.
-      { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
-        iPoseProof ((auth_own_incl γ_s H _) with "[$HH $HnP_C]") as "%".
-        rename H1 into H'. by apply gset_included in H'. }  
+      { iPoseProof ((auth_own_incl γ_s H _) with "[$HH $HnP_C]") as "%".
+        rename H0 into H'. by apply gset_included in H'. }  
       iAssert (⌜(k,t) ∈ set_of_map Cn⌝)%I as %kt_in_Cn.
       { iPureIntro. apply set_of_map_member.
         rewrite /(Cn !!! k) in Cn_val.
@@ -335,19 +325,17 @@ Section gen_multicopy_search.
       (** Linearization **)      
       iMod "AU" as "[_ [_ Hclose]]". 
       iSpecialize ("Hclose" $! t).
-      iDestruct "mcs_high" as "(MCS_auth & HH & mcs_high')".
       iMod (own_update γ_s (● H) (● H ⋅ ◯ {[(k,t)]}) with "[$HH]") as "HH".
       { apply (auth_update_frac_alloc _ H ({[(k,t)]})).
         apply gset_included. clear -kt_in_Cn Cn_Sub_H. set_solver. }
       iDestruct "HH" as "(HH & #mcs_sr)".
-      iCombine "MCS_auth HH mcs_high'" as "mcs_high".        
       iMod ("Hclose" with "[]") as "HΦ". iFrame "mcs_sr". 
       iPureIntro. rewrite Bn_eq_Cn in lb_t1.
       rewrite lookup_total_alt in lb_t1.
       rewrite Cn_val in lb_t1. simpl in lb_t1. lia.
       (** Closing the invariant **)
       iModIntro. iSplitR "node_n HnP_gh HnP_frac HnP_C HnP_t HΦ".
-      iNext. iExists T', H. iFrame "mcs_high".
+      iNext. iExists T', H. iFrame.
       iExists hγ, I, J. iFrame "Hglob".
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iFrame "Hstar'". iExists bn, Cn, Qn.
@@ -364,9 +352,11 @@ Section gen_multicopy_search.
       Unshelve. try done. try done.
   Qed.
 
-  Lemma search_recency N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r (k: K) t0 :
+  Lemma search_recency N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh 
+                          lc r (k: K) t0 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        mcs_inv N γ_te γ_he γ_s protocol_abs
+           (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           mcs_sr γ_s (k, t0) -∗
               <<< True >>> 
                   search r #k @ ⊤ ∖ ↑(mcsN N)
@@ -374,10 +364,10 @@ Section gen_multicopy_search.
   Proof.
     iIntros "% #HInv #mcs_sr" (Φ) "AU".
     rename H into k_in_KS. 
-    iApply fupd_wp. iInv "HInv" as ">H".
-    iDestruct "H" as (T H)"(mcs_high & mcs_conc)".
+    iApply fupd_wp. 
+    iInv "HInv" as (T H)"(mcs_high & >mcs_conc)".
     iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".    
-    iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
+    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IJ & domm_Iγ)".
     iAssert (⌜r ∈ domm I⌝)%I as "%". 

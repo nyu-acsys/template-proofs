@@ -28,47 +28,44 @@ Section multicopy_high.
 
   (** Low-level specs of multicopy operations *)
 
-  Parameter search_recency: ∀ N γ_te γ_he γ_s γ_fr mcs k t0, 
+  Parameter search_recency: ∀ N γ_te γ_he γ_s protocol_abs mcs_abs k t0, 
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s γ_fr mcs -∗
+        mcs_inv N γ_te γ_he γ_s protocol_abs mcs_abs -∗
           mcs_sr γ_s (k, t0) -∗
               <<< True >>> 
                   search #k @ ⊤ ∖ ↑(mcsN N)
               <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
 
-  Parameter upsert_spec: ∀ N γ_te γ_he γ_s γ_fr mcs k protocol_abs,
+  Parameter upsert_spec: ∀ N γ_te γ_he γ_s protocol_abs mcs_abs k,
     ⊢ ⌜k ∈ KS⌝ -∗ 
         (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
-          mcs_inv N γ_te γ_he γ_s γ_fr mcs -∗
-            helping_inv N γ_fr protocol_abs -∗
+          mcs_inv N γ_te γ_he γ_s protocol_abs mcs_abs -∗
               <<< ∀ t H, MCS γ_te γ_he t H >>> 
-                     upsert #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N))
-              <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]})
-                  ∗ ⌜maxTS t H⌝, RET #() >>>.
+                     upsert #k @ ⊤ ∖ (↑(mcsN N))
+              <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
                 
   (** Proof of high-level specs for multicopy opeartions *)                
 
-  Lemma search_spec_intermediate N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght (k: K) :
+  Lemma search_spec_intermediate N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
   ⊢ ⌜k ∈ KS⌝ -∗ 
-      mcs_inv N γ_te γ_he γ_s γ_fr mcs_abs -∗
-        helping_inv N γ_fr (protocol_conc N γ_te γ_he γ_fr γ_td γ_ght) -∗ 
+      mcs_inv N γ_te γ_he γ_s (protocol_conc N γ_te γ_he γ_td γ_ght) mcs_abs -∗ 
           <<< ∀ t H, MCS γ_te γ_he t H >>>
-                search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
+                search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
           <<<  ∃ (t': nat), MCS γ_te γ_he t H 
                             ∗ ⌜map_of_set H !!! k = t'⌝, RET #t' >>>.
   Proof.
-    iIntros "% #HInv #HInv_h" (Φ) "AU". wp_lam.
+    iIntros "% #HInv" (Φ) "AU". wp_lam.
     rename H0 into k_in_KS.
     wp_apply wp_new_proph1; try done.
     iIntros (tid vt)"Htid". wp_pures.
     wp_apply (typed_proph_wp_new_proph1 NatTypedProph); first done.
     iIntros (tp p)"Hproph". wp_pures. 
     iApply fupd_wp.
-    iInv "HInv" as (T0 H0) "(>mcs_high & mcs_abs)".
+    iInv "HInv" as (T0 H0) "(mcs_high & mcs_abs)".
+    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_conc)".
     iAssert (⌜∃ t0, ((k,t0) ∈ H0 ∧ (∀ t, (k,t) ∈ H0 → t ≤ t0) 
                 ∧ map_of_set H0 !! k = Some t0)⌝)%I as "%".
-    { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
-      pose proof (map_of_set_lookup_cases H0 k) as H'.
+    { pose proof (map_of_set_lookup_cases H0 k) as H'.
       destruct H' as [H' | H']; try done.
       iDestruct "Hist" as %Hist.
       destruct H' as [H' _].
@@ -77,12 +74,10 @@ Section multicopy_high.
       contradiction. }
 
     destruct H1 as [t0 [kt0_in_H [Max_t0 H_k]]].
-    iDestruct "mcs_high" as "(MCS_auth & HH & mcs_high')".
     iMod (own_update γ_s (● H0) (● H0 ⋅ ◯ {[(k,t0)]}) with "[$HH]") as "HH".
     { apply (auth_update_frac_alloc _ H0 ({[(k,t0)]})).
       apply gset_included. clear -kt0_in_H. set_solver. }
     iDestruct "HH" as "(HH & #mcs_sr)".
-    iCombine "MCS_auth HH mcs_high'" as "mcs_high".
                      
     destruct (decide (tp ≤ t0)).
     - assert ((tp < t0) ∨ tp = t0) as H' by lia.
@@ -101,8 +96,7 @@ Section multicopy_high.
       + iMod "AU" as (T' H') "[MCS [_ Hcomm]]".
         set_solver.
         iAssert (⌜T' = T0 ∧ H' = H0⌝)%I as "%". 
-        { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".  
-          iPoseProof (MCS_agree with "[$MCS_auth] [$MCS]") as "(% & %)".
+        { iPoseProof (MCS_agree with "[$MCS_auth] [$MCS]") as "(% & %)".
           by iPureIntro. }
         destruct H1 as [H'' H''']. subst T' H'.
         assert (map_of_set H0 !!! k = t0) as M_k.
@@ -124,17 +118,9 @@ Section multicopy_high.
         wp_pures. iModIntro.
         assert (tp = t) as H' by lia.
         rewrite <-H'. by rewrite Hcase'.
-    - assert (tp > t0) by lia. rename H1 into tp_ge_t0.
-      iInv "HInv_h" as (H')"(>Hfr & Protocol_conc)".
-      iDestruct "Protocol_conc" as (TD hγt)"(>HTD & >Hγt 
+    - assert (tp > t0) by lia. rename H1 into tp_gr_t0.
+      iDestruct "Prot_conc" as (TD hγt)"(>HTD & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
-      iAssert (⌜H' = H0⌝)%I as "%". 
-      { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)". 
-        iPoseProof (own_valid_2 _ _ _ with "[$HfrH] [$Hfr]") as "V_H".
-        iDestruct "V_H" as %V_H.
-        apply frac_agree_op_valid in V_H. destruct V_H as [_ V_H].
-        apply leibniz_equiv_iff in V_H.
-        by iPureIntro. } subst H'.
       iAssert (▷ (⌜tid ∉ TD⌝ 
                 ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H0 t_id) 
                 ∗ proph1 tid vt))%I with "[Hstar_reg Htid]" 
@@ -181,15 +167,16 @@ Section multicopy_high.
       assert ((k,tp) ∉ H0) as ktp_notin_H. 
       { destruct (decide ((k, tp) ∈ H0)); try done.
         pose proof Max_t0 tp e as H'.
-        clear -H' tp_ge_t0. lia. } 
+        clear -H' tp_gr_t0. lia. } 
       iMod (inv_alloc (threadN N) _
               (∃ H, get_op_state γ_sy tid γ_tk' AU_later (Φ) H k tp) 
                                     with "[AU Hreg_sy1]") as "#HthInv".
       { iNext. iExists H0. unfold get_op_state. iFrame "Hreg_sy1".
         iLeft. unfold state_lin_pending. iFrame. by iPureIntro. }
 
-      iModIntro. iSplitL "Htid Hfr Hstar_reg HTD Hγt Hreg_sy2". iNext.
-      iExists H0. iFrame "Hfr". iExists (TD ∪ {[tid]}), hγt'. iFrame.
+      iModIntro. iSplitR "Hproph Token". iNext.
+      iExists T0, H0. iFrame "mcs_abs". iFrame.
+      iExists (TD ∪ {[tid]}), hγt'. iFrame.
       iSplitR. iPureIntro. subst hγt'.
       apply leibniz_equiv. rewrite dom_insert.
       rewrite Domm_hγt. clear; set_solver.
@@ -199,10 +186,7 @@ Section multicopy_high.
       assert ((TD ∪ {[tid]}) ∖ {[tid]} = TD) as H' 
                   by (clear -tid_notin_TD; set_solver).
       by rewrite H'.
-      
-      iModIntro. iSplitR "Token Hproph".
-      iNext. iExists T0, H0; iFrame.
-      
+            
       iModIntro. awp_apply search_recency; try done.
       iAaccIntro with ""; try done.
       { iIntros "_". iModIntro; try eauto with iFrame. } 
@@ -212,8 +196,9 @@ Section multicopy_high.
       wp_pures. iModIntro. iIntros "%". rename H1 into tp_eq_t.
       iApply fupd_wp.
       iInv "HthInv" as (H1)"(>Hth_sy & Hth_or)".
-      iInv "HInv_h" as (H1')"(>Hfr & Protocol_conc)".
-      iDestruct "Protocol_conc" as (TD1 hγt1)"(>HTD & >Hγt 
+      iInv "HInv" as (T1 H1') "(mcs_high & mcs_abs)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_conc)".
+      iDestruct "Prot_conc" as (TD1 hγt1)"(>HTD & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
       iAssert (⌜tid ∈ TD1⌝)%I as "%".
       { iPoseProof (own_valid_2 _ _ _ with "[$HTD] [$FP_t]") as "H'".
@@ -252,18 +237,9 @@ Section multicopy_high.
         iSplitR "Hth_sy". iApply "Hstar_reg'".
         iNext. iExists P', Q', k', vp', vt', γ_tk'', γ_sy.
         iFrame "∗#". by iNext. } subst H1'.
-      iInv "HInv" as (T1 H1') "(>mcs_high & mcs_abs)".
-      iAssert (⌜H1' = H1⌝)%I as "%". 
-      { iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)". 
-        iPoseProof (own_valid_2 _ _ _ with "[$HfrH] [$Hfr]") as "V_H".
-        iDestruct "V_H" as %V_H.
-        apply frac_agree_op_valid in V_H. destruct V_H as [_ V_H].
-        apply leibniz_equiv_iff in V_H.
-        by iPureIntro. } subst H1'.
       assert (tp = t) as H' by lia. 
       iAssert (⌜(k,tp) ∈ H1⌝)%I as "%". 
-      { iDestruct "mcs_high" as "(MCS_auth & HH & mcs_high')".
-        iPoseProof (own_valid_2 _ _ _ with "[$HH] [$Hkt]") as "H'".
+      { iPoseProof (own_valid_2 _ _ _ with "[$HH] [$Hkt]") as "H'".
         iDestruct "H'" as %H''.
         apply auth_both_valid_discrete in H''.
         destruct H'' as [H'' _].
@@ -279,12 +255,9 @@ Section multicopy_high.
       { iPoseProof (own_valid_2 _ _ _ with "[$Token] [$Hth_or]") as "%".
         exfalso; try done. }
       
-      iModIntro. iSplitL "mcs_high mcs_abs".
+      iModIntro. iSplitR "Hth_or Hth_sy Token".
       iExists T1, H1; iFrame.
-
-      iModIntro. iSplitL "Hstar_reg HTD Hfr Hγt Domm_hγt".
-      iNext. iExists H1. iFrame "Hfr".
-      iExists TD1, hγt1; iFrame.
+      iNext. iExists TD1, hγt1; iFrame.
       
       iModIntro. iSplitL "Token Hth_sy".
       iNext. iExists H1. iFrame "Hth_sy". 
@@ -293,17 +266,17 @@ Section multicopy_high.
       iModIntro. wp_pures. by rewrite H'.
   Qed.
   
-  Lemma search_spec_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght (k: K) :
+  Lemma search_spec_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
   ⊢ ⌜k ∈ KS⌝ -∗ 
-      <<< ∀ t M, MCS_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght t M >>>
-            search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
-      <<<  ∃ (t': nat), MCS_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght t M 
+      <<< ∀ t M, MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght t M >>>
+            search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
+      <<<  ∃ (t': nat), MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght t M 
                         ∗ ⌜M !!! k = t'⌝, RET #t' >>>.
   Proof.
     iIntros "%" (Φ) "AU". rename H0 into k_in_KS.
     iApply fupd_wp. 
     iMod "AU" as (T0 M0)"[H [Hab _]]".
-    iDestruct "H" as (H0)"(MCS & M_eq_H & #HInv & #HInv_h)".
+    iDestruct "H" as (H0)"(MCS & M_eq_H & #HInv)".
     iMod ("Hab" with "[MCS M_eq_H]") as "AU".
     iExists H0. iFrame "∗#". iModIntro.
     awp_apply search_spec_intermediate; try done.
@@ -330,7 +303,7 @@ Section multicopy_high.
         ⌜map_of_set (H1 ∪ {[k, T]}) !!! k = T⌝ -∗
            MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}) -∗          
       ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H1 t_id) 
-        ={⊤ ∖ ↑(mcsN N) ∖ ↑(helpN N)}=∗ 
+        ={⊤ ∖ ↑(mcsN N)}=∗ 
       ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght 
                                       (H1 ∪ {[(k, T)]}) t_id)
        ∗ MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}).
@@ -407,21 +380,21 @@ Section multicopy_high.
   Qed.  
   
   
-  Lemma upsert_spec_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght (k: K) :
+  Lemma upsert_spec_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-            <<< ∀ t M, MCS_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght t M >>> 
-                   upsert #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N))
-            <<< MCS_high N γ_te γ_he γ_s γ_fr mcs_abs γ_td γ_ght 
-                        (t + 1) (<[k := t]> M), RET #() >>>.
+            <<< ∀ T M, MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght T M >>> 
+                   upsert #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
+            <<< MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght 
+                        (T + 1) (<[k := T]> M), RET #() >>>.
   Proof.
     iIntros "%" (Φ) "AU". rename H0 into k_in_KS.
     iApply fupd_wp. 
     iMod "AU" as (T0 M0)"[H [Hab _]]".
-    iDestruct "H" as (H0)"(MCS & M_eq_H & #HInv & #HInv_h)".
+    iDestruct "H" as (H0)"(MCS & M_eq_H & #HInv)".
     iMod ("Hab" with "[MCS M_eq_H]") as "AU".
     iExists H0. iFrame "∗#". iModIntro.
     iAssert (ghost_update_protocol N γ_te γ_he 
-                (protocol_conc N γ_te γ_he γ_fr γ_td γ_ght) k)%I 
+                (protocol_conc N γ_te γ_he γ_td γ_ght) k)%I 
                   as "Ghost_updP".
     { iIntros (T' H')"H1_k MCS_auth".
       iDestruct "H1_k" as %H1_k.
@@ -437,11 +410,13 @@ Section multicopy_high.
     iIntros (T1 M1)"MCS_high".
     iDestruct "MCS_high" as (H1)"(MCS & M_eq_H & _)".
     iDestruct "M_eq_H" as %M_eq_H.
+    iAssert (⌜maxTS T1 H1⌝)%I as %maxTS.
+    { by iDestruct "MCS" as "(_ & _ & %)". }
     iAaccIntro with "MCS".
     { iIntros "MCS". iModIntro.
       iSplitL; try eauto with iFrame.
       iExists H1; iFrame "∗#%". } 
-    iIntros "(MCS & %)". rename H2 into maxTS.
+    iIntros "MCS". 
     iModIntro. iSplitL.
     iExists (H1 ∪ {[k, T1]}). iFrame "∗#".
     { iPureIntro. apply symmetry. 
