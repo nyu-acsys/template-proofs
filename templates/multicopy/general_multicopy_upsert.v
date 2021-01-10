@@ -166,13 +166,9 @@ Section gen_multicopy_upsert.
       { by iPoseProof (inFP_domm _ _ _ with "[$FP_r] [$Hf]") as "H'". }
       rewrite (big_sepS_delete _ (domm I1) r); last by eauto.
       iDestruct "Hstar" as "(H_r & Hstar')".
-      iDestruct "H_r" as (br Cr'' Qr'')"(Hl_r & Hlif_r & HnS_r)".
-      iAssert (⌜br = true⌝)%I as %Hbr.
-      { destruct br; try done.
-        iDestruct "Hlif_r" as 
-            (γ_er' γ_cr' γ_qr' γ_cirr' es' T')"(node' & _)".
-        iPoseProof ((node_sep_star r r) with "[$]") as "%".
-        contradiction. } replace br.
+      iDestruct "H_r" as (br Cr'' Qr'')"(Hl_r & HnS_r)".
+      iPoseProof (nodePred_lockR_true with "[$node_r] [$Hl_r]")
+         as "%". subst br.
       iDestruct "HnS_r" as (γ_er' γ_cr' γ_qr' γ_cirr' es' Br Ir Jr) "HnS_r'".
       iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_r']")
            as "(HnP_frac & HnS_r' &%&%&%)". subst es' Cr'' Qr''.   
@@ -331,19 +327,15 @@ Section gen_multicopy_upsert.
           iFrame "%∗". }        
         iApply (big_sepS_mono 
                   (λ y, ∃ (bn : bool) (Cn Qn : gmap K natUR),
-                          lockLoc y ↦ #bn
-                        ∗ (if bn then True
-                           else nodePred γ_gh γ_t γ_s lc r y Cn Qn)
+                          lockR bn y (nodePred γ_gh γ_t γ_s lc r y Cn Qn)
                         ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Qn H1)%I
                   (λ y, ∃ (bn : bool) (Cn Qn : gmap K natUR),
-                          lockLoc y ↦ #bn
-                        ∗ (if bn then True
-                           else nodePred γ_gh γ_t γ_s lc r y Cn Qn)
+                          lockR bn y (nodePred γ_gh γ_t γ_s lc r y Cn Qn)
                         ∗ nodeShared γ_I γ_J γ_f γ_gh r y Cn Qn 
                                                 (H1 ∪ {[(k, T)]}))%I
                   (domm I1 ∖ {[r]})); try done.
         intros y y_dom. assert (y ≠ r) as Hy by set_solver. iFrame.
-        iIntros "Hstar". iDestruct "Hstar" as (b C Q)"(Hl & Hlif & HnS)".
+        iIntros "Hstar". iDestruct "Hstar" as (b C Q)"(Hl & HnS)".
         iExists b, C, Q. iFrame. 
         iDestruct "HnS" as (γ_e γ_c γ_q γ_cir esy By Iy Ry)
                     "(HnS_gh & domm_γcir & HnS_frac & HnS_si & HnS_FP 

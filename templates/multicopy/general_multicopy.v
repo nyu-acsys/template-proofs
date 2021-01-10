@@ -516,7 +516,8 @@ Section gen_multicopy.
            atCapacity #n
        {{{ (b: bool), RET #b;
            node r n es Cn ∗ ⌜b = true ∨ b = false⌝ }}})%I.
-           
+    
+  (* Change formatting in the paper *)         
   Parameter chooseNext_spec : ∀ r n esn (Cn: gmap K natUR),
      ⊢ ({{{ node r n esn Cn }}}
            chooseNext #n

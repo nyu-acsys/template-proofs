@@ -7,7 +7,7 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export general_multicopy auth_ext.
+Require Export auth_ext general_multicopy.
 
 Section gen_multicopy_util.
   Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
@@ -34,7 +34,17 @@ Section gen_multicopy_util.
     apply gset_included in H'.
     iPureIntro. set_solver.
   Qed.
-
+  
+  Lemma inFP_domm_glob γ_t γ_I γ_J γ_f γ_gh r T H hγ I J n : 
+    inFP γ_f n -∗ global_state γ_t γ_I γ_J γ_f γ_gh r T H hγ I J -∗ ⌜n ∈ domm I⌝.
+  Proof.
+    iIntros "#FP_n Hglob".
+    iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
+            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IJ & domm_Iγ)".
+    iPoseProof (inFP_domm with "[$FP_n] [$]") as "%".
+    by iPureIntro.
+  Qed.
+  
   Lemma own_alloc_set (S: gset K): True ==∗ 
           ∃ (γ: gmap K gname), ([∗ set] k ∈ S, own (γ !!! k) (● (MaxNat 0))).
   Proof.
@@ -462,12 +472,13 @@ Section gen_multicopy_util.
   Qed.                                        
   
   (** Lock module **)
-  
+
+(*  
   Parameter getLockLoc_spec : ∀ (n: Node),
     ⊢ ({{{ True }}}
         general_multicopy.getLockLoc #n
        {{{ (l:loc), RET #l; ⌜general_multicopy.lockLoc n = l⌝ }}})%I.
-  
+         
   Lemma lockNode_spec (n: Node):
     ⊢ <<< ∀ (b: bool), (general_multicopy.lockLoc n) ↦ #b >>>
       lockNode #n    @ ⊤
@@ -489,7 +500,7 @@ Section gen_multicopy_util.
       iMod ("HAU" with "[Hb]") as "HΦ". iFrame; done.
       iModIntro. wp_pures. done.
   Qed.
-
+*)
   Lemma lockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r n:
     ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗
@@ -503,16 +514,14 @@ Section gen_multicopy_util.
     iInv "mcsInv" as ">mcs". 
     iDestruct "mcs" as (T H) "(mcs_high & mcs_conc)".
     iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
-    iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
-    iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IJ & domm_Iγ)".
-    iPoseProof (inFP_domm with "[$FP_n] [$]") as "%". rename H0 into n_in_I.
+    iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
+    rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn Qn) "(Hlock & Hnp & Hns)".
-    iAaccIntro with "Hlock".
-    { iIntros "Hlockn". iModIntro.
+    iDestruct "Hn" as (b Cn Qn) "(HlockR & Hns)".
+    iAaccIntro with "HlockR".
+    { iIntros "HlockRn". iModIntro.
       iSplitR "AU".
       { iExists T, H. iNext. iFrame.
         iExists hγ, I, J. iFrame.
@@ -522,17 +531,18 @@ Section gen_multicopy_util.
       }
       iFrame.
     }
-    iIntros "(Hlockn & %)". subst b.
+    iIntros "(HlockRn & Hnp)".
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[Hnp]") as "HΦ"; try done.
     iModIntro. iSplitR "HΦ".
     iNext. iExists T, H. iFrame.
     iExists hγ, I, J. iFrame.
-    iPoseProof ("Hstar'" with "[Hlockn Hns]") as "Hstar".
+    iPoseProof ("Hstar'" with "[HlockRn Hns]") as "Hstar".
     iExists true, Cn, Qn. iFrame.
     iFrame. done.
   Qed.
 
+(*
   Lemma unlockNode_spec (n: Node) :
     ⊢ <<< general_multicopy.lockLoc n ↦ #true >>>
       unlockNode #n    @ ⊤
@@ -549,7 +559,7 @@ Section gen_multicopy_util.
     iMod ("Hclose" with "Hy") as "HΦ".
     iModIntro. done.
   Qed.
-(*  
+  
   Lemma int_domm γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J n In :
     own γ_I (◯ In) -∗ ⌜domm In = {[n]}⌝
     -∗ global_state γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J
@@ -567,6 +577,25 @@ Section gen_multicopy_util.
     by apply auth_auth_valid.
   Qed.
 *)
+  Lemma nodePred_lockR_true γ_gh γ_t γ_s lc r bn n es Cn Cn' Qn' : 
+    node r n es Cn -∗ 
+      lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn' Qn') -∗
+        ⌜bn = true⌝.
+  Proof.
+    iIntros "node Hl_n".
+    destruct bn; try done.
+    iDestruct "Hl_n" as "(Hl & HnP')".
+    iDestruct "HnP'" as (? ? ? ? ? ?) "(n' & _)".
+    iExFalso. iApply (node_sep_star r n). iFrame.
+  Qed.          
+
+  Lemma lockR_true Cn' Qn' γ_gh γ_t γ_s lc r n Cn Qn:
+    lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn Qn) -∗
+      lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn' Qn').
+  Proof.
+    iIntros "(Hl & _)". iFrame.
+  Qed.       
+
   Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
                                                           n Cn Qn:
     ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
@@ -580,54 +609,53 @@ Section gen_multicopy_util.
     iInv "mcsInv" as ">mcs".
     iDestruct "mcs" as (T H) "(mcs_high & mcs_conc)".
     iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
-    iDestruct "mcs_high" as "(MCS_auth & HH & Hist & HfrH & MaxTS)".
-    iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IJ & domm_Iγ)".
-    iPoseProof (inFP_domm with "[$FP_n] [$]") as "%". rename H0 into n_in_I.
+    iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
+    rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn' Qn') "(Hlock & Hnp' & Hns)".
-    iAssert (general_multicopy.lockLoc n ↦ #true 
-              ∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn)%I
-      with "[Hlock Hnp Hnp']" as "(Hlock & Hnp)".
+    iDestruct "Hn" as (b Cn' Qn') "(HlockR & Hns)".
+    iAssert (lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn Qn) 
+              ∗ (nodePred γ_gh γ_t γ_s lc r n Cn Qn))%I
+      with "[HlockR Hnp]" as "HlockR".
     {
-      destruct b.
+      destruct b eqn: Hb.
     - (* Case n locked *)
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (? ? ? ? ? ?) "(n & _)".
-      iDestruct "Hnp'" as (? ? ? ? ? ?) "(n' & _)".
-      iExFalso. iApply (node_sep_star r n). iFrame.
+      iDestruct "Hnp" as (? ? ? ? ? ?)"(node & _)".
+      iPoseProof (nodePred_lockR_true with "[$node] [$HlockR]") as "H'".
+      iDestruct "H'" as %H'; inversion H'.
     }
-    iAaccIntro with "Hlock".
-    { iIntros "Hlock". iModIntro.
+    iAaccIntro with "HlockR".
+    { iIntros "(HlockR & Hnp)". iModIntro.
       iSplitR "Hnp AU".
       iExists T, H. iNext. iFrame.
       iExists hγ, I, J. iFrame.
-      iPoseProof ("Hstar'" with "[Hlock Hns]") as "Hstar".
+      iPoseProof ("Hstar'" with "[HlockR Hns]") as "Hstar".
       iExists true, Cn', Qn'. iFrame.
       iFrame. iFrame. 
     }
-    iIntros "Hlock".
+    iIntros "HlockR".
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[]") as "HΦ"; try done.
     iModIntro. iSplitR "HΦ".
     iNext. iExists T, H. iFrame.
     iExists hγ, I, J. iFrame.
-    iPoseProof ("Hstar'" with "[Hlock Hns Hnp]") as "Hstar".
+    iPoseProof ("Hstar'" with "[HlockR Hns]") as "Hstar".
     iExists false, Cn, Qn.
-    iAssert (nodePred γ_gh γ_t γ_s lc r n Cn Qn
+    iAssert (lockR false n (nodePred γ_gh γ_t γ_s lc r n Cn Qn)
                       ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I
-      with "[Hns Hnp]" as "(Hns & Hnp)".
+      with "[Hns HlockR]" as "(HlockR & Hns)".
     {
+      iDestruct "HlockR" as "(Hl & Hnp)".
       iDestruct "Hnp" as (γ_en γ_cn γ_qn γ_cirn esn T')
                              "(node_n & #HnP_gh & HnP_frac & HnP_C & HnP_t)".
       iDestruct "Hns" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn' In0 Jn0) "Hns'".
       iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$Hns']")
          as "(HnP_frac & Hns' & % & % & %)".
       iSplitR "Hns'".                          
-      - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T'.
+      - iFrame. iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T'.
         iFrame "∗#".
       - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Bn', In0, Jn0.
         iFrame.

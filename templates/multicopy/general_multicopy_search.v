@@ -68,7 +68,7 @@ Section gen_multicopy_search.
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iDestruct "Hstar" as "(H_n & Hstar')".
-        iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & Hlif_n & HnS_n)".
+        iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & HnS_n)".
         iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn) "HnS_n'".
         iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
            as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn' Qn'.   
@@ -89,7 +89,7 @@ Section gen_multicopy_search.
           clear -k_in_es Es_n. set_solver. } 
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n1); last by set_solver.
         iDestruct "Hstar'" as "(H_n1 & Hstar'')".
-        iDestruct "H_n1" as (bn1 Cn1 Qn1)"(Hl_n1 & Hlif_n1 & HnS_n1)".
+        iDestruct "H_n1" as (bn1 Cn1 Qn1)"(Hl_n1 & HnS_n1)".
         iDestruct "HnS_n1" as (γ_en1 γ_cn1 γ_qn1 γ_cirn1 es1 Bn1 In1 Jn1) 
                   "(HnS_gh1 & HnS_frac1 & HnS_si1 & HnS_FP1 
                        & HnS_cl1 & HnS_oc1 & HnS_Bn1 & HnS_H1 & HnS_star1 & Hφ1)".
@@ -188,12 +188,12 @@ Section gen_multicopy_search.
         iExists T', H. iFrame. iExists hγ, I, J. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         rewrite (big_sepS_delete _ (domm I ∖ {[n]}) n1); last set_solver.
-        iFrame "Hstar''". iSplitL "Hl_n Hlif_n HnS_gh HnS_frac 
+        iFrame "Hstar''". iSplitL "Hl_n HnS_gh HnS_frac 
               HnS_si HnS_FP HnS_cl HnS_oc HnS_Bn HnS_H Hcirk_n HnS_star' Hφ".
-        iExists bn, Cn, Qn. iFrame "Hl_n Hlif_n".
+        iExists bn, Cn, Qn. iFrame "Hl_n".
         iExists γ_en, γ_cn, γ_qn, γ_cirn, es, Bn, In, Jn.
         iFrame. by iApply "HnS_star'".                  
-        iExists bn1, Cn1, Qn1. iFrame "Hl_n1 Hlif_n1".
+        iExists bn1, Cn1, Qn1. iFrame "Hl_n1".
         iExists γ_en1, γ_cn1, γ_qn1, γ_cirn1, es1, Bn1, In1, Jn1.
         iFrame. by iApply "HnS_star1'".
         iModIntro.
@@ -221,7 +221,7 @@ Section gen_multicopy_search.
           by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iDestruct "Hstar" as "(H_n & Hstar')".
-        iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & Hlif_n & HnS_n)".
+        iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & HnS_n)".
 
         iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn) "HnS_n'".
         iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
@@ -272,7 +272,7 @@ Section gen_multicopy_search.
         iExists T', H. iFrame "mcs_high". iExists hγ, I, J. iFrame "Hglob".
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
         iFrame "Hstar'". iExists bn, Cn, Qn.
-        iFrame "Hl_n Hlif_n". 
+        iFrame "Hl_n". 
         iExists γ_en, γ_cn, γ_qn, γ_cirn, es, Bn, In, Jn.
         iFrame "∗%". by iApply "HnS_star'". iModIntro.
         (** Unlock node n **)
@@ -296,7 +296,7 @@ Section gen_multicopy_search.
         by iPoseProof (inFP_domm _ _ _ with "[$FP_n] [$Hf]") as "H'". }
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iDestruct "Hstar" as "(H_n & Hstar')".
-      iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & Hlif_n & HnS_n)".
+      iDestruct "H_n" as (bn Cn' Qn')"(Hl_n & HnS_n)".
       iDestruct "HnS_n" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn) "HnS_n'".
       iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_n']")
            as "(HnP_frac & HnS_n' &%&%&%)". subst es' Cn' Qn'.   
@@ -351,7 +351,7 @@ Section gen_multicopy_search.
       iExists hγ, I, J. iFrame "Hglob".
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
       iFrame "Hstar'". iExists bn, Cn, Qn.
-      iFrame "Hl_n Hlif_n". 
+      iFrame "Hl_n". 
       iExists γ_en, γ_cn, γ_qn, γ_cirn, es, Bn, In, Jn.
       iFrame "∗%". by iApply "HnS_star'". iModIntro.
       (** Unlock node n **)
@@ -385,7 +385,7 @@ Section gen_multicopy_search.
     rename H0 into r_in_I.
     rewrite (big_sepS_delete _ (domm I) r); last by eauto.
     iDestruct "Hstar" as "(H_r & Hstar')".
-    iDestruct "H_r" as (br Cr Qr)"(Hl_r & Hlif_r & HnS_r)".
+    iDestruct "H_r" as (br Cr Qr)"(Hl_r & HnS_r)".
     iDestruct "HnS_r" as (γ_er γ_cr γ_qr γ_cirr es Br Ir Rr) 
                       "(#HnS_gh & HnS_frac & HnS_si & HnS_FP 
                           & HnS_cl & HnS_oc & HnS_Bn & HnS_H & HnS_star & Hφ)".
@@ -415,7 +415,7 @@ Section gen_multicopy_search.
     iExists T, H. iFrame. iExists hγ, I, J. iFrame. 
     rewrite (big_sepS_delete _ (domm I) r); last by eauto.
     iFrame "Hstar'". iExists br, Cr, Qr.
-    iFrame "Hl_r Hlif_r".
+    iFrame "Hl_r".
     iExists γ_er, γ_cr, γ_qr, γ_cirr, es, Br, Ir, Rr.
     iFrame "#∗". iSplitR. rewrite decide_True; try done.
     rewrite (big_sepS_delete _ (KS) k); last by eauto. iFrame.

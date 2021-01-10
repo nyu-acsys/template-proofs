@@ -22,11 +22,11 @@ single_copy/keyset_ra.v
 single_copy/auth_ext.v
 single_copy/lock.v
 single_copy/inset_flows.v
-single_copy/single_node.v
-single_copy/two_node.v
-single_copy/give_up.v
-single_copy/link.v
-single_copy/coupling.v
+#single_copy/single_node.v
+#single_copy/two_node.v
+#single_copy/give_up.v
+#single_copy/link.v
+#single_copy/coupling.v
 
 multicopy/one_shot_proph.v
 multicopy/typed_proph.v

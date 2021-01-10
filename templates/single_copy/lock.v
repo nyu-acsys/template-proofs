@@ -38,8 +38,8 @@ Section Lock_module.
   Definition lockR (b: bool) (n: Node) (R: iProp Σ) : iProp Σ :=
     ((lockLoc n) ↦ #b ∗ (if b then True else R))%I.
   
-  Lemma lockNode_spec (n: Node) (R: iProp Σ):
-    ⊢ <<< ∀ b, lockR b n R >>>
+  Lemma lockNode_spec (n: Node):
+    ⊢ <<< ∀ b R, lockR b n R >>>
       lockNode #n    @ ⊤
     <<< lockR true n R ∗ R, RET #() >>>.
   Proof.
@@ -47,7 +47,7 @@ Section Lock_module.
     wp_lam. wp_bind(getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
     iIntros (l) "#Hl". wp_let. wp_bind (CmpXchg _ _ _)%E.
-    iMod "AU" as (b) "[Hb HAU]". iDestruct "Hl" as %Hl.
+    iMod "AU" as (b R) "[Hb HAU]". iDestruct "Hl" as %Hl.
     unfold lockR.
     iEval (rewrite Hl) in "Hb". destruct b.
     - iDestruct "Hb" as "[Hb Htrue]".
@@ -64,18 +64,20 @@ Section Lock_module.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-    ⊢ <<< lockLoc n ↦ #true >>>
+    ⊢ <<< ∀ R, lockR true n R ∗ R >>>
       unlockNode #n    @ ⊤
-    <<< lockLoc n ↦ #false, RET #() >>>.
+    <<< lockR false n R, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". wp_lam. wp_bind(getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
     iIntros (l) "#Hl". wp_let.
-    iMod "AU" as "[Hy [_ Hclose]]".
+    iMod "AU" as (R)"[Hy [_ Hclose]]".
     iDestruct "Hl" as %Hl.
+    unfold lockR.
     iEval (rewrite Hl) in "Hy".
+    iDestruct "Hy" as "((Hy & _) & HR)".
     wp_store. iEval (rewrite Hl) in "Hclose".
-    iMod ("Hclose" with "Hy") as "HΦ".
+    iMod ("Hclose" with "[$Hy $HR]") as "HΦ".
     iModIntro. done.
   Qed.
   
