@@ -133,9 +133,8 @@ Section Give_Up_Template.
                     ∗ ⌜domm In = {[n]}⌝.
 
   Definition nodeFull γ_I γ_k n : iProp :=
-    (∃ (b: bool) (In: multiset_flowint_ur K),
-        lockLoc n ↦ #b
-        ∗ (if b then True else (∃ Cn, nodePred γ_I γ_k n In Cn))).
+    (∃ (b: bool),
+        lockR b n (∃ (In: multiset_flowint_ur K) Cn, nodePred γ_I γ_k n In Cn)).
 
   Definition globalGhost γ_I γ_f γ_k r C I : iProp :=
                     own γ_I (● I) 
@@ -194,15 +193,15 @@ Section Give_Up_Template.
 
   Lemma node_nodeFull_equal γ_I γ_k n In Cn :
     node n In Cn -∗ nodeFull γ_I γ_k n
-    -∗ (lockLoc n ↦ #true ∗ node n In Cn).
+    -∗ ((lockR true n (∃ In Cn, nodePred γ_I γ_k n In Cn)) ∗(node n In Cn)).
   Proof.
     iIntros "Hn Hnf".
-    iDestruct "Hnf" as (b In') "(Hlock & Hnp)". destruct b.
+    iDestruct "Hnf" as (b) "(Hlock & Hnp)". destruct b.
     - (* Case n locked *)
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (?C) "(Hn' & _)".
-      iExFalso. iApply (node_sep_star n In In' with "[$]").
+      iDestruct "Hnp" as (?I ?C) "(Hn' & _)".
+      iExFalso. iApply (node_sep_star n In I with "[$]").
   Qed.
 
   Lemma CSS_unfold_node_wand γ_I γ_f γ_k r C I n In Cn :
@@ -210,7 +209,7 @@ Section Give_Up_Template.
     -∗ node n In Cn -∗ ⌜n ∈ domm I⌝
     -∗ (node n In Cn
         ∗ globalGhost γ_I γ_f γ_k r C I
-        ∗ lockLoc n ↦ #true
+        ∗ (lockR true n (∃ Cn, nodePred γ_I γ_k n In Cn))
         ∗ (∀ C',
            globalGhost γ_I γ_f γ_k r C' I ∗ nodeFull γ_I γ_k n
            -∗ CSS γ_I γ_f γ_k r C')).
@@ -246,8 +245,7 @@ Section Give_Up_Template.
     iDestruct "Hnp" as "(Hn & HkIn & HIn & %)".
     iDestruct "Hcss" as (I) "Hcssi".
     iPoseProof (int_domm with "[$] [% //] [$]") as "%".
-    iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
-      as "(Hn & Hg & Hlock & Hcss')"; try done.
+    iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iDestruct "Hg" as "(HI & Hglob & Hks & Hdom)".
     (* In ≼ I *)
     iPoseProof ((auth_own_incl γ_I I In) with "[$]")
@@ -272,8 +270,8 @@ Section Give_Up_Template.
     iMod (ghost_snapshot_fp γ_f (domm I) n' with "[$Hdom] [% //]")
         as "(Hdom & #Hinfp')".
     iModIntro. iFrame "Hinfp'".
-    iSplitL "Hcss' Hlock HI Hks Hdom". iApply "Hcss'". iFrame "∗ %".
-    iExists true, In. iFrame. iFrame "∗ %".
+    iSplitL "Hcss' Hnf HI Hks Hdom". iApply "Hcss'". iFrame "∗ %".
+    iFrame. iFrame "∗ %".
   Qed.
 
   (* root is in footprint *)
@@ -304,25 +302,27 @@ Section Give_Up_Template.
                       ∗ nodePred γ_I γ_k n In Cn,
              RET #() >>>.
   Proof.
-    iIntros "#HFp". iIntros (Φ) "AU".
-    awp_apply (lockNode_spec n).
+    iIntros "#HFp". iIntros (Φ) "AU". 
+    awp_apply (lockNode_spec n (∃ In Cn, nodePred γ_I γ_k n In Cn)).
     iApply (aacc_aupd_commit with "AU"); first done.
-    iIntros (C) "Hcss". iDestruct "Hcss" as (I) "Hcssi".
+    iIntros (C) "Hcss".
+    iDestruct "Hcss" as (I) "Hcssi". 
     iPoseProof (inFP_domm with "[$] [$]") as "%". rename H0 into n_in_I.
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iSpecialize ("Hcss'" $! C).
-    iDestruct "Hnf" as (b In) "(Hlock & Hnp)".
+    iDestruct "Hnf" as (b) "Hlock".
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iPoseProof ("Hcss'" with "[-]") as "Hcss".
-      { iFrame. iExists b, In. iFrame. }
+      { iFrame. iExists b. iFrame. }
       eauto with iFrame.
     }
-    iIntros "(Hlockn & %)". iModIntro.
-    subst b. iDestruct "Hnp" as (Cn) "Hn".
-    iPoseProof ("Hcss'" with "[-Hn]") as "Hcss".
-    { iFrame. iExists true, In. iFrame. }
-    iExists In, Cn. eauto with iFrame.
+    iIntros "Hlockn". iModIntro. 
+    iDestruct "Hlockn" as "(Hlockn & H)".
+    iDestruct "H" as (In Cn) "H".
+    iPoseProof ("Hcss'" with "[-H]") as "Hcss".
+    { iFrame. iExists true. iFrame. }
+    iExists In, Cn. iSplitL. iSplitL "Hcss". iFrame. iFrame. eauto with iFrame.
   Qed.
 
   Lemma unlockNode_spec_high γ_I γ_f γ_k r n In Cn :
@@ -339,16 +339,17 @@ Section Give_Up_Template.
     iPoseProof (int_domm with "[$] [$] [$]") as "%".
     iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
       as "(Hn & Hg & Hlock & Hcss')"; try done.
+    iDestruct "Hlock" as "(Hlock & _)".
     iAaccIntro with "Hlock".
     { iIntros "Hlock". iModIntro.
       iPoseProof ("Hcss'" with "[-Hn Hk Hi Dom_In]") as "Hcss".
-      { iFrame. iExists true, In. iFrame. }
+      { iFrame. iExists true. iFrame. }
       iFrame "Hcss". iIntros "AU". iModIntro.
       iSplitR "AU". iFrame "∗ #". done.
     }
     iIntros "Hlock". iModIntro.
     iPoseProof ("Hcss'" with "[-]") as "Hcss".
-    { iFrame. iExists false, In. iFrame. iExists Cn. iFrame "∗ #". }
+    { iFrame. iExists false. iFrame. iExists In, Cn. iFrame "∗ #". }
     eauto with iFrame.
  Qed.
 
@@ -472,10 +473,11 @@ Section Give_Up_Template.
       iPoseProof (int_domm with "[$] [$] [$]") as "%".      
       iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
         as "(Hn & Hg & Hlock & Hcss')"; try done.
+      iDestruct "Hlock" as "(Hlock & _)".
       iAaccIntro with "Hlock".
       { iIntros "Hlock". iModIntro.
         iPoseProof ("Hcss'" with "[-Hn Hk Hi Dom_In]") as "Hcss".
-        { iFrame. iExists true, In. iFrame. }
+        { iFrame. iExists true. iFrame. }
         iFrame "Hcss". iIntros "AU". iModIntro. iFrame.
       }
       iIntros "Hlock".
@@ -495,8 +497,8 @@ Section Give_Up_Template.
       iModIntro.
       (* Close AU *)
       iExists C2', res. iSplitL. iFrame "HΨC".
-      iApply "Hcss'". iFrame "∗ % #". iExists false, In. iFrame "∗ # %".
-      iExists Cn'. iFrame. iIntros. iModIntro. by wp_pures. 
+      iApply "Hcss'". iFrame "∗ % #". iExists false. iFrame "∗ # %".
+      iExists In, Cn'. iFrame. iIntros. iModIntro. by wp_pures. 
     - (* Case : decisiveOp fails *) 
       wp_match. iDestruct "Hb" as "%". subst Cn'.
       (* Open AU and apply unlockNode spec *)

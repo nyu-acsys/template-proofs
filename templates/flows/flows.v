@@ -290,7 +290,7 @@ Qed.
 (* Composing with the undefined interface is undefined. *)
 Lemma intComp_undef_op : ∀ I, intUndef ⋅ I ≡ intUndef.
 Proof.
-  intros.
+ intros.
   unfold op; unfold intComp.
   rewrite decide_False.
   unfold empty.
@@ -1737,7 +1737,7 @@ Lemma flowint_update : ∀ (Io I_n I_n': flowintUR),
   contextualLeq I_n I_n' ∧ (domm I_n' ∩ domm Io = ∅) ∧ (∀ n, n ∈ domm I_n'∖domm I_n → out_map Io ! n = 0)
        → (● (I_n ⋅ Io) ⋅ ◯ I_n)  ~~>: (flowint_update_P (I_n ⋅ Io) I_n I_n').
 Proof.
-  intros Io In In' (conteq & Hintersect & Hcond). apply cmra_discrete_updateP. intros z.
+ intros Io In In' (conteq & Hintersect & Hcond). apply cmra_discrete_updateP. intros z.
   intros Hv. assert (Hincl := Hv). apply cmra_valid_op_l in Hincl.
   assert (● (In ⋅ Io) ⋅ ◯ In = View (Some (1%Qp, to_agree (In ⋅ Io))) In) as Hdest.
   { unfold op at 1, cmra_op. simpl. unfold view_op. simpl.

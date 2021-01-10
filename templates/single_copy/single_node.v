@@ -74,11 +74,11 @@ Section Frac_Agree_Cmra.
   Lemma makeElem_eq γ p q (n m : gsetUR K):
     γ ⤇[p] n -∗ γ ⤇[q] m -∗ ⌜n = m⌝.
   Proof.
-    iIntros "H1 H2".
+   iIntros "H1 H2".
     iDestruct (own_valid_2 with "H1 H2") as %HValid.
     destruct HValid as [_ H2].
-    (* iIntros "!%"; by apply agree_op_invL'.*)
-  Admitted.
+    iIntros "!%"; by apply to_agree_op_inv_L.
+  Qed.
 
   Lemma makeElem_entail γ p q (n m : gsetUR K):
     γ ⤇[p] n -∗ γ ⤇[q] m -∗ γ ⤇[p + q] n.
@@ -156,37 +156,34 @@ Section One_Node_Template.
 
   (** The concurrent search structure invariant *)
 
-  Definition nodePred γ n C : iProp :=
-    node n C
+  Definition nodePred γ n : iProp :=
+    ∃ C, node n C
     ∗ γ ⤇½ C.
 
   Definition CSS γ r (C: gset K) : iProp :=
     ∃ (b: bool),
       γ ⤇½ C
-      ∗ lockLoc r ↦ #b
-      ∗ (if b then True else nodePred γ r C).
+      ∗ lockR b r (nodePred γ r).
 
   (** High-level lock specs **)
 
   Lemma lockNode_spec_high γ (r: Node) :
     ⊢  <<< ∀ (C: gset K), CSS γ r C >>>
          lockNode #r @ ⊤
-       <<< CSS γ r C ∗ nodePred γ r C, RET #() >>>.
+       <<< CSS γ r C ∗ nodePred γ r, RET #() >>>.
   Proof.
-    iIntros (Φ) "AU".
+    iIntros (Φ) "AU". 
     awp_apply (lockNode_spec r).
     iApply (aacc_aupd_commit with "AU"); first done.
-    iIntros (C) "Hcss". iDestruct "Hcss" as (b) "(HC & Hlock & Hb)".
-    iAaccIntro with "Hlock".
+    iIntros (C) "Hcss". iDestruct "Hcss" as (b) "(HC & Hlock)".  iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro. iSplitL.
       iFrame. iExists b. iFrame.
       eauto with iFrame.
     }
-    iIntros "(Hlockn & %)". iModIntro.
-    subst b. iSplitL.
-    iFrame. iExists true. iFrame.
-    eauto with iFrame.
-  Qed.
+    iIntros "(Hlockn & Hnp)". iModIntro. 
+    iSplitL. iFrame. iExists true. iFrame.
+    eauto with iFrame. 
+Qed.
 
   (** Proof of CSSOp *)
 
@@ -207,7 +204,7 @@ Section One_Node_Template.
     iModIntro. iFrame. iIntros "AU". iModIntro.
     (* Execute decisiveOp *)
     wp_pures. wp_bind (decisiveOp _ _ _)%E.
-    iDestruct "Hnode" as "(Hn & HCn)".
+    iDestruct "Hnode" as (Cn) "(Hn & Hcn)".
     wp_apply ((decisiveOp_spec dop r k) with "[Hn]"). eauto with iFrame.
     iIntros (res C1) "(Hn & %)".
     wp_pures. wp_bind(unlockNode _)%E.
@@ -220,8 +217,8 @@ Section One_Node_Template.
     {
       destruct b.
       - by iPureIntro.
-      - iExFalso. iDestruct "Hb" as "(? & ?)".
-        iApply (node_sep_star r with "[$]").
+      - iExFalso. iDestruct "Hb" as (?)"(Hn' & _)".
+      iApply (node_sep_star r with "[Hn Hn']"). iFrame.
     }
     subst b.
     iAaccIntro with "Hlock".
@@ -231,13 +228,13 @@ Section One_Node_Template.
     }
     iIntros "Hlock".
     (* Commit AU *)
-    iPoseProof (makeElem_eq with "[$HC] [$HCn]") as "%".
+    iPoseProof (makeElem_eq with "[$HC] [$Hcn]") as "%".
     subst C2.
-    iMod (makeElem_update _ _ _ C1 with "HC HCn") as "(HC & HCn)".
+    iMod (makeElem_update _ _ _ C1 with "HC Hcn") as "(HC & Hcn)".
     iModIntro.
     (* Close AU *)
     iExists C1, res. iSplitL. iFrame. iSplitL.
-    iExists false. iFrame.
+    iExists false. iFrame. iExists C1. iFrame.
     by iPureIntro.
     iIntros. iModIntro. by wp_pures.
   Qed.

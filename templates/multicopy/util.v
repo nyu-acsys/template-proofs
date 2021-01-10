@@ -603,26 +603,30 @@ Section util.
     ⊢ ({{{ True }}}
         general_multicopy.getLockLoc #n
        {{{ (l:loc), RET #l; ⌜general_multicopy.lockLoc n = l⌝ }}})%I.
-  
-  Lemma lockNode_spec (n: Node):
-    ⊢ <<< ∀ (b: bool), (general_multicopy.lockLoc n) ↦ #b >>>
+
+  Lemma lockNode_spec (n: Node) (R: iProp):
+    ⊢ <<< ∀ b, general_multicopy.lockR b n R >>>
       lockNode #n    @ ⊤
-    <<< (general_multicopy.lockLoc n) ↦ #true ∗ ⌜b = false⌝ , RET #() >>>.
+    <<< general_multicopy.lockR true n R ∗ R, RET #() >>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_bind(general_multicopy.getLockLoc _)%E.
     wp_apply getLockLoc_spec; first done.
     iIntros (l) "#Hl". wp_let. wp_bind (CmpXchg _ _ _)%E.
     iMod "AU" as (b) "[Hb HAU]". iDestruct "Hl" as %Hl.
+    unfold lockR.
     iEval (rewrite Hl) in "Hb". destruct b.
+    iDestruct "Hb" as "(Hb & HR)".
     - wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]".
       iEval (rewrite Hl) in "HAU".
-      iMod ("HAU" with "Hb") as "H".
+      iMod ("HAU" with "[Hb HR]") as "H".
+      iFrame.
       iModIntro. wp_pures. iApply "IH".
       iEval (rewrite <-Hl) in "H". done.
-    - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
+    - iDestruct "Hb" as "(Hb & HR)". 
+      wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
       iEval (rewrite Hl) in "HAU".
-      iMod ("HAU" with "[Hb]") as "HΦ". iFrame; done.
+      iMod ("HAU" with "[Hb HR]") as "HΦ". iFrame; done.
       iModIntro. wp_pures. done.
   Qed.
 
@@ -635,7 +639,7 @@ Section util.
   Proof.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
-    awp_apply (lockNode_spec n).
+    awp_apply (lockNode_spec n (∃ Cn Bn Qn, nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn)).
     iInv "mcsInv" as ">mcs". iDestruct "mcs" as (T H hγ I J) "(Hglob & Hstar)".
     iDestruct "Hglob" as "(MCS_auth & HH & Hist & HfrH & Ht & HI & Out_I & HJ 
             & Out_J & Inf_J & Hf & Hγ & FP_r & Max_ts & domm_IJ & domm_Iγ)".
@@ -643,7 +647,7 @@ Section util.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn Bn Qn) "(Hlock & Hnp & Hns)".
+    iDestruct "Hn" as (b Cn Bn Qn) "(Hlock & Hns)".
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iSplitR "AU".
@@ -654,7 +658,8 @@ Section util.
       }
       iFrame.
     }
-    iIntros "(Hlockn & %)". subst b.
+    iIntros "Hlockn". iDestruct "Hlockn" as "(Hlockn & Hnp)".
+    iDestruct "Hnp" as (Cn' Bn' Qn') "Hnp".
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[Hnp]") as "HΦ"; try done.
     iModIntro. iSplitR "HΦ".
@@ -715,18 +720,21 @@ Section util.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
-    iDestruct "Hn" as (b Cn' Bn' Qn') "(Hlock & Hnp' & Hns)".
+    iDestruct "Hn" as (b Cn' Bn' Qn') "(Hlock & Hns)".
     iAssert (general_multicopy.lockLoc n ↦ #true 
               ∗ nodePred γ_gh γ_t γ_s lc r n Cn Bn Qn)%I
-      with "[Hlock Hnp Hnp']" as "(Hlock & Hnp)".
+      with "[Hlock Hnp]" as "(Hlock & Hnp)".
     {
       destruct b.
     - (* Case n locked *)
+      iDestruct "Hlock" as "(Hlock & _)".
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (? ? ? ? ? ? ?) "(n & _)".
-      iDestruct "Hnp'" as (? ? ? ? ? ? ?) "(n' & _)".
-      iExFalso. iApply (node_sep_star r n). iFrame.
+    iDestruct "Hnp" as (? ? ? ? ? ? ?) "(n & _)".
+    iDestruct "Hlock" as "(Hlock & Hnp')".
+    iDestruct "Hnp'" as (Cn0 Bn0 Qn0) "Hnp'".
+    iDestruct "Hnp'" as (? ? ? ? ? ? ?) "(n' & _)".
+    iExFalso. iApply (node_sep_star r n). iFrame.
     }
     iAaccIntro with "Hlock".
     { iIntros "Hlock". iModIntro.
@@ -764,7 +772,7 @@ Section util.
       iExists γ_en, γ_cn, γ_bn, γ_qn, γ_cirn, esn, In0, Jn0.
       iFrame.
     }
-    iFrame. iFrame. iFrame.
+    iFrame. iExists Cn, Bn, Qn. iFrame. iFrame. iFrame.
   Qed.
 
 

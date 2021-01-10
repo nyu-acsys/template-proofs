@@ -80,10 +80,8 @@ Section Two_Node_Template.
   Definition CSS γ n1 n2 (C: gset K) : iProp :=
     ∃ (b1 b2: bool),
       own γ (● prod (KS, C))
-      ∗ lockLoc n1 ↦ #b1
-      ∗ (if b1 then True else nodePred γ n1)
-      ∗ lockLoc n2 ↦ #b2
-      ∗ (if b2 then True else nodePred γ n2).
+      ∗ lockR b1 n1 (nodePred γ n1)
+      ∗ lockR b2 n2 (nodePred γ n2).
 
   (** Helper functions specs *)
 
@@ -110,32 +108,27 @@ Section Two_Node_Template.
        <<< CSS γ n1 n2 C ∗ nodePred γ n, RET #() >>>.
   Proof.
     iIntros "#Hfp". iIntros (Φ) "AU".
-    awp_apply (lockNode_spec n).
+    awp_apply (lockNode_spec n (nodePred γ n)).
     iApply (aacc_aupd_commit with "AU"); first done.
     iIntros (C) "Hcss".
-    iDestruct "Hcss" as (b1 b2) "(HKS & Hlock1 & Hb1 & Hlock2 & Hb2)".
+    iDestruct "Hcss" as (b1 b2) "(HKS & Hlockr1 & Hlockr2)".
     iDestruct "Hfp" as "[%|%]".
     - (* n = n1 *)
       subst n.
-      iAaccIntro with "Hlock1".
-      { iIntros "Hlockn". iModIntro. iSplitL.
-        iFrame. iExists b1, b2. iFrame.
-        eauto with iFrame.
-      }
-      iIntros "(Hlockn & %)". iModIntro.
-      subst b1. iSplitL.
-      iFrame. iExists true, b2. iFrame.
-      eauto with iFrame.
+      iAaccIntro with "Hlockr1".
+      iIntros "Hlockrn". iModIntro.
+      iFrame. iSplitL. iExists b1, b2.
+      eauto with iFrame. iIntros "AU". iModIntro. iFrame.
+      iIntros "(Hlockr1 & Hnp)". iModIntro. iFrame. iSplitL. iExists true, b2. iFrame. iIntros. iModIntro. iFrame.
+
     - (* n = n2 *)
       subst n.
-      iAaccIntro with "Hlock2".
-      { iIntros "Hlockn". iModIntro. iSplitL.
-        iFrame. iExists b1, b2. iFrame.
-        eauto with iFrame.
-      }
-      iIntros "(Hlockn & %)". iModIntro.
-      subst b2. iSplitL.
-      iFrame. iExists b1, true. iFrame.
+      iAaccIntro with "Hlockr2".
+      iIntros "Hlockrn". iModIntro. iFrame. iSplitL.
+      iExists b1, b2. eauto with iFrame.
+      iIntros "AU". iModIntro. iFrame.
+      iIntros "(Hlockn & Hnp)". iModIntro. iFrame.
+      iSplitL. iFrame. iExists b1, true. iFrame.
       eauto with iFrame.
   Qed.
 
@@ -166,9 +159,10 @@ Section Two_Node_Template.
     wp_pures. wp_bind(unlockNode _)%E.
     awp_apply (unlockNode_spec n).
     iApply (aacc_aupd_commit with "AU"); first done.
-    iIntros (C2) "HInv".
+    iIntros (C2) "HCss".
+
     (* Unfold CSS to execute unlockNode *)
-    iDestruct "HInv" as (b1 b2) "(HKS & Hlock1 & Hb1 & Hlock2 & Hb2)".
+    iDestruct "HCss" as (b1 b2) "(HKS & Hlockr1 & Hlockr2)".
     iDestruct "Hfp" as "[%|%]".
     - (* n = n1 *)
       subst n.
@@ -176,11 +170,14 @@ Section Two_Node_Template.
       {
         destruct b1.
         - by iPureIntro.
-        - iExFalso. iDestruct "Hb1" as (? ?) "(? & ?)".
+        - iExFalso.
+          iDestruct "Hlockr1" as "(? & Hn1)".
+          iDestruct "Hn1" as (? ?) "(Hn1 & ?)".
           iApply (node_sep_star n1 with "[$]").
       }
       subst b1.
-      iAaccIntro with "Hlock1".
+      iDestruct "Hlockr1" as "(Hl1 & Hn1)".
+      iAaccIntro with "Hl1".
       { iIntros "Hlock1". iModIntro.
         iFrame. iSplitL. iExists true, b2. iFrame.
         eauto with iFrame.
@@ -208,11 +205,14 @@ Section Two_Node_Template.
       {
         destruct b2.
         - by iPureIntro.
-        - iExFalso. iDestruct "Hb2" as (? ?) "(? & ?)".
-          iApply (node_sep_star n2 with "[$]").
+        - iExFalso. 
+        iDestruct "Hlockr2" as "(? & Hn2)".
+        iDestruct "Hn2" as (? ?) "(Hn2 & ?)".
+        iApply (node_sep_star n2 with "[$]").
       }
       subst b2.
-      iAaccIntro with "Hlock2".
+      iDestruct "Hlockr2" as "(Hl2 & Hn2)".
+      iAaccIntro with "Hl2".
       { iIntros "Hlock2". iModIntro.
         iFrame. iSplitL. iExists b1, true. iFrame.
         eauto with iFrame.

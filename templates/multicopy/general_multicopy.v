@@ -7,14 +7,14 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export multicopy multicopy_util.
-
-(** Declarations of implementation-specific helper functions **)
+Require Export lock multicopy multicopy_util.
 
 Parameter inContents : val.
 Parameter findNext : val.
+(*
 Parameter lockLoc : Node → loc.
 Parameter getLockLoc: val.
+*)
 Parameter addContents: val.
 Parameter mergeContents: val.
 Parameter chooseNext: val.
@@ -22,6 +22,7 @@ Parameter atCapacity: val.
 
 (** Template algorithms *)
 
+(*
 Definition lockNode : val :=
   rec: "lockN" "x" :=
     let: "l" := getLockLoc "x" in
@@ -33,7 +34,7 @@ Definition unlockNode : val :=
   λ: "x",
   let: "l" := getLockLoc "x" in
   "l" <- #false.
-
+*)
 Definition traverse : val :=
   rec: "t_rec" "n" "k" :=
     lockNode "n" ;;
@@ -148,6 +149,14 @@ Section gen_multicopy.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
+  Global Definition mcsN N := N .@ "mcs".
+  Global Definition helpN N := N .@ "help".
+  Global Definition threadN N := N .@ "thread".
+
+(*
+  Definition lockR (b: bool) (n: Node) (R: iProp) : iProp :=
+      ((lockLoc n) ↦ #b ∗ (if b then True else R))%I.
+*)
 
   (** Assumptions on the implementation made by the template algorithms. *)
 
@@ -372,9 +381,8 @@ Section gen_multicopy.
       (I: multiset_flowint_ur KT) (R: multiset_flowint_ur K),
       global_state γ_t γ_I γ_J γ_f γ_gh r t H hγ I R
     ∗ ([∗ set] n ∈ (domm I), ∃ (bn: bool) Cn Qn, 
-          lockLoc n ↦ #bn  
-        ∗ (if bn then True else nodePred γ_gh γ_t γ_s lc r n Cn Qn)
-        ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I.  
+        (lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn Qn))
+        ∗ (nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H))%I.  
 
   Global Instance mcs_conc_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
     Timeless (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).
@@ -394,9 +402,10 @@ Section gen_multicopy.
     repeat (apply bi.exist_timeless; intros).
     repeat apply bi.sep_timeless; try apply _.
     destruct (decide (x2 = r)); try apply _.
+(*
     repeat (apply bi.exist_timeless; intros).
     repeat apply bi.sep_timeless; try apply _.
-    destruct (decide (x2 = r)); try apply _.
+    destruct (decide (x2 = r)); try apply _.*)
   Qed.
 
 (*
@@ -490,8 +499,8 @@ Section gen_multicopy.
   Proof.
     intros γ_t lc q t.
     iIntros (Φ) "!# (Hqt & Hclock) HCont".
-    wp_lam. wp_load. iApply "HCont". iFrame.
-    iModIntro; done.
+    wp_lam. wp_load. iApply "HCont". 
+    iFrame; try done.
   Qed.  
 
   Parameter addContents_spec : ∀ r es (Cn: gmap K natUR) (k: K) (t:nat),
@@ -523,7 +532,7 @@ Section gen_multicopy.
   Parameter mergeContents_spec : ∀ r n m esn esm (Cn Cm: gmap K natUR),
      ⊢ ({{{ node r n esn Cn ∗ node r m esm Cm ∗ ⌜esn !!! m ≠ ∅⌝ }}}
            mergeContents #n #m
-       {{{ Cn' Cm', RET #m;
+       {{{ Cn' Cm', RET #();
            node r n esn Cn' ∗ node r m esm Cm' 
            ∗ ⌜set_of_map Cn' ⊆ set_of_map Cn⌝
            ∗ ⌜set_of_map Cm' ⊆ set_of_map Cn ∪ set_of_map Cm⌝
