@@ -280,24 +280,68 @@ procedure atCapacity(n: Node,
   }
 }
 
-// procedure chooseNext(n: Node,
-//     ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
-//   returns (m: Node,
-//     ghost es1: Map<Node, Set<K>>, ghost es_m: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
-//   requires node(r, n, es, Cn)
-//   ensures node(r, n, es1, Cn) &*& es1[m] != {}
-//   ensures (
-//       es1 == es
-//     ||
-//       es1 == es[m := es1[m]]
-//       &*& node(r, m, es1, Cm)  // TODO lockLoc?
-//       &*& Cm == {k: K :: 0}
-//       &*& es_m == {N: Node :: {}}
-//   )
+define needsNewNode(n) {
+  n.next == null
+}
+
+procedure chooseNext(n: Node,
+    ghost r: Node, ghost es: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (res: OptionNode)
+  requires node(r, n, es, Cn)
+  ensures node(r, n, es, Cn)
+  ensures (res == noneNode && needsNewNode(n)
+    || res != noneNode && es[res.nd] != {})
+{
+  if (n.next != null) {
+    return someNode(n.next);
+  } else {
+    return noneNode;
+  }
+}
+
+procedure insertNode(n: Node, m: Node,
+    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+  returns (ghost esn1: Map<Node, Set<K>>, ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
+  requires node(r, n, esn, Cn) &*& nodeSpatial(m)
+  requires needsNewNode(n) &*& m != r
+  ensures node(r, n, esn1, Cn) &*& node(r, m, esm, Cm) &*& esn1[m] != {}
+{
+  n.next := m;
+  esn1 := { x: Node :: x == m ? { k: K :: true } : {} };
+
+  m.tableLen := 0;
+  m.next := null;
+  m.nodeType := sstableNode;
+  esm := { x: Node :: {} };
+  Cm := { k: K :: 0 };
+
+  return esn1, esm, Cm;
+}
+
+// procedure mergeContents(n: Node, m: Node,
+//     ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>,
+//     ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
+//   requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
+//   requires esn[m] != {}
+//   ensures node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1)
+//   // ensures TODO
 // {
+//   if (n == r) {
+//     sort(n.tableK, n.tableT, 0, n.tableLen);
+//   }
+//   var i_n := 0;
+//   var i_m := 0;
+//   var j_m := 
+
 // }
 
-// TODO go with single successor
+// We are given n and m, and the aim is to move keys from n to m until m gets full, and result in valid nodes n and m. (Since we're considering a list-like LSM tree, the edgeset is KS.)
+// 1. To handle the case where n == r, we first sort & de-duplicate the keys in n. Now it looks like an sstable.
+// 2. We use two pointers i_n = i_m = 0 and start a merge, as in merge-sort, but where we overwrite keys in m with keys in n if they are equal. We also start with j_n = 0 and j_m = m.len. If n.keys[i_n] != m.keys[i_m], then we have two cases:
+//   - n.keys[i_n] < m.keys[i_m]: we move the key at i_n to j_m and increment j_m. If j_m is already at capacity, then we move i_n to j_n and increment j_n. The idea is that keys new to m are moved to the end of m if possible, and once m is full we move the keys to the beginning of n.
+//   - n.keys[i_n] > m.keys[i_m]: we increment i_m.
+// 3. If i_n hits the end before i_m does, we are good. If i_m reaches the end first, then we move the remaining keys in n to the beginning of n (using the pointer j_n).
+// 4. The keys in [0..j_n] of n are then sorted and n.len is set to j_n. Keys in [0..j_m] are sorted and m.len is set to j_m.
 
-// addContents is not needed since this is for the non-root nodes
-// TODO However we probably need mergeContents
+// Sorting and de-duplicating a memtable to get an sstable is slightly tricky:
+// We need to use a sorting algorithm that preserves order between identical keys. We also need a sorting algorithm that sorts two arrays based on the ordering given by elements in one of the arrays, I don't think we have something like this in Grasshopper's test suite. After this stable sort, we still need to walk through and remove duplicates. This can be done in 1 pass, but it needs two pointers and might be a little tricky. Or we can use a tombstone value and do it in 2 passes.
