@@ -2027,8 +2027,8 @@ Section gen_multicopy_compact.
         clear m.
         iIntros (m lm)"(NodeSp_m & % & Hl_m)".
         subst lm. wp_pures.
-        iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >mcs_conc)".
-        iDestruct "mcs_conc" as (hγ'' I'' J'')"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >Inv_tpl)".
+        iDestruct "Inv_tpl" as (hγ'' I'' J'')"(Hglob & Hstar)".
         iAssert (⌜m ∉ domm I''⌝)%I as "%".
         { destruct (decide (m ∈ domm I'')); try done.
           rewrite (big_sepS_delete _ (domm I'') m); last by eauto.
@@ -2060,8 +2060,8 @@ Section gen_multicopy_compact.
         iDestruct "Hesn_m'" as %Hesn_m'.
         iDestruct "Hcm" as %Hcm.
         iDestruct "Hesm" as %Hesm.
-        iApply fupd_wp. iInv "HInv" as (T0' H0)"(mcs_high & >mcs_conc)".
-        iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T0' H0)"(mcs_high & >Inv_tpl)".
+        iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
         iAssert (⌜m ∉ domm I0⌝)%I as "%".
         { destruct (decide (m ∈ domm I0)); try done.
           rewrite (big_sepS_delete _ (domm I0) m); last by eauto.
@@ -2098,7 +2098,7 @@ Section gen_multicopy_compact.
         set (Im0 := int {| infR := {[m := ∅]} ; outR := ∅|}: multiset_flowint_ur KT).
         set (Jm0 := int {| infR := {[m := ∅]} ; outR := ∅|}: multiset_flowint_ur K).
                
-        iDestruct "mcs_high" as "(>MCS_auth & >HH & >% & >MaxTS & Prot_conc)".
+        iDestruct "mcs_high" as "(>MCS_auth & >HH & >% & >MaxTS & Prot)".
         rename H into Hist.
 
         iMod ((ghost_update_contExt γ_s
@@ -2164,8 +2164,8 @@ Section gen_multicopy_compact.
         iDestruct "Subset_disj" as %Subset_disj.
         iDestruct "Cm_sub_Cm'" as %Cm_sub_Cm'.
         iDestruct "MergeEq" as %MergeEq. wp_pures.
-        iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
-        iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
+        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
         
         iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
         rename H1 into n_in_I.  
@@ -2216,7 +2216,7 @@ Section gen_multicopy_compact.
                     HnS_ocm HnS_Bnm HnS_Hm HnS_starm Hφm]" as "HnS_m".
         { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm0, Bm, Im, Jm. iFrame. }
 
-        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >% & Prot_conc)".
+        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >% & Prot)".
         rename H1 into MaxTS.
         
         iMod (mergeContents_ghost_update with 
@@ -2254,8 +2254,8 @@ Section gen_multicopy_compact.
       iDestruct "Hif" as %es_ne.
     
       iApply fupd_wp.
-      iInv "HInv" as (T0' H0)"(mcs_high & >mcs_conc)".
-      iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
+      iInv "HInv" as (T0' H0)"(mcs_high & >Inv_tpl)".
+      iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H into n_in_I0.    
 
@@ -2309,8 +2309,8 @@ Section gen_multicopy_compact.
       iDestruct "Subset_disj" as %Subset_disj.
       iDestruct "Cm_sub_Cm'" as %Cm_sub_Cm'.
       iDestruct "MergeEq" as %MergeEq. wp_pures.
-      iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
-      iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
+      iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
+      iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
 
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H1 into n_in_I.  
@@ -2361,7 +2361,7 @@ Section gen_multicopy_compact.
                   HnS_ocm HnS_Bnm HnS_Hm HnS_starm Hφm]" as "HnS_m".
       { iExists γ_em, γ_cm, γ_qm, γ_cirm, esm, Bm, Im, Jm. iFrame. }
         
-      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >% & Prot_conc)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >% & Prot)".
       rename H1 into MaxTS.
 
       iMod (mergeContents_ghost_update with 
