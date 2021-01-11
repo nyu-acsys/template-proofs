@@ -35,8 +35,8 @@ Section gen_multicopy_util.
     iPureIntro. set_solver.
   Qed.
   
-  Lemma inFP_domm_glob γ_t γ_I γ_J γ_f γ_gh r T H hγ I J n : 
-    inFP γ_f n -∗ global_state γ_t γ_I γ_J γ_f γ_gh r T H hγ I J -∗ ⌜n ∈ domm I⌝.
+  Lemma inFP_domm_glob γ_t γ_I γ_J γ_f γ_gh r T hγ I J n : 
+    inFP γ_f n -∗ global_state γ_t γ_I γ_J γ_f γ_gh r T hγ I J -∗ ⌜n ∈ domm I⌝.
   Proof.
     iIntros "#FP_n Hglob".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
@@ -473,37 +473,9 @@ Section gen_multicopy_util.
   
   (** Lock module **)
 
-(*  
-  Parameter getLockLoc_spec : ∀ (n: Node),
-    ⊢ ({{{ True }}}
-        general_multicopy.getLockLoc #n
-       {{{ (l:loc), RET #l; ⌜general_multicopy.lockLoc n = l⌝ }}})%I.
-         
-  Lemma lockNode_spec (n: Node):
-    ⊢ <<< ∀ (b: bool), (general_multicopy.lockLoc n) ↦ #b >>>
-      lockNode #n    @ ⊤
-    <<< (general_multicopy.lockLoc n) ↦ #true ∗ ⌜b = false⌝ , RET #() >>>.
-  Proof.
-    iIntros (Φ) "AU". iLöb as "IH".
-    wp_lam. wp_bind(general_multicopy.getLockLoc _)%E.
-    wp_apply getLockLoc_spec; first done.
-    iIntros (l) "#Hl". wp_let. wp_bind (CmpXchg _ _ _)%E.
-    iMod "AU" as (b) "[Hb HAU]". iDestruct "Hl" as %Hl.
-    iEval (rewrite Hl) in "Hb". destruct b.
-    - wp_cmpxchg_fail. iDestruct "HAU" as "[HAU _]".
-      iEval (rewrite Hl) in "HAU".
-      iMod ("HAU" with "Hb") as "H".
-      iModIntro. wp_pures. iApply "IH".
-      iEval (rewrite <-Hl) in "H". done.
-    - wp_cmpxchg_suc. iDestruct "HAU" as "[_ HAU]".
-      iEval (rewrite Hl) in "HAU".
-      iMod ("HAU" with "[Hb]") as "HΦ". iFrame; done.
-      iModIntro. wp_pures. done.
-  Qed.
-*)
-  Lemma lockNode_spec_high N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r n:
-    ⊢ mcs_inv N γ_te γ_he γ_s protocol_abs 
-                (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r n:
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot_help 
+                (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -512,8 +484,8 @@ Section gen_multicopy_util.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
     awp_apply (lockNode_spec n).
-    iInv "mcsInv" as (T H) "(mcs_high & >mcs_conc)". 
-    iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_tpl)". 
+    iDestruct "Inv_tpl" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
@@ -542,41 +514,7 @@ Section gen_multicopy_util.
     iFrame. done.
   Qed.
 
-(*
-  Lemma unlockNode_spec (n: Node) :
-    ⊢ <<< general_multicopy.lockLoc n ↦ #true >>>
-      unlockNode #n    @ ⊤
-    <<< general_multicopy.lockLoc n ↦ #false, RET #() >>>.
-  Proof.
-    iIntros (Φ) "AU". wp_lam. 
-    wp_bind(general_multicopy.getLockLoc _)%E.
-    wp_apply getLockLoc_spec; first done.
-    iIntros (l) "#Hl". wp_let.
-    iMod "AU" as "[Hy [_ Hclose]]".
-    iDestruct "Hl" as %Hl.
-    iEval (rewrite Hl) in "Hy".
-    wp_store. iEval (rewrite Hl) in "Hclose".
-    iMod ("Hclose" with "Hy") as "HΦ".
-    iModIntro. done.
-  Qed.
-  
-  Lemma int_domm γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J n In :
-    own γ_I (◯ In) -∗ ⌜domm In = {[n]}⌝
-    -∗ global_state γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh r t H hγ I J
-    -∗ ⌜n ∈ domm I⌝.
-  Proof.
-    iIntros "Hi Dom_In Hglob".
-    iDestruct "Dom_In" as %Dom_In.
-    iDestruct "Hglob" as "(MCS_auth & HH & Hist & Ht & HI & Out_I & HJ 
-            & Out_J & Inf_J & Hf & Hγ & FP_r & Max_ts & domm_IJ & domm_Iγ)".
-    iPoseProof ((auth_own_incl γ_I (I) (In)) with "[$]") as "%".
-    rename H0 into I_incl. destruct I_incl as [Io I_incl].
-    iPoseProof (own_valid with "HI") as "%". rename H0 into Valid_I.
-    iPureIntro. rewrite I_incl. rewrite flowint_comp_fp.
-    rewrite Dom_In. set_solver. rewrite <- I_incl.
-    by apply auth_auth_valid.
-  Qed.
-*)
+
   Lemma nodePred_lockR_true γ_gh γ_t γ_s lc r bn n es Cn Cn' Qn' : 
     node r n es Cn -∗ 
       lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn' Qn') -∗
@@ -598,7 +536,7 @@ Section gen_multicopy_util.
 
   Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
                                                           n Cn Qn:
-    ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+    ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn -∗
               <<< True >>>
                 unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -606,8 +544,8 @@ Section gen_multicopy_util.
   Proof.
     iIntros "#mcsInv #FP_n Hnp". iIntros (Φ) "AU".
     awp_apply (unlockNode_spec n).
-    iInv "mcsInv" as (T H) "(mcs_high & >mcs_conc)".
-    iDestruct "mcs_conc" as (hγ I J) "(Hglob & Hstar)".
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_tpl)".
+    iDestruct "Inv_tpl" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 

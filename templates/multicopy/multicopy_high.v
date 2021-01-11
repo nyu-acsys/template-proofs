@@ -18,9 +18,9 @@ Definition search' : val :=
   λ: "k",
     let: "t_id" := NewProph in
     let: "p" := NewProph in
-    let: "v" := search "k" in
-    resolve_proph: "p" to: "v";;
-    "v".  
+    let: "t'" := search "k" in
+    resolve_proph: "p" to: "t'";;
+    "t'".  
 
 Section multicopy_high.
   Context {Σ} `{heapG Σ, !multicopyG Σ}.
@@ -28,27 +28,27 @@ Section multicopy_high.
 
   (** Low-level specs of multicopy operations *)
 
-  Parameter search_recency: ∀ N γ_te γ_he γ_s protocol_abs mcs_abs k t0, 
+  Parameter search_recency: ∀ N γ_te γ_he γ_s Prot_help Inv_tpl k t0, 
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s protocol_abs mcs_abs -∗
-          mcs_sr γ_s (k, t0) -∗
+        mcs_inv N γ_te γ_he γ_s Prot_help Inv_tpl -∗
+          SR γ_s (k, t0) -∗
               <<< True >>> 
                   search #k @ ⊤ ∖ ↑(mcsN N)
-              <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
+              <<< ∃ (t': nat), SR γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
 
-  Parameter upsert_spec: ∀ N γ_te γ_he γ_s protocol_abs mcs_abs k,
+  Parameter upsert_spec: ∀ N γ_te γ_he γ_s Prot_help Inv_tpl k,
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
-          mcs_inv N γ_te γ_he γ_s protocol_abs mcs_abs -∗
+        (ghost_update_protocol N γ_te γ_he Prot_help k) -∗ 
+          mcs_inv N γ_te γ_he γ_s Prot_help Inv_tpl -∗
               <<< ∀ t H, MCS γ_te γ_he t H >>> 
                      upsert #k @ ⊤ ∖ (↑(mcsN N))
               <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
                 
   (** Proof of high-level specs for multicopy opeartions *)                
 
-  Lemma search_spec_intermediate N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
+  Lemma search_spec_intermediate N γ_te γ_he γ_s Inv_tpl γ_td γ_ght (k: K) :
   ⊢ ⌜k ∈ KS⌝ -∗ 
-      mcs_inv N γ_te γ_he γ_s (protocol_conc N γ_te γ_he γ_td γ_ght) mcs_abs -∗ 
+      mcs_inv N γ_te γ_he γ_s (Prot_help N γ_te γ_he γ_td γ_ght) Inv_tpl -∗ 
           <<< ∀ t H, MCS γ_te γ_he t H >>>
                 search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
           <<<  ∃ (t': nat), MCS γ_te γ_he t H 
@@ -61,8 +61,8 @@ Section multicopy_high.
     wp_apply (typed_proph_wp_new_proph1 NatTypedProph); first done.
     iIntros (tp p)"Hproph". wp_pures. 
     iApply fupd_wp.
-    iInv "HInv" as (T0 H0) "(mcs_high & mcs_abs)".
-    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_conc)".
+    iInv "HInv" as (T0 H0) "(mcs_high & Htpl)".
+    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
     iAssert (⌜∃ t0, ((k,t0) ∈ H0 ∧ (∀ t, (k,t) ∈ H0 → t ≤ t0) 
                 ∧ map_of_set H0 !! k = Some t0)⌝)%I as "%".
     { pose proof (map_of_set_lookup_cases H0 k) as H'.
@@ -119,10 +119,10 @@ Section multicopy_high.
         assert (tp = t) as H' by lia.
         rewrite <-H'. by rewrite Hcase'.
     - assert (tp > t0) by lia. rename H1 into tp_gr_t0.
-      iDestruct "Prot_conc" as (TD hγt)"(>HTD & >Hγt 
+      iDestruct "Prot" as (TD hγt)"(>HTD & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
       iAssert (▷ (⌜tid ∉ TD⌝ 
-                ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H0 t_id) 
+                ∗ ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght H0 t_id) 
                 ∗ proph1 tid vt))%I with "[Hstar_reg Htid]" 
                 as "(>% & Hstar_reg & Htid)".
       { destruct (decide (tid ∈ TD)); try done.
@@ -169,19 +169,19 @@ Section multicopy_high.
         pose proof Max_t0 tp e as H'.
         clear -H' tp_gr_t0. lia. } 
       iMod (inv_alloc (threadN N) _
-              (∃ H, get_op_state γ_sy tid γ_tk' AU_later (Φ) H k tp) 
+              (∃ H, State γ_sy tid γ_tk' AU_later (Φ) H k tp) 
                                     with "[AU Hreg_sy1]") as "#HthInv".
-      { iNext. iExists H0. unfold get_op_state. iFrame "Hreg_sy1".
-        iLeft. unfold state_lin_pending. iFrame. by iPureIntro. }
+      { iNext. iExists H0. iFrame "Hreg_sy1". iLeft. 
+        unfold Pending. iFrame. by iPureIntro. }
 
       iModIntro. iSplitR "Hproph Token". iNext.
-      iExists T0, H0. iFrame "mcs_abs". iFrame.
+      iExists T0, H0. iFrame "Htpl". iFrame.
       iExists (TD ∪ {[tid]}), hγt'. iFrame.
       iSplitR. iPureIntro. subst hγt'.
       apply leibniz_equiv. rewrite dom_insert.
       rewrite Domm_hγt. clear; set_solver.
       rewrite (big_sepS_delete _ (TD ∪ {[tid]}) tid); last by set_solver.
-      iSplitR "Hstar_reg". unfold registered.
+      iSplitR "Hstar_reg". unfold Reg.
       iExists AU_later, Φ, k, tp, vt, γ_tk', γ_sy. iFrame "∗#".
       assert ((TD ∪ {[tid]}) ∖ {[tid]} = TD) as H' 
                   by (clear -tid_notin_TD; set_solver).
@@ -196,9 +196,9 @@ Section multicopy_high.
       wp_pures. iModIntro. iIntros "%". rename H1 into tp_eq_t.
       iApply fupd_wp.
       iInv "HthInv" as (H1)"(>Hth_sy & Hth_or)".
-      iInv "HInv" as (T1 H1') "(mcs_high & mcs_abs)".
-      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_conc)".
-      iDestruct "Prot_conc" as (TD1 hγt1)"(>HTD & >Hγt 
+      iInv "HInv" as (T1 H1') "(mcs_high & Htpl)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
+      iDestruct "Prot" as (TD1 hγt1)"(>HTD & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
       iAssert (⌜tid ∈ TD1⌝)%I as "%".
       { iPoseProof (own_valid_2 _ _ _ with "[$HTD] [$FP_t]") as "H'".
@@ -209,7 +209,7 @@ Section multicopy_high.
         iPureIntro. set_solver. }
         
       iAssert (▷ (⌜H1' = H1⌝
-               ∗ ([∗ set] t_id ∈ TD1, registered N γ_te γ_he γ_ght H1' t_id)
+               ∗ ([∗ set] t_id ∈ TD1, Reg N γ_te γ_he γ_ght H1' t_id)
                ∗ own (γ_sy) (to_frac_agree (1 / 2) H1) ))%I
                 with "[Hstar_reg Hth_sy]" as "(>% & Hstar_reg & >Hth_sy)". 
       { iEval (rewrite (big_sepS_elem_of_acc _ (TD1) tid); 
@@ -266,11 +266,11 @@ Section multicopy_high.
       iModIntro. wp_pures. by rewrite H'.
   Qed.
   
-  Lemma search_spec_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
+  Lemma search_spec_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght (k: K) :
   ⊢ ⌜k ∈ KS⌝ -∗ 
-      <<< ∀ t M, MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght t M >>>
+      <<< ∀ t M, MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght t M >>>
             search' #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
-      <<<  ∃ (t': nat), MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght t M 
+      <<<  ∃ (t': nat), MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght t M 
                         ∗ ⌜M !!! k = t'⌝, RET #t' >>>.
   Proof.
     iIntros "%" (Φ) "AU". rename H0 into k_in_KS.
@@ -302,9 +302,9 @@ Section multicopy_high.
                 (H1: gset KT) (TD: gset proph_id)  :
         ⌜map_of_set (H1 ∪ {[k, T]}) !!! k = T⌝ -∗
            MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}) -∗          
-      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H1 t_id) 
+      ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght H1 t_id) 
         ={⊤ ∖ ↑(mcsN N)}=∗ 
-      ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght 
+      ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght 
                                       (H1 ∪ {[(k, T)]}) t_id)
        ∗ MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}).
   Proof.
@@ -380,11 +380,11 @@ Section multicopy_high.
   Qed.  
   
   
-  Lemma upsert_spec_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght (k: K) :
+  Lemma upsert_spec_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght (k: K) :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-            <<< ∀ T M, MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght T M >>> 
+            <<< ∀ T M, MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght T M >>> 
                    upsert #k @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N))
-            <<< MCS_high N γ_te γ_he γ_s mcs_abs γ_td γ_ght 
+            <<< MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght 
                         (T + 1) (<[k := T]> M), RET #() >>>.
   Proof.
     iIntros "%" (Φ) "AU". rename H0 into k_in_KS.
@@ -394,12 +394,12 @@ Section multicopy_high.
     iMod ("Hab" with "[MCS M_eq_H]") as "AU".
     iExists H0. iFrame "∗#". iModIntro.
     iAssert (ghost_update_protocol N γ_te γ_he 
-                (protocol_conc N γ_te γ_he γ_td γ_ght) k)%I 
+                (Prot_help N γ_te γ_he γ_td γ_ght) k)%I 
                   as "Ghost_updP".
     { iIntros (T' H')"H1_k MCS_auth".
       iDestruct "H1_k" as %H1_k.
-      iIntros "Protocol_conc". 
-      iDestruct "Protocol_conc" as (TD hγt)"(HTD & Hγt & Domm_hγt & Hstar_reg)".
+      iIntros "Prot". 
+      iDestruct "Prot" as (TD hγt)"(HTD & Hγt & Domm_hγt & Hstar_reg)".
       iMod (ghost_update_registered k T' with 
               "[] [MCS_auth] [$Hstar_reg]") 
                  as "(Hstar_reg & MCS_auth)"; try done.

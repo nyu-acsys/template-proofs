@@ -11,10 +11,6 @@ Require Export lock multicopy multicopy_util.
 
 Parameter inContents : val.
 Parameter findNext : val.
-(*
-Parameter lockLoc : Node → loc.
-Parameter getLockLoc: val.
-*)
 Parameter addContents: val.
 Parameter atCapacity: val.
 Parameter chooseNext: val.
@@ -24,19 +20,6 @@ Parameter insertNode: val.
 
 (** Template algorithms *)
 
-(*
-Definition lockNode : val :=
-  rec: "lockN" "x" :=
-    let: "l" := getLockLoc "x" in
-    if: CAS "l" #false #true
-    then #()
-    else "lockN" "x" .
-
-Definition unlockNode : val :=
-  λ: "x",
-  let: "l" := getLockLoc "x" in
-  "l" <- #false.
-*)
 Definition traverse : val :=
   rec: "t_rec" "n" "k" :=
     lockNode "n" ;;
@@ -47,28 +30,9 @@ Definition traverse : val :=
     | NONE => match: (findNext "n" "k") with
                 SOME "n'" => unlockNode "n" ;; "t_rec" "n'" "k"
               | NONE => unlockNode "n" ;; #0 end end.
-(*              
-    if: ("t" ≠ #0) 
-    then
-      unlockNode "n";; "t"
-    else
-      match: (findNext "n" "k") with
-        SOME "n'" => unlockNode "n" ;; "t_rec" "n'" "k"
-      | NONE => unlockNode "n" ;; #0 end.
-*)
               
 Definition search (r: Node) : val := 
   λ: "k", traverse #r "k".
-
-(*  
-Definition search' (r: Node) : val :=
-  λ: "k",
-    let: "t_id" := NewProph in
-    let: "p" := NewProph in
-    let: "v" := search r "k" in
-    resolve_proph: "p" to: "v";;
-    "v".  
-*)
   
 Definition readClock : val :=
   λ: "l", !"l".
@@ -155,19 +119,8 @@ Proof. solve_inG. Qed.
 
 Section gen_multicopy.
   Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
-(*   Context (N : namespace). *)
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
-
-(*
-  Global Definition mcsN N := N .@ "mcs".
-  Global Definition helpN N := N .@ "help".
-  Global Definition threadN N := N .@ "thread".
-*)
-(*
-  Definition lockR (b: bool) (n: Node) (R: iProp) : iProp :=
-      ((lockLoc n) ↦ #b ∗ (if b then True else R))%I.
-*)
 
   (** Assumptions on the implementation made by the template algorithms. *)
 
@@ -200,8 +153,6 @@ Section gen_multicopy.
   
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
   
-(*  Definition mcs_sr γ_s (kt: KT) : iProp := own γ_s (◯ {[kt]}).  *)
-
   Definition closed γ_f (es: esT) : iProp := ∀ n, ⌜es !!! n  ≠ ∅⌝ → inFP γ_f n.
 
   Definition inflow_zero (I: multiset_flowint_ur KT) := ∀ n, inset KT I n = ∅. 
@@ -233,55 +184,33 @@ Section gen_multicopy.
                  ∧ (Cn !! k = None → Bn !! k = Qn !! k)). 
 
   (** ϕ_1 in the paper *)
-  Definition φ0 (es: esT) (Qn: gmap K natUR) :=
+  Definition φ1 (es: esT) (Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → ((∀ n', k ∉ es !!! n') → Qn !! k = None).
-
-  (* This constraint is implicit in the paper. We track B_n 
-     explicitly as ghost state here. That is the following 
-     captures the definition of B_n in terms of C_n/Q_n given 
-     in the paper.
-  Definition φ1 (Bn Cn Qn: gmap K natUR) := 
-              ∀ k t, k ∈ KS → ((Cn !! k = Some t → Bn !! k = Some t)
-                 ∧ (Cn !! k = None → Bn !! k = Qn !! k)). *)
 
   (** ϕ_2 in the paper *)
   Definition φ2 n (Bn: gmap K natUR) In := 
               ∀ k t, k ∈ KS → ((k,t) ∈ inset KT In n → Bn !!! k = t).
 
+  (** ϕ_3 in the paper *)
+  Definition φ3 (Bn Qn: gmap K natUR) :=
+              ∀ k, k ∈ KS → (Qn !!! k ≤ Bn !!! k).            
+
   (** ϕ_4 in the paper *)
-  Definition φ3 n (Bn: gmap K natUR) Jn :=
+  Definition φ4 n (Bn: gmap K natUR) Jn :=
               ∀ k, k ∈ KS → (Bn !! k = None ∨ k ∈ inset K Jn n).
 
   (** ϕ_5 in the paper *)
-  Definition φ4 n (Jn: multiset_flowint_ur K) := 
+  Definition φ5 n (Jn: multiset_flowint_ur K) := 
               ∀ k, inf Jn n !1 k ≤ 1.
 
-  (** ϕ_3 in the paper *)
-  Definition φ5 (Bn Qn: gmap K natUR) :=
-              ∀ k, k ∈ KS → (Qn !!! k ≤ Bn !!! k).            
-
-(*
-  (** extraneous *)
-  Definition φ6 (Bn: gmap K natUR) (t: nat) := 
-              ∀ k, k ∈ KS → (Bn !!! k ≤ t).
-*)
   
-  (** simplify to dom Qn = out(es) ∩ inset Jn n 
-      to combine φ0 and φ7, where
-      out(es) = { k | ∃ n', k in es(n') }
-      φ0 := dom Qn ⊆ out(es)
-      φ7 := out(es) ∩ inset Jn n ⊆ dom Qn *)
-  Definition φ7 n (es: esT) (Jn: multiset_flowint_ur K) (Qn: gmap K natUR) :=
+  Definition φ6 n (es: esT) (Jn: multiset_flowint_ur K) (Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → ((∃ n', k ∈ es !!! n') ∧ k ∈ inset K Jn n 
                           → k ∈ dom (gset K) Qn).              
 
-  Definition φ8 (n: Node) (In: multiset_flowint_ur KT) := 
+  Definition φ7 (n: Node) (In: multiset_flowint_ur KT) := 
               ∀ kt, inf In n !1 kt ≤ 1.
 
-(*
-  Definition maxTS (t: nat) (H: gset KT) := 
-              (∀ (k: K) t', (k, t') ∈ H → t' < t) ∧ (t > 0).
-*)
   
   Definition f_merge (Cn: gmap K nat) (Es: gset K) (Cm: gmap K nat) := 
                     λ k o1 o2, 
@@ -300,13 +229,6 @@ Section gen_multicopy.
                           : (gmap K nat) :=
              gmap_imerge (f_merge Cn Es Cm) Cn Cm.            
 
-(*
-  Definition MCS_auth (γ_te γ_he: gname) (t: nat) (H: gset KT) : iProp := 
-      own γ_te (● Excl' t) ∗ own γ_he (● Excl' H).
-
-  Definition MCS (γ_te γ_he: gname) (t: nat) (H: gset KT) : iProp := 
-      own γ_te (◯ Excl' t) ∗ own γ_he (◯ Excl' H).
-*)
 
   Definition frac_ghost_state γ_en γ_cn γ_qn (es: esT)
                                   (Cn Qn: gmap K natUR): iProp :=
@@ -356,8 +278,8 @@ Section gen_multicopy.
     ∗ ⌜contents_in_reach Bn Cn Qn⌝
     ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
     ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k))))
-    ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn⌝ 
-    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝.
+    ∗ ⌜φ1 es Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 Bn Qn⌝ ∗ ⌜φ4 n Bn Jn⌝ 
+    ∗ ⌜φ5 n Jn⌝ ∗ ⌜φ6 n es Jn Qn⌝ ∗ ⌜φ7 n In⌝.
 
   (** Predicate N_S in the paper *)
   Definition nodeShared (γ_I γ_J γ_f: gname) γ_gh r n 
@@ -366,18 +288,9 @@ Section gen_multicopy.
         nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H 
                     γ_en γ_cn γ_qn γ_cirn es Bn In Jn.
                     
-(*
-  Definition mcs_inv_high γ_te γ_he γ_s γ_fr t H : iProp :=
-      MCS_auth γ_te γ_he t H
-    ∗ own γ_s (● H) ∗ ⌜history_init H⌝
-    ∗ own γ_fr (to_frac_agree (1/2) H)
-    ∗ ⌜maxTS t H⌝.
-*)
   
-  (* TODO: Remove H as parameter *)  
   (** Predicate G in the paper *)
-  Definition global_state (γ_t γ_I γ_J γ_f γ_gh: gname) 
-          (r: Node) (t: nat) (H: gset KT) 
+  Definition global_state (γ_t γ_I γ_J γ_f γ_gh: gname) (r: Node) (t: nat) 
           (hγ: gmap Node per_node_gl) (I: multiset_flowint_ur KT) 
           (J: multiset_flowint_ur K) : iProp :=
       own γ_t (●{1/2} MaxNat t)
@@ -389,18 +302,18 @@ Section gen_multicopy.
     ∗ ⌜domm I = domm J⌝ 
     ∗ ⌜domm I = dom (gset Node) hγ⌝.
 
-  Definition mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H : iProp :=
+  Definition Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H : iProp :=
     ∃ hγ
       (I: multiset_flowint_ur KT) (R: multiset_flowint_ur K),
-      global_state γ_t γ_I γ_J γ_f γ_gh r t H hγ I R
+      global_state γ_t γ_I γ_J γ_f γ_gh r t hγ I R
     ∗ ([∗ set] n ∈ (domm I), ∃ (bn: bool) Cn Qn, 
         (lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn Qn))
         ∗ (nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H))%I.  
 
-  Global Instance mcs_conc_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
-    Timeless (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).
+  Global Instance Inv_tpl_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
+    Timeless (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).
   Proof.
-    rewrite /mcs_conc.
+    rewrite /Inv_tpl.
     repeat (apply bi.exist_timeless; intros).
     repeat apply bi.sep_timeless; try apply _.
     apply big_sepS_timeless.
@@ -415,76 +328,8 @@ Section gen_multicopy.
     repeat (apply bi.exist_timeless; intros).
     repeat apply bi.sep_timeless; try apply _.
     destruct (decide (x2 = r)); try apply _.
-(*
-    repeat (apply bi.exist_timeless; intros).
-    repeat apply bi.sep_timeless; try apply _.
-    destruct (decide (x2 = r)); try apply _.*)
   Qed.
 
-(*
-  Definition mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r := 
-    inv (mcsN N) (mcs γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r).
-
-  (** Helping Inv **)
-
-  Definition helping (N: namespace) (γ_fr: gname) 
-                      (protocol_abs : gset KT → iProp) : iProp :=
-      ∃ (H: gset KT),  
-        own γ_fr (to_frac_agree (1/2) H)
-      ∗ protocol_abs H.
-  
-  Definition helping_inv N γ_fr protocol_abs : iProp :=
-    inv (helpN N) (helping N γ_fr protocol_abs).
-  
-  Definition pau N γ_te γ_he P (Q : val → iProp) k := 
-    (▷ P -∗ ◇ AU << ∀ t H, MCS γ_te γ_he t H >> 
-                  @ ⊤ ∖ (↑(mcsN N) ∪ ↑(helpN N) ∪ ↑(threadN N)), ∅
-                 << ∃ (t': nat), MCS γ_te γ_he t H ∗ ⌜map_of_set H !!! k = t'⌝, 
-                                                          COMM Q #t' >>)%I.
-
-
-  Definition state_lin_pending (P: iProp) (H: gset KT) (k: K) (vp: nat) : iProp := 
-    P ∗ ⌜(k, vp) ∉ H⌝.
-
-  Definition state_lin_done (γ_tk: gname) (Q: val → iProp) 
-                              (H: gset KT) (k: K) (vp : nat) : iProp := 
-    (Q #vp ∨ own γ_tk (Excl ())) ∗ ⌜(k, vp) ∈ H⌝. 
-
-  Definition get_op_state γ_sy (t_id: proph_id) 
-                          γ_tk P Q H (k: K) (vp: nat) : iProp :=
-                        own γ_sy (to_frac_agree (1/2) H) 
-                     ∗ (state_lin_pending P H k vp 
-                        ∨ state_lin_done γ_tk Q H k vp).
-
-  Definition registered (N: namespace) (γ_te γ_he γ_ght: gname) 
-                            (H: gset KT) (t_id: proph_id) : iProp :=
-    ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: nat) (vt: val) (γ_tk γ_sy: gname), 
-        proph1 t_id vt
-      ∗ own γ_ght (◯ {[t_id := to_agree γ_sy]})  
-      ∗ own (γ_sy) (to_frac_agree (1/2) H)
-      ∗ □ pau N γ_te γ_he P Q k
-      ∗ inv (threadN N) (∃ H, get_op_state γ_sy t_id γ_tk P Q H (k: K) (vp: nat)).
-
-  Definition protocol_conc (N: namespace) (γ_te γ_he γ_fr γ_td γ_ght: gname) 
-                                        (H: gset KT) : iProp :=
-    ∃ (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
-        own γ_td (● TD)
-      ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = TD⌝  
-      ∗ ([∗ set] t_id ∈ TD, registered N γ_te γ_he γ_ght H t_id).
-
-  Definition MCS_high N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr 
-                      lc r γ_td γ_ght t M : iProp :=
-  ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝
-     ∗ mcs_inv N γ_te γ_he γ_s γ_t γ_I γ_J γ_f γ_gh γ_fr lc r
-     ∗ helping_inv N γ_fr (protocol_conc N γ_te γ_he γ_fr γ_td γ_ght).      
-
-  Definition ghost_update_protocol N γ_te γ_he protocol_abs k : iProp :=
-        (∀ H T, ⌜map_of_set (H ∪ {[k, T]}) !!! k = T⌝ -∗  
-                MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]}) -∗ 
-                  protocol_abs H ={⊤ ∖ ↑mcsN N ∖ ↑helpN N}=∗
-                    protocol_abs (H ∪ {[(k, T)]}) 
-                      ∗ MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, T)]})).
-*)  
   (** Helper functions specs *)
 
   (* The following specs are proved for each implementation in GRASShopper
@@ -505,6 +350,7 @@ Section gen_multicopy.
                   node r n es Cn ∗ if succ then ⌜k ∈ es !!! n'⌝
                                 else ⌜∀ n', k ∉ es !!! n'⌝ }}})%I.
 
+  (* Remove? *)
   Lemma readClock_spec: ∀ γ_t lc q t, 
      ⊢ ({{{ own γ_t (●{q} MaxNat t) ∗ clock lc t }}}
            readClock #lc
@@ -516,12 +362,12 @@ Section gen_multicopy.
     iFrame; try done.
   Qed.  
 
-  Parameter addContents_spec : ∀ r es (Cn: gmap K natUR) (k: K) (t:nat),
-     ⊢ ({{{ node r r es Cn }}}
+  Parameter addContents_spec : ∀ r n es (Cn: gmap K natUR) (k: K) (t:nat),
+     ⊢ ({{{ node r n es Cn ∗ ⌜n = r⌝ }}}
            addContents #r #k #t
        {{{ (succ: bool) (Cn': gmap K natUR),
               RET #succ;
-                  node r r es Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
+                  node r n es Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
                                 else ⌜Cn' = Cn⌝ }}})%I.
 
   Parameter atCapacity_spec : ∀ r n es (Cn: gmap K natUR),

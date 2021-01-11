@@ -15,17 +15,17 @@ Section gen_multicopy_search.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma traverse_spec N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
+  Lemma traverse_spec N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
                       n γ_en γ_cn γ_qn γ_cirn t0 t1 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s protocol_abs 
-                  (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        mcs_inv N γ_te γ_he γ_s Prot_help 
+                  (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           inFP γ_f n -∗ 
             own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) -∗ 
               own (γ_cirn !!! k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
                 <<< True >>> 
                     traverse #n #k @ ⊤ ∖ ↑(mcsN N)
-                <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
+                <<< ∃ (t': nat), SR γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
   Proof.
     iIntros "k_in_KS #HInv". 
     iLöb as "IH" forall (n t1 γ_en γ_cn γ_qn γ_cirn).
@@ -60,8 +60,8 @@ Section gen_multicopy_search.
         (** Open invariant to establish resources
             required to apply induction hypothesis IH
             on node n' **)
-        iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
-        iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
+        iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
+        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
         iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
         rename H0 into n_in_I.
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -208,8 +208,8 @@ Section gen_multicopy_search.
         (** Linearization Point: key k has not been found in the 
             data structure. Open invariant to obtain resources 
             required to establish post-condition **)
-        iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
-        iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
+        iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
+        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
         { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
@@ -224,15 +224,15 @@ Section gen_multicopy_search.
         iDestruct "HnS_n'" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP 
                             & HnS_cl & HnS_oc & HnS_Bn & HnS_H  & HnS_star & Hφ)".
         iAssert (⌜Bn !!! k = 0⌝)%I as %Bn_eq_0.
-        { iDestruct "Hφ" as "(Hφ0 & _)".
-          iDestruct "Hφ0" as %Hφ0.
+        { iDestruct "Hφ" as "(Hφ1 & _)".
+          iDestruct "Hφ1" as %Hφ1.
           iDestruct "HnS_Bn" as %HBn.
-          pose proof Hφ0 k k_in_KS Not_in_es as Hφ0.
+          pose proof Hφ1 k k_in_KS Not_in_es as Hφ1.
           pose proof HBn k as [_ H']. done.
           pose proof H' Cn_val as H'. 
           iPureIntro.
           rewrite lookup_total_alt.
-          rewrite H' Hφ0. by simpl. }          
+          rewrite H' Hφ1. by simpl. }          
         iEval (rewrite (big_sepS_elem_of_acc (_) (KS) k); last by eauto) 
                                                        in "HnS_star".
         iDestruct "HnS_star" as "(Hcirk_n & HnS_star')".
@@ -248,7 +248,7 @@ Section gen_multicopy_search.
           clear -lb_t1 t0_le_t1. lia. } subst t0.
         (** Linearization **)  
         iMod "AU" as "[_ [_ Hclose]]". 
-        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
+        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
         iAssert (⌜(k,0) ∈ H⌝)%I as "%". 
         { iDestruct "Hist" as %Hist. iPureIntro. 
           by pose proof Hist k k_in_KS as Hist. }
@@ -280,8 +280,8 @@ Section gen_multicopy_search.
       (** Linearization Point: key k has been found. Open 
           invariant to obtain resources required to 
           establish post-condition **)
-      iInv "HInv" as (T' H)"(mcs_high & >mcs_conc)".
-      iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".
+      iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
+      iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H0 into n_in_I.
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -309,7 +309,7 @@ Section gen_multicopy_search.
         rewrite !lookup_total_alt.
         pose proof H' Cn_val as H'.
         by rewrite Cn_val H'. }          
-      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
       iAssert (⌜set_of_map Cn ⊆ H⌝)%I as %Cn_Sub_H.
       { iPoseProof ((auth_own_incl γ_s H _) with "[$HH $HnP_C]") as "%".
         rename H0 into H'. by apply gset_included in H'. }  
@@ -352,22 +352,22 @@ Section gen_multicopy_search.
       Unshelve. try done. try done.
   Qed.
 
-  Lemma search_recency N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh 
+  Lemma search_recency N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh 
                           lc r (k: K) t0 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s protocol_abs
-           (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
-          mcs_sr γ_s (k, t0) -∗
+        mcs_inv N γ_te γ_he γ_s Prot_help
+           (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+          SR γ_s (k, t0) -∗
               <<< True >>> 
                   search r #k @ ⊤ ∖ ↑(mcsN N)
-              <<< ∃ (t': nat), mcs_sr γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
+              <<< ∃ (t': nat), SR γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
   Proof.
     iIntros "% #HInv #mcs_sr" (Φ) "AU".
     rename H into k_in_KS. 
     iApply fupd_wp. 
-    iInv "HInv" as (T H)"(mcs_high & >mcs_conc)".
-    iDestruct "mcs_conc" as (hγ I J)"(Hglob & Hstar)".    
-    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
+    iInv "HInv" as (T H)"(mcs_high & >Inv_tpl)".
+    iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".    
+    iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IJ & domm_Iγ)".
     iAssert (⌜r ∈ domm I⌝)%I as "%". 

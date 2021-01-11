@@ -11,15 +11,14 @@ Require Export general_multicopy general_multicopy_util.
 
 Section gen_multicopy_upsert.
   Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
-(*   Context (N : namespace). *)
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma upsert_spec N γ_te γ_he γ_s protocol_abs γ_t γ_I γ_J γ_f γ_gh lc r (k: K) :
+  Lemma upsert_spec N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r (k: K) :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        (ghost_update_protocol N γ_te γ_he protocol_abs k) -∗ 
-        mcs_inv N γ_te γ_he γ_s protocol_abs 
-          (mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        (ghost_update_protocol N γ_te γ_he Prot_help k) -∗ 
+        mcs_inv N γ_te γ_he γ_s Prot_help 
+          (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
             <<< ∀ t H, MCS γ_te γ_he t H >>> 
                    upsert lc r #k @ ⊤ ∖ (↑(mcsN N))
             <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
@@ -29,8 +28,8 @@ Section gen_multicopy_upsert.
     iIntros "Ghost_updP #HInv" (Φ) "AU". wp_lam.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
-    iInv "HInv" as (T0 H0)"(mcs_high & >mcs_conc)".
-    iDestruct "mcs_conc" as (hγ0 I0 J0)"(Hglob & Hstar)".
+    iInv "HInv" as (T0 H0)"(mcs_high & >Inv_tpl)".
+    iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IR & domm_Iγ)".
     iModIntro. iSplitR "AU Ghost_updP". iNext. 
@@ -46,7 +45,7 @@ Section gen_multicopy_upsert.
     iEval (rewrite decide_True) in "HnP_t".
     wp_apply (readClock_spec with "[HnP_t]"); try done.
     iIntros "HnP_t". wp_pures.
-    wp_apply (addContents_spec with "node_r").
+    wp_apply (addContents_spec with "[$node_r]"); try done.
     iIntros (b Cr')"(node_r & Hif)".
     (** Case analysis on whether addContents is successful **)
     destruct b; last first.
@@ -67,9 +66,9 @@ Section gen_multicopy_upsert.
       wp_pures. wp_bind (incrementClock _)%E.
       wp_lam. iDestruct "HnP_t" as "(HnP_T & HnP_lc)".
       unfold clock. wp_load. wp_pures. 
-      iInv "HInv" as (T1 H1)"(mcs_high & >mcs_conc)".
-      iDestruct "mcs_conc" as (hγ1 I1 J1)"(Hglob & Hstar)".
-      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot_abs)".
+      iInv "HInv" as (T1 H1)"(mcs_high & >Inv_tpl)".
+      iDestruct "Inv_tpl" as (hγ1 I1 J1)"(Hglob & Hstar)".
+      iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
       iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & _ & domm_IR & domm_Iγ)".
       wp_store. 
@@ -133,9 +132,9 @@ Section gen_multicopy_upsert.
         clear - H' Cr_sub_H1 Cr_sub_H1'. set_solver.
         exfalso. clear -H1_eq. set_solver. }
       (** Re-establish history_init **)   
-      iAssert (⌜history_init (H1 ∪ {[(k, T)]})⌝)%I with "[Hist]" as "Hist".
+      iAssert (⌜init (H1 ∪ {[(k, T)]})⌝)%I with "[Hist]" as "Hist".
       { iDestruct "Hist" as %Hist.
-        unfold history_init. iPureIntro.
+        unfold init. iPureIntro.
         clear -Hist k_in_KS. intros k' Hk'.
         pose proof Hist k' Hk' as H'. set_solver. }  
       iDestruct "HnP_C" as "_".  
@@ -234,29 +233,29 @@ Section gen_multicopy_upsert.
       iAssert (⌜domm Jr = {[r]}⌝)%I as "%".
       { by iDestruct "HnS_si" as "(_&_&_&H')". }
       rename H into Domm_Jr.
-      iAssert (⌜φ0 es Qr⌝ ∗ ⌜φ2 r Br' Ir⌝ 
-        ∗ ⌜φ3 r Br' Jr⌝ ∗ ⌜φ4 r Jr⌝ ∗ ⌜φ5 Br' Qr⌝ 
-        ∗ ⌜φ7 r es Jr Qr⌝ ∗ ⌜φ8 r Ir⌝)%I 
+      iAssert (⌜φ1 es Qr⌝ ∗ ⌜φ2 r Br' Ir⌝ ∗ ⌜φ3 Br' Qr⌝ 
+                ∗ ⌜φ4 r Br' Jr⌝ ∗ ⌜φ5 r Jr⌝ 
+                ∗ ⌜φ6 r es Jr Qr⌝ ∗ ⌜φ7 r Ir⌝)%I
             with "[Hφ]" as "Hφ".
       { iDestruct "Hφ" as %Hφ. 
-        destruct Hφ as [Hφ0 [Hφ2 [Hφ3 [Hφ4 [Hφ5 [Hφ7 Hφ8]]]]]].
+        destruct Hφ as [Hφ1 [Hφ2 [Hφ3 [Hφ4 [Hφ5 [Hφ6 Hφ7]]]]]].
         iPureIntro. repeat split; try done.
         - intros k' t' HKS Hins.
           pose proof Infz_Ir r as Infz_Ir.
           rewrite Infz_Ir in Hins.
           exfalso. clear -Hins. set_solver.
+        - intros k' HKS. subst Br'. destruct (decide (k' = k)).
+          + subst k'. rewrite lookup_total_insert.
+            apply (Nat.le_trans _ (Br !!! k) _); try done.
+            apply Hφ3; try done.
+          + rewrite lookup_total_insert_ne; try done.
+            apply Hφ3; try done.
         - intros k' HKS. right.
           apply (inset_monotone J1 Jr Ro); try done.
           by rewrite <-auth_auth_valid.
           pose proof Inf_J r k' HKS as Inf_J.
           by rewrite decide_True in Inf_J.
-          rewrite Domm_Jr. clear. set_solver.
-        - intros k' HKS. subst Br'. destruct (decide (k' = k)).
-          + subst k'. rewrite lookup_total_insert.
-            apply (Nat.le_trans _ (Br !!! k) _); try done.
-            apply Hφ5; try done.
-          + rewrite lookup_total_insert_ne; try done.
-            apply Hφ5; try done. }
+          rewrite Domm_Jr. clear. set_solver. }
             
             
       (** Linearization **)    
@@ -276,8 +275,8 @@ Section gen_multicopy_upsert.
       iFrame. by iPureIntro.
       
       iSpecialize ("Ghost_updP" $! T H1).
-      iMod ("Ghost_updP" with "[] [$MCS_auth] [$Prot_abs]") 
-                        as "(Prot_abs & MCS_auth)". 
+      iMod ("Ghost_updP" with "[] [$MCS_auth] [$Prot]") 
+                        as "(Prot & MCS_auth)". 
       { pose proof map_of_set_lookup (H1 ∪ {[k, T]}) k T as H'.
         iPureIntro. rewrite lookup_total_alt.
         rewrite H'. by simpl. clear; set_solver.
