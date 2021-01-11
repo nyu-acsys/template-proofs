@@ -14,6 +14,7 @@ struct Node {
   var tableT: Array<Int>;
   var tableLen: Int;
   var next: Node;
+  ghost var indices: Map<K, Int>;  // inverse of tableK for sstableNodes
 }
 
 const B: Int
@@ -24,7 +25,6 @@ axiom B > 1
 define nodeSpatial(x) {
   acc(x) &*& acc(x.tableK) &*& acc(x.tableT)
   &*& x.tableK.length == x.tableT.length
-  &*& x.tableK.length == 2*B  // TODO try without
 }
 
 function contents_memtable_aux(tableK: Map<Int, K>, tableT: Map<Int, Int>,
@@ -64,7 +64,54 @@ lemma contents_memtable_found(n: Node, k: K, i: Int)
 
     pure assert j < n.tableLen ==>
       contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, j)
-      == contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, j-1)[n.tableK[j] := n.tableT[j]];
+      == contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, j-1)
+        [n.tableK[j] := n.tableT[j]];
+  }
+}
+
+lemma contents_memtable_not_found(n: Node, k: K)
+  requires nodeSpatial(n)
+  requires 0 <= n.tableLen
+  requires forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k
+  ensures nodeSpatial(n)
+  ensures contents_memtable(n.tableK, n.tableT, n.tableLen)[k] == 0
+{
+  var i := -1;
+
+  while (i < n.tableLen)
+    invariant -1 <= i <= n.tableLen
+    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k
+    invariant
+      contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, i)[k] == 0
+  {
+    i := i + 1;
+
+    pure assert 0 <= i < n.tableLen ==>
+      contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, i)
+      == contents_memtable_aux(n.tableK.map, n.tableT.map, n.tableLen, i-1)
+        [n.tableK[i] := n.tableT[i]];
+    pure assert 0 <= i < n.tableLen ==> n.tableK[i] != k;
+  }
+}
+
+lemma contents_sstable_not_found(n: Node, k: K,
+    ghost r: Node, ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, Int>)
+  requires node(r, n, esn, Cn) &*& n.nodeType == sstableNode
+  requires forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k
+  ensures node(r, n, esn, Cn)
+  ensures Cn[k] == 0
+{
+  var i := 0;
+  while (i < n.tableLen)
+    invariant node(r, n, esn, Cn) &*& n.nodeType == sstableNode
+    invariant 0 <= i <= n.tableLen
+    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k
+    invariant forall j: Int :: 0 <= j < i ==> n.indices[k] != j
+  {
+    pure assert n.tableK[i] != k;
+    pure assert n.indices[k] != i;
+    i := i + 1;
   }
 }
 
@@ -121,7 +168,16 @@ define nodePure(r, n, esn, Cn) {
     || n.nodeType == sstableNode
       && n != r
       && sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
+      // Cn is given by tableK and tableT
       && (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.tableK[i]] == n.tableT[i])
+      // For keys not in tableK, Cn is 0
+      && (forall k: K :: n.indices[k] == -1 ==> Cn[k] == 0)
+      // n.indices is the inverse of n.tableK
+      && (forall k: K :: 0 <= n.indices[k] < n.tableLen
+        ==> n.tableK.map[n.indices[k]] == k)
+      && (forall i: Int :: 0 <= i < n.tableLen
+        ==> n.indices[n.tableK.map[i]] == i @(noinst i))
+      && (forall k: K :: -1 <= n.indices[k] < n.tableLen)
   )
   && 0 <= n.tableLen <= n.tableK.length
   // No self-loops
@@ -186,14 +242,14 @@ procedure init()
 
 // TODO which ones need to be implicit?
 procedure inContents(n: Node, k: K,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (res: OptionTS)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
   ensures res != noneTS ==> Cn[k] == res.tst
-  // TODO make Cn Map<K, OptionTS> instead of:
-  // ensures Cn[k] == res
-  // ensures res == noneTS ==> (forall j: Int :: 0 <= j < n.tableLen ==> n.tableK[j] != k)
+  ensures res == noneTS ==> Cn[k] == 0
+  // TODO make Cn Map<K, OptionTS> instead?
 {
   if (n.nodeType == memtableNode) {
     var i := n.tableLen - 1;
@@ -214,6 +270,7 @@ procedure inContents(n: Node, k: K,
       contents_memtable_found(n, k, i);
       return someTS(n.tableT[i]);
     } else {
+      contents_memtable_not_found(n, k);
       return noneTS;
     }
   } else {
@@ -221,6 +278,7 @@ procedure inContents(n: Node, k: K,
     if (b) {
       return someTS(n.tableT[i]);
     } else {
+      contents_sstable_not_found(n, k, r, esn, Cn);
       return noneTS;
     }
   }
@@ -309,12 +367,14 @@ procedure insertNode(n: Node, m: Node,
   ensures esn1[m] != {} && esn1 == esn[m := esn1[m]]
   ensures esm == { x: Node :: {} } && Cm == { k: K :: 0 }
 {
+  pure assert n != m;
   n.next := m;
   esn1 := { x: Node :: x == m ? { k: K :: true } : {} };
 
   m.tableLen := 0;
   m.next := null;
   m.nodeType := sstableNode;
+  m.indices := { k: K :: -1 };
   esm := { x: Node :: {} };
   Cm := { k: K :: 0 };
 
