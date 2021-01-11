@@ -172,7 +172,7 @@ Section gen_multicopy.
   (** Assumptions on the implementation made by the template algorithms. *)
 
   (* The node predicate is specific to each template implementation. See GRASShopper files
-     <TODO>.spl for the concrete definition. *)
+     multicopy-lsm.spl for the concrete definition. *)
   Parameter node : Node → Node → esT → (gmap K natUR) → iProp.
 
   (* The following assumption is justified by the fact that GRASShopper uses a
@@ -182,7 +182,7 @@ Section gen_multicopy.
   Proof. apply node_timeless_proof. Qed.
 
   (* The following hypothesis are proved as a GRASShopper lemma in
-   * <TODO>.spl *)
+   * multicopy-lsm.spl *)
   Parameter node_sep_star: ∀ r n es C es' C',
     node r n es C ∗ node r n es' C' -∗ False.
 
@@ -379,14 +379,14 @@ Section gen_multicopy.
   Definition global_state (γ_t γ_I γ_J γ_f γ_gh: gname) 
           (r: Node) (t: nat) (H: gset KT) 
           (hγ: gmap Node per_node_gl) (I: multiset_flowint_ur KT) 
-          (R: multiset_flowint_ur K) : iProp :=
+          (J: multiset_flowint_ur K) : iProp :=
       own γ_t (●{1/2} MaxNat t)
     ∗ own γ_I (● I) ∗ ⌜outflow_zero I⌝
-    ∗ own γ_J (● R) ∗ ⌜outflow_zero_J R⌝ ∗ ⌜inflow_J R r⌝
+    ∗ own γ_J (● J) ∗ ⌜outflow_zero_J J⌝ ∗ ⌜inflow_J J r⌝
     ∗ own γ_f (● domm I)
     ∗ own γ_gh (● hγ)
     ∗ inFP γ_f r
-    ∗ ⌜domm I = domm R⌝ 
+    ∗ ⌜domm I = domm J⌝ 
     ∗ ⌜domm I = dom (gset Node) hγ⌝.
 
   Definition mcs_conc γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H : iProp :=
@@ -488,7 +488,7 @@ Section gen_multicopy.
   (** Helper functions specs *)
 
   (* The following specs are proved for each implementation in GRASShopper
-   * (see <TODO>.spl *)
+   * (see multicopy-lsm.spl *)
     
   Parameter inContents_spec : ∀ r n es (Cn: gmap K natUR) (k: K),
      ⊢ ({{{ node r n es Cn }}}
