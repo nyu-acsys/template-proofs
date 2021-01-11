@@ -285,7 +285,8 @@ procedure inContents(n: Node, k: K,
 }
 
 procedure addContents(n: Node, k: K, t: Int,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (succ: Bool, implicit ghost Cn1: Map<K, Int>)
   requires node(r, n, esn, Cn) &*& n == r
   ensures node(r, n, esn, Cn1)
@@ -311,7 +312,8 @@ procedure addContents(n: Node, k: K, t: Int,
 }
 
 procedure findNext(n: Node, k: K,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (res: OptionNode)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
@@ -326,7 +328,8 @@ procedure findNext(n: Node, k: K,
 }
 
 procedure atCapacity(n: Node,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (b: Bool)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
@@ -344,7 +347,8 @@ define needsNewNode(r, n, esn, Cn) {
 }
 
 procedure chooseNext(n: Node,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (res: OptionNode)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
@@ -359,7 +363,8 @@ procedure chooseNext(n: Node,
 }
 
 procedure insertNode(n: Node, m: Node,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>, ghost Cn: Map<K, Int>)
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, Int>)
   returns (ghost esn1: Map<Node, Set<K>>, ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, Int>)
   requires node(r, n, esn, Cn) &*& nodeSpatial(m)
   requires needsNewNode(r, n, esn, Cn) &*& m != r
