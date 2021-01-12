@@ -53,7 +53,6 @@ Section multicopy.
   Notation iProp := (iProp Σ).
 
   Global Definition mcsN N := N .@ "mcs".
-  Global Definition helpN N := N .@ "help".
   Global Definition threadN N := N .@ "thread".
 
   (** The multicopy template invariant *)
@@ -102,16 +101,7 @@ Section multicopy.
     inv (mcsN N) (mcs γ_te γ_he γ_s Prot Inv_tpl).
 
   (** Helping Inv **)
-(*
-  Definition helping (N: namespace) (γ_fr: gname) 
-                      (protocol_abs : gset KT → iProp) : iProp :=
-      ∃ (H: gset KT),  
-        own γ_fr (to_frac_agree (1/2) H)
-      ∗ protocol_abs H.
-  
-  Definition helping_inv N γ_fr protocol_abs : iProp :=
-    inv (helpN N) (helping N γ_fr protocol_abs).
-*)  
+
   Definition pau N γ_te γ_he P (Q : val → iProp) k := 
     (▷ P -∗ ◇ AU << ∀ t H, MCS γ_te γ_he t H >> 
                   @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N)), ∅

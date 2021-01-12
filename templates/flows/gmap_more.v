@@ -396,13 +396,3 @@ Lemma gmap_lookup_insert_map_ne {A} `{Countable K} (m s: gmap K A) (k: K) :
 Proof.
   apply gmap_lookup_insert_map_aux.
 Qed.
-
-               
-
-
-
-
-
-
-
-

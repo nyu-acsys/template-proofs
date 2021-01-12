@@ -5,7 +5,6 @@
    Local Reasoning for Global Graph Properties: Siddharth Krishna and Alexander J. Summers and Thomas Wies, ESOP'20.
 *)
 
-(*From iris.heap_lang Require Import proofmode.*)
 From iris.algebra Require Export auth updates local_updates.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
@@ -32,7 +31,6 @@ Record flowintR :=
     outR : nzmap Node flowdom;
   }.
 
-(* TODO: could also just use `option flowintR` here *)
 Inductive flowintT :=
 | int: flowintR → flowintT
 | intUndef: flowintT. (* used when interface composition is undefined *)

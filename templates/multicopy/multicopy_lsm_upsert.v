@@ -274,6 +274,7 @@ Section multicopy_lsm_upsert.
       iMod ("Hclose" with "[MCS_t MCS_h]") as "HΦ".
       iFrame. by iPureIntro.
       
+      (** Use ghost_update_protocol to update Prot(H) **)
       iSpecialize ("Ghost_updP" $! T H1).
       iMod ("Ghost_updP" with "[] [$MCS_auth] [$Prot]") 
                         as "(Prot & MCS_auth)". 

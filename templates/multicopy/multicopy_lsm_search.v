@@ -11,7 +11,6 @@ Require Export multicopy_lsm multicopy_lsm_util.
 
 Section multicopy_lsm_search.
   Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
-(*   Context (N : namespace). *)
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   

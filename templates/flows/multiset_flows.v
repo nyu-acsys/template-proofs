@@ -331,19 +331,6 @@ Proof.
   trivial.
 Qed.
 
-(*Lemma outflow_map_set_inset_ne f I n S I' n' :
-      I' = outflow_map_set f I n S → 
-          inf I' n' = inf I n'.
-Proof.
-  intros Heq.
-  unfold inset.
-  rewrite Heq.
-  pose proof (outflow_map_set_inf_eq f I n S I' n').
-  rewrite <- Heq.
-  apply H0 in Heq.
-  by rewrite Heq.
-Qed.*)
-
 Lemma inflow_map_set_ne f I n S I' n' :
       n' ≠ n → I' = inflow_map_set f I n S → 
            inf_map I' !! n' = inf_map I !! n'.
@@ -744,8 +731,6 @@ Proof.
       apply outflow_map_set_inf in Hi1_eq.
       rewrite Hi1_eq.
       unfold domm, dom, flowint_dom in Hi1_domm.
-      (*rewrite Hi1_domm.
-      unfold dom, nzmap_dom in Hi1_eq.*)
       rewrite elem_of_subseteq in Hi1_domm *. intros.
       rewrite elem_of_disjoint.
       intros n' HinfI1 HoutI1'.
