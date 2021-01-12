@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -e -x
 
 # This is a script for the ECOOP'21 artifact
 

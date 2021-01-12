@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e -x
 
 mkdir ecoop21_artifact
 cd ecoop21_artifact
