@@ -125,7 +125,7 @@ make multicopy/multicopy.vo
 
 You can prefix the make command with e.g. `TIMED=true` in order to time each check, or `VERBOSE=true` in order to see the exact command being used. We suppress certain Coq warnings, but these are the same as the ones suppressed by Iris (see https://gitlab.mpi-sws.org/iris/iris/blob/master/_CoqProject).
 
-You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as either `Parameter` (for the helper function implementations) or `Hypothesis` (for an implementation-dependent lemma of the same name checked by GRASShopper). See below for a complete list of such assumptions.
+You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as a `Parameter`. The assumption is either a helper function implementation or an implementation-dependent lemma of the same name checked by GRASShopper. See below for a complete list of such assumptions.
 
 Apart from these, we make the following assumptions in our Iris proofs:
 `lockLoc`, `getLockLoc`, `getLockLoc_spec`, and `node_timeless_proof`. The first three assumptions are a way to talk about the lock field of each node that all GRASShopper implementations have. These assumptions are declared in the file `lock.v`. The assumption `node_timeless_proof` is justified because GRASShopper uses a first-order separation logic.
@@ -143,5 +143,23 @@ From the `implementations/` directory, one can check individual implementation f
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
 
-You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. 
+You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands.
+
+#### LSM DAG Template and Implementation
+
+The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy-lsm.spl`):
+
+* Parameters `node`, `nodeSpatial` and `needsNewNode`:
+  This are predicates that are defined in the implementation by macros of same name.
+* Parameters `findNext`, `inContent`, and `addContents`:
+  These are GRASShopper procedures in the implementation file. These procedure are used by search and upsert operations.
+* Parameters `atCapacity`, `chooseNext`, `mergeContents`, `allocNode` and `insertNode` :
+  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedure are used by the compact operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
+* Parameters `findNext_spec`, `inContent_spec`, `addContents_spec`:
+  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures used by search and upsert. These are checked manually to ensure that they match (modulo the different syntax for each tool).
+* Parameters `atCapacity_spec`, `chooseNext_spec`, `mergeContents_spec`, `allocNode_spec` and `insertNode_spec` :
+  These are the specifications of procedures used by the compact operation, manually checked to ensure that they match. 
+* Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
+  These have GRASShopper lemmas of the same names, with proofs in the implementation file.
+ 
 

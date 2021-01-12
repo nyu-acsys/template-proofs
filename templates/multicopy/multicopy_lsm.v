@@ -126,6 +126,10 @@ Section multicopy_lsm.
      multicopy-lsm.spl for the concrete definition. *)
   Parameter node : Node → Node → esT → (gmap K natUR) → iProp.
 
+  Parameter nodeSpatial : Node → iProp.
+  
+  Parameter needsNewNode : Node → Node → esT → (gmap K nat) → iProp. 
+
   (* The following assumption is justified by the fact that GRASShopper uses a
    * first-order separation logic. *)
   Parameter node_timeless_proof : ∀ r n es C, Timeless (node r n es C).
@@ -142,10 +146,6 @@ Section multicopy_lsm.
 
   Parameter node_es_empty: ∀ r n es C,
     node r n es C -∗ ⌜es !!! r = ∅ ∧ es !!! n = ∅⌝.
-
-  Parameter nodeSpatial : Node → iProp.
-  
-  Parameter needsNewNode : Node → Node → esT → (gmap K nat) → iProp. 
 
   (** The multicopy structure invariant *)
   
@@ -413,3 +413,4 @@ Section multicopy_lsm.
 
 
 End multicopy_lsm.
+  
