@@ -3,17 +3,11 @@
 mkdir ecoop21_artifact
 cd ecoop21_artifact
 
-# Download and build Grasshopper 
-
-[ ! -d "./grasshopper" ] && git clone https://github.com/wies/grasshopper.git grasshopper
-pushd ./grasshopper/
-./build.sh
-popd
-
 cp ../README_ecoop21.md .
 mv README_ecoop21.md README.md
 cp ../run_experiments_ecoop21.sh .
 mv run_experiments_ecoop21.sh run_experiments.sh
+cp ../setup.sh .
 
 mkdir implementations
 mkdir templates
@@ -27,15 +21,15 @@ files=(
 "implementations/ordered_type.spl"
 "implementations/multicopy-lsm.spl"
 "templates/xp_ecoop21.sh"
-"templates/_CoqProject"
+"templates/_CoqProject_ecoop21"
 "templates/flows/gmap_more.v"
 "templates/flows/ccm.v"
 "templates/flows/flows.v"
 "templates/flows/multiset_flows.v"
 "templates/util/auth_ext.v"
 "templates/util/lock.v"
-"templates/multicopy/one_shot_proph.v"
-"templates/multicopy/typed_proph.v"
+"templates/util/one_shot_proph.v"
+"templates/util/typed_proph.v"
 "templates/multicopy/multicopy.v"
 "templates/multicopy/multicopy_util.v"
 "templates/multicopy/multicopy_client_level.v"
@@ -49,6 +43,8 @@ files=(
 for t in ${files[@]}; do
   cp ../$t $t
 done
+
+mv templates/_CoqProject_ecoop21 templates/_CoqProject
 
 cd ..
 

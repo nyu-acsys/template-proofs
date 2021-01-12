@@ -3,7 +3,7 @@ set -e
 
 # Download and build GRASShopper
 
-[ ! -d "./grasshopper" ] && git clone -b pldi_2020 https://github.com/wies/grasshopper.git grasshopper
+[ ! -d "./grasshopper" ] && git clone https://github.com/wies/grasshopper.git grasshopper
 pushd ./grasshopper/
 ./build.sh
 popd

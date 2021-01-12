@@ -22,15 +22,6 @@ util/lock.v
 util/one_shot_proph.v
 util/typed_proph.v
 
-single_copy/search_str.v
-single_copy/keyset_ra.v
-single_copy/inset_flows.v
-#single_copy/single_node.v
-#single_copy/two_node.v
-#single_copy/give_up.v
-#single_copy/link.v
-#single_copy/coupling.v
-
 multicopy/multicopy.v
 multicopy/multicopy_util.v
 multicopy/multicopy_client_level.v

@@ -1,10 +1,22 @@
 #!/bin/bash
 
-timesfile=/tmp/times-iris
-timestotalfile=/tmp/times-total-iris
-locfile=/tmp/loc-iris
-loctotalfile=/tmp/loc-total-iris
-outputfile=/tmp/templates-table
+[[ $OSTYPE =~ "darwin" ]] && {
+  alias time=gtime
+  alias date=gdate
+  alias sed=gsed
+  shopt -s expand_aliases
+}
+
+#echo "Building Grasshopper"
+#./build.sh
+
+timesfile=/tmp/times-grasshopper
+locfile=/tmp/loc-grasshopper
+timestotalfile=/tmp/times-total-grasshopper
+loctotalfile=/tmp/loc-total-grasshopper
+outputfile=/tmp/implementations-table
+
+SPLPATH=.
 
 fail=0
 
@@ -12,43 +24,37 @@ run()
 {
     name="${1}"
     tabs=$((2 - ${#name} / 8))
-    echo "\\hline" >> $outputfile
+    echo  "\\hline" >> $outputfile
     echo -n "$name" >> $outputfile
     perl -E "print \"\t\" x $tabs" >> $outputfile
     shift
     rm -f $timesfile $locfile
     for f in $@ ; do
-        # ignore comments and blank lines for line counting
-        grep -v -e '^[[:space:]]*$' $f.v | grep -v -e "^[[:space:]]*(\*" | wc -l >> $locfile
-        { TIMEFORMAT=%3R; time make $f.vo 2>&1 ; } 2>> $timesfile
+        #echo "processessing $f"
+        python ../grasshopper/bin/line-counter.py $SPLPATH/$f.spl >> $locfile
+        echo "../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f"
+        { TIMEFORMAT=%3R; time ../grasshopper/grasshopper.native $SPLPATH/$f.spl -module $f 2>&1 ; } 2>> $timesfile
         retcode=$?
         if [ $retcode -ne 0 ]; then
             fail=1
-            echo -e "\nCoq exited with errors in file $f.v.\n"
+            echo -e "\nGrasshopper exited with errors on file $f.spl.\n"
         fi
-        echo 1 >> $timesfile
     done
-    awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $locfile >> $outputfile
-    awk '{sum+=$1;} END{print sum;}' $locfile >> $loctotalfile
+    awk -F "\t" '{specs+=$1; progs+=$2; total+=$3} END{printf("\t& %d\t& %d\t& %d", progs, specs, total);}' $locfile >> $outputfile
+    awk -F "\t" '{specs+=$1; progs+=$2; total+=$3} END{printf("%d\t%d\t%d\n", progs, specs, total);}' $locfile >> $loctotalfile
     awk '{sum+=$1;} END{printf("\t& %d\\\\\n", int(sum+0.5));}' $timesfile >> $outputfile
     awk '{sum+=$1;} END{printf("%d\n", int(sum+0.5));}' $timesfile >> $timestotalfile
 }
 
-eval $(opam env)
-coq_makefile -f _CoqProject -o Makefile
-make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
-echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow library" "flows/gmap_more flows/ccm flows/flows flows/multiset_flows"
-run "Lock Implementation" "util/auth_ext util/lock"
-run "MCS Client Spec" "multicopy/one_shot_proph multicopy/typed_proph multicopy/multicopy multicopy/multicopy_util multicopy/multicopy_client_level"
-run "MCS Search Recency" "multicopy/multicopy_lsm multicopy/multicopy_lsm_util multicopy/multicopy_lsm_search multicopy/multicopy_lsm_upsert multicopy/multicopy_lsm_compact"
+echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
+run "Array Library" "ordered_type array_util"
+run "LSM DAG Template" "multicopy-lsm"
 
-echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
-awk '{sum+=$1;} END{printf("\t& ?\t& ?\t& %d", sum);}' $loctotalfile >> $outputfile
-awk '{sum+=$1;} END{printf("\t& %d\\\\\n", int(sum+0.5));}' $timestotalfile >> $outputfile
+awk -F "\t" '{progs+=$1; specs+=$2; total+=$3} END{printf("\t& %d\t& %d\t& %d", progs, specs, total);}' $loctotalfile >> $outputfile
+awk '{sum+=$1;} END{printf("\t& %d\n", int(sum+0.5));}' $timestotalfile >> $outputfile
 
 echo ""
 cat $outputfile

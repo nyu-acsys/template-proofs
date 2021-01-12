@@ -4,7 +4,7 @@ From iris.heap_lang Require Export lang.
 From iris.heap_lang Require Import proofmode notation.
 Set Default Proof Using "Type".
 
-Fixpoint val_of_list (vs : list (val * val)) : val :=
+Definition val_of_list (vs : list (val * val)) : val :=
   match vs with
   | []          => #()
   | (_, v) :: _ => v

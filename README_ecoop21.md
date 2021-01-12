@@ -1,4 +1,4 @@
-## Artifact for PLDI'20 paper: Verifying Concurrent Search Structure Templates
+## Artifact for ECOOP'21 paper: Verifying Concurrent Search Structure Templates
 
 ### Getting Started Guide
 

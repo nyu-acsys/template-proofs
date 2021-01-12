@@ -40,10 +40,10 @@ make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow library" "flows/gmap_more flows/ccm flows/flows flows/multiset_flows"
-run "Lock Implementation" "util/auth_ext util/lock"
-run "MCS Client Spec" "multicopy/one_shot_proph multicopy/typed_proph multicopy/multicopy multicopy/multicopy_util multicopy/multicopy_client_level"
-run "MCS Search Recency" "multicopy/multicopy_lsm multicopy/multicopy_lsm_util multicopy/multicopy_lsm_search multicopy/multicopy_lsm_upsert multicopy/multicopy_lsm_compact"
+run "Flow Library" "flows/gmap_more flows/ccm flows/flows flows/multiset_flows"
+run "Lock Implementation" "util/auth_ext util/lock util/one_shot_proph util/typed_proph"
+run "Client-level Spec" "multicopy/multicopy multicopy/multicopy_util multicopy/multicopy_client_level"
+run "LSM DAG Template" "multicopy/multicopy_lsm multicopy/multicopy_lsm_util multicopy/multicopy_lsm_search multicopy/multicopy_lsm_upsert multicopy/multicopy_lsm_compact"
 
 echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
