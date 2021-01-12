@@ -50,6 +50,7 @@ for t in ${files[@]}; do
   cp ../$t $t
 done
 
+cd ..
 
 zip -r ecoop21_artifact.zip ecoop21_artifact/
 
