@@ -201,7 +201,7 @@ Section multicopy_lsm.
   Definition φ5 n (Jn: multiset_flowint_ur K) := 
               ∀ k, inf Jn n !1 k ≤ 1.
 
-  
+  (** The following two constraints are inductive consequences of ϕ1..ϕ5. We track them explicitly in the invariant for convenience. *)
   Definition φ6 n (es: esT) (Jn: multiset_flowint_ur K) (Qn: gmap K natUR) :=
               ∀ k, k ∈ KS → ((∃ n', k ∈ es !!! n') ∧ k ∈ inset K Jn n 
                           → k ∈ dom (gset K) Qn).              
