@@ -150,13 +150,13 @@ You can verify that our GRASShopper proof scripts have no "holes" in them by che
 The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy-lsm.spl`):
 
 * Parameters `node`, `nodeSpatial` and `needsNewNode`:
-  This are predicates that are defined in the implementation by macros of same name.
+  These are predicates that are defined in the implementation by macros of the same name.
 * Parameters `findNext`, `inContent`, and `addContents`:
-  These are GRASShopper procedures in the implementation file. These procedure are used by search and upsert operations.
+  These are GRASShopper procedures in the implementation file. These procedure are used by the `search` and `upsert` operations.
 * Parameters `atCapacity`, `chooseNext`, `mergeContents`, `allocNode` and `insertNode` :
-  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedure are used by the compact operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
+  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
 * Parameters `findNext_spec`, `inContent_spec`, `addContents_spec`:
-  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures used by search and upsert. These are checked manually to ensure that they match (modulo the different syntax for each tool).
+  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures used by `search` and `upsert`. These are checked manually to ensure that they match (modulo the different syntax for each tool).
 * Parameters `atCapacity_spec`, `chooseNext_spec`, `mergeContents_spec`, `allocNode_spec` and `insertNode_spec` :
   These are the specifications of procedures used by the compact operation, manually checked to ensure that they match. 
 * Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
