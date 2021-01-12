@@ -1,3 +1,6 @@
+(** Code borrowed from Iris/examples repository : https://gitlab.mpi-sws.org/iris/examples/ *)
+(** File at /theories/proph/lib/typed_proph.v *)
+
 From iris.proofmode Require Import tactics.
 From iris.program_logic Require Export weakestpre.
 From iris.heap_lang Require Export lang.

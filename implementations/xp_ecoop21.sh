@@ -50,7 +50,7 @@ rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "; Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
 run "Array Library" "ordered_type array_util"
-run "LSM DAG Template" "multicopy-lsm"
+run "LSM Implementation" "multicopy-lsm"
 
 echo -n -e "Total\t\t" >> $outputfile
 awk -F "\t" '{progs+=$1; specs+=$2; total+=$3} END{printf("\t& %d\t& %d\t& %d", progs, specs, total);}' $loctotalfile >> $outputfile
