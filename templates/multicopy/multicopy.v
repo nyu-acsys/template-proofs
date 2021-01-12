@@ -81,25 +81,25 @@ Section multicopy.
   
   Definition init (H: gset KT) := ∀ k, k ∈ KS → (k, 0) ∈ H.
 
-  Definition mcs_inv_high (γ_te γ_he γ_s: gname) (Prot_help: gset KT → iProp) 
+  Definition mcs_inv_high (γ_te γ_he γ_s: gname) (Prot: gset KT → iProp) 
                           (T: nat) (H: gset KT) : iProp :=
       MCS_auth γ_te γ_he T H
     ∗ own γ_s (● H) 
     ∗ ⌜init H⌝
     ∗ ⌜maxTS T H⌝
-    ∗ Prot_help H.
+    ∗ Prot H.
     
   (** Invariant Inv in the paper *)
-  Definition mcs (γ_te γ_he γ_s: gname) (Prot_help: gset KT → iProp) 
+  Definition mcs (γ_te γ_he γ_s: gname) (Prot: gset KT → iProp) 
                     (Inv_tpl: nat → gset KT → iProp) : iProp :=
     ∃ (T: nat) (H: gset KT),
-      mcs_inv_high γ_te γ_he γ_s Prot_help T H
+      mcs_inv_high γ_te γ_he γ_s Prot T H
     ∗ Inv_tpl T H.  
 
   Definition mcs_inv (N: namespace) (γ_te γ_he γ_s: gname)
-                      (Prot_help: gset KT → iProp) 
+                      (Prot: gset KT → iProp) 
                       (Inv_tpl: nat → gset KT → iProp) := 
-    inv (mcsN N) (mcs γ_te γ_he γ_s Prot_help Inv_tpl).
+    inv (mcsN N) (mcs γ_te γ_he γ_s Prot Inv_tpl).
 
   (** Helping Inv **)
 (*
@@ -143,10 +143,10 @@ Section multicopy.
 
   Definition Prot_help (N: namespace) (γ_te γ_he γ_td γ_ght: gname) 
                                         (H: gset KT) : iProp :=
-    ∃ (TD: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
-        own γ_td (● TD)
-      ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = TD⌝  
-      ∗ ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght H t_id).
+    ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR gnameO)),
+        own γ_td (● R)
+      ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = R⌝  
+      ∗ ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght H t_id).
 
   Definition MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght t M : iProp :=
   ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝

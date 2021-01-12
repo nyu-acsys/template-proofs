@@ -22,24 +22,24 @@ Definition search' : val :=
     resolve_proph: "p" to: "t'";;
     "t'".  
 
-Section multicopy_high.
+Section multicopy_client_level.
   Context {Σ} `{heapG Σ, !multicopyG Σ}.
   Notation iProp := (iProp Σ).
 
   (** Low-level specs of multicopy operations *)
 
-  Parameter search_recency: ∀ N γ_te γ_he γ_s Prot_help Inv_tpl k t0, 
+  Parameter search_recency: ∀ N γ_te γ_he γ_s Prot Inv_tpl k t0, 
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s Prot_help Inv_tpl -∗
+        mcs_inv N γ_te γ_he γ_s Prot Inv_tpl -∗
           SR γ_s (k, t0) -∗
               <<< True >>> 
                   search #k @ ⊤ ∖ ↑(mcsN N)
               <<< ∃ (t': nat), SR γ_s (k, t') ∗ ⌜t0 ≤ t'⌝ , RET #t' >>>.
 
-  Parameter upsert_spec: ∀ N γ_te γ_he γ_s Prot_help Inv_tpl k,
+  Parameter upsert_spec: ∀ N γ_te γ_he γ_s Prot Inv_tpl k,
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        (ghost_update_protocol N γ_te γ_he Prot_help k) -∗ 
-          mcs_inv N γ_te γ_he γ_s Prot_help Inv_tpl -∗
+        (ghost_update_protocol N γ_te γ_he Prot k) -∗ 
+          mcs_inv N γ_te γ_he γ_s Prot Inv_tpl -∗
               <<< ∀ t H, MCS γ_te γ_he t H >>> 
                      upsert #k @ ⊤ ∖ (↑(mcsN N))
               <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
@@ -119,14 +119,14 @@ Section multicopy_high.
         assert (tp = t) as H' by lia.
         rewrite <-H'. by rewrite Hcase'.
     - assert (tp > t0) by lia. rename H1 into tp_gr_t0.
-      iDestruct "Prot" as (TD hγt)"(>HTD & >Hγt 
+      iDestruct "Prot" as (R hγt)"(>HR & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
-      iAssert (▷ (⌜tid ∉ TD⌝ 
-                ∗ ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght H0 t_id) 
+      iAssert (▷ (⌜tid ∉ R⌝ 
+                ∗ ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght H0 t_id) 
                 ∗ proph1 tid vt))%I with "[Hstar_reg Htid]" 
                 as "(>% & Hstar_reg & Htid)".
-      { destruct (decide (tid ∈ TD)); try done.
-        - iEval (rewrite (big_sepS_elem_of_acc _ (TD) tid); 
+      { destruct (decide (tid ∈ R)); try done.
+        - iEval (rewrite (big_sepS_elem_of_acc _ (R) tid); 
                                 last by eauto) in "Hstar_reg".
           iDestruct "Hstar_reg" as "(Hreg & Hstar_reg')".
           iDestruct "Hreg" as (? ? ? ? ? ? ?)"(H' & _)".
@@ -134,13 +134,13 @@ Section multicopy_high.
           iApply (proph1_exclusive tid with "[Htid]"); try done.
           iNext. iExFalso; try done.
         - iFrame. iNext. by iPureIntro. }
-      rename H1 into tid_notin_TD.
-      iMod (own_update γ_td (● TD) (● (TD ∪ {[tid]})) with "[$HTD]") as "HTD".
-      { apply (auth_update_auth _ _ (TD ∪ {[tid]})).
+      rename H1 into tid_notin_R.
+      iMod (own_update γ_td (● R) (● (R ∪ {[tid]})) with "[$HR]") as "HR".
+      { apply (auth_update_auth _ _ (R ∪ {[tid]})).
         apply gset_local_update. set_solver. }
-      iMod (own_update γ_td (● (TD ∪ {[tid]})) (● (TD ∪ {[tid]}) ⋅ ◯ {[tid]}) 
-                with "[$HTD]") as "(HTD & #FP_t)".
-      { apply (auth_update_frac_alloc _ (TD ∪ {[tid]}) ({[tid]})).
+      iMod (own_update γ_td (● (R ∪ {[tid]})) (● (R ∪ {[tid]}) ⋅ ◯ {[tid]}) 
+                with "[$HR]") as "(HR & #FP_t)".
+      { apply (auth_update_frac_alloc _ (R ∪ {[tid]}) ({[tid]})).
         apply gset_included. clear; set_solver. }
 
       iMod (own_alloc (to_frac_agree (1) (H0))) 
@@ -157,9 +157,9 @@ Section multicopy_high.
       { apply auth_update_alloc. 
         rewrite /hγt'.
         apply alloc_local_update; last done.
-        rewrite <-Domm_hγt in tid_notin_TD.
-        by rewrite not_elem_of_dom in tid_notin_TD*; 
-        intros tid_notin_TD. }
+        rewrite <-Domm_hγt in tid_notin_R.
+        by rewrite not_elem_of_dom in tid_notin_R*; 
+        intros tid_notin_R. }
       iDestruct "Hγt" as "(Hγt & #Hreg_gh)".  
                   
       iDestruct (laterable with "AU") as (AU_later) "[AU #AU_back]".
@@ -176,15 +176,15 @@ Section multicopy_high.
 
       iModIntro. iSplitR "Hproph Token". iNext.
       iExists T0, H0. iFrame "Htpl". iFrame.
-      iExists (TD ∪ {[tid]}), hγt'. iFrame.
+      iExists (R ∪ {[tid]}), hγt'. iFrame.
       iSplitR. iPureIntro. subst hγt'.
       apply leibniz_equiv. rewrite dom_insert.
       rewrite Domm_hγt. clear; set_solver.
-      rewrite (big_sepS_delete _ (TD ∪ {[tid]}) tid); last by set_solver.
+      rewrite (big_sepS_delete _ (R ∪ {[tid]}) tid); last by set_solver.
       iSplitR "Hstar_reg". unfold Reg.
       iExists AU_later, Φ, k, tp, vt, γ_tk', γ_sy. iFrame "∗#".
-      assert ((TD ∪ {[tid]}) ∖ {[tid]} = TD) as H' 
-                  by (clear -tid_notin_TD; set_solver).
+      assert ((R ∪ {[tid]}) ∖ {[tid]} = R) as H' 
+                  by (clear -tid_notin_R; set_solver).
       by rewrite H'.
             
       iModIntro. awp_apply search_recency; try done.
@@ -198,10 +198,10 @@ Section multicopy_high.
       iInv "HthInv" as (H1)"(>Hth_sy & Hth_or)".
       iInv "HInv" as (T1 H1') "(mcs_high & Htpl)".
       iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
-      iDestruct "Prot" as (TD1 hγt1)"(>HTD & >Hγt 
+      iDestruct "Prot" as (R1 hγt1)"(>HR & >Hγt 
                                       & >Domm_hγt & Hstar_reg)".
-      iAssert (⌜tid ∈ TD1⌝)%I as "%".
-      { iPoseProof (own_valid_2 _ _ _ with "[$HTD] [$FP_t]") as "H'".
+      iAssert (⌜tid ∈ R1⌝)%I as "%".
+      { iPoseProof (own_valid_2 _ _ _ with "[$HR] [$FP_t]") as "H'".
         iDestruct "H'" as %H'.
         apply auth_both_valid_discrete in H'.
         destruct H' as [H' _].
@@ -209,10 +209,10 @@ Section multicopy_high.
         iPureIntro. set_solver. }
         
       iAssert (▷ (⌜H1' = H1⌝
-               ∗ ([∗ set] t_id ∈ TD1, Reg N γ_te γ_he γ_ght H1' t_id)
+               ∗ ([∗ set] t_id ∈ R1, Reg N γ_te γ_he γ_ght H1' t_id)
                ∗ own (γ_sy) (to_frac_agree (1 / 2) H1) ))%I
                 with "[Hstar_reg Hth_sy]" as "(>% & Hstar_reg & >Hth_sy)". 
-      { iEval (rewrite (big_sepS_elem_of_acc _ (TD1) tid); 
+      { iEval (rewrite (big_sepS_elem_of_acc _ (R1) tid); 
                                 last by eauto) in "Hstar_reg".
         iDestruct "Hstar_reg" as "(Hreg_t & Hstar_reg')".
         iDestruct "Hreg_t" as (P' Q' k' vp' vt' γ_tk'' γ_sy')
@@ -257,7 +257,7 @@ Section multicopy_high.
       
       iModIntro. iSplitR "Hth_or Hth_sy Token".
       iExists T1, H1; iFrame.
-      iNext. iExists TD1, hγt1; iFrame.
+      iNext. iExists R1, hγt1; iFrame.
       
       iModIntro. iSplitL "Token Hth_sy".
       iNext. iExists H1. iFrame "Hth_sy". 
@@ -299,23 +299,23 @@ Section multicopy_high.
   
   Lemma ghost_update_registered (k: K) (T: nat) (N: namespace) 
                 (γ_te γ_he γ_ght: gname) 
-                (H1: gset KT) (TD: gset proph_id)  :
+                (H1: gset KT) (R: gset proph_id)  :
         ⌜map_of_set (H1 ∪ {[k, T]}) !!! k = T⌝ -∗
            MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}) -∗          
-      ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght H1 t_id) 
+      ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght H1 t_id) 
         ={⊤ ∖ ↑(mcsN N)}=∗ 
-      ([∗ set] t_id ∈ TD, Reg N γ_te γ_he γ_ght 
+      ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght 
                                       (H1 ∪ {[(k, T)]}) t_id)
        ∗ MCS_auth γ_te γ_he (T+1) (H1 ∪ {[(k, T)]}).
   Proof.
     iIntros "H1_k MCS_auth".
     iDestruct "H1_k" as %H1_k.
-    iInduction TD as [|x TD' x_notin_TD IH] "HInd" using set_ind_L; 
+    iInduction R as [|x R' x_notin_R IH] "HInd" using set_ind_L; 
       auto using big_sepS_empty'.
-    rewrite (big_sepS_delete _ ({[x]} ∪ TD') x); last by set_solver.
-    rewrite (big_sepS_delete _ ({[x]} ∪ TD') x); last by set_solver.
-    assert (({[x]} ∪ TD') ∖ {[x]} = TD') as HTD'. set_solver.
-    rewrite HTD'.
+    rewrite (big_sepS_delete _ ({[x]} ∪ R') x); last by set_solver.
+    rewrite (big_sepS_delete _ ({[x]} ∪ R') x); last by set_solver.
+    assert (({[x]} ∪ R') ∖ {[x]} = R') as HR'. set_solver.
+    rewrite HR'.
     iIntros "(Hx & Hbigstar)". 
     iMod ("HInd" with "[$MCS_auth] Hbigstar") as "(H' & MCS_auth)".
     iFrame "H'".
@@ -399,12 +399,12 @@ Section multicopy_high.
     { iIntros (T' H')"H1_k MCS_auth".
       iDestruct "H1_k" as %H1_k.
       iIntros "Prot". 
-      iDestruct "Prot" as (TD hγt)"(HTD & Hγt & Domm_hγt & Hstar_reg)".
+      iDestruct "Prot" as (R hγt)"(HR & Hγt & Domm_hγt & Hstar_reg)".
       iMod (ghost_update_registered k T' with 
               "[] [MCS_auth] [$Hstar_reg]") 
                  as "(Hstar_reg & MCS_auth)"; try done.
       iModIntro. iFrame "MCS_auth".
-      iExists TD, hγt. iFrame. }
+      iExists R, hγt. iFrame. }
     awp_apply upsert_spec; try done.
     iApply (aacc_aupd_commit with "AU"). set_solver.
     iIntros (T1 M1)"MCS_high".
@@ -425,7 +425,7 @@ Section multicopy_high.
     iIntros "HΦ"; iModIntro; try done.
   Qed.
               
-End multicopy_high.
+End multicopy_client_level.
               
               
 

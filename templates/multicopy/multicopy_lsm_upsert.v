@@ -7,18 +7,18 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export general_multicopy general_multicopy_util.
+Require Export multicopy_lsm multicopy_lsm_util.
 
-Section gen_multicopy_upsert.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+Section multicopy_lsm_upsert.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma upsert_spec N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r (k: K) :
+  Lemma upsert_spec N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r (k: K) :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        (ghost_update_protocol N γ_te γ_he Prot_help k) -∗ 
-        mcs_inv N γ_te γ_he γ_s Prot_help 
-          (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        (ghost_update_protocol N γ_te γ_he Prot k) -∗ 
+        mcs_inv N γ_te γ_he γ_s Prot 
+          (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
             <<< ∀ t H, MCS γ_te γ_he t H >>> 
                    upsert lc r #k @ ⊤ ∖ (↑(mcsN N))
             <<< MCS γ_te γ_he (t + 1) (H ∪ {[(k,t)]}), RET #() >>>.
@@ -28,8 +28,8 @@ Section gen_multicopy_upsert.
     iIntros "Ghost_updP #HInv" (Φ) "AU". wp_lam.
     iApply fupd_wp. 
     (** Open invariant to establish root node in footprint **)
-    iInv "HInv" as (T0 H0)"(mcs_high & >Inv_tpl)".
-    iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
+    iInv "HInv" as (T0 H0)"(mcs_high & >Inv_LSM)".
+    iDestruct "Inv_LSM" as (hγ0 I0 J0)"(Hglob & Hstar)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IR & domm_Iγ)".
     iModIntro. iSplitR "AU Ghost_updP". iNext. 
@@ -66,8 +66,8 @@ Section gen_multicopy_upsert.
       wp_pures. wp_bind (incrementClock _)%E.
       wp_lam. iDestruct "HnP_t" as "(HnP_T & HnP_lc)".
       unfold clock. wp_load. wp_pures. 
-      iInv "HInv" as (T1 H1)"(mcs_high & >Inv_tpl)".
-      iDestruct "Inv_tpl" as (hγ1 I1 J1)"(Hglob & Hstar)".
+      iInv "HInv" as (T1 H1)"(mcs_high & >Inv_LSM)".
+      iDestruct "Inv_LSM" as (hγ1 I1 J1)"(Hglob & Hstar)".
       iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
       iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & _ & domm_IR & domm_Iγ)".
@@ -327,6 +327,6 @@ Section gen_multicopy_upsert.
   Qed.
 
 
-End gen_multicopy_upsert.
+End multicopy_lsm_upsert.
     
   

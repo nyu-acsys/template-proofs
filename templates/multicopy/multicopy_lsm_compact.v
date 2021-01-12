@@ -7,36 +7,13 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export general_multicopy general_multicopy_util.
+Require Export multicopy_lsm multicopy_lsm_util.
 
-Section gen_multicopy_compact.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+Section multicopy_lsm_compact.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
-(*
-  Definition nodePred' γ_gh γ_t γ_s lc r n Cn Bn Qn 
-                  γ_en γ_cn γ_bn γ_qn γ_cirn es t : iProp :=
-      node r n es Cn
-    ∗ own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})  
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn
-    ∗ own γ_s (◯ set_of_map Cn)
-    ∗ (if decide (n = r) then own γ_t (●{1/2} MaxNat t) ∗ clock lc t else ⌜True⌝)%I.
-
-  Definition nodeShared' γ_I γ_J γ_f γ_gh r n Cn Bn Qn H 
-                        γ_en γ_cn γ_bn γ_qn γ_cirn es In Jn: iProp :=
-      own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_bn γ_qn γ_cirn]})
-    ∗ frac_ghost_state γ_en γ_cn γ_bn γ_qn es Cn Bn Qn  
-    ∗ singleton_interfaces_ghost_state γ_I γ_J n In Jn 
-    ∗ inFP γ_f n
-    ∗ closed γ_f es
-    ∗ outflow_constraints n In Jn es Qn
-    ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
-    ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k))))
-    ∗ ⌜φ0 es Qn⌝ ∗ ⌜φ1 Bn Cn Qn⌝ ∗ ⌜φ2 n Bn In⌝ ∗ ⌜φ3 n Bn Jn⌝ 
-    ∗ ⌜φ4 n Jn⌝ ∗ ⌜φ5 Bn Qn⌝ ∗ ⌜φ7 n es Jn Qn⌝ ∗ ⌜φ8 n In⌝. 
-*)
-  
   (* nodePred without node(r, n, es, C) *)
   Definition nodePred_aux γ_gh γ_t γ_s lc r n (Cn Qn : gmap K natUR) 
                           γ_en γ_cn γ_qn γ_cirn es t: iProp :=
@@ -56,7 +33,6 @@ Section gen_multicopy_compact.
     ∗ ⌜contents_in_reach Bn Cn Qn⌝
     ∗ (if decide (n = r) then ⌜Bn = map_of_set H⌝ ∗ ⌜inflow_zero In⌝ else True)%I
     ∗ ([∗ set] k ∈ KS, own (γ_cirn !!! (k)) (● (MaxNat (Bn !!! k)))).
-
 
   Lemma maxnat_set_update (γ: gmap K gname) (S: gset K) (B B': gmap K nat) :
         (⌜∀ k, k ∈ S → B !!! k ≤ B' !!! k⌝) -∗ 
@@ -1145,8 +1121,8 @@ Section gen_multicopy_compact.
         ∗ ⌜set_of_map Cm' ⊆ set_of_map Cn ∪ set_of_map Cm⌝
         ∗ ⌜set_of_map Cn ∩ set_of_map Cm' ## set_of_map Cn'⌝
         ∗ ⌜dom (gset K) Cm ⊆ dom (gset K) Cm'⌝
-        ∗ ⌜general_multicopy.merge Cn (esn' !!! m) Cm = 
-                general_multicopy.merge Cn' (esn' !!! m) Cm'⌝ 
+        ∗ ⌜multicopy_lsm.merge Cn (esn' !!! m) Cm = 
+                multicopy_lsm.merge Cn' (esn' !!! m) Cm'⌝ 
         -∗
           node r n esn' Cn' ∗ nodePred_aux γ_gh γ_t γ_s lc r n Cn Qn0' 
                                           γ_en γ_cn γ_qn γ_cirn esn' T
@@ -1989,11 +1965,11 @@ Section gen_multicopy_compact.
                       lc r γ_td γ_ght (n: Node) :
       ⊢ inFP γ_f n -∗ 
           <<< ∀ t M, MCS_high N γ_te γ_he γ_s 
-                      (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
+                      (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
                       γ_td γ_ght t M >>> 
                 compact r #n @ ⊤ ∖ ↑(mcsN N)
           <<< MCS_high N γ_te γ_he γ_s 
-                (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
+                (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) 
                  γ_td γ_ght t M, RET #() >>>.
   Proof.
     iLöb as "IH" forall (n).
@@ -2027,8 +2003,8 @@ Section gen_multicopy_compact.
         clear m.
         iIntros (m lm)"(NodeSp_m & % & Hl_m)".
         subst lm. wp_pures.
-        iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >Inv_tpl)".
-        iDestruct "Inv_tpl" as (hγ'' I'' J'')"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >Inv_LSM)".
+        iDestruct "Inv_LSM" as (hγ'' I'' J'')"(Hglob & Hstar)".
         iAssert (⌜m ∉ domm I''⌝)%I as "%".
         { destruct (decide (m ∈ domm I'')); try done.
           rewrite (big_sepS_delete _ (domm I'') m); last by eauto.
@@ -2060,8 +2036,8 @@ Section gen_multicopy_compact.
         iDestruct "Hesn_m'" as %Hesn_m'.
         iDestruct "Hcm" as %Hcm.
         iDestruct "Hesm" as %Hesm.
-        iApply fupd_wp. iInv "HInv" as (T0' H0)"(mcs_high & >Inv_tpl)".
-        iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T0' H0)"(mcs_high & >Inv_LSM)".
+        iDestruct "Inv_LSM" as (hγ0 I0 J0)"(Hglob & Hstar)".
         iAssert (⌜m ∉ domm I0⌝)%I as "%".
         { destruct (decide (m ∈ domm I0)); try done.
           rewrite (big_sepS_delete _ (domm I0) m); last by eauto.
@@ -2164,8 +2140,8 @@ Section gen_multicopy_compact.
         iDestruct "Subset_disj" as %Subset_disj.
         iDestruct "Cm_sub_Cm'" as %Cm_sub_Cm'.
         iDestruct "MergeEq" as %MergeEq. wp_pures.
-        iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
-        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
+        iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_LSM)".
+        iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
         
         iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
         rename H1 into n_in_I.  
@@ -2254,8 +2230,8 @@ Section gen_multicopy_compact.
       iDestruct "Hif" as %es_ne.
     
       iApply fupd_wp.
-      iInv "HInv" as (T0' H0)"(mcs_high & >Inv_tpl)".
-      iDestruct "Inv_tpl" as (hγ0 I0 J0)"(Hglob & Hstar)".
+      iInv "HInv" as (T0' H0)"(mcs_high & >Inv_LSM)".
+      iDestruct "Inv_LSM" as (hγ0 I0 J0)"(Hglob & Hstar)".
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H into n_in_I0.    
 
@@ -2309,8 +2285,8 @@ Section gen_multicopy_compact.
       iDestruct "Subset_disj" as %Subset_disj.
       iDestruct "Cm_sub_Cm'" as %Cm_sub_Cm'.
       iDestruct "MergeEq" as %MergeEq. wp_pures.
-      iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
-      iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
+      iApply fupd_wp. iInv "HInv" as (T' H)"(mcs_high & >Inv_LSM)".
+      iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
 
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H1 into n_in_I.  
@@ -2397,4 +2373,4 @@ Section gen_multicopy_compact.
       iApply "IH"; try done.
   Qed.
 
-End gen_multicopy_compact.
+End multicopy_lsm_compact.

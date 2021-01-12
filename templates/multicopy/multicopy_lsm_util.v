@@ -7,10 +7,10 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export auth_ext general_multicopy.
+Require Export auth_ext multicopy_lsm.
 
-Section gen_multicopy_util.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+Section multicopy_lsm_util.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
   Notation iProp := (iProp Σ).  
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
@@ -473,9 +473,9 @@ Section gen_multicopy_util.
   
   (** Lock module **)
 
-  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r n:
-    ⊢ mcs_inv N γ_te γ_he γ_s Prot_help 
-                (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r n:
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot 
+                (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -484,8 +484,8 @@ Section gen_multicopy_util.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
     awp_apply (lockNode_spec n).
-    iInv "mcsInv" as (T H) "(mcs_high & >Inv_tpl)". 
-    iDestruct "Inv_tpl" as (hγ I J) "(Hglob & Hstar)".
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_LSM)". 
+    iDestruct "Inv_LSM" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
@@ -534,9 +534,9 @@ Section gen_multicopy_util.
     iIntros "(Hl & _)". iFrame.
   Qed.       
 
-  Lemma unlockNode_spec_high N γ_te γ_he γ_s γ_fr γ_t γ_I γ_J γ_f γ_gh lc r 
+  Lemma unlockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r 
                                                           n Cn Qn:
-    ⊢ mcs_inv N γ_te γ_he γ_s γ_fr (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
         inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn -∗
               <<< True >>>
                 unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
@@ -544,8 +544,8 @@ Section gen_multicopy_util.
   Proof.
     iIntros "#mcsInv #FP_n Hnp". iIntros (Φ) "AU".
     awp_apply (unlockNode_spec n).
-    iInv "mcsInv" as (T H) "(mcs_high & >Inv_tpl)".
-    iDestruct "Inv_tpl" as (hγ I J) "(Hglob & Hstar)".
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_LSM)".
+    iDestruct "Inv_LSM" as (hγ I J) "(Hglob & Hstar)".
     iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%". 
     rename H0 into n_in_I.
     iEval (rewrite (big_sepS_elem_of_acc (_) (domm I) n); 
@@ -600,4 +600,4 @@ Section gen_multicopy_util.
     iFrame. iFrame. iFrame.
   Qed.
 
-End gen_multicopy_util.
+End multicopy_lsm_util.

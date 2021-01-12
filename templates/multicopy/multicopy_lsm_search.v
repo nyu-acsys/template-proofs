@@ -7,19 +7,19 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
-Require Export general_multicopy general_multicopy_util.
+Require Export multicopy_lsm multicopy_lsm_util.
 
-Section gen_multicopy_search.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+Section multicopy_lsm_search.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
 (*   Context (N : namespace). *)
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
   
-  Lemma traverse_spec N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
+  Lemma traverse_spec N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r (k: K) 
                       n γ_en γ_cn γ_qn γ_cirn t0 t1 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s Prot_help 
-                  (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        mcs_inv N γ_te γ_he γ_s Prot 
+                  (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           inFP γ_f n -∗ 
             own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) -∗ 
               own (γ_cirn !!! k) (◯ MaxNat t1) -∗ ⌜t0 ≤ t1⌝ -∗
@@ -60,8 +60,8 @@ Section gen_multicopy_search.
         (** Open invariant to establish resources
             required to apply induction hypothesis IH
             on node n' **)
-        iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
-        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
+        iInv "HInv" as (T' H)"(mcs_high & >Inv_LSM)".
+        iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
         iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
         rename H0 into n_in_I.
         rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -208,8 +208,8 @@ Section gen_multicopy_search.
         (** Linearization Point: key k has not been found in the 
             data structure. Open invariant to obtain resources 
             required to establish post-condition **)
-        iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
-        iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
+        iInv "HInv" as (T' H)"(mcs_high & >Inv_LSM)".
+        iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
         iAssert (⌜n ∈ domm I⌝)%I as "%". 
         { iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
             & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IR & domm_Iγ)".
@@ -280,8 +280,8 @@ Section gen_multicopy_search.
       (** Linearization Point: key k has been found. Open 
           invariant to obtain resources required to 
           establish post-condition **)
-      iInv "HInv" as (T' H)"(mcs_high & >Inv_tpl)".
-      iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".
+      iInv "HInv" as (T' H)"(mcs_high & >Inv_LSM)".
+      iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
       iPoseProof (inFP_domm_glob with "[$FP_n] [$Hglob]") as "%".
       rename H0 into n_in_I.
       rewrite (big_sepS_delete _ (domm I) n); last by eauto.
@@ -352,11 +352,11 @@ Section gen_multicopy_search.
       Unshelve. try done. try done.
   Qed.
 
-  Lemma search_recency N γ_te γ_he γ_s Prot_help γ_t γ_I γ_J γ_f γ_gh 
+  Lemma search_recency N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh 
                           lc r (k: K) t0 :
     ⊢ ⌜k ∈ KS⌝ -∗ 
-        mcs_inv N γ_te γ_he γ_s Prot_help
-           (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+        mcs_inv N γ_te γ_he γ_s Prot
+           (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
           SR γ_s (k, t0) -∗
               <<< True >>> 
                   search r #k @ ⊤ ∖ ↑(mcsN N)
@@ -365,8 +365,8 @@ Section gen_multicopy_search.
     iIntros "% #HInv #mcs_sr" (Φ) "AU".
     rename H into k_in_KS. 
     iApply fupd_wp. 
-    iInv "HInv" as (T H)"(mcs_high & >Inv_tpl)".
-    iDestruct "Inv_tpl" as (hγ I J)"(Hglob & Hstar)".    
+    iInv "HInv" as (T H)"(mcs_high & >Inv_LSM)".
+    iDestruct "Inv_LSM" as (hγ I J)"(Hglob & Hstar)".
     iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
     iDestruct "Hglob" as "(Ht & HI & Out_I & HJ 
             & Out_J & Inf_J & Hf & Hγ & #FP_r & domm_IJ & domm_Iγ)".
@@ -419,7 +419,7 @@ Section gen_multicopy_search.
     by iModIntro.
   Qed.
 
-End gen_multicopy_search.  
+End multicopy_lsm_search.  
   
   
   

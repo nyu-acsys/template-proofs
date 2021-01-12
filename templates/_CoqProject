@@ -17,10 +17,11 @@ flows/gmap_more.v
 flows/flows.v
 flows/multiset_flows.v
 
+util/auth_ext.v
+util/lock.v
+
 single_copy/search_str.v
 single_copy/keyset_ra.v
-single_copy/auth_ext.v
-single_copy/lock.v
 single_copy/inset_flows.v
 #single_copy/single_node.v
 #single_copy/two_node.v
@@ -32,11 +33,11 @@ multicopy/one_shot_proph.v
 multicopy/typed_proph.v
 multicopy/multicopy.v
 multicopy/multicopy_util.v
-multicopy/multicopy_high.v
-multicopy/general_multicopy.v
-multicopy/general_multicopy_util.v
-multicopy/general_multicopy_search.v
-multicopy/general_multicopy_upsert.v
-multicopy/general_multicopy_compact.v
+multicopy/multicopy_client_level.v
+multicopy/multicopy_lsm.v
+multicopy/multicopy_lsm_util.v
+multicopy/multicopy_lsm_search.v
+multicopy/multicopy_lsm_upsert.v
+multicopy/multicopy_lsm_compact.v
 
 

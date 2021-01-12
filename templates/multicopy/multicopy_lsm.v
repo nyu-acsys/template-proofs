@@ -23,10 +23,8 @@ Parameter insertNode: val.
 Definition traverse : val :=
   rec: "t_rec" "n" "k" :=
     lockNode "n" ;;
-    let: "t" := inContents "n" "k" in
-    match: "t" with
-      SOME "t" => unlockNode "n";;
-                  "t"
+    match: (inContents "n" "k") with
+      SOME "t" => unlockNode "n";; "t"
     | NONE => match: (findNext "n" "k") with
                 SOME "n'" => unlockNode "n" ;; "t_rec" "n'" "k"
               | NONE => unlockNode "n" ;; #0 end end.
@@ -99,26 +97,26 @@ Definition frac_esR := frac_agreeR (esRAC).
 Definition timeR := authR (max_natUR).
 Definition ghR := authR $ ghost_heapUR.
 
-Class gen_multicopyG Σ := GEN_MULTICOPY {
-                            gen_multicopy_flow_KTG :> inG Σ flow_KTR;
-                            gen_multicopy_flow_KG :> inG Σ flow_KR;
-                            gen_multicopy_set_nodeG :> inG Σ set_nodeR;
-                            gen_multicopy_frac_contG :> inG Σ frac_contR;
-                            gen_multicopy_frac_esG :> inG Σ frac_esR;
-                            gen_multicopy_timeG :> inG Σ timeR;
-                            gen_multicopy_ghG :> inG Σ ghR;
+Class multicopy_lsmG Σ := MULTICOPY_LSM {
+                            multicopy_lsm_flow_KTG :> inG Σ flow_KTR;
+                            multicopy_lsm_flow_KG :> inG Σ flow_KR;
+                            multicopy_lsm_set_nodeG :> inG Σ set_nodeR;
+                            multicopy_lsm_frac_contG :> inG Σ frac_contR;
+                            multicopy_lsm_frac_esG :> inG Σ frac_esR;
+                            multicopy_lsm_timeG :> inG Σ timeR;
+                            multicopy_lsm_ghG :> inG Σ ghR;
                       }.
 
-Definition gen_multicopyΣ : gFunctors :=
+Definition multicopy_lsmΣ : gFunctors :=
   #[GFunctor flow_KTR; GFunctor flow_KR; GFunctor set_nodeR;
     GFunctor frac_contR; GFunctor frac_esR; 
     GFunctor timeR; GFunctor ghR ].
 
-Instance subG_gen_multicopyΣ {Σ} : subG gen_multicopyΣ Σ → gen_multicopyG Σ.
+Instance subG_multicopy_lsmΣ {Σ} : subG multicopy_lsmΣ Σ → multicopy_lsmG Σ.
 Proof. solve_inG. Qed.
 
-Section gen_multicopy.
-  Context {Σ} `{!heapG Σ, !multicopyG Σ, !gen_multicopyG Σ}.
+Section multicopy_lsm.
+  Context {Σ} `{!heapG Σ, !multicopyG Σ, !multicopy_lsmG Σ}.
   Notation iProp := (iProp Σ).
   Local Notation "m !1 i" := (nzmap_total_lookup i m) (at level 20).
 
@@ -302,7 +300,7 @@ Section gen_multicopy.
     ∗ ⌜domm I = domm J⌝ 
     ∗ ⌜domm I = dom (gset Node) hγ⌝.
 
-  Definition Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H : iProp :=
+  Definition Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H : iProp :=
     ∃ hγ
       (I: multiset_flowint_ur KT) (R: multiset_flowint_ur K),
       global_state γ_t γ_I γ_J γ_f γ_gh r t hγ I R
@@ -310,10 +308,10 @@ Section gen_multicopy.
         (lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn Qn))
         ∗ (nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H))%I.  
 
-  Global Instance Inv_tpl_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
-    Timeless (Inv_tpl γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).
+  Global Instance Inv_LSM_timeless γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H:
+    Timeless (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r t H).
   Proof.
-    rewrite /Inv_tpl.
+    rewrite /Inv_LSM.
     repeat (apply bi.exist_timeless; intros).
     repeat apply bi.sep_timeless; try apply _.
     apply big_sepS_timeless.
@@ -335,20 +333,20 @@ Section gen_multicopy.
   (* The following specs are proved for each implementation in GRASShopper
    * (see multicopy-lsm.spl *)
     
-  Parameter inContents_spec : ∀ r n es (Cn: gmap K natUR) (k: K),
-     ⊢ ({{{ node r n es Cn }}}
+  Parameter inContents_spec : ∀ r n esn (Cn: gmap K natUR) (k: K),
+     ⊢ ({{{ node r n esn Cn }}}
            inContents #n #k
        {{{ (t: option nat), 
               RET (match t with Some t => SOMEV #t | None => NONEV end);
-                  node r n es Cn ∗ ⌜Cn !! k = t⌝ }}})%I.
+                  node r n esn Cn ∗ ⌜Cn !! k = t⌝ }}})%I.
 
-  Parameter findNext_spec : ∀ r n es (Cn: gmap K natUR) (k: K),
-     ⊢ ({{{ node r n es Cn }}}
+  Parameter findNext_spec : ∀ r n esn (Cn: gmap K natUR) (k: K),
+     ⊢ ({{{ node r n esn Cn }}}
            findNext #n #k
        {{{ (succ: bool) (n': Node),
               RET (match succ with true => SOMEV #n' | false => NONEV end);
-                  node r n es Cn ∗ if succ then ⌜k ∈ es !!! n'⌝
-                                else ⌜∀ n', k ∉ es !!! n'⌝ }}})%I.
+                  node r n esn Cn ∗ if succ then ⌜k ∈ esn !!! n'⌝
+                                else ⌜∀ n', k ∉ esn !!! n'⌝ }}})%I.
 
   (* Remove? *)
   Lemma readClock_spec: ∀ γ_t lc q t, 
@@ -362,19 +360,19 @@ Section gen_multicopy.
     iFrame; try done.
   Qed.  
 
-  Parameter addContents_spec : ∀ r n es (Cn: gmap K natUR) (k: K) (t:nat),
-     ⊢ ({{{ node r n es Cn ∗ ⌜n = r⌝ }}}
+  Parameter addContents_spec : ∀ r n esn (Cn: gmap K natUR) (k: K) (t:nat),
+     ⊢ ({{{ node r n esn Cn ∗ ⌜n = r⌝ }}}
            addContents #r #k #t
        {{{ (succ: bool) (Cn': gmap K natUR),
               RET #succ;
-                  node r n es Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
+                  node r n esn Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
                                 else ⌜Cn' = Cn⌝ }}})%I.
 
-  Parameter atCapacity_spec : ∀ r n es (Cn: gmap K natUR),
-     ⊢ ({{{ node r n es Cn }}}
+  Parameter atCapacity_spec : ∀ r n esn (Cn: gmap K natUR),
+     ⊢ ({{{ node r n esn Cn }}}
            atCapacity #n
        {{{ (b: bool), RET #b;
-           node r n es Cn ∗ ⌜b = true ∨ b = false⌝ }}})%I.
+           node r n esn Cn ∗ ⌜b = true ∨ b = false⌝ }}})%I.
 
   (* Change formatting in the paper *)         
   Parameter chooseNext_spec : ∀ r n esn (Cn: gmap K natUR),
@@ -415,4 +413,4 @@ Section gen_multicopy.
           ∗ ⌜Cm = ∅⌝ ∗ ⌜esm = ∅⌝ }}}.
 
 
-End gen_multicopy.
+End multicopy_lsm.
