@@ -147,7 +147,7 @@ Section multicopy_lsm.
   Parameter node_es_empty: ∀ r n es C,
     node r n es C -∗ ⌜es !!! r = ∅ ∧ es !!! n = ∅⌝.
 
-  (** The multicopy structure invariant *)
+  (** The LSM multicopy structure invariant *)
   
   Definition inFP γ_f (n: Node) : iProp := own γ_f (◯ {[n]}).
   
