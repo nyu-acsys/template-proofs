@@ -12,11 +12,6 @@ Require Export lock multicopy multicopy_util.
 Parameter inContents : val.
 Parameter findNext : val.
 Parameter addContents: val.
-Parameter atCapacity: val.
-Parameter chooseNext: val.
-Parameter mergeContents: val.
-Parameter allocNode: val.
-Parameter insertNode: val.
 
 (** Template algorithms *)
 
@@ -111,10 +106,13 @@ Section multicopy_df.
   Definition Inv_DF γ_s γ_t γ_cr γ_cd (γ_d: gmap K gname) lc r d t H : iProp :=
     ∃ (Cr Cd: gmap K nat),
       own γ_t (●{1/2} MaxNat t)
-    ∗ (∃ br, lockR br r (nodePred γ_s γ_t γ_cr lc r r Cr t))
-    ∗ (∃ bd, lockR bd d (nodePred γ_s γ_t γ_cd lc r d Cd t))
+    ∗ ⌜r ≠ d⌝  
     ∗ ⌜cir H Cr Cd⌝
-    ∗ ([∗ set] k ∈ KS, own (γ_d !!! k) (● (MaxNat (Cd !!! k)))).
+    ∗ ([∗ set] k ∈ KS, own (γ_d !!! k) (● (MaxNat (Cd !!! k))))
+    ∗ (∃ br, lockR br r (nodePred γ_s γ_t γ_cr lc r r Cr t))
+    ∗ own (γ_cr) (to_frac_agree (1/2) (Cr))
+    ∗ (∃ bd, lockR bd d (nodePred γ_s γ_t γ_cd lc r d Cd t))
+    ∗ own (γ_cd) (to_frac_agree (1/2) (Cd)).
 
   Global Instance Inv_DF_timeless γ_s γ_t γ_cr γ_cd γ_d lc r d t H:
     Timeless (Inv_DF γ_s γ_t γ_cr γ_cd γ_d lc r d t H).
@@ -138,7 +136,7 @@ Section multicopy_df.
 
   (* The following specs are proved for each implementation in GRASShopper
    * (see multicopy-lsm.spl *)
-    
+
   Parameter inContents_spec : ∀ r n Cn (k: K),
      ⊢ ({{{ node r n Cn }}}
            inContents #n #k
@@ -163,6 +161,152 @@ Section multicopy_df.
        {{{ (succ: bool) (Cn': gmap K natUR),
               RET #succ;
                   node r n Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
-                                else ⌜Cn' = Cn⌝ }}})%I.
+                                else ⌜Cn' = Cn⌝ }}})%I.            
+                                                                   
+  (** Lock module **)
+  
+  Global Instance HnP_t_laterable (r n: Node) γ_t lc T : 
+              Laterable (if decide (n = r) 
+                         then own γ_t (●{1 / 2} MaxNat T) ∗ clock lc T 
+                         else True)%I.
+  Proof.
+    destruct (decide (n = r)); apply timeless_laterable; apply _.
+  Qed.
+  
+  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_cr γ_cd γ_d lc r d n:
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot (Inv_DF γ_s γ_t γ_cr γ_cd γ_d lc r d) -∗
+        ⌜n = r ∨ n = d⌝ -∗
+              <<< True >>>
+                lockNode #n    @ ⊤ ∖ ↑(mcsN N)
+              <<< ∃ γ_cn Cn t, nodePred γ_s γ_t γ_cn lc r n Cn t, RET #() >>>.
+  Proof.
+    iIntros "#mcsInv %". rename H into n_eq_rd.
+    iIntros (Φ) "AU".
+    awp_apply (lockNode_spec n).
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_DF)".
+    iDestruct "Inv_DF" as (Cr Cd)"(Ht & r_neq_d & Hcir & Hbigstar 
+                & HlockR_r & Half_Cr & HlockR_d & Half_Cd)".
+    destruct n_eq_rd as [? | ?]; subst n.            
+    - iDestruct "HlockR_r" as (br)"HlockR_r".
+      iAaccIntro with "HlockR_r".
+      { iIntros "HlockR_r". iModIntro. 
+        iFrame "AU". iNext. iExists T, H. 
+        eauto 20 with iFrame. }              
+      iIntros "(HlockR_r & HnP_r)".
+      iMod "AU" as "[_ [_ Hcomm]]".
+      iSpecialize ("Hcomm" $! γ_cr Cr T).
+      iMod ("Hcomm" with "HnP_r") as "HΦ".
+      iModIntro. iFrame "HΦ".
+      iNext; iExists T, H. iFrame.
+      iExists Cr, Cd. iFrame.
+      iExists true; try done.
+    - iDestruct "HlockR_d" as (bd)"HlockR_d".
+      iAaccIntro with "HlockR_d".
+      { iIntros "HlockR_d". iModIntro. 
+        iFrame "AU". iNext. iExists T, H. 
+        eauto 20 with iFrame. }              
+      iIntros "(HlockR_d & HnP_d)".
+      iMod "AU" as "[_ [_ Hcomm]]".
+      iSpecialize ("Hcomm" $! γ_cd Cd T).
+      iMod ("Hcomm" with "HnP_d") as "HΦ".
+      iModIntro. iFrame "HΦ".
+      iNext; iExists T, H. iFrame.
+      iExists Cr, Cd. iFrame.
+      iExists true; try done.
+  Qed.
+  
+  Lemma unlockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_cr γ_cd γ_d lc r d 
+                             n Cn γ_cn t:
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot (Inv_DF γ_s γ_t γ_cr γ_cd γ_d lc r d) -∗
+        ⌜(n = r ∧ γ_cn = γ_cr) ∨ (n = d ∧ γ_cn = γ_cd)⌝ -∗
+          nodePred γ_s γ_t γ_cn lc r n Cn t -∗
+              <<< True >>>
+                unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
+              <<< True, RET #() >>>.
+  Proof.
+    iIntros "#mcsInv % Hnp". rename H into n_eq_rd.
+    iIntros (Φ) "AU".
+    awp_apply (unlockNode_spec n).
+    iInv "mcsInv" as (T H) "(mcs_high & >Inv_DF)".
+    iDestruct "Inv_DF" as (Cr Cd)"(Ht & r_neq_d & Hcir & Hbigstar 
+                & HlockR_r & Half_Cr & HlockR_d & Half_Cd)".
+    destruct n_eq_rd as [[? ?] | [? ?]]; subst n γ_cn.            
+    - iAssert (⌜Cn = Cr⌝)%I as "%".
+      { iDestruct "Hnp" as "(_ & _ & Hf & _)".
+        iPoseProof (own_valid_2 _ _ _ with "[$Hf] [$Half_Cr]") as "H'".
+        iDestruct "H'" as %H'. apply frac_agree_op_valid in H'.
+        destruct H' as [_ H']. apply leibniz_equiv_iff in H'.
+        by iPureIntro. } subst Cn.
+      iAssert (⌜t = T⌝)%I as "%".
+      { iDestruct "Hnp" as "(_ & _ & _ & H')".
+        iEval (rewrite decide_True) in "H'".
+        iDestruct "H'" as "(H' & _)".
+        iPoseProof (own_valid_2 with "[$H'] [$Ht]") as "%".
+        rename H0 into H'. apply auth_auth_frac_op_inv in H'.
+        inversion H'. by iPureIntro. } subst t.   
+      iAssert (lockR true r (nodePred γ_s γ_t γ_cr lc r r Cr T)
+                ∗ nodePred γ_s γ_t γ_cr lc r r Cr T)%I 
+                    with "[HlockR_r Hnp]" as "H".
+      { iDestruct "HlockR_r" as (br)"HlockR_r".
+        destruct br eqn: Hb.
+        - (* Case n locked *)
+          iFrame "∗".
+        - (* Case n unlocked: impossible *)
+          iDestruct "Hnp" as "(node & _)".
+          iDestruct "HlockR_r" as "(_ & Hnp')".
+          iDestruct "Hnp'" as "(node' & _)".
+          iExFalso; iApply node_sep_star; try iFrame. }
+      iAaccIntro with "H".
+      { iIntros "(HlockR_r & Hnp)".
+        iModIntro. iFrame.
+        iNext; iExists T, H; iFrame.
+        iExists Cr, Cd; iFrame.
+        iExists true; try done. }
+      iIntros "HlockR_r".
+      iMod "AU" as "[_ [_ Hcomm]]".
+      iMod ("Hcomm" with "[]") as "HΦ"; try done.
+      iModIntro. iFrame "HΦ". iNext; iExists T, H.
+      iFrame. iExists Cr, Cd. iFrame. iExists false; try done.                        
+    - iAssert (⌜Cn = Cd⌝)%I as "%".
+      { iDestruct "Hnp" as "(_ & _ & Hf & _)".
+        iPoseProof (own_valid_2 _ _ _ with "[$Hf] [$Half_Cd]") as "H'".
+        iDestruct "H'" as %H'. apply frac_agree_op_valid in H'.
+        destruct H' as [_ H']. apply leibniz_equiv_iff in H'.
+        by iPureIntro. } subst Cn.
+      iDestruct "r_neq_d" as %r_neq_d.  
+      iAssert (lockR true d (nodePred γ_s γ_t γ_cd lc r d Cd T)
+                ∗ nodePred γ_s γ_t γ_cd lc r d Cd T)%I 
+                    with "[HlockR_d Hnp]" as "H".
+      { iDestruct "HlockR_d" as (bd)"HlockR_d".
+        destruct bd eqn: Hb.
+        - (* Case n locked *)
+          iFrame "∗". iDestruct "Hnp" as "(?&?&?&?)".
+          iFrame. destruct (decide (d = r)); try done. 
+        - (* Case n unlocked: impossible *)
+          iDestruct "Hnp" as "(node & _)".
+          iDestruct "HlockR_d" as "(_ & Hnp')".
+          iDestruct "Hnp'" as "(node' & _)".
+          iExFalso; iApply node_sep_star; try iFrame. }
+      iAaccIntro with "H".
+      { iIntros "(HlockR_d & Hnp)".
+        iModIntro.
+        iDestruct "Hnp" as "(?&?&?&?)".
+        iFrame. destruct (decide (d = r)); try done.
+        iSplitL. iNext; iExists T, H; iFrame.
+        iExists Cr, Cd; iFrame "∗%".
+        iExists true; try done. done. }
+      iIntros "HlockR_d".
+      iMod "AU" as "[_ [_ Hcomm]]".
+      iMod ("Hcomm" with "[]") as "HΦ"; try done.
+      iModIntro. iFrame "HΦ". iNext; iExists T, H.
+      iFrame. iExists Cr, Cd. iFrame "∗%". 
+      iExists false; try done.
+  Qed.                              
+  
+  
+  
+  
+  
+  
 
 End multicopy_df.           
