@@ -34,6 +34,9 @@ single_copy/inset_flows.v
 multicopy/multicopy.v
 multicopy/multicopy_util.v
 multicopy/multicopy_client_level.v
+multicopy/multicopy_df.v
+multicopy/multicopy_df_upsert.v
+multicopy/multicopy_df_search.v
 multicopy/multicopy_lsm.v
 multicopy/multicopy_lsm_util.v
 multicopy/multicopy_lsm_search.v
