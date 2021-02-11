@@ -392,8 +392,14 @@ Section multicopy_df_upsert.
           admit.
         }
         {
-          iExists bd. 
-          admit.
+          iExists bd.
+          unfold lockR. iDestruct "d_pred" as "[d_lock d_pred]".
+          iFrame. destruct bd; try done.
+          unfold nodePred.
+          iDestruct "d_pred" as "(d_node & d_set & d_own & d_if)".
+          iFrame.
+          iDestruct "r_not_d" as %r_not_d.
+          destruct (decide (d = r)); try done.
         }
       }
         (*iApply (big_sepS_mono 
