@@ -1,4 +1,4 @@
-From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
+From iris.algebra Require Import excl auth frac cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import frac_agree.
 From iris.heap_lang Require Export notation locations lang.
 From iris.base_logic.lib Require Export invariants.
@@ -67,6 +67,7 @@ Section multicopy_df_upsert.
     iIntros "HnP_t". wp_pures.
     wp_apply (addContents_spec with "[$node_r]"); try done.
     iIntros (b Cr') "(node_r & Hif)".
+
 
     (** Case analysis on whether addContents is successful **)
     destruct b; last first.
@@ -180,6 +181,8 @@ Section multicopy_df_upsert.
       (*iDestruct "H_r" as (br Cr'' Qr'')"(Hl_r & HnS_r)".*)
       iPoseProof (nodePred_lockR_true with "[$node_r] [root_pred]")
          as "%". iFrame.
+        
+
       (*iDestruct "HnS_r" as (γ_er' γ_cr' γ_qr' γ_cirr' es' Br Ir Jr) "HnS_r'".
       iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$HnS_r']")
            as "(HnP_frac & HnS_r' &%&%&%)". subst es' Cr'' Qr''.   
@@ -196,16 +199,38 @@ Section multicopy_df_upsert.
       iAssert (⌜map_of_set (H1 ∪ {[k, T]}) = <[k:=T]> (map_of_set H1)⌝)%I as %Htrans_union.
       {
         iPureIntro. 
-        
         admit.
       }
+      iAssert (⌜Cr = Inv_Cr_2⌝)%I as %HCr_equiv.
+      {
+
+        iDestruct "r_is_locked" as %r_is_locked.
+        iDestruct "r_not_d" as %r_not_d.
+        destruct r_is_locked as [ r_is_locked | r_not_locked].
+        destruct r_is_locked as [ r_is_r  gh_cn_cr ].
+        
+        subst γ_cn.
+        
+        iPoseProof (own_valid_2 _ _ _ with "[$root_own] [$HnP_frac]") as "#HCr_equiv".
+        iDestruct "HCr_equiv" as %HCr_equiv.
+        apply frac_agree_op_valid in HCr_equiv.
+        destruct HCr_equiv as [_ HCr_equiv].
+        apply leibniz_equiv_iff in HCr_equiv.
+        iPureIntro. done.
+        iPureIntro.
+        destruct r_not_locked. contradiction.
+      }
+
       iAssert (⌜cir H1 Cr Inv_Cd_2⌝)%I as %Hcir_Cr2.
       {
-        iPureIntro. admit.
+        subst Cr. iFrame "Hcir_2".
       }
+
       (*iAssert (⌜contents_in_reach Br' Cr' Qr⌝)%I with "[HnS_Bn]" as "HnS_Bn".*)
       iAssert (⌜cir (H1 ∪ {[k, T]}) Cr' Inv_Cd_2 ⌝)%I with "[Hcir_2]" as "Hcir_2'".
       { 
+
+
         iDestruct "Hcir_2" as %H2'.
         iPureIntro. 
         intros k0 t0.
@@ -363,7 +388,8 @@ Section multicopy_df_upsert.
 
         iSplitL "root_own".
         {
-          subst Cr'. iFrame.
+          subst Cr'. subst Cr. iFrame.
+          admit.
         }
         {
           iExists bd. 
@@ -391,13 +417,14 @@ Section multicopy_df_upsert.
       wp_pures. 
       (** Unlock node r **) 
       awp_apply (unlockNode_spec_high with "[] [] 
-        [HnP_t HnP_C HnP_frac node_r]") without "HΦ"; try done.   
+        [HnP_t HnP_C HnP_frac node_r]") without "HΦ"; try done.
       iFrame "∗#".
       rewrite decide_True; try done. 
       iDestruct "HnP_t" as "(Hown_clock & Hclock)".
       iFrame.
       {
         subst Cr'.
+        subst Cr.
         admit.
       }
       iAaccIntro with ""; try done.
