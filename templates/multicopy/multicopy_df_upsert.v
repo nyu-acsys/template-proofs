@@ -180,6 +180,7 @@ Section multicopy_df_upsert.
       (** Update contents-in-reach of r **)
       iAssert (⌜map_of_set (H1 ∪ {[k, T]}) = <[k:=T]> (map_of_set H1)⌝)%I as %Htrans_union.
       {
+        iPureIntro.
         admit.
       }
 
@@ -192,9 +193,10 @@ Section multicopy_df_upsert.
         destruct r_is_locked as [ r_is_r  gh_cn_cr ]. done.
         destruct r_not_locked as [ r_is_d  gh_cn_cr ]. done.
       }
+      subst γ_cn.
+      
       iAssert (⌜Cr = Inv_Cr_2⌝)%I as %HCr_equiv.
       {
-        subst γ_cn.
         
         iPoseProof (own_valid_2 _ _ _ with "[$root_own] [$HnP_frac]") as "#HCr_equiv".
         iDestruct "HCr_equiv" as %HCr_equiv.
@@ -203,11 +205,7 @@ Section multicopy_df_upsert.
         apply leibniz_equiv_iff in HCr_equiv.
         iPureIntro. done.
       }
-
-      iAssert (⌜cir H1 Cr Inv_Cd_2⌝)%I as %Hcir_Cr2.                     
-      {
-        subst Cr. iFrame "Hcir_2".
-      }
+      subst Cr.
 
       iAssert (⌜cir (H1 ∪ {[k, T]}) Cr' Inv_Cd_2 ⌝)%I with "[Hcir_2]" as "Hcir_2'".
       { 
@@ -221,7 +219,7 @@ Section multicopy_df_upsert.
           split; try done. 
         - subst Cr'. 
           rewrite !lookup_insert_ne; try done.
-          }
+      }
 
       iAssert (⌜(map_of_set H1) !!! k ≤ T⌝)%I as %H_le_T. 
       {
@@ -275,8 +273,6 @@ Section multicopy_df_upsert.
       
 
       (* Combine fractional ownerships of Cr. *)
-      subst γ_cn.
-      subst Cr.
       iCombine "HnP_frac root_own" as "root_own".
       iEval (rewrite <-frac_agree_op) in "root_own".
       iEval (rewrite Qp_half_half) in "root_own".
