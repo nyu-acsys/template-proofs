@@ -201,14 +201,18 @@ Section multicopy_df_upsert.
         iPureIntro. 
         admit.
       }
-      iAssert (⌜Cr = Inv_Cr_2⌝)%I as %HCr_equiv.
+
+      iAssert (⌜γ_cn = γ_cr⌝)%I as %gamma_cn_cr.
       {
 
         iDestruct "r_is_locked" as %r_is_locked.
         iDestruct "r_not_d" as %r_not_d.
         destruct r_is_locked as [ r_is_locked | r_not_locked].
-        destruct r_is_locked as [ r_is_r  gh_cn_cr ].
-        
+        destruct r_is_locked as [ r_is_r  gh_cn_cr ]. done.
+        destruct r_not_locked as [ r_is_d  gh_cn_cr ]. done.
+      }
+      iAssert (⌜Cr = Inv_Cr_2⌝)%I as %HCr_equiv.
+      {
         subst γ_cn.
         
         iPoseProof (own_valid_2 _ _ _ with "[$root_own] [$HnP_frac]") as "#HCr_equiv".
@@ -217,11 +221,9 @@ Section multicopy_df_upsert.
         destruct HCr_equiv as [_ HCr_equiv].
         apply leibniz_equiv_iff in HCr_equiv.
         iPureIntro. done.
-        iPureIntro.
-        destruct r_not_locked. contradiction.
       }
 
-      iAssert (⌜cir H1 Cr Inv_Cd_2⌝)%I as %Hcir_Cr2.
+      iAssert (⌜cir H1 Cr Inv_Cd_2⌝)%I as %Hcir_Cr2.                     
       {
         subst Cr. iFrame "Hcir_2".
       }
@@ -255,28 +257,36 @@ Section multicopy_df_upsert.
         by pose proof MaxTS_H1 k t. } *)
 
       (* iEval (rewrite (big_sepS_delete (_) (KS) k); last by eauto) in "HnS_star".
-      iDestruct "HnS_star" as "(Hk & HnS_star')".
-      iAssert (⌜Br !!! k ≤ T⌝)%I as %Br_le_T. 
-      { iPureIntro. rewrite lookup_total_alt.
-        destruct (Br !! k) eqn: Hbrk; last first.
-        - rewrite Hbrk. simpl; clear; lia.
-        - rewrite Hbrk. simpl. 
-          rewrite Br_eq_H1 in Hbrk.
+      iDestruct "HnS_star" as "(Hk & HnS_star')".*)
+      
+      iAssert (⌜(map_of_set H1) !!! k ≤ T⌝)%I as %H_le_T. 
+      {
+        iPureIntro.
+        rewrite lookup_total_alt.
+        destruct ((map_of_set H1) !! k) eqn: hist_has_k.
+        - simpl.
+          unfold maxTS in MaxTS_H1.
+          destruct MaxTS_H1 as [MaxTS_H1 T_not_zero].
           pose proof map_of_set_lookup_cases H1 k as H'.
           destruct H' as [H' | [_ H']]; last first.
-          + rewrite H' in Hbrk. inversion Hbrk.
+          + rewrite H' in hist_has_k. inversion hist_has_k.
           + destruct H' as [Tk [H' [_ H'']]].
-            rewrite H'' in Hbrk. inversion Hbrk.
+            rewrite H'' in hist_has_k. inversion hist_has_k.
             subst Tk.
-            destruct MaxTS_H1 as [MaxTS_H1 _].
-            pose proof MaxTS_H1 k u H' as H'''.
-            clear -H'''; lia. }  
-      iMod (own_update (γ_cirr !!! k) (● (MaxNat (Br !!! k))) 
-                (● (MaxNat (Br' !!! k))) with "Hk") as "Hk".
+            pose proof MaxTS_H1 k n H' as H'''.
+            clear -H'''; lia.
+        - simpl. lia.
+      }
+
+      (*iDestruct "Hkeyset" as "(Hkey_own & Hkeyset)".
+      
+      iMod (own_update (γ_d !!! k) (● (MaxNat ((map_of_set H1) !!! k))) 
+                (● (MaxNat ((map_of_set (H1 ∪ {[(k, T)]})) !!! k))) with "Hkey_own") as "Hkey_own".
       { apply (auth_update_auth _ _ (MaxNat (Br' !!! k))).
         apply max_nat_local_update.
         simpl. rewrite HBr'.
-        by rewrite lookup_total_insert. }        
+        by rewrite lookup_total_insert. }        *)
+      (*
       iAssert ([∗ set] k0 ∈ KS, own (γ_cirr !!! k0) 
                   (● {| max_nat_car := Br' !!! k0 |}))%I 
           with "[HnS_star' Hk]" as "HnS_star".
@@ -364,9 +374,31 @@ Section multicopy_df_upsert.
         pose proof MaxTS_H1 k t H' as H''; clear -H''; lia.
         rewrite elem_of_singleton in H'*; intros H'.
         inversion H'. lia. }          
-            
+      
+        
+
+
+      (* Combine fractional ownerships of Cr. *)
+      subst γ_cn.
+      subst Cr.
+      iCombine "HnP_frac root_own" as "root_own".
+      iEval (rewrite <-frac_agree_op) in "root_own".
+      iEval (rewrite Qp_half_half) in "root_own".
+
+      (* Use combined ownerships to update Cr -> Cr'. *)
+      iMod ((own_update (γ_cr) (to_frac_agree 1 Inv_Cr_2)
+              (to_frac_agree 1 Cr')) with "[$root_own]") as "root_update".
+      { apply cmra_update_exclusive.
+        unfold valid, cmra_valid. simpl. unfold prod_valid.
+        split; simpl; try done. }
+
+      (* Break apart ownerships to be used separately. *)
+      iEval (rewrite <- Qp_half_half) in "root_update".
+      iEval (rewrite frac_agree_op) in "root_update".
+      iDestruct "root_update" as "(root_frac_1 & root_frac_2)".
+        
       iModIntro.
-      iSplitR "HΦ node_r HnP_t HnP_C HnP_frac".
+      iSplitR "HΦ node_r HnP_t HnP_C root_frac_1".
 
       { iNext. iExists (T+1), (H1 ∪ {[(k, T)]}). iFrame "∗".
         iSplitR; first by iPureIntro.
@@ -384,12 +416,6 @@ Section multicopy_df_upsert.
           iExists br. 
           subst br.
           iFrame.
-        }
-
-        iSplitL "root_own".
-        {
-          subst Cr'. subst Cr. iFrame.
-          admit.
         }
         {
           iExists bd.
@@ -423,16 +449,9 @@ Section multicopy_df_upsert.
       wp_pures. 
       (** Unlock node r **) 
       awp_apply (unlockNode_spec_high with "[] [] 
-        [HnP_t HnP_C HnP_frac node_r]") without "HΦ"; try done.
+        [HnP_t HnP_C node_r root_frac_1]") without "HΦ"; try done.
       iFrame "∗#".
       rewrite decide_True; try done. 
-      iDestruct "HnP_t" as "(Hown_clock & Hclock)".
-      iFrame.
-      {
-        subst Cr'.
-        subst Cr.
-        admit.
-      }
       iAaccIntro with ""; try done.
       iIntros "_". 
       iModIntro. iIntros "HΦ". try done.
