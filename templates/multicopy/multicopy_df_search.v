@@ -32,6 +32,8 @@ Section multicopy_df_search.
     iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
     iDestruct "Hstar" as "(Hrnotd & #Hcir & Hset & Hlockbr
             & Hycr & Hlockbd & Hycd)".
+    iDestruct "Hrnotd" as %Hrnotd.
+            
     rewrite (big_sepS_delete _ (KS) k); last by eauto.
     iDestruct "Hset" as "(HnS_stark & HnS_star')".
     iMod (own_update (γ_d !!! k) (● MaxNat (Cd' !!! k))
@@ -53,14 +55,15 @@ Section multicopy_df_search.
     iExists T, H. iFrame. iFrame "#".
     iExists Cr', Cd'. iFrame. iFrame "#".
     rewrite (big_sepS_delete _ (KS) k); last by eauto.
-    iFrame "#∗". iModIntro. wp_lam.
+    iFrame "#∗". iPureIntro. done.
+    iModIntro. wp_lam.
 
       (* Might need something here *)
 
     awp_apply lockNode_spec_high; try done.
     iPureIntro. left. done.
     iAaccIntro with ""; try eauto with iFrame.
-    iIntros (γ_cn Cn T1)"HnP_n". iModIntro. wp_pures.
+    iIntros (γ_cn Cr T1)"HnP_n". iModIntro. wp_pures.
     iDestruct "HnP_n" as "(HnP_n & #HRorD)".
     iDestruct "HnP_n" as "(Hnode & #Hγ_s & Hγ_c & Hdecide)".
     wp_apply (inContents_spec with "Hnode").
@@ -78,31 +81,80 @@ Section multicopy_df_search.
 
       awp_apply lockNode_spec_high; try done. iPureIntro.
       right. done. iAaccIntro with ""; try eauto with iFrame.
-      iIntros (γ_cn' Cr T2)"HnP_n". iModIntro. wp_pures.
+      iIntros (γ_cn' Cd T2)"HnP_n". iModIntro. wp_pures.
       iDestruct "HnP_n" as "(HnP_n & #HRorD')".
       iDestruct "HnP_n" as "(Hnode' & #Hγ_s' & Hγ_c' & Hdecide')".
+
+      iAssert (⌜γ_cn = γ_cr⌝)%I as "%".
+      {
+        iDestruct "HRorD" as %HRorD.
+        destruct HRorD; destruct H0; iPureIntro; done.
+      } subst γ_cn.
+
+      iAssert (⌜γ_cn' = γ_cd⌝)%I as "%".
+      {
+        iDestruct "HRorD'" as %HRorD'.
+        destruct HRorD'; destruct H0; iPureIntro; done.
+      } subst γ_cn'.
 
       wp_apply (inContents_spec with "Hnode'").
       iIntros (t) "(node_n & H)". iDestruct "H" as %Cn_val'.
       wp_pures.
-      destruct t as [t |]; last first.
+      destruct t as [t | ]; last first.
       (** Case analysis on whether k is in the contents of d. **)
       + (** Case 1.a : k not in datastructure. **)
         wp_pures.
+        (* Reopen the invariant. *)
+        iApply fupd_wp.
+        iInv "HInv" as (T_1a H_1a)"(mcs_high & >Inv_DF)". 
+        iDestruct "Inv_DF" as (Cr_1a Cd_1a)"(Ho & Hstar)".
+        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
+        iDestruct "Hstar" as "(Hrnotd & #Hcir_1a & Hset & Hlockbr
+            & Hycr & Hlockbd & Hycd)".
+        
+        iAssert (⌜(k,0) ∈ H_1a⌝)%I as "%".
+          { iDestruct "Hist" as %Hist. iPureIntro.
+            by pose proof Hist k k_in_KS as Hist. }
+
+        iAssert (⌜Cd = Cd_1a⌝)%I as "%".
+        {
+          iPoseProof (own_valid_2 _ _ _ with "[$Hycd] [$Hγ_c']") as "#HCr_equiv".
+          iDestruct "HCr_equiv" as %HCr_equiv.
+          apply frac_agree_op_valid in HCr_equiv.
+          destruct HCr_equiv as [_ HCr_equiv].
+          apply leibniz_equiv_iff in HCr_equiv.
+          iPureIntro. done.
+        } subst Cd_1a.
+
+        iAssert (⌜(map_of_set H_1a) !!! k = 0⌝)%I as %Hk_eq_0.
+        {
+
+          iDestruct "Hist" as %Hist.
+          unfold init in Hist.
+          specialize (Hist k).
+          apply Hist in k_in_KS as k0_in_H1.
+          admit.
+        }
+        iAssert (⌜t0 ≤ (map_of_set H_1a) !!! k⌝)%I as %lb_t0.
+        {
+
+          iDestruct "Hcir_1a" as %Hcir_1a.
+          unfold cir in Hcir_1a.
+          specialize (Hcir_1a k t0).
+          destruct Hcir_1a.
+          admit.
+        }
+        iAssert (⌜t0 = 0⌝)%I as %t0_zero.
+        { 
+          iPureIntro. admit. 
+        } subst t0.
         (** Unlock node d **)
         awp_apply (unlockNode_spec_high with "[] []
         [Hγ_c' Hdecide' node_n]"); try done. iFrame "∗#".
         iAaccIntro with ""; try eauto with iFrame.
         iIntros "_".
 
-        iAssert (⌜t0 = 0⌝)%I as %t0_zero.
-          { iPureIntro. admit. } subst t0.
         iMod "AU" as "[_ [_ Hclose]]".
-        iInv "HInv" as (T' H')"(mcs_high & >Inv_DF)". {admit. }
-        iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
-        iAssert (⌜(k,0) ∈ H'⌝)%I as "%".
-          { iDestruct "Hist" as %Hist. iPureIntro.
-            by pose proof Hist k k_in_KS as Hist. }
         iSpecialize ("Hclose" $! 0).
         iMod (own_update γ_s (● H') (● H' ⋅ ◯ {[(k,0)]}) with "[$HH]") as "HH".
             { apply (auth_update_frac_alloc _ H' ({[(k,0)]})).
