@@ -94,6 +94,7 @@ Section multicopy_df_search.
       iAssert (⌜γ_cn' = γ_cd⌝)%I as "%".
       {
         iDestruct "HRorD'" as %HRorD'.
+        unfold map_of_set.
         destruct HRorD'; destruct H0; iPureIntro; done.
       } subst γ_cn'.
 
@@ -137,7 +138,6 @@ Section multicopy_df_search.
         }
         iAssert (⌜t0 ≤ (map_of_set H_1a) !!! k⌝)%I as %lb_t0.
         {
-
           iDestruct "Hcir_1a" as %Hcir_1a.
           unfold cir in Hcir_1a.
           specialize (Hcir_1a k t0).
@@ -145,10 +145,25 @@ Section multicopy_df_search.
           admit.
         }
         iAssert (⌜t0 = 0⌝)%I as %t0_zero.
-        { 
-          iPureIntro. admit. 
+        {
+          iPureIntro. lia.
         } subst t0.
+
+        iMod (own_update γ_s (● H_1a) (● H_1a ⋅ ◯ {[(k,0)]}) with "[$HH]") as "HH".
+            { apply (auth_update_frac_alloc _ H_1a ({[(k,0)]})).
+              apply gset_included. set_solver. }
+        iDestruct "HH" as "(HH & #mcs_sr'')".
+        iSplitR "AU Hγ_c' Hdecide' node_n".
+        {
+          iModIntro. iNext.
+          iExists T_1a, H_1a.
+          iFrame.
+          iExists Cr_1a, Cd.
+          iFrame.
+          iFrame "Hcir_1a".
+        }
         (** Unlock node d **)
+        iModIntro. iModIntro. 
         awp_apply (unlockNode_spec_high with "[] []
         [Hγ_c' Hdecide' node_n]"); try done. iFrame "∗#".
         iAaccIntro with ""; try eauto with iFrame.
@@ -156,13 +171,9 @@ Section multicopy_df_search.
 
         iMod "AU" as "[_ [_ Hclose]]".
         iSpecialize ("Hclose" $! 0).
-        iMod (own_update γ_s (● H') (● H' ⋅ ◯ {[(k,0)]}) with "[$HH]") as "HH".
-            { apply (auth_update_frac_alloc _ H' ({[(k,0)]})).
-              apply gset_included. set_solver. }
-        iDestruct "HH" as "(HH & #mcs_sr'')".
-        iModIntro.
-        iSplitR "HInv Hclose". iNext.
-        iExists T', H'. iFrame.
+        (* iModIntro. *)
+        (*iSplitR "HInv Hclose". iNext.
+        iExists T', H'. iFrame.*)
         iMod ("Hclose" with "[]") as "HΦ". iFrame "mcs_sr''". by iPureIntro.
         (** Closing the invariant **)
         iModIntro. wp_pures. iFrame. done.
