@@ -33,6 +33,7 @@ Section multicopy_df_search.
     iDestruct "Hstar" as "(Hrnotd & #Hcir & Hset & Hlockbr
             & Hycr & Hlockbd & Hycd)".
     iDestruct "Hrnotd" as %Hrnotd.
+    iDestruct "Hcir" as %Hcir.
             
     rewrite (big_sepS_delete _ (KS) k); last by eauto.
     iDestruct "Hset" as "(HnS_stark & HnS_star')".
@@ -68,7 +69,6 @@ Section multicopy_df_search.
     iDestruct "HnP_n" as "(Hnode & #Hγ_s & Hγ_c & Hdecide)".
     wp_apply (inContents_spec with "Hnode").
     iIntros (t) "(node_n & H)". iDestruct "H" as %Cn_val.
-    wp_pures.
     (** Case analysis on whether k in contents of r **)
     destruct t as [t |]; last first.
     - (* Case 1: k not in r. *)
@@ -78,6 +78,16 @@ Section multicopy_df_search.
       [Hγ_c Hdecide node_n]"); try done. iFrame "∗#".
       iAaccIntro with ""; try eauto with iFrame.
       iIntros "_". iModIntro. wp_pures.
+
+      (* Before unlocking root node, may want to show:
+        1) map_of_set H !! k = Cd !! k
+        2) (k,t0) in H
+        3) (k,t0) in H → map_of_set H !!! k >= t0 (lemma map_of_set_lookup_lb)
+        4) Cd !!! k >= t0
+        ● Cd(k) ~~> ● Cd(k) ⋅ ◯ Cd(k)
+        ◯ Cd(k) ⋅ ● Cd'(k) ~~> Cd(k) ≤ Cd'(k) 
+        t0 ≤ Cd(k) ≤ Cd'(k) = t
+      *)
 
       awp_apply lockNode_spec_high; try done. iPureIntro.
       right. done. iAaccIntro with ""; try eauto with iFrame.
@@ -127,13 +137,21 @@ Section multicopy_df_search.
           iPureIntro. done.
         } subst Cd_1a.
 
+        iAssert (⌜(k,t0) ∈ H_1a⌝)%I as %kt0_in_H_1a.
+        { iPoseProof (own_valid_2 _ _ _ with "[$HH] [$mcs_sr]") as "H'".
+          iDestruct "H'" as %H'.
+          apply auth_both_valid_discrete in H'.
+          destruct H' as [H' _].
+          apply gset_included in H'.
+          iPureIntro; clear -H'; set_solver. 
+        }
         iAssert (⌜(map_of_set H_1a) !!! k = 0⌝)%I as %Hk_eq_0.
         {
-
           iDestruct "Hist" as %Hist.
           unfold init in Hist.
           specialize (Hist k).
           apply Hist in k_in_KS as k0_in_H1.
+          (* use H ⊆ H_1a *)
           admit.
         }
         iAssert (⌜t0 ≤ (map_of_set H_1a) !!! k⌝)%I as %lb_t0.
@@ -142,7 +160,11 @@ Section multicopy_df_search.
           unfold cir in Hcir_1a.
           specialize (Hcir_1a k t0).
           destruct Hcir_1a.
-          admit.
+          pose proof map_of_set_lookup_lb as H_lb.
+          specialize H_lb with H_1a k t0.
+          apply H_lb in kt0_in_H_1a.
+          iPureIntro.
+          done.
         }
         iAssert (⌜t0 = 0⌝)%I as %t0_zero.
         {
@@ -218,4 +240,6 @@ Section multicopy_df_search.
       iIntros "_".
       iModIntro. wp_pures. subst t. done.
 
-  Qed.
+  Admitted.
+
+End multicopy_df_search.
