@@ -181,6 +181,7 @@ Section multicopy_df_upsert.
       iAssert (⌜map_of_set (H1 ∪ {[k, T]}) = <[k:=T]> (map_of_set H1)⌝)%I as %Htrans_union.
       {
         iPureIntro.
+        unfold map_of_set.
         admit.
       }
 
@@ -329,5 +330,7 @@ Section multicopy_df_upsert.
       iAaccIntro with ""; try done.
       iIntros "_". 
       iModIntro. iIntros "HΦ". try done.
-  Qed.
+  Admitted.
   
+  
+End multicopy_df_upsert.
