@@ -1,3 +1,4 @@
+
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import frac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -32,9 +33,6 @@ Section multicopy_df_search.
     iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
     iDestruct "Hstar" as "(Hrnotd & #Hcir & Hset & Hlockbr
             & Hycr & Hlockbd & Hycd)".
-    iDestruct "Hrnotd" as %Hrnotd.
-    iDestruct "Hcir" as %Hcir.
-            
     rewrite (big_sepS_delete _ (KS) k); last by eauto.
     iDestruct "Hset" as "(HnS_stark & HnS_star')".
     iMod (own_update (γ_d !!! k) (● MaxNat (Cd' !!! k))
@@ -68,6 +66,7 @@ Section multicopy_df_search.
     iDestruct "HnP_n" as "(Hnode & #Hγ_s & Hγ_c & Hdecide)".
     wp_apply (inContents_spec with "Hnode").
     iIntros (t) "(node_n & H)". iDestruct "H" as %Cn_val.
+    wp_pures.
     (** Case analysis on whether k in contents of r **)
     destruct t as [t |]; last first.
     - (* Case 1: k not in r. *)
@@ -133,23 +132,10 @@ Section multicopy_df_search.
       iDestruct "HnP_n" as "(HnP_n & #HRorD')".
       iDestruct "HnP_n" as "(Hnode' & #Hγ_s' & Hγ_c' & Hdecide')".
 
-      iAssert (⌜γ_cn = γ_cr⌝)%I as "%".
-      {
-        iDestruct "HRorD" as %HRorD.
-        destruct HRorD; destruct H0; iPureIntro; done.
-      } subst γ_cn.
-
-      iAssert (⌜γ_cn' = γ_cd⌝)%I as "%".
-      {
-        iDestruct "HRorD'" as %HRorD'.
-        unfold map_of_set.
-        destruct HRorD'; destruct H0; iPureIntro; done.
-      } subst γ_cn'.
-
       wp_apply (inContents_spec with "Hnode'").
       iIntros (t) "(node_n & H)". iDestruct "H" as %Cn_val'.
       wp_pures.
-      destruct t as [t | ]; last first.
+      destruct t as [t |]; last first.
       (** Case analysis on whether k is in the contents of d. **)
       + (** Case 1.a : k not in datastructure. **)
         wp_pures.
