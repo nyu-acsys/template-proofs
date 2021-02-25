@@ -93,6 +93,12 @@ Section multicopy_df_search.
           pose proof Hcir k as [_ H'].
           iPureIntro. pose proof H' Cn_val as H'.
           by rewrite H'. }
+
+      iDestruct "Hrnotd" as %Hrnotd.
+      iAssert (⌜r ≠ d⌝)%I as "Hrnotd".
+      {
+        iPureIntro; done.
+      }
       iAssert (⌜(k,t0) ∈ H⌝)%I as "%".
       { iPoseProof (own_valid_2 _ _ _ with "[$HH] [$mcs_sr]") as "H'".
         iDestruct "H'" as %H'.
@@ -145,31 +151,77 @@ Section multicopy_df_search.
         iInv "HInv" as (T' H')"(mcs_high & >Inv_DF)".
         iDestruct "Inv_DF" as (Cr1 Cd1)"(Ho & Hstar)".
         iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
-        iDestruct "Hstar" as "(Hrnotd & #Hcir' & Hset & Hlockbr
+        iDestruct "Hstar" as "(_ & #Hcir' & Hset & Hlockbr
             & Hycr & Hlockbd & Hycd)".
         iAssert (⌜(k,0) ∈ H'⌝)%I as "%".
           { iDestruct "Hist" as %Hist. iPureIntro.
             by pose proof Hist k k_in_KS as Hist. }
-    (*    iAssert (⌜Cd = Cd1⌝)%I as %Cd_eq_Cd1.
-          { admit. } subst Cd1.
-          iAssert (⌜(map_of_set H') !!! k = 0⌝)%I as %H'_eq_0.
-          {
-            iDestruct "Hist" as %Hist.
-            unfold init in Hist.
-            specialize (Hist k).
-            apply Hist in k_in_KS as k0_in_H1.
-            admit.
-          }
-          iAssert (⌜t0 ≤ (map_of_set H') !!! k⌝)%I as %lb_t0.
-          {
-            iDestruct "Hcir'" as %Hcir'.
-            unfold cir in Hcir'.
-            specialize (Hcir' k t0).
-            destruct Hcir'.
-            admit.
-          }*)
+
+        iAssert(⌜γ_cd' = γ_cd⌝)%I as "%".
+        {
+          iDestruct "HRorD'" as %HRorD'.
+          destruct HRorD' as [temp | temp];
+          destruct temp; iPureIntro; try done.
+        } subst γ_cd'.
+
+        iAssert (⌜Cd = Cd1⌝)%I as %Cd_eq_Cd1.
+        { admit. } subst Cd1.
+
+        iAssert (⌜Cd = Cd''⌝)%I as %Cd_eq_Cd''.
+        { 
+          iPoseProof (own_valid_2 _ _ _ with "[$Hycd] [$Hγ_c']") as "#HCr_equiv".
+          iDestruct "HCr_equiv" as %HCr_equiv.
+          apply frac_agree_op_valid in HCr_equiv.
+          destruct HCr_equiv as [_ HCr_equiv].
+          apply leibniz_equiv_iff in HCr_equiv.
+          iPureIntro. done.
+        } subst Cd''.
+
+        iAssert (⌜map_of_set H' !! k = Cd !! k⌝)%I as %MapCdH'.
+        { iDestruct "Hcir'" as %Hcir'.
+          pose proof Hcir' k as [_ H''].
+          iPureIntro. 
+          (*pose proof H'' Cn_val' as H''.
+          by rewrite H''.*) }
+        iAssert (⌜(map_of_set H') !! k = None⌝)%I as %H'_eq_None.
+        {
+          iDestruct "Hist" as %Hist.
+          unfold init in Hist.
+          specialize (Hist k).
+          apply Hist in k_in_KS as k0_in_H1.
+          iPureIntro.
+          rewrite -> MapCdH'.
+          done.
+        }
+        iAssert (⌜(map_of_set H') !!! k = 0⌝)%I as %H'_eq_0.
+        {
+          iPureIntro.
+          unfold lookup_total. unfold finmap_lookup_total.
+          rewrite -> H'_eq_None. done.        }
+        iAssert (⌜(k,t0) ∈ H'⌝)%I as %kt0_in_H'.
+        { 
+          iPoseProof (own_valid_2 _ _ _ with "[$HH] [$mcs_sr]") as "H'".
+          iDestruct "H'" as %H''.
+          apply auth_both_valid_discrete in H''.
+          destruct H'' as [H'' _].
+          apply gset_included in H''.
+          iPureIntro; clear -H''; set_solver. 
+        }
+        iAssert (⌜t0 ≤ (map_of_set H') !!! k⌝)%I as %lb_t0.
+        {
+          iDestruct "Hcir'" as %Hcir_1a.
+          unfold cir in Hcir_1a.
+          specialize (Hcir_1a k t0).
+          destruct Hcir_1a.
+          pose proof map_of_set_lookup_lb as H_lb.
+          specialize H_lb with H' k t0.
+          apply H_lb in kt0_in_H'.
+          iPureIntro.
+          done.
+        }
         iAssert (⌜t0 = 0⌝)%I as %t0_zero.
-          { iPureIntro. admit. } subst t0.
+        { iPureIntro. lia.
+        }  subst t0.
 
         iMod (own_update γ_s (● H') (● H' ⋅ ◯ {[(k,0)]}) with "[$HH]") as "HH".
           { apply (auth_update_frac_alloc _ H' ({[(k,0)]})).
@@ -177,7 +229,7 @@ Section multicopy_df_search.
         iDestruct "HH" as "(HH & #mcs_sr'')".
         iModIntro. iSplitR "HInv AU Hγ_c' Hdecide' node_n". iNext.
         iExists T', H'. iFrame.
-        iExists Cr1, Cd1. iFrame. iFrame "Hcir'".
+        iExists Cr1, Cd. iFrame. iFrame "Hcir'". iFrame "#".
 
         (** Unlock node d **)
         iModIntro. wp_pures.
@@ -192,7 +244,8 @@ Section multicopy_df_search.
         by iPureIntro.
 
         (** Closing the invariant **)
-        iModIntro. wp_pures. iFrame. 
+        iModIntro. wp_pures. iFrame.
+        iModIntro. done.
 
       + (** Case 1.b : k is not in r, but is in d. **)
         wp_pures.
@@ -202,7 +255,7 @@ Section multicopy_df_search.
         iInv "HInv" as (T' H')"(mcs_high & >Inv_DF)".
         iDestruct "Inv_DF" as (Cr' Cd')"(Ho & Hstar)".
         iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
-        iDestruct "Hstar" as "(Hrnotd & #Hcir' & Hset & Hlockbr
+        iDestruct "Hstar" as "(Hrnotd2 & #Hcir' & Hset & Hlockbr
             & Hycr & Hlockbd & Hycd)".
         rewrite (big_sepS_delete _ (KS) k); last by eauto.
         iDestruct "Hset" as "(HnS_stark & HnS_star')".
