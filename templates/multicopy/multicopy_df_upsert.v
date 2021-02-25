@@ -181,8 +181,15 @@ Section multicopy_df_upsert.
       iAssert (⌜map_of_set (H1 ∪ {[k, T]}) = <[k:=T]> (map_of_set H1)⌝)%I as %Htrans_union.
       {
         iPureIntro.
-        unfold map_of_set.
-        admit.
+        pose proof map_of_set_insert_eq as mos_eq.
+        set C := (map_of_set H1).
+        specialize mos_eq with C k T H1.
+        elim mos_eq; try done.
+        unfold maxTS in MaxTS_H1.
+        destruct MaxTS_H1 as [MaxTS T_gt_0].
+        intro t.
+        specialize MaxTS with k t.
+        done.
       }
 
       iAssert (⌜γ_cn = γ_cr⌝)%I as %gamma_cn_cr.
@@ -330,7 +337,6 @@ Section multicopy_df_upsert.
       iAaccIntro with ""; try done.
       iIntros "_". 
       iModIntro. iIntros "HΦ". try done.
-  Admitted.
-  
+  Qed.
   
 End multicopy_df_upsert.
