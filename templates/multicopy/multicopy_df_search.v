@@ -462,7 +462,7 @@ Section multicopy_df_search.
     by iPureIntro.
     iIntros "_".
     iModIntro. wp_pures. done.
-  
-  Admitted.
+    Unshelve. done.
+  Qed.
 
 End multicopy_df_search.
