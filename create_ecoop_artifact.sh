@@ -1,5 +1,7 @@
 #!/bin/bash
+set -e -x
 
+[ -d "./ecoop21_artifact" ] && rm -rf ecoop21_artifact
 mkdir ecoop21_artifact
 cd ecoop21_artifact
 
@@ -50,4 +52,4 @@ cd ..
 
 zip -r ecoop21_artifact.zip ecoop21_artifact/
 
-rm -rf ecoop21_artifact/
+# rm -rf ecoop21_artifact/

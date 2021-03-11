@@ -1,3 +1,5 @@
+/** LSM-like implementation of the multicopy template. */
+
 options "-abspreds -simplearrays -propreads -stratify -module multicopy-lsm"
 
 include "array_util.spl"
@@ -5,6 +7,8 @@ include "array_util.spl"
 datatype OptionTS = someTS(tst: Int) | noneTS
 
 datatype OptionNode = someNode(nd: Node) | noneNode
+
+/** Definition of a node */
 
 datatype NodeType = memtableNode | sstableNode
 
@@ -21,6 +25,7 @@ const B: Int
 
 axiom B > 1
 
+/** {Spec} Definition of heap representation predicate, node */
 
 define nodeSpatial(x) {
   acc(x) &*& acc(x.tableK) &*& acc(x.tableT)
@@ -41,6 +46,49 @@ function contents_memtable_aux(tableK: Map<Int, K>, tableT: Map<Int, Int>,
 define contents_memtable(tableK, tableT, len) {
   contents_memtable_aux(tableK.map, tableT.map, len, len)
 }
+
+define nodePure(r, n, esn, Cn) {
+  true
+  // Node is either memtable or sstable:
+  && (n.nodeType == memtableNode
+      && n == r
+      && Cn == contents_memtable(n.tableK, n.tableT, n.tableLen)
+    || n.nodeType == sstableNode
+      && n != r
+      && sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
+      // Cn is given by tableK and tableT
+      && (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.tableK[i]] == n.tableT[i])
+      // For keys not in tableK, Cn is 0
+      && (forall k: K :: n.indices[k] == -1 ==> Cn[k] == 0)
+      // n.indices is the inverse of n.tableK
+      && (forall k: K :: 0 <= n.indices[k] < n.tableLen
+        ==> n.tableK.map[n.indices[k]] == k)
+      && (forall i: Int :: 0 <= i < n.tableLen
+        ==> n.indices[n.tableK.map[i]] == i @(noinst i))
+      && (forall k: K :: -1 <= n.indices[k] < n.tableLen)
+  )
+  && 0 <= n.tableLen <= n.tableK.length
+  // No self-loops
+  && n.next != n && n.next != r
+  // Edgeset to next node is KS if non-null
+  && (n.next != null
+    ==> (forall k: K :: k in esn[n.next]))
+  // All other nodes have empty edgeset
+  && (forall n1: Node :: n1 != n.next ==> esn[n1] == {})
+  && esn[null] == {}
+}
+
+// TODO make n first or last arg
+define node(r, n, esn, Cn) {
+  nodeSpatial(n)
+  &*& nodePure(r, n, esn, Cn)
+}
+
+define needsNewNode(r, n, esn, Cn) {
+  n.next == null
+}
+
+/** {Spec} Some lemmas used by the proof of the programs below */
 
 lemma contents_memtable_found(n: Node, k: K, i: Int)
   requires nodeSpatial(n)
@@ -159,42 +207,7 @@ lemma contents_memtable_add(tableK: Map<Int, K>, tableT: Map<Int, Int>,
     == contents_memtable_aux(old_tableK, old_tableT, len-1, len-1);
 }
 
-define nodePure(r, n, esn, Cn) {
-  true
-  // Node is either memtable or sstable:
-  && (n.nodeType == memtableNode
-      && n == r
-      && Cn == contents_memtable(n.tableK, n.tableT, n.tableLen)
-    || n.nodeType == sstableNode
-      && n != r
-      && sorted_map_seg(n.tableK.map, 0, n.tableLen) == true
-      // Cn is given by tableK and tableT
-      && (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.tableK[i]] == n.tableT[i])
-      // For keys not in tableK, Cn is 0
-      && (forall k: K :: n.indices[k] == -1 ==> Cn[k] == 0)
-      // n.indices is the inverse of n.tableK
-      && (forall k: K :: 0 <= n.indices[k] < n.tableLen
-        ==> n.tableK.map[n.indices[k]] == k)
-      && (forall i: Int :: 0 <= i < n.tableLen
-        ==> n.indices[n.tableK.map[i]] == i @(noinst i))
-      && (forall k: K :: -1 <= n.indices[k] < n.tableLen)
-  )
-  && 0 <= n.tableLen <= n.tableK.length
-  // No self-loops
-  && n.next != n && n.next != r
-  // Edgeset to next node is KS if non-null
-  && (n.next != null
-    ==> (forall k: K :: k in esn[n.next]))
-  // All other nodes have empty edgeset
-  && (forall n1: Node :: n1 != n.next ==> esn[n1] == {})
-  && esn[null] == {}
-}
-
-// TODO make n first or last arg
-define node(r, n, esn, Cn) {
-  nodeSpatial(n)
-  &*& nodePure(r, n, esn, Cn)
-}
+/** {Spec} Implementation-specific lemmas needed by Iris */
 
 lemma node_sep_star(r: Node, n: Node, esn: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, Int>, C1: Map<K, Int>)
   requires node(r, n, esn, C) &*& node(r, n, es1, C1)
@@ -222,6 +235,7 @@ lemma node_es_empty(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, Int>)
   ensures forall k: K :: (k !in esn[r] && k !in esn[n])
 {}
 
+/** Begin programs */
 
 procedure init()
   returns (r: Node, esr: Map<Node, Set<K>>, Cr: Map<K, Int>)
@@ -338,10 +352,6 @@ procedure atCapacity(n: Node,
   } else {
     return true;
   }
-}
-
-define needsNewNode(r, n, esn, Cn) {
-  n.next == null
 }
 
 procedure chooseNext(n: Node,

@@ -132,7 +132,7 @@ Proof.
   unfold op, prodOp. destruct x; try done.
 Qed.
 
-Canonical Structure keysetUR : ucmraT := UcmraT prodT prod_ucmra_mixin.
+Canonical Structure keysetUR : ucmra := Ucmra prodT prod_ucmra_mixin.
 
 Lemma auth_ks_included (a1 a2 b1 b2: gset K) :
   ✓ prod (a1, b1) → ✓ prod (a2, b2) → prod (a1, b1) ≼ prod (a2, b2)
@@ -231,7 +231,7 @@ Section keyset_updates.
   Qed.
 
   (** Ghost update of abstract search structure state *)
-  
+      
   Lemma ghost_update_keyset γ_k dop (k: K) Cn Cn' res K1 C:
     ⊢ ⌜Ψ dop k Cn Cn' res⌝ ∗ own γ_k (● prod (KS, C)) ∗ own γ_k (◯ prod (K1, Cn))
     ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝

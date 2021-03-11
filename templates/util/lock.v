@@ -81,4 +81,20 @@ Section Lock_module.
     iModIntro. done.
   Qed.
   
+  Lemma unlockNode_spec_low (n: Node) :
+    ⊢ <<< lockLoc n ↦ #true >>>
+      unlockNode #n    @ ⊤
+    <<< lockLoc n ↦ #false, RET #() >>>.
+  Proof.
+    iIntros (Φ) "AU". wp_lam. wp_bind(getLockLoc _)%E.
+    wp_apply getLockLoc_spec; first done.
+    iIntros (l) "#Hl". wp_let.
+    iMod "AU" as "[Hy [_ Hclose]]".
+    iDestruct "Hl" as %Hl.
+    iEval (rewrite Hl) in "Hy".
+    wp_store. iEval (rewrite Hl) in "Hclose".
+    iMod ("Hclose" with "Hy") as "HΦ".
+    iModIntro. done.
+  Qed.  
+  
 End Lock_module.  

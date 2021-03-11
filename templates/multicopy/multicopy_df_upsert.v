@@ -150,11 +150,11 @@ Section multicopy_df_upsert.
       { apply (auth_update_alloc _ (H1 ∪ {[(k,T)]}) (set_of_map Cr')).
         apply local_update_discrete. intros m Valid_H1 H1_eq.
         split; try done. rewrite /(ε ⋅? m) in H1_eq.
-        destruct m. rewrite gset_op_union in H1_eq. 
+        destruct m. rewrite gset_op in H1_eq. 
         rewrite left_id in H1_eq *; intros H1_eq.
         rewrite <-H1_eq. 
         rewrite /(set_of_map Cr' ⋅? Some (H1 ∪ {[k, T]})).
-        rewrite gset_op_union.
+        rewrite gset_op.
         rewrite /(ε) in H1_eq. unfold ucmra_unit in H1_eq.
         simpl in H1_eq.
          assert ((k,T) ∈ set_of_map Cr') as H'.
@@ -289,7 +289,7 @@ Section multicopy_df_upsert.
       iMod ((own_update (γ_cr) (to_frac_agree 1 Inv_Cr_2)
               (to_frac_agree 1 Cr')) with "[$root_own]") as "root_update".
       { apply cmra_update_exclusive.
-        unfold valid, cmra_valid. simpl. unfold prod_valid.
+        unfold valid, cmra_valid. simpl. unfold prod_valid_instance.
         split; simpl; try done. }
 
       (* Break apart ownerships to be used separately. *)

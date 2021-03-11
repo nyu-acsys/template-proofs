@@ -255,7 +255,7 @@ Section Coupling_Template.
                 ∗ ⌜keyset K Im1 m ## keyset K In1 n⌝
                 ∗ ⌜keyset K Ip1 p ∪ keyset K In1 n ∪ keyset K Im1 m = keyset K Ip p ∪ keyset K In n⌝ }}})%I.
 
-                (*TODO changed back to original spec*)
+  (*TODO changed back to original spec*)
   Parameter alloc_spec :
      ⊢ ({{{ True }}}
            alloc #()
@@ -275,8 +275,8 @@ Section Coupling_Template.
                     ∗ ⌜domm In = {[n]}⌝.
 
   Definition nodeFull γ_I γ_k root n : iProp :=
-    (∃ (b: bool),
-        (lockR b n (∃ In Cn, nodePred γ_I γ_k root n In Cn))).
+    (∃ (b: bool) In Cn,
+        (lockR b n (nodePred γ_I γ_k root n In Cn))).
 
   Definition globalGhost γ_I γ_f γ_k γ_c root I C : iProp :=
                     own γ_I (● I)
@@ -303,6 +303,8 @@ Section Coupling_Template.
     repeat apply bi.sep_timeless; try apply _.
     apply big_sepS_timeless.
     intros. apply bi.exist_timeless. intros.
+    apply bi.exist_timeless. intros.
+    apply bi.exist_timeless. intros.
     apply bi.sep_timeless; try apply _.
     destruct x2; try apply _.
   Qed.
@@ -312,37 +314,37 @@ Section Coupling_Template.
   Lemma auth_agree γ xs ys :
   own γ (● (Excl' xs)) -∗ own γ (◯ (Excl' ys)) -∗ ⌜xs = ys⌝.
   Proof.
-  (*
     iIntros "Hγ● Hγ◯". by iDestruct (own_valid_2 with "Hγ● Hγ◯")
-      as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid.
-  *)
+      as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid_discrete.
   Admitted.
 
 
   Lemma flowint_update_result γ I I_n I_n' x :
-    ⌜flowint_update_P K_multiset I I_n I_n' x⌝ ∧ own γ x -∗
+    ⌜flowint_update_P K_multiset I I_n I_n' x⌝ ∗ own γ x -∗
     ∃ I', ⌜contextualLeq K_multiset I I'⌝
           ∗ ⌜∃ I_o, I = I_n ⋅ I_o ∧ I' = I_n' ⋅ I_o⌝
           ∗ own γ (● I' ⋅ ◯ I_n').
   Proof.
-  (*
     unfold flowint_update_P.
-    case_eq (auth_auth_proj x); last first.
+    case_eq (view_auth_proj x); last first.
     - intros Hx. iIntros "(% & ?)". iExFalso. done.
-    - intros p. intros Hx. case_eq p. intros q a Hp.
+    - intros [q a] Hx.
       iIntros "[HI' Hown]". iDestruct "HI'" as %HI'.
       destruct HI' as [I' HI'].
       destruct HI' as [Hagree [Hq [HIn [Hcontxl HIo]]]].
       iExists I'.
       iSplit. by iPureIntro.
-      iSplit. by iPureIntro.
-      assert (Auth (auth_auth_proj x) (auth_frag_proj x) = x) as Hdefx.
-      { destruct x. reflexivity. }
-      assert (x = (Auth (Some (1%Qp, to_agree(I'))) (I_n'))) as H'.
-      { rewrite <-Hdefx. by rewrite Hx Hp Hq Hagree HIn. }
-      iEval (rewrite -auth_both_op). by iEval (rewrite <-H').
-  *)
-  Admitted.
+      iSplit. by iPureIntro. destruct x.
+      simpl in Hx. simpl in HIn.
+      rewrite Hx. rewrite <-HIn.
+      rewrite Hq Hagree.
+      assert (● I' ⋅ ◯ I_n' = View (Some (1%Qp, to_agree I')) I_n') as H'.
+      { rewrite /(● I' ⋅ ◯ I_n'). unfold cmra_op.
+        simpl. unfold view_op_instance. simpl.
+        assert (ε ⋅ I_n' = I_n') as H'. by rewrite left_id.
+        rewrite H'. unfold op, cmra_op. by simpl. }   
+      by iEval (rewrite H').
+  Qed.
 
   Lemma inFP_domm γ_I γ_f γ_k γ_c root I C n  :
     inFP γ_f n -∗ CSSi γ_I γ_f γ_k γ_c root I C -∗ ⌜n ∈ domm I⌝.
@@ -375,12 +377,12 @@ Section Coupling_Template.
     -∗ ((lockR true n (∃ In Cn, nodePred γ_I γ_k root n In Cn))∗ (node root n In Cn)).
   Proof.
     iIntros "Hn Hnf".
-    iDestruct "Hnf" as (b) "(Hlock & Hnp)". destruct b.
+    iDestruct "Hnf" as (b In' Cn') "(Hlock & Hnp)". destruct b.
     - (* Case n locked *)
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (?I ?C) "(Hn' & _)".
-      iExFalso. iApply (node_sep_star root n In I with "[$] [$]").
+      iDestruct "Hnp" as "(Hn' & _)".
+      iExFalso. iApply (node_sep_star root n In In' with "[$] [$]").
   Qed.
 
   Lemma CSS_unfold γ_I γ_f γ_k γ_c root I C n :
@@ -450,6 +452,7 @@ Section Coupling_Template.
     - destruct H1 as [a [b [_ [H1 _]]]].
       split; set_solver.
   Qed.
+
  (* TODO had to change to original implementation using lockLoc for now *)
   Lemma node_lock_not_in_FP γ_I γ_f γ_k γ_c root I C n b :
   lockLoc n ↦ #b -∗ CSSi γ_I γ_f γ_k γ_c root I C -∗ ⌜n ∉ domm I⌝.
@@ -457,8 +460,10 @@ Section Coupling_Template.
     iIntros "Hl Hcss". iDestruct "Hcss" as "(Hg & Hbigstar)".
     destruct (decide (n ∈ domm I)).
     rewrite (big_sepS_elem_of_acc _ (domm I) n); last by eauto.
-    iDestruct "Hbigstar" as "(Hn & Hbigstar)". iDestruct "Hn" as (b0) "(Hlockn & Hb)".
-    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". exfalso. destruct H0. by compute in H0.
+    iDestruct "Hbigstar" as "(Hn & Hbigstar)". 
+    iDestruct "Hn" as (b0 In Cn) "(Hlockn & Hb)".
+    iDestruct (mapsto_valid_2 with "Hl Hlockn") as "%". 
+    exfalso. destruct H0. by compute in H0.
     by iPureIntro.
   Qed.
 
@@ -467,7 +472,7 @@ Section Coupling_Template.
     -∗ node root n In Cn -∗ ⌜n ∈ domm I⌝
     -∗ (node root n In Cn
         ∗ globalGhost γ_I γ_f γ_k γ_c root I C
-        ∗ (lockR true n (∃ C, nodePred γ_I γ_k root n I C))
+        ∗ (lockR true n (nodePred γ_I γ_k root n In Cn))
         ∗ (∀ C',
            globalGhost γ_I γ_f γ_k γ_c root I C' ∗ nodeFull γ_I γ_k root n
            -∗ CSSi γ_I γ_f γ_k γ_c root I C')).
@@ -639,7 +644,6 @@ Section Coupling_Template.
               ∗ ⌜domm I' = domm I ∪ {[m]}⌝
               ∗ ⌜domm I' ∖ {[m]} = domm I⌝.
   Proof.
-  (*
     iIntros "(m_not_in_I & Hglob & ContLeq & HI & HIpn &
                           Hdomm & Dom_Ip & Dom_In & Dom_Ip' & Dom_In' & Dom_Im' & Hinf)".
     iDestruct "m_not_in_I" as %m_not_in_I.
@@ -653,7 +657,7 @@ Section Coupling_Template.
     iDestruct "Hinf" as %m_inf.
     iCombine "HI" "HIpn" as "Hownint".
     iPoseProof (own_valid with "Hownint") as "%". rename H0 into Valid_I_pn.
-    apply auth_both_valid in Valid_I_pn. destruct Valid_I_pn as [Ipn_incl_I Valid_I].
+    apply auth_both_valid_discrete in Valid_I_pn. destruct Valid_I_pn as [Ipn_incl_I Valid_I].
     destruct Ipn_incl_I as [Iz Ipn_incl_I].
     iDestruct "Hownint" as "[HI H']".
     destruct ContLeq as (Valid_Ipn & Valid_Ipnm & Hsub & Hinf_pn & Hout).
@@ -752,8 +756,6 @@ Section Coupling_Template.
     iDestruct "H" as "(Hdomm & _)". iEval (rewrite <-domm_I'') in "Hdomm".
     iFrame "∗ # %". iPureIntro. clear - domm_I'' m_not_in_I. set_solver.
   Qed.
-*)
-  Admitted.
   
   (** High-level lock specs **)
 
@@ -766,25 +768,24 @@ Section Coupling_Template.
   Proof.
     iIntros "#HFp #HInv".
     iIntros (Φ) "AU".
-    awp_apply (lockNode_spec n (∃ In Cn, nodePred γ_I γ_k root n In Cn)).
+    awp_apply (lockNode_spec n).
     iInv "HInv" as ">Hcss". iDestruct "Hcss" as (I C) "Hcssi".
     iPoseProof (inFP_domm with "[$] [$]") as "%". rename H0 into n_in_I.
     iPoseProof (CSS_unfold with "[$] [%]") as "(Hg & Hnf & Hcss')"; try done.
     iSpecialize ("Hcss'" $! C).
-    iDestruct "Hnf" as (b) "Hlock". iFrame.
+    iDestruct "Hnf" as (b In Cn) "Hlock". iFrame.
     iAaccIntro with "Hlock".
     { iIntros "Hlockn". iModIntro.
       iPoseProof ("Hcss'" with "[-AU]") as "Hcss".
-      { iFrame. iExists b. iFrame. }
+      { iFrame. iExists b, In, Cn. iFrame. }
       iSplitL "Hcss"; try done. iNext. iExists I, C. iFrame.
     }
     iIntros "(Hlockn & H)". 
-    iDestruct "H" as (In Cn) "H".
     iMod "AU" as "[_ [_ Hclose]]".
     iDestruct "Hlockn" as "(Hlockn & _)".
     iMod ("Hclose" with "[H]") as "HΦ"; try done. iModIntro.
     iPoseProof ("Hcss'" with "[-HΦ]") as "Hcss".
-    { iFrame. iExists true. iFrame. }
+    { iFrame. iExists true, In, Cn. iFrame. }
     iFrame. iNext. iExists I, C. eauto with iFrame.
   Qed.
 
@@ -801,15 +802,18 @@ Section Coupling_Template.
     iPoseProof (int_domm with "[$] [$] [$]") as "%". rename H0 into n_in_I.
     iPoseProof (CSS_unfold_node_wand with "[$] [$] [%]")
       as "(Hn & Hg & Hlock & Hcss')"; try done.
-    iDestruct "Hlock" as "(Hlock & _)".
-    iAaccIntro with "Hlock".
-    { iIntros "Hlock". iModIntro. iFrame. iNext. iExists I, C.
-      iApply "Hcss'". iFrame. iExists true. iFrame. }
+    iAssert (nodePred γ_I γ_k root n In Cn)%I 
+      with "[Hnpks HnpI Dom_In Hn]" as "Hnp".
+    { iFrame. }
+    iCombine "Hlock" "Hnp" as "HPre".      
+    iAaccIntro with "HPre".
+    { iIntros "(Hlock & Hnp)". iModIntro. iFrame. iNext. 
+      iExists I, C. iApply "Hcss'". iFrame. iExists true, In, Cn. iFrame. }
     iIntros "Hlock".
     iMod "AU" as "[_ [_ Hclose]]".
     iMod ("Hclose" with "[]") as "HΦ"; try done.
     iModIntro. iFrame. iNext. iExists I, C.
-    iApply "Hcss'". iFrame. iExists false. iFrame. iExists In, Cn. iFrame.
+    iApply "Hcss'". iFrame. iExists false, In, Cn. iFrame.
   Qed.
 
   (** Proof of the lock-coupling template *)
@@ -909,7 +913,8 @@ Section Coupling_Template.
       iDestruct "Hres" as "%".
       (* Apply continuation *)
       iSpecialize ("HCont" $! p n Ip In Cp Cn).
-      destruct suc; wp_pures; iApply "HCont"; iFrame "∗ # %".
+      destruct suc; wp_pures; iApply "HCont"; 
+      iFrame "∗ # %"; iModIntro; try done.
   Qed.
 
   (* TODO uses old version of node_lock_not_in_FP *)

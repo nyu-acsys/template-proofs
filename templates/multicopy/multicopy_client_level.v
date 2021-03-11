@@ -336,7 +336,7 @@ Section multicopy_client_level.
     iMod ((own_update (γ_sy) (to_frac_agree 1 H1) 
                   (to_frac_agree 1 (H1 ∪ {[(k, T)]}))) with "[$H']") as "H'".
     { apply cmra_update_exclusive. 
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
+      unfold valid, cmra_valid. simpl. unfold prod_valid_instance.
       split; simpl; try done. }
     iEval (rewrite <-Qp_half_half) in "H'".
     iEval (rewrite frac_agree_op) in "H'".  
@@ -426,9 +426,3 @@ Section multicopy_client_level.
   Qed.
               
 End multicopy_client_level.
-              
-              
-
-
-
-

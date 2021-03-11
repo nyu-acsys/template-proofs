@@ -514,7 +514,7 @@ Qed.
 Lemma nzmap_dom_delete `{Countable K} `{CCM A} (i : K) (m : nzmap K A): 
   dom (gset K) (nzmap_delete i m) ≡ dom (gset K) m ∖ {[i]}.
 Proof.
-  apply elem_of_equiv. intros j. 
+  apply set_equiv. intros j. 
   rewrite elem_of_difference.
   rewrite !nzmap_elem_of_dom_total.  
   destruct (decide (i = j)).
@@ -533,7 +533,7 @@ Lemma nzmap_dom_insert_zero `{Countable K} `{CCM A}
     (i : K) (a: A) (m : nzmap K A):
     a = 0 → dom (gset K) (<<[i:=a]>> m) ≡ dom (gset K) (m) ∖  {[i]}. 
 Proof.
-  intros Ha. apply elem_of_equiv. intros j. 
+  intros Ha. apply set_equiv. intros j. 
   rewrite elem_of_difference. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (i = j)).
@@ -551,7 +551,7 @@ Lemma nzmap_dom_insert_nonzero `{Countable K} `{CCM A}
     (i : K) (a: A) (m : nzmap K A):
       a ≠ 0 → dom (gset K) (<<[i:=a]>> m) ≡ {[i]} ∪ dom (gset K) (m).
 Proof.
-  intros Ha. apply elem_of_equiv. intros j. rewrite elem_of_union. 
+  intros Ha. apply set_equiv. intros j. rewrite elem_of_union. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (i = j)).
   - replace j. split. intros; left; set_solver.

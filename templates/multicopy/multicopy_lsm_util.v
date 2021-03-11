@@ -151,24 +151,24 @@ Section multicopy_lsm_util.
     iEval (rewrite Qp_half_half) in "Hq".
     iMod ((own_update (γ_e) (to_frac_agree 1 es)
                   (to_frac_agree 1 es')) with "[$Hes]") as "Hes".
-    { apply cmra_update_exclusive.
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
+    { apply cmra_update_exclusive. 
+      unfold valid, cmra_valid. simpl. unfold prod_valid_instance.
       split; simpl; try done. }
     iEval (rewrite <-Qp_half_half) in "Hes".
     iEval (rewrite frac_agree_op) in "Hes".
     iDestruct "Hes" as "(H1_es & H2_es)".
     iMod ((own_update (γ_c) (to_frac_agree 1 Cn)
                   (to_frac_agree 1 Cn')) with "[$Hc]") as "Hc".
-    { apply cmra_update_exclusive.
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
+    { apply cmra_update_exclusive. 
+      unfold valid, cmra_valid. simpl. unfold prod_valid_instance.
       split; simpl; try done. }
     iEval (rewrite <-Qp_half_half) in "Hc".
     iEval (rewrite frac_agree_op) in "Hc".
     iDestruct "Hc" as "(H1_c & H2_c)".
     iMod ((own_update (γ_q) (to_frac_agree 1 Qn)
                   (to_frac_agree 1 Qn')) with "[$Hq]") as "Hq".
-    { apply cmra_update_exclusive.
-      unfold valid, cmra_valid. simpl. unfold prod_valid.
+    { apply cmra_update_exclusive. 
+      unfold valid, cmra_valid. simpl. unfold prod_valid_instance.
       split; simpl; try done. }
     iEval (rewrite <-Qp_half_half) in "Hq".
     iEval (rewrite frac_agree_op) in "Hq".
@@ -197,7 +197,7 @@ Section multicopy_lsm_util.
       rewrite Hq Hagree.
       assert (● I' ⋅ ◯ I_n' = View (Some (1%Qp, to_agree I')) I_n') as H'.
       { rewrite /(● I' ⋅ ◯ I_n'). unfold cmra_op.
-        simpl. unfold view_op. simpl.
+        simpl. unfold view_op_instance. simpl.
         assert (ε ⋅ I_n' = I_n') as H'. by rewrite left_id.
         rewrite H'. unfold op, cmra_op. by simpl. }
       by iEval (rewrite H').
@@ -224,7 +224,7 @@ Section multicopy_lsm_util.
       rewrite Hq Hagree.
       assert (● I' ⋅ ◯ I_n' = View (Some (1%Qp, to_agree I')) I_n') as H'.
       { rewrite /(● I' ⋅ ◯ I_n'). unfold cmra_op.
-        simpl. unfold view_op. simpl.
+        simpl. unfold view_op_instance. simpl.
         assert (ε ⋅ I_n' = I_n') as H'. by rewrite left_id.
         rewrite H'. unfold op, cmra_op. by simpl. }
       by iEval (rewrite H').

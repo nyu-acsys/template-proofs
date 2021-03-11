@@ -20,9 +20,9 @@ jobs:
       # Change this to update OCaml version
       OCAML_VERSION: 4.07.1
       # Change this to update Iris version
-      IRIS_VERSION: dev.2020-12-11.0.57e2e0d5
+      IRIS_VERSION: 3.4.0
       # Change this to update Coq version
-      COQ_VERSION: 8.12.2
+      COQ_VERSION: 8.13.1
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -50,7 +50,6 @@ jobs:
           opam install -y ocamlfind ocamlbuild
           opam repo add coq-released https://coq.inria.fr/opam/released
           opam install -y coq.$COQ_VERSION
-          opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
           opam install -y coq-iris.$IRIS_VERSION
           opam install -y coq-iris-heap-lang.$IRIS_VERSION
 

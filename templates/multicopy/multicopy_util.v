@@ -41,7 +41,7 @@ Section multicopy_util.
              lia. destruct Hp as [_ [Hp _]].
              pose proof Hp t Hv. lia. simpl.
              assert (m !!! k <= t') as Hm.
-             { unfold lookup_total, finmap_lookup_total.
+             { unfold lookup_total, map_lookup_total.
                destruct Hp as [_ [_ Hp]]. rewrite Hp.
                simpl. lia. }
              destruct (decide (m !!! k ≤ t')); try done.
@@ -54,12 +54,12 @@ Section multicopy_util.
              lia. pose proof Hp2 t Hv. lia. simpl.
              destruct Ht as [Ht | Ht].
              assert (m !!! k <= t') as Hm.
-             { unfold lookup_total, finmap_lookup_total.
+             { unfold lookup_total, map_lookup_total.
                rewrite Hp3. simpl. lia. }
              destruct (decide (m !!! k ≤ t')); try done.
              rewrite lookup_insert. by rewrite Ht.
              assert (m !!! k > t') as Hm.
-             { unfold lookup_total, finmap_lookup_total.
+             { unfold lookup_total, map_lookup_total.
                rewrite Hp3. simpl. lia. }
              destruct (decide (m !!! k ≤ t')); try done.
              exfalso. lia.
@@ -69,7 +69,7 @@ Section multicopy_util.
           destruct Hp as [Hp _].
           pose proof Hp t as Hp. set_solver.
           assert (m !!! k ≤ t') as Hm.
-          { unfold lookup_total, finmap_lookup_total.
+          { unfold lookup_total, map_lookup_total.
             destruct Hp as [_ Hp]. rewrite Hp. simpl; lia. }
           destruct (decide (m !!! k ≤ t')); try done.
           by rewrite lookup_insert.

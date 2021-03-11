@@ -512,7 +512,7 @@ Section multicopy_lsm_compact.
     { iIntros (n')"%". rename H into H'.
       exfalso. rewrite Hesm in H'.
       rewrite /(∅ !!! n') in H'.
-      unfold finmap_lookup_total in H'.
+      unfold map_lookup_total in H'.
       rewrite lookup_empty in H'.
       simpl in H'. clear -H'; done. }
 
@@ -566,7 +566,7 @@ Section multicopy_lsm_compact.
                 (λ y, own (γ_cirm !!! y) (● {| max_nat_car := Bm0 !!! y |}))%I
                 KS); try done.
       { intros k HKS. iFrame. rewrite HBm0. rewrite /(∅ !!! k). 
-        unfold finmap_lookup_total. rewrite lookup_empty.
+        unfold map_lookup_total. rewrite lookup_empty.
         simpl. try eauto. } }
     iFrame "∗#". iDestruct "domm_IR" as %domm_IR.
     iDestruct "domm_Iγ" as %domm_Iγ.
@@ -888,7 +888,7 @@ Section multicopy_lsm_compact.
           rewrite nzmap_lookup_empty.
           unfold ccmunit, ccm_unit. simpl. done.
         + subst esm0. rewrite /(∅ !!! n'). 
-          unfold finmap_lookup_total. rewrite lookup_empty.
+          unfold map_lookup_total. rewrite lookup_empty.
           simpl. clear; set_solver.
       - unfold outflow_constraint_J. 
         intros n' k. unfold outset.
@@ -904,7 +904,7 @@ Section multicopy_lsm_compact.
           rewrite nzmap_lookup_empty.
           unfold ccmunit, ccm_unit. simpl. done.
         + subst esm0. rewrite /(∅ !!! n'). 
-          unfold finmap_lookup_total. rewrite lookup_empty.
+          unfold map_lookup_total. rewrite lookup_empty.
           simpl. clear; set_solver.
       - intros n' kt. unfold out, out_map; subst Im0; simpl.
         rewrite nzmap_lookup_empty. unfold ccmunit, ccm_unit.
@@ -1039,10 +1039,10 @@ Section multicopy_lsm_compact.
         destruct Hkt as [_ H'].
         rewrite lookup_total_alt; rewrite lookup_empty; by simpl.
       - intros k HKS. rewrite /(∅ !!! k).
-        unfold finmap_lookup_total.
+        unfold map_lookup_total.
         rewrite lookup_empty. by simpl.  
       - unfold φ3. intros k HKS; left.
-        rewrite /(∅ !!! k). unfold finmap_lookup_total.
+        rewrite /(∅ !!! k). unfold map_lookup_total.
         rewrite lookup_empty. by simpl.
       - unfold φ5. intros k.
         subst Jm0; unfold inf, inf_map; simpl.
@@ -1379,7 +1379,7 @@ Section multicopy_lsm_compact.
       destruct (decide (k ∈ S)).
       - pose proof Bm_eq_Qn k e as H'.
         rewrite H'. rewrite /(gmap_insert_map Bm S_map !!! k).
-        unfold finmap_lookup_total.
+        unfold map_lookup_total.
         rewrite gmap_lookup_insert_map.
         rewrite (Lookup_Smap k e). simpl. subst S. 
         rewrite elem_of_intersection in e*; intros e.
@@ -1438,14 +1438,14 @@ Section multicopy_lsm_compact.
     { apply (auth_update_alloc _ (H) (set_of_map Cn' ⋅ set_of_map Cm')).
       apply local_update_discrete. intros mc Valid_H1 H1_eq.
       split; try done. rewrite /(ε ⋅? mc) in H1_eq.
-      destruct mc. rewrite gset_op_union in H1_eq. 
+      destruct mc. rewrite gset_op in H1_eq. 
       rewrite left_id in H1_eq *; intros H1_eq.
       rewrite <-H1_eq. 
       rewrite /(set_of_map Cn' ⋅ set_of_map Cm' ⋅? Some H).
-      rewrite !gset_op_union.
+      rewrite !gset_op.
       clear - Cn'_sub_H Cm'_sub_H. set_solver.
       rewrite /(set_of_map Cn' ⋅ set_of_map Cm' ⋅? None).
-      rewrite gset_op_union.
+      rewrite gset_op.
       clear - Cn'_sub_H Cm'_sub_H H1_eq. set_solver. }
          
     iClear "HnP_C HnP_Cm".
@@ -1716,7 +1716,7 @@ Section multicopy_lsm_compact.
       - unfold φ2. try done.
       - intros k HKS. destruct (decide (k ∈ S)).
         + rewrite /(Qn' !!! k).
-          unfold finmap_lookup_total. 
+          unfold map_lookup_total. 
           rewrite (Lookup_Qn' k e).
           destruct (Cn !! k) as [t |] eqn: HCnk.
           * pose proof HBn k t as H'.
@@ -1727,7 +1727,7 @@ Section multicopy_lsm_compact.
           * by simpl; lia.
         + rewrite /(Qn' !!! k).
           rewrite /(Bn !!! k). 
-          unfold finmap_lookup_total. 
+          unfold map_lookup_total. 
           rewrite (Lookup_Qn'_ne k n0).
           pose proof Hφ3 k HKS as H'.    
           rewrite /(Qn0' !!! k) in H'.
@@ -1785,7 +1785,7 @@ Section multicopy_lsm_compact.
                  rewrite gmap_lookup_insert_map.
                  rewrite (Lookup_Smap k Hk).
                  rewrite /(Cn !!! k). 
-                 unfold finmap_lookup_total.
+                 unfold map_lookup_total.
                  rewrite H'; by simpl.
                  rewrite Dom_Smap. done.
              *** rewrite H' in MergeEq.

@@ -17,7 +17,7 @@ Global Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
 Definition dom_ms (m : K_multiset) := dom (gset K) m.
 
-Global Canonical Structure multiset_flowint_ur : ucmraT := flowintUR K_multiset.
+Global Canonical Structure multiset_flowint_ur : ucmra := flowintUR K_multiset.
 
 Implicit Type I : multiset_flowint_ur.
 
@@ -405,7 +405,7 @@ Proof.
   unfold out. simpl.
   rewrite nzmap_lookup_total_insert.
   apply leibniz_equiv.
-  apply elem_of_equiv. intros x. 
+  apply set_equiv. intros x. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (x ∈ S)); split.
   - set_solver.
@@ -440,7 +440,7 @@ Proof.
   unfold out. simpl.
   rewrite nzmap_lookup_total_insert.
   apply leibniz_equiv.
-  apply elem_of_equiv. intros x. 
+  apply set_equiv. intros x. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (x ∈ S)); split.
   - intros. apply Hkb in e as HxB.
@@ -545,7 +545,7 @@ Proof.
   intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
-  apply elem_of_equiv.
+  apply set_equiv.
   intros n'.
   pose proof (inflow_map_set_ne f I n S I' n').
   unfold inset, inf in H0.
@@ -956,7 +956,7 @@ Proof.
   unfold inflow_map_set. unfold inf at 1; simpl.
   rewrite lookup_insert. simpl.
   apply leibniz_equiv.
-  apply elem_of_equiv. intros x. 
+  apply set_equiv. intros x. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (x ∈ S)); split.
   - set_solver.
@@ -991,7 +991,7 @@ Proof.
   unfold inf at 1. simpl.
   rewrite lookup_insert. simpl.
   apply leibniz_equiv.
-  apply elem_of_equiv. intros x. 
+  apply set_equiv. intros x. 
   rewrite !nzmap_elem_of_dom_total.
   destruct (decide (x ∈ S)); split.
   - intros. apply Hkb in e as HxB.
@@ -1031,7 +1031,7 @@ Proof.
   intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
-  apply elem_of_equiv.
+  apply set_equiv.
   intros n'.
   pose proof (inflow_map_set_ne (λ n, n - 1) I n S I' n').
   unfold inset, inf in H0.
@@ -1068,7 +1068,7 @@ Proof.
   intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
-  apply elem_of_equiv.
+  apply set_equiv.
   intros n'.
   pose proof (inflow_map_set_ne (λ n, n + 1) I n S I' n').
   unfold inset, inf in H0.

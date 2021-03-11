@@ -102,9 +102,8 @@ Section multicopy_df_search.
       iAssert (⌜t0 ≤ Cd !!! k⌝)%I as "%".
       {
         iPureIntro. unfold lookup_total.
-        unfold finmap_lookup_total.
+        unfold map_lookup_total.
         rewrite /(Cd !!! k) in MapCd.
-        unfold finmap_lookup_total, inhabitant in MapCd.
         simpl in MapCd.
         destruct (Cd !! k) as [cnk | ] eqn: Hcnk.
         - try done.
@@ -116,7 +115,7 @@ Section multicopy_df_search.
             with "[$HnS_stark]") as "HnS_stark".
     { apply (auth_update_frac_alloc); try done.
       unfold CoreId, pcore, cmra_pcore. simpl.
-      unfold ucmra_pcore. simpl. by unfold max_nat_pcore. }
+      unfold ucmra_pcore. simpl. by unfold max_nat_pcore_instance. }
     iDestruct "HnS_stark" as "(HnS_stark & #mcs_sr')".
 
     iModIntro. iSplitR "AU Hγ_c Hdecide node_n". iNext.
@@ -183,7 +182,7 @@ Section multicopy_df_search.
               with "[$Hd_k_own]") as "Hd_k_own".
         { apply (auth_update_frac_alloc); try done.
           unfold CoreId, pcore, cmra_pcore. simpl.
-          unfold ucmra_pcore. simpl. by unfold max_nat_pcore. }
+          unfold ucmra_pcore. simpl. by unfold max_nat_pcore_instance. }
         iDestruct "Hd_k_own" as "(Hd_k_own & d_k_frac_own)".
 
         iAssert (⌜(Cd !!! k) ≤ (Cd1 !!! k)⌝)%I as "%".
@@ -201,7 +200,7 @@ Section multicopy_df_search.
         {
          iPureIntro.
         unfold lookup_total.
-        unfold finmap_lookup_total.
+        unfold map_lookup_total.
         replace (Cd1 !! k) with (None:option nat).
         simpl. done.
         }
@@ -220,7 +219,7 @@ Section multicopy_df_search.
         {
           iPureIntro.
 
-          unfold lookup_total. unfold finmap_lookup_total.
+          unfold lookup_total. unfold map_lookup_total.
           rewrite -> MapCd. done.
         }
         iAssert (⌜t0 ≤ (map_of_set H) !!! k⌝)%I as %lb_t0.
@@ -310,7 +309,7 @@ Section multicopy_df_search.
         iAssert (⌜(k,t) ∈ set_of_map Cd'⌝)%I as %kt_in_Cd.
          { iPureIntro. apply set_of_map_member.
               rewrite /(Cd !!! k) in Cn_val.
-              unfold finmap_lookup_total, inhabitant in Cn_val.
+              unfold map_lookup_total, inhabitant in Cn_val.
               simpl in Cn_val.
               destruct (Cd !! k) as [cnk | ] eqn: Hcnk.
               - try done.
@@ -324,7 +323,7 @@ Section multicopy_df_search.
               with "[$HnS_stark]") as "HnS_stark".
         { apply (auth_update_frac_alloc); try done.
           unfold CoreId, pcore, cmra_pcore. simpl.
-          unfold ucmra_pcore. simpl. by unfold max_nat_pcore. }
+          unfold ucmra_pcore. simpl. by unfold max_nat_pcore_instance. }
         iDestruct "HnS_stark" as "(HnS_stark & mcs_sr'')".
 
         iAssert (⌜(Cd !!! k) ≤ (Cd' !!! k)⌝)%I as "%".
@@ -339,7 +338,7 @@ Section multicopy_df_search.
         iAssert (⌜Cd' !!! k = t⌝)%I as "%". 
         { iPureIntro. 
           unfold lookup_total. 
-          unfold finmap_lookup_total. 
+          unfold map_lookup_total. 
           replace (Cd' !! k) with (Some t).
           simpl. done. }  
         
@@ -407,7 +406,7 @@ Section multicopy_df_search.
         iAssert (⌜(k,t) ∈ set_of_map Cr⌝)%I as %kt_in_Cr.
          { iPureIntro. apply set_of_map_member.
               rewrite /(Cr !!! k) in Cn_val.
-              unfold finmap_lookup_total, inhabitant in Cn_val.
+              unfold map_lookup_total, inhabitant in Cn_val.
               simpl in Cn_val. 
               destruct (Cr !! k) as [cnk | ] eqn: Hcnk.
               - try done. by inversion Hcnk.
@@ -430,7 +429,7 @@ Section multicopy_df_search.
       iAssert (⌜map_of_set H' !!! k = t⌝)%I as "%".
       {
         iPureIntro. unfold lookup_total. 
-        unfold finmap_lookup_total. rewrite -> MapCd'. try done.
+        unfold map_lookup_total. rewrite -> MapCd'. try done.
       }
       iAssert (⌜t0 ≤ (map_of_set H' !!! k)⌝)%I as "%".
       {
