@@ -161,7 +161,7 @@ Section multicopy_lsm_search.
             { iDestruct "HnS_Bn" as %HBn.
               pose proof HBn k as [_ H']. done.
               iPureIntro. pose proof H' Cn_val as H'. 
-              rewrite /(Bn !!! k). unfold finmap_lookup_total.
+              rewrite /(Bn !!! k). unfold map_lookup_total.
               by rewrite H'.  } 
             iPureIntro. rewrite Bn1_eq_Bn.
             rewrite <-Bn_eq_Qn. clear -lb_t1 t0_le_t1.
@@ -315,7 +315,7 @@ Section multicopy_lsm_search.
       iAssert (⌜(k,t) ∈ set_of_map Cn⌝)%I as %kt_in_Cn.
       { iPureIntro. apply set_of_map_member.
         rewrite /(Cn !!! k) in Cn_val.
-        unfold finmap_lookup_total, inhabitant in Cn_val.
+        unfold map_lookup_total, inhabitant in Cn_val.
         simpl in Cn_val. 
         destruct (Cn !! k) as [cnk | ] eqn: Hcnk.
         - rewrite Hcnk. apply f_equal.
@@ -385,7 +385,7 @@ Section multicopy_lsm_search.
             with "[$HnS_stark]") as "HnS_stark".
     { apply (auth_update_frac_alloc); try done.
       unfold CoreId, pcore, cmra_pcore. simpl.
-      unfold ucmra_pcore. simpl. by unfold max_nat_pcore. }
+      unfold ucmra_pcore. simpl. by unfold max_nat_pcore_instance. }
     iDestruct "HnS_stark" as "(HnS_stark & #mcs_sr')".
     iEval (rewrite decide_True) in "HnS_H".
     iDestruct "HnS_H" as "(% & %)".
@@ -419,6 +419,3 @@ Section multicopy_lsm_search.
   Qed.
 
 End multicopy_lsm_search.  
-  
-  
-  

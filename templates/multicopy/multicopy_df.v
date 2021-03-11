@@ -101,7 +101,6 @@ Section multicopy_df.
   Definition cir (H: gset KT) (Cr Cd: gmap K nat) :=
                    ∀ k t, ((Cr !! k = Some t → map_of_set H !! k = Some t)
                  ∧ (Cr !! k = None → map_of_set H !! k = Cd !! k)). 
-
       
   Definition Inv_DF γ_s γ_t γ_cr γ_cd (γ_d: gmap K gname) lc r d t H : iProp :=
     ∃ (Cr Cd: gmap K nat),
@@ -302,11 +301,6 @@ Section multicopy_df.
       iFrame. iExists Cr, Cd. iFrame "∗%". 
       iExists false; try done.
   Qed.                              
-  
-  
-  
-  
-  
-  
+
 
 End multicopy_df.           

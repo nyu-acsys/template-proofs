@@ -119,11 +119,11 @@ Section multicopy_lsm_upsert.
       { apply (auth_update_alloc _ (H1 ∪ {[(k,T)]}) (set_of_map Cr')).
         apply local_update_discrete. intros m Valid_H1 H1_eq.
         split; try done. rewrite /(ε ⋅? m) in H1_eq.
-        destruct m. rewrite gset_op_union in H1_eq. 
+        destruct m. rewrite gset_op in H1_eq. 
         rewrite left_id in H1_eq *; intros H1_eq.
         rewrite <-H1_eq. 
         rewrite /(set_of_map Cr' ⋅? Some (H1 ∪ {[k, T]})).
-        rewrite gset_op_union.
+        rewrite gset_op.
         rewrite /(ε) in H1_eq. unfold ucmra_unit in H1_eq.
         simpl in H1_eq.
         assert ((k,T) ∈ set_of_map Cr') as H'.
@@ -329,5 +329,3 @@ Section multicopy_lsm_upsert.
 
 
 End multicopy_lsm_upsert.
-    
-  

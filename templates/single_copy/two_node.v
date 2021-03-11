@@ -108,7 +108,7 @@ Section Two_Node_Template.
        <<< CSS γ n1 n2 C ∗ nodePred γ n, RET #() >>>.
   Proof.
     iIntros "#Hfp". iIntros (Φ) "AU".
-    awp_apply (lockNode_spec n (nodePred γ n)).
+    awp_apply (lockNode_spec n).
     iApply (aacc_aupd_commit with "AU"); first done.
     iIntros (C) "Hcss".
     iDestruct "Hcss" as (b1 b2) "(HKS & Hlockr1 & Hlockr2)".
@@ -119,7 +119,9 @@ Section Two_Node_Template.
       iIntros "Hlockrn". iModIntro.
       iFrame. iSplitL. iExists b1, b2.
       eauto with iFrame. iIntros "AU". iModIntro. iFrame.
-      iIntros "(Hlockr1 & Hnp)". iModIntro. iFrame. iSplitL. iExists true, b2. iFrame. iIntros. iModIntro. iFrame.
+      iIntros "(Hlockr1 & Hnp)". 
+      iModIntro. iFrame. iSplitL. iExists true, b2. iFrame.
+      iIntros. iModIntro. iFrame.
 
     - (* n = n2 *)
       subst n.
@@ -131,6 +133,15 @@ Section Two_Node_Template.
       iSplitL. iFrame. iExists b1, true. iFrame.
       eauto with iFrame.
   Qed.
+  
+  Lemma unlockNode_spec_high γ (n1 n2 n: Node) :
+    ⊢  
+        <<< ∀ (C: gset K), CSS γ n1 n2 C ∗ nodePred γ n >>>
+          unlockNode #n @ ⊤
+       <<< CSS γ n1 n2 C, RET #() >>>.
+  Proof.
+  Admitted.
+  
 
   (** Proof of CSSOp *)
 
@@ -157,7 +168,7 @@ Section Two_Node_Template.
     wp_apply ((decisiveOp_spec dop n k) with "[Hn]"). eauto with iFrame.
     iIntros (res Cn') "(Hn & %)".
     wp_pures. wp_bind(unlockNode _)%E.
-    awp_apply (unlockNode_spec n).
+    awp_apply (unlockNode_spec_low).
     iApply (aacc_aupd_commit with "AU"); first done.
     iIntros (C2) "HCss".
 
@@ -176,7 +187,7 @@ Section Two_Node_Template.
           iApply (node_sep_star n1 with "[$]").
       }
       subst b1.
-      iDestruct "Hlockr1" as "(Hl1 & Hn1)".
+      iDestruct "Hlockr1" as "(Hl1 & _)".
       iAaccIntro with "Hl1".
       { iIntros "Hlock1". iModIntro.
         iFrame. iSplitL. iExists true, b2. iFrame.
@@ -235,4 +246,5 @@ Section Two_Node_Template.
       iFrame. iExists Kn, Cn'. iFrame. by iPureIntro. by iFrame.
       iIntros. iModIntro. by wp_pures.
   Qed.
+  
 End Two_Node_Template.

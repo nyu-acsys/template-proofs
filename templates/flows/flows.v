@@ -1064,7 +1064,7 @@ Proof.
     - trivial.
     - trivial.
     - set_solver.
-    - rewrite elem_of_equiv_L.
+    - rewrite set_eq.
       intros n.
       rewrite elem_of_union.
       split.
@@ -1464,7 +1464,7 @@ Context (flowdom: Type) `{CCM flowdom}.
 Open Scope ccm_scope.
 
 (* The unital camera of flow interfaces. *)
-Canonical Structure flowintUR : ucmraT := UcmraT flowintT flowint_ucmra_mixin.
+Canonical Structure flowintUR : ucmra := Ucmra flowintT flowint_ucmra_mixin.
 
 (** Assorted convenience lemmas. *)
 
@@ -1738,30 +1738,30 @@ Proof.
  intros Io In In' (conteq & Hintersect & Hcond). apply cmra_discrete_updateP. intros z.
   intros Hv. assert (Hincl := Hv). apply cmra_valid_op_l in Hincl.
   assert (● (In ⋅ Io) ⋅ ◯ In = View (Some (1%Qp, to_agree (In ⋅ Io))) In) as Hdest.
-  { unfold op at 1, cmra_op. simpl. unfold view_op. simpl.
+  { unfold op at 1, cmra_op. simpl. unfold view_op_instance. simpl.
     assert (ε ⋅ In = In) as H'.
     apply (ucmra_unit_left_id In). rewrite H'.
     unfold op, cmra_op. simpl. done. } rewrite Hdest in Hv.
   destruct z as [auth_z frag_z] eqn: Hz. 
   destruct auth_z as [ [q Iz] | ] eqn: Hauth_z.
   - exfalso. unfold op at 1, cmra_op in Hv; simpl in Hv. 
-    unfold view_op in Hv. simpl in Hv.
+    unfold view_op_instance in Hv. simpl in Hv.
     unfold op at 1, cmra_op in Hv. simpl in Hv.
     unfold op at 1, cmra_op in Hv. simpl in Hv.
-    unfold cmra.prod_op in Hv. simpl in Hv.
+    unfold prod_op_instance in Hv. simpl in Hv.
     unfold valid, cmra_valid in Hv. simpl in Hv.
-    unfold view_valid in Hv. simpl in Hv.
+    unfold view_valid_instance in Hv. simpl in Hv.
     destruct Hv as [Hv _]. assert (Hv' := Hv). 
     apply cmra_valid_op_r in Hv. unfold valid, cmra_valid in Hv. simpl in Hv. 
-    unfold frac_valid in Hv. unfold valid, cmra_valid in Hv'. simpl in Hv'. 
-    unfold frac_valid in Hv'. by apply frac_full_exclusive in Hv'.
-  - rename frag_z into Iz. unfold op at 1 in Hv. unfold cmra_op, view_op in Hv; simpl in Hv.
-    unfold view_op in Hv. simpl in Hv.
+    unfold frac_valid_instance in Hv. unfold valid, cmra_valid in Hv'. simpl in Hv'. 
+    unfold frac_valid_instance in Hv'. by apply frac_full_exclusive in Hv'.
+  - rename frag_z into Iz. unfold op at 1 in Hv. unfold cmra_op, view_op_instance in Hv; simpl in Hv.
+    unfold view_op_instance in Hv. simpl in Hv.
     unfold op at 1, cmra_op in Hv. simpl in Hv.
     assert (View (Some (1%Qp, to_agree (In ⋅ Io))) (In ⋅ Iz) = ● (In ⋅ Io) ⋅ ◯ (In ⋅ Iz)) as H'.
-    unfold op, cmra_op, view_op. simpl. unfold view_op; simpl.
+    unfold op, cmra_op, view_op_instance. simpl. unfold view_op_instance; simpl.
     assert (ε ⋅ intComp In Iz = intComp In Iz) as H'. rewrite left_id. done.
-    rewrite H'. unfold op, cmra_op, option_op; simpl. done. 
+    rewrite H'. unfold op, cmra_op, option_op_instance; simpl. done. 
     rewrite H' in Hv. apply (auth_both_valid_discrete (In ⋅ Io) (In ⋅ Iz)) in Hv.
     destruct Hv as [Hcompz HI]. destruct Hcompz as [Iy Hcompz].
     unfold contextualLeq in conteq. destruct conteq as (Hn & Hn' & Hsub & Hinf & Hout).
@@ -1794,10 +1794,10 @@ Proof.
                                      rewrite cmra_assoc. done. }
     exists (● (In'⋅Io) ⋅ ◯ In'). split; last first.
     + assert (Iz ≼ Io). exists Iy. by apply leibniz_equiv_iff. 
-      unfold op at 2, cmra_op; simpl. unfold view_op; simpl. 
+      unfold op at 2, cmra_op; simpl. unfold view_op_instance; simpl. 
       unfold op at 1, cmra_op; simpl. unfold op at 1; simpl.
       rewrite left_id. unfold valid, cmra_valid. simpl.
-      unfold view_valid. simpl. split; try done. intros n.
+      unfold view_valid_instance. simpl. split; try done. intros n.
       exists (In' ⋅ Io). split.
       * unfold op, cmra_op; simpl; done. 
       * unfold auth_view_rel, auth_view_rel_raw.
@@ -1805,7 +1805,7 @@ Proof.
         by rewrite cmra_assoc.
     + unfold flowint_update_P. 
       assert (● (In' ⋅ Io) ⋅ ◯ In' = View (Some (1%Qp, to_agree (In' ⋅ Io))) In') as H'.
-      { unfold op at 1, cmra_op, view_op; simpl. unfold view_op. simpl.
+      { unfold op at 1, cmra_op, view_op_instance; simpl. unfold view_op_instance. simpl.
         unfold op at 1, cmra_op. simpl. assert (ε ⋅ In' = In') as H'. by rewrite left_id.
         by rewrite H'. }
       rewrite H'. clear H'. simpl. exists (In' ⋅ Io). repeat split; try done.
