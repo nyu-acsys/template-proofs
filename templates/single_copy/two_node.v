@@ -36,8 +36,14 @@ Section Two_Node_Template.
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. *)
 
+  Parameter createNodes : val.
   Parameter decisiveOp : (dOp → val).
   Parameter findNode : val.
+
+  Definition init : val :=
+    λ: <>,
+      let: "(n1, n2)" := createNodes #() in
+      "(n1, n2)".
 
   Definition CSSOp (n1 n2: Node) (o: dOp) : val :=
     rec: "dictOp" "k" :=
@@ -65,7 +71,10 @@ Section Two_Node_Template.
 
   (* Predicate that defines the keyset of each node *)
   Parameter nodeKS : K → Node → Prop.
-
+  
+  Hypothesis nodeKS_sep_star: ∀ k n1 n2,
+    n1 ≠ n2 → nodeKS k n1 → nodeKS k n2 → False.
+  
   (** The concurrent search structure invariant *)
 
   Definition inFP (n1 n2 x: Node) : iProp :=
@@ -75,7 +84,7 @@ Section Two_Node_Template.
     ∃ (Kn Cn: gset K),
       node n Cn
       ∗ own γ (◯ prod (Kn, Cn))
-      ∗ ⌜∀ k: K, k ∈ Kn ↔ nodeKS k n⌝.
+      ∗ ⌜∀ k: K, k ∈ KS → (k ∈ Kn ↔ nodeKS k n)⌝.
 
   Definition CSS γ n1 n2 (C: gset K) : iProp :=
     ∃ (b1 b2: bool),
@@ -86,6 +95,15 @@ Section Two_Node_Template.
   (** Helper functions specs *)
 
   (* The following specs are proved for each implementation in GRASShopper *)
+
+  Parameter createNodes_spec :
+      ⊢ ({{{ True }}}
+           createNodes #()
+         {{{ (n1 n2: Node),
+             RET (#n1, #n2); 
+              node n1 ∅ ∗ (lockLoc n1) ↦ #false
+            ∗ node n2 ∅ ∗ (lockLoc n2) ↦ #false
+            ∗ ⌜n1 ≠ n2⌝  }}})%I.
 
   Parameter findNode_spec : ∀ (n1 n2: Node) (k: K),
       ⊢ ({{{ ⌜k ∈ KS⌝ }}}
@@ -135,15 +153,122 @@ Section Two_Node_Template.
   Qed.
   
   Lemma unlockNode_spec_high γ (n1 n2 n: Node) :
-    ⊢  
-        <<< ∀ (C: gset K), CSS γ n1 n2 C ∗ nodePred γ n >>>
+    ⊢  inFP n1 n2 n -∗ 
+        nodePred γ n -∗
+        <<< ∀ (C: gset K), CSS γ n1 n2 C >>>
           unlockNode #n @ ⊤
        <<< CSS γ n1 n2 C, RET #() >>>.
   Proof.
-  Admitted.
+    iIntros "HFP Hnp" (Φ) "AU". 
+    awp_apply (unlockNode_spec n).
+    iApply (aacc_aupd_commit with "AU"); first done.
+    iIntros (C) "Hcss".
+    iDestruct "Hcss" as (b1 b2) "(Keyset & Hl1 & Hl2)".
+    iDestruct "HFP" as %HFP.
+    destruct HFP as [? | ?]; subst n.
+    - iAssert (⌜b1 = true⌝)%I as "%".
+      { destruct b1; try done.
+        iDestruct "Hl1" as "(_ & Hnp')".
+        iDestruct "Hnp" as (Kn1 Cn1)"(node & _)".
+        iDestruct "Hnp'" as (Kn1' Cn1')"(node' & _)".
+        iExFalso; iApply (node_sep_star n1); try iFrame. }
+      subst b1.      
+      iCombine "Hl1 Hnp" as "HlockR". 
+      iAaccIntro with "HlockR".
+      { iIntros "(Hlockn & Hnp)". iModIntro. iSplitR "Hnp".
+      iFrame. iExists true, b2. iFrame.
+      iIntros "AU". iModIntro. iFrame.
+      iPureIntro; left; try done. }
+      iIntros "Hl1". iModIntro. 
+      iSplitL. iExists false, b2. iFrame.
+      eauto with iFrame. 
+    - iAssert (⌜b2 = true⌝)%I as "%".
+      { destruct b2; try done.
+        iDestruct "Hl2" as "(_ & Hnp')".
+        iDestruct "Hnp" as (Kn2 Cn2)"(node & _)".
+        iDestruct "Hnp'" as (Kn2' Cn2')"(node' & _)".
+        iExFalso; iApply (node_sep_star n2); try iFrame. }
+      subst b2.      
+      iCombine "Hl2 Hnp" as "HlockR". 
+      iAaccIntro with "HlockR".
+      { iIntros "(Hlockn & Hnp)". iModIntro. iSplitR "Hnp".
+      iFrame. iExists b1, true. iFrame.
+      iIntros "AU". iModIntro. iFrame.
+      iPureIntro; right; try done. }
+      iIntros "Hl2". iModIntro. 
+      iSplitL. iExists b1, false. iFrame.
+      eauto with iFrame. 
+  Qed.
   
 
   (** Proof of CSSOp *)
+
+  Theorem init_spec `{!∀ k n, Decision (nodeKS k n)}:
+   ⊢ {{{ True }}}
+        init #()
+     {{{ γ (n1 n2: Node), RET (#n1, #n2); CSS γ n1 n2 ∅ }}}.
+  Proof.
+    iIntros (Φ). iModIntro.
+    iIntros "_ HΦ". wp_lam. 
+    wp_apply createNodes_spec; try done.
+    iIntros (n1 n2) "(node1 & Hl1 & node2 & Hl2 & %)".
+    rename H1 into n1_neq_n2. wp_pures.
+    set (K1 := filter (λ k, nodeKS k n1) KS). 
+    set (K2 := filter (λ k, nodeKS k n2) KS).
+    iMod (own_alloc ((● prod (KS, ∅)) ⋅ (◯ (prod (K1, ∅)) ⋅ ◯ prod (K2, ∅)))) 
+          as (γ)"Hg". 
+    { rewrite <-auth_frag_op.
+      rewrite auth_both_valid_discrete. split.
+      - unfold op, cmra_op. simpl.
+        unfold ucmra_op. simpl.
+        destruct (decide (∅ ⊆ K1)); last try set_solver.
+        destruct (decide (∅ ⊆ K2)); last try set_solver.
+        destruct (decide (K1 ## K2)).
+        + destruct (decide (∅ ## ∅)); last by set_solver.
+          exists (prod (KS ∖ (K1 ∪ K2), ∅)).
+          unfold op, cmra_op. simpl.
+          destruct (decide (∅ ∪ ∅ ⊆ K1 ∪ K2)); last try set_solver.
+          destruct (decide (∅ ⊆ KS ∖ (K1 ∪ K2))); last try set_solver.
+          destruct (decide (K1 ∪ K2 ## KS ∖ (K1 ∪ K2))); last try set_solver.
+          destruct (decide (∅ ∪ ∅ ## ∅)); last try set_solver.
+          assert (KS = (K1 ∪ K2) ∪ KS ∖ (K1 ∪ K2)) as H'.
+          { assert (K1 ⊆ KS) as H'. 
+            { subst K1. intros k Hk. apply elem_of_filter in Hk.
+              destruct Hk as [_ Hk]; try done. }
+            assert (K2 ⊆ KS) as H''. 
+            { subst K2. intros k Hk. apply elem_of_filter in Hk.
+              destruct Hk as [_ Hk]; try done. }  
+            clear -d H' H'' d1. apply leibniz_equiv. 
+            rewrite set_equiv. intros k. split.
+            * intros Hk. destruct (decide (k ∈ K1 ∪ K2)).
+              ** set_solver.
+              ** set_solver.
+            * intros Hk. set_solver. }
+          rewrite <-H'. repeat rewrite left_id_L. done.
+        + exfalso. apply n. intros k HK1 HK2.
+          apply (nodeKS_sep_star k n1 n2); try done.
+          subst K1. apply elem_of_filter in HK1.
+          destruct HK1 as [HK1 _]. done.
+          subst K2. apply elem_of_filter in HK2.
+          destruct HK2 as [HK2 _]. done.          
+      - unfold valid, cmra_valid. simpl. unfold ucmra_valid. simpl.
+        set_solver.      
+    }
+    iDestruct "Hg" as "(Hg● & Hg1 & Hg2)".
+    iModIntro. iApply ("HΦ" $! γ n1 n2).
+    iExists false, false. iFrame.
+    iSplitL "node1 Hg1". iExists K1, ∅. iFrame.
+    iPureIntro. subst K1. intros k HKS; split.
+    intros Hk. apply elem_of_filter in Hk.
+    destruct Hk as [Hk _]; try done.
+    intros Hk. apply elem_of_filter. split; try done.
+    iExists K2, ∅. iFrame.
+    iPureIntro. subst K2. intros k HKS; split.
+    intros Hk. apply elem_of_filter in Hk.
+    destruct Hk as [Hk _]; try done.
+    intros Hk. apply elem_of_filter. split; try done.
+  Qed.
+
 
   Theorem CSSOp_spec (γ: gname) n1 n2 (dop: dOp) (k: K):
    ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ n1 n2 C >>>
