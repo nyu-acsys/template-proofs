@@ -52,7 +52,13 @@ Section One_Node_Template.
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. *)
 
+  Parameter createRoot : val.
   Parameter decisiveOp : (dOp → val).
+
+  Definition init : val :=
+    λ: <>,
+      let: "r" := createRoot #() in
+      "r".  
 
   Definition CSSOp (Ψ: dOp) (r: Node) : val :=
     rec: "dictOp" "k" :=
@@ -81,6 +87,12 @@ Section One_Node_Template.
   (** Helper functions specs *)
 
   (* The following specs are proved for each implementation in GRASShopper *)
+
+  Parameter createRoot_spec :
+      ⊢ ({{{ True }}}
+           createRoot #()
+         {{{ (r: Node),
+             RET #r; node r ∅ ∗ (lockLoc r) ↦ #false  }}})%I.
 
   Parameter decisiveOp_spec : ∀ (dop: dOp) (n: Node) (k: K) (C: gset K),
       ⊢ ({{{ ⌜k ∈ KS⌝ ∗ node n C }}}
@@ -151,6 +163,26 @@ Section One_Node_Template.
   
 
   (** Proof of CSSOp *)
+
+  Theorem init_spec :
+   ⊢ {{{ True }}}
+        init #()
+     {{{ γ (r: Node), RET #r; CSS γ r ∅ }}}.
+  Proof.
+    iIntros (Φ). iModIntro.
+    iIntros "_ HΦ".
+    wp_lam. wp_apply createRoot_spec; try done.
+    iIntros (r) "(node & Hl)". iApply fupd_wp.
+    iMod (own_alloc (to_frac_agree (1) (∅: gset K))) 
+          as (γ)"Hf". { try done. }
+    iEval (rewrite <-Qp_half_half) in "Hf".      
+    iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hf". 
+    iDestruct "Hf" as "(Hf & Hf')".
+    iModIntro. wp_pures.
+    iModIntro. iApply ("HΦ" $! γ r).
+    iExists false. iFrame.
+    iExists ∅. iFrame.
+  Qed.     
 
   Theorem CSSOp_spec (γ: gname) r (dop: dOp) (k: K):
    ⊢ ⌜k ∈ KS⌝ -∗ <<< ∀ C, CSS γ r C >>>
