@@ -177,7 +177,8 @@ Section multicopy_df.
         ⌜n = r ∨ n = d⌝ -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
-              <<< ∃ γ_cn Cn t, nodePred γ_s γ_t γ_cn lc r n Cn t, RET #() >>>.
+              <<< ∃ γ_cn Cn t, nodePred γ_s γ_t γ_cn lc r n Cn t
+              ∗ ⌜(n = r ∧ γ_cn = γ_cr) ∨ (n = d ∧ γ_cn = γ_cd)⌝ , RET #() >>>.
   Proof.
     iIntros "#mcsInv %". rename H into n_eq_rd.
     iIntros (Φ) "AU".
@@ -194,6 +195,11 @@ Section multicopy_df.
       iIntros "(HlockR_r & HnP_r)".
       iMod "AU" as "[_ [_ Hcomm]]".
       iSpecialize ("Hcomm" $! γ_cr Cr T).
+      iAssert (⌜r = r ∧ γ_cr = γ_cr ∨ r = d ∧ γ_cr = γ_cd⌝)%I as "node_matches".
+      {
+        iPureIntro. left. done.
+      }
+      iCombine "HnP_r" "node_matches" as "HnP_r".
       iMod ("Hcomm" with "HnP_r") as "HΦ".
       iModIntro. iFrame "HΦ".
       iNext; iExists T, H. iFrame.
@@ -207,6 +213,11 @@ Section multicopy_df.
       iIntros "(HlockR_d & HnP_d)".
       iMod "AU" as "[_ [_ Hcomm]]".
       iSpecialize ("Hcomm" $! γ_cd Cd T).
+      iAssert (⌜d = r ∧ γ_cd = γ_cr ∨ d = d ∧ γ_cd = γ_cd⌝)%I as "node_matches".
+      {
+        iPureIntro. right. done.
+      }
+      iCombine "HnP_d" "node_matches" as "HnP_d".
       iMod ("Hcomm" with "HnP_d") as "HΦ".
       iModIntro. iFrame "HΦ".
       iNext; iExists T, H. iFrame.
