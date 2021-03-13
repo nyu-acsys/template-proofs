@@ -102,8 +102,7 @@ Section Two_Node_Template.
          {{{ (n1 n2: Node),
              RET (#n1, #n2); 
               node n1 ∅ ∗ (lockLoc n1) ↦ #false
-            ∗ node n2 ∅ ∗ (lockLoc n2) ↦ #false
-            ∗ ⌜n1 ≠ n2⌝  }}})%I.
+            ∗ node n2 ∅ ∗ (lockLoc n2) ↦ #false  }}})%I.
 
   Parameter findNode_spec : ∀ (n1 n2: Node) (k: K),
       ⊢ ({{{ ⌜k ∈ KS⌝ }}}
@@ -211,7 +210,11 @@ Section Two_Node_Template.
     iIntros (Φ). iModIntro.
     iIntros "_ HΦ". wp_lam. 
     wp_apply createNodes_spec; try done.
-    iIntros (n1 n2) "(node1 & Hl1 & node2 & Hl2 & %)".
+    iIntros (n1 n2) "(node1 & Hl1 & node2 & Hl2)".
+    iAssert (⌜n1 ≠ n2⌝)%I as "%".
+    { destruct (decide (n1 = n2)); try done.
+      subst n2. iExFalso. 
+      iApply (node_sep_star n1); try iFrame. }
     rename H1 into n1_neq_n2. wp_pures.
     set (K1 := filter (λ k, nodeKS k n1) KS). 
     set (K2 := filter (λ k, nodeKS k n2) KS).
