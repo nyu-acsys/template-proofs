@@ -57,14 +57,14 @@ Section Coupling_Template.
    * assumed by the template. See GRASShopper files b+-tree.spl and
    * hashtbl-give-up.spl for the concrete implementations. *)
 
-  Parameter createRoot : val.
+  Parameter allocRoot : val.
   Parameter findNext : val.
   Parameter decisiveOp : (dOp → val).
   Parameter alloc : val.
 
-  Definition init : val :=
+  Definition create : val :=
     λ: <>,
-      let: "r" := createRoot #() in
+      let: "r" := allocRoot #() in
       "r".
 
   Definition traverse : val :=
@@ -222,9 +222,9 @@ Section Coupling_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see list-coupling.spl) *)
 
-  Parameter createRoot_spec :
+  Parameter allocRoot_spec :
       ⊢ ({{{ True }}}
-           createRoot #()
+           allocRoot #()
          {{{ (r: Node) (Ir: multiset_flowint_ur K) (ks: nzmap K nat),
              RET #r; node r r Ir ∅ ∗ (lockLoc r) ↦ #false 
                      ∗ ⌜Ir = int {| infR := {[r := ks]}; outR := ∅ |}⌝
@@ -831,15 +831,15 @@ Section Coupling_Template.
 
   (** Proof of the lock-coupling template *)
 
-  Theorem init_spec :
+  Theorem create_spec :
    ⊢ {{{ True }}}
-        init #()
+        create #()
      {{{ γ_I γ_f γ_k γ_c (root: Node), RET #root; 
           css_inv γ_I γ_f γ_k γ_c root ∗ css_cont γ_c ∅ }}}.
   Proof.
     iIntros (Φ). iModIntro.
     iIntros "_ HΦ".
-    wp_lam. wp_apply createRoot_spec; try done.
+    wp_lam. wp_apply allocRoot_spec; try done.
     iIntros (root Ir ks) "(node & Hl & HIr & Hks)".
     iDestruct "HIr" as %HIr. iDestruct "Hks" as %Hks.
     iApply fupd_wp.

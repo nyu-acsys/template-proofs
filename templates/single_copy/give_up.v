@@ -51,14 +51,14 @@ Section Give_Up_Template.
    * assumed by the template. See GRASShopper files b+-tree.spl and
    * hashtbl-give-up.spl for the concrete implementations. *)
 
-  Parameter createRoot : val.
+  Parameter allocRoot : val.
   Parameter findNext : val.
   Parameter inRange : val.
   Parameter decisiveOp : (dOp → val).
 
-  Definition init : val :=
+  Definition create : val :=
     λ: <>,
-      let: "r" := createRoot #() in
+      let: "r" := allocRoot #() in
       "r".
 
   Definition traverse (r: Node) : val :=
@@ -104,9 +104,9 @@ Section Give_Up_Template.
   (* The following specs are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl) *)
 
-  Parameter createRoot_spec :
+  Parameter allocRoot_spec :
       ⊢ ({{{ True }}}
-           createRoot #()
+           allocRoot #()
          {{{ (r: Node) (Ir: multiset_flowint_ur K) (ks: nzmap K nat),
              RET #r; node r Ir ∅ ∗ (lockLoc r) ↦ #false 
                      ∗ ⌜Ir = int {| infR := {[r := ks]}; outR := ∅ |}⌝
@@ -373,14 +373,14 @@ Section Give_Up_Template.
 
   (** Proofs of traverse and CSSOp *)
 
-  Theorem init_spec :
+  Theorem create_spec :
    ⊢ {{{ True }}}
-        init #()
+        create #()
      {{{ γ_I γ_f γ_k (r: Node), RET #r; CSS γ_I γ_f γ_k r ∅ }}}.
   Proof.
     iIntros (Φ). iModIntro.
     iIntros "_ HΦ".
-    wp_lam. wp_apply createRoot_spec; try done.
+    wp_lam. wp_apply allocRoot_spec; try done.
     iIntros (r Ir ks) "(node & Hl & HIr & Hks)".
     iDestruct "HIr" as %HIr. iDestruct "Hks" as %Hks.
     iApply fupd_wp.

@@ -52,12 +52,12 @@ Section One_Node_Template.
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. *)
 
-  Parameter createRoot : val.
+  Parameter allocRoot : val.
   Parameter decisiveOp : (dOp → val).
 
-  Definition init : val :=
+  Definition create : val :=
     λ: <>,
-      let: "r" := createRoot #() in
+      let: "r" := allocRoot #() in
       "r".  
 
   Definition CSSOp (Ψ: dOp) (r: Node) : val :=
@@ -88,9 +88,9 @@ Section One_Node_Template.
 
   (* The following specs are proved for each implementation in GRASShopper *)
 
-  Parameter createRoot_spec :
+  Parameter allocRoot_spec :
       ⊢ ({{{ True }}}
-           createRoot #()
+           allocRoot #()
          {{{ (r: Node),
              RET #r; node r ∅ ∗ (lockLoc r) ↦ #false  }}})%I.
 
@@ -164,14 +164,14 @@ Section One_Node_Template.
 
   (** Proof of CSSOp *)
 
-  Theorem init_spec :
+  Theorem create_spec :
    ⊢ {{{ True }}}
-        init #()
+        create #()
      {{{ γ (r: Node), RET #r; CSS γ r ∅ }}}.
   Proof.
     iIntros (Φ). iModIntro.
     iIntros "_ HΦ".
-    wp_lam. wp_apply createRoot_spec; try done.
+    wp_lam. wp_apply allocRoot_spec; try done.
     iIntros (r) "(node & Hl)". iApply fupd_wp.
     iMod (own_alloc (to_frac_agree (1) (∅: gset K))) 
           as (γ)"Hf". { try done. }

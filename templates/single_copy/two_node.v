@@ -36,13 +36,13 @@ Section Two_Node_Template.
   (* The following parameters are the implementation-specific helper functions
    * assumed by the template. *)
 
-  Parameter createNodes : val.
+  Parameter allocNodes : val.
   Parameter decisiveOp : (dOp → val).
   Parameter findNode : val.
 
-  Definition init : val :=
+  Definition create : val :=
     λ: <>,
-      let: "(n1, n2)" := createNodes #() in
+      let: "(n1, n2)" := allocNodes #() in
       "(n1, n2)".
 
   Definition CSSOp (n1 n2: Node) (o: dOp) : val :=
@@ -96,9 +96,9 @@ Section Two_Node_Template.
 
   (* The following specs are proved for each implementation in GRASShopper *)
 
-  Parameter createNodes_spec :
+  Parameter allocNodes_spec :
       ⊢ ({{{ True }}}
-           createNodes #()
+           allocNodes #()
          {{{ (n1 n2: Node),
              RET (#n1, #n2); 
               node n1 ∅ ∗ (lockLoc n1) ↦ #false
@@ -202,14 +202,14 @@ Section Two_Node_Template.
 
   (** Proof of CSSOp *)
 
-  Theorem init_spec `{!∀ k n, Decision (nodeKS k n)}:
+  Theorem create_spec `{!∀ k n, Decision (nodeKS k n)}:
    ⊢ {{{ True }}}
-        init #()
+        create #()
      {{{ γ (n1 n2: Node), RET (#n1, #n2); CSS γ n1 n2 ∅ }}}.
   Proof.
     iIntros (Φ). iModIntro.
     iIntros "_ HΦ". wp_lam. 
-    wp_apply createNodes_spec; try done.
+    wp_apply allocNodes_spec; try done.
     iIntros (n1 n2) "(node1 & Hl1 & node2 & Hl2)".
     iAssert (⌜n1 ≠ n2⌝)%I as "%".
     { destruct (decide (n1 = n2)); try done.
