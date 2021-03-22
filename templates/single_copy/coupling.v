@@ -57,9 +57,15 @@ Section Coupling_Template.
    * assumed by the template. See GRASShopper files b+-tree.spl and
    * hashtbl-give-up.spl for the concrete implementations. *)
 
+  Parameter createRoot : val.
   Parameter findNext : val.
   Parameter decisiveOp : (dOp → val).
   Parameter alloc : val.
+
+  Definition init : val :=
+    λ: <>,
+      let: "r" := createRoot #() in
+      "r".
 
   Definition traverse : val :=
     rec: "tr" "p" "n" "k" :=
@@ -216,6 +222,15 @@ Section Coupling_Template.
   (* The following functions are proved for each implementation in GRASShopper
    * (see list-coupling.spl) *)
 
+  Parameter createRoot_spec :
+      ⊢ ({{{ True }}}
+           createRoot #()
+         {{{ (r: Node) (Ir: multiset_flowint_ur K) (ks: nzmap K nat),
+             RET #r; node r r Ir ∅ ∗ (lockLoc r) ↦ #false 
+                     ∗ ⌜Ir = int {| infR := {[r := ks]}; outR := ∅ |}⌝
+                     ∗ ⌜dom (gset K) ks = KS⌝
+                     }}})%I.
+
   (* TODO ghp spec doesn't match *)
   Parameter findNext_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K) root,
      ⊢ ({{{ node root n In C ∗ ⌜in_inset K k In n⌝ }}}
@@ -263,8 +278,6 @@ Section Coupling_Template.
 
 
   (** The concurrent search structure invariant *)
-
-  Definition cssN : namespace := N .@ "css".
 
   Definition inFP γ_f n : iProp := ∃ (N: gset Node), own γ_f (◯ N) ∗ ⌜n ∈ N⌝.
 
@@ -316,7 +329,7 @@ Section Coupling_Template.
   Proof.
     iIntros "Hγ● Hγ◯". by iDestruct (own_valid_2 with "Hγ● Hγ◯")
       as %[<-%Excl_included%leibniz_equiv _]%auth_both_valid_discrete.
-  Admitted.
+  Qed.
 
 
   Lemma flowint_update_result γ I I_n I_n' x :
@@ -818,6 +831,63 @@ Section Coupling_Template.
 
   (** Proof of the lock-coupling template *)
 
+  Theorem init_spec :
+   ⊢ {{{ True }}}
+        init #()
+     {{{ γ_I γ_f γ_k γ_c (root: Node), RET #root; 
+          css_inv γ_I γ_f γ_k γ_c root ∗ css_cont γ_c ∅ }}}.
+  Proof.
+    iIntros (Φ). iModIntro.
+    iIntros "_ HΦ".
+    wp_lam. wp_apply createRoot_spec; try done.
+    iIntros (root Ir ks) "(node & Hl & HIr & Hks)".
+    iDestruct "HIr" as %HIr. iDestruct "Hks" as %Hks.
+    iApply fupd_wp.
+    iMod (own_alloc ( (● Ir) ⋅ (◯ Ir))) as (γ_I)"(HIr● & HIr◯)".
+    { apply auth_both_valid_discrete. split; try done.
+      unfold valid, cmra_valid. simpl. unfold ucmra_valid.
+      simpl. unfold flowint_valid. subst Ir.
+      split; try done. apply map_disjoint_dom. set_solver. }
+    iMod (own_alloc ((● prod (KS, ∅)) ⋅ (◯ (prod (KS, ∅))))) 
+          as (γ_k)"(Hks● & Hks◯)".
+    { apply auth_both_valid_discrete. split; try done. }
+    iMod (own_alloc (● (domm Ir))) 
+          as (γ_f)"Hf". { apply auth_auth_valid. try done. }
+    iMod (own_alloc (● (Some (Excl ∅)) ⋅ ◯ (Some (Excl ∅)))) 
+      as (γ_c)"(Hc● & Hc◯)".
+    { apply auth_both_valid_discrete. split; try done. }
+    iModIntro. wp_pures.
+    iMod (inv_alloc N _ (CSS γ_I γ_f γ_k γ_c root) with "[-HΦ Hc◯]") as "#css_inv".
+    { iNext. iExists Ir, ∅. iFrame. iSplitR.
+      - iPureIntro. repeat split; try done.
+        unfold valid, cmra_valid, flowint_valid.
+        subst Ir; split; try done.
+        apply map_disjoint_dom; set_solver.
+        subst Ir. unfold domm, dom, flowint_dom. simpl.
+        rewrite dom_singleton. set_solver.
+        unfold closed, outset, dom_ms, out, out_map.
+        subst Ir; simpl. try done.
+        unfold inset, dom_ms, inf.
+        subst Ir; simpl. rewrite lookup_singleton; simpl.
+        intros k Hk; rewrite Hks; try done.
+      - assert (domm Ir = {[root]}) as Domm_Ir.
+        { subst Ir; unfold domm, dom, flowint_dom, inf_map; simpl.
+          apply leibniz_equiv. by rewrite dom_singleton. }
+        rewrite Domm_Ir. rewrite big_opS_singleton.
+        iExists false, Ir, ∅. iFrame "∗%".
+        assert (keyset K Ir root = KS) as Hkeyset.
+        { unfold keyset. unfold dom_ms, inf, out; subst Ir; simpl.
+          rewrite nzmap_lookup_empty. rewrite lookup_singleton.
+          unfold ccmunit at 2. unfold ccm_unit. simpl.
+          unfold nzmap_dom. simpl.
+          assert (dom (gset K) (∅: gmap K nat) = ∅) as H'.
+          { apply leibniz_equiv. by rewrite dom_empty. }
+          rewrite H' Hks. set_solver. }
+        by rewrite Hkeyset. }
+      iModIntro. 
+      iApply ("HΦ" $! γ_I γ_f γ_k γ_c root); try iFrame "∗#".    
+  Qed.    
+
   Lemma traverse_spec γ_I γ_f γ_k γ_c root k p n Ip Cp In Cn:
     ⊢ ⌜k ∈ KS⌝ ∗ css_inv γ_I γ_f γ_k γ_c root -∗
     {{{   inFP γ_f n ∗ inFP γ_f p ∗ inFP γ_f root ∗ ⌜n ≠ root⌝
@@ -916,6 +986,8 @@ Section Coupling_Template.
       destruct suc; wp_pures; iApply "HCont"; 
       iFrame "∗ # %"; iModIntro; try done.
   Qed.
+
+  
 
   (* TODO uses old version of node_lock_not_in_FP *)
   Theorem searchStrOp_spec γ_I γ_f γ_k γ_c root (k: K) :

@@ -51,9 +51,15 @@ Section Give_Up_Template.
    * assumed by the template. See GRASShopper files b+-tree.spl and
    * hashtbl-give-up.spl for the concrete implementations. *)
 
+  Parameter createRoot : val.
   Parameter findNext : val.
   Parameter inRange : val.
   Parameter decisiveOp : (dOp → val).
+
+  Definition init : val :=
+    λ: <>,
+      let: "r" := createRoot #() in
+      "r".
 
   Definition traverse (r: Node) : val :=
     rec: "tr" "n" "k"  :=
@@ -97,6 +103,15 @@ Section Give_Up_Template.
 
   (* The following specs are proved for each implementation in GRASShopper
    * (see b+-tree.spl and hashtbl-give-up.spl) *)
+
+  Parameter createRoot_spec :
+      ⊢ ({{{ True }}}
+           createRoot #()
+         {{{ (r: Node) (Ir: multiset_flowint_ur K) (ks: nzmap K nat),
+             RET #r; node r Ir ∅ ∗ (lockLoc r) ↦ #false 
+                     ∗ ⌜Ir = int {| infR := {[r := ks]}; outR := ∅ |}⌝
+                     ∗ ⌜dom (gset K) ks = KS⌝
+                     }}})%I.
 
   Parameter inRange_spec : ∀ (n: Node) (k: K) (In : multiset_flowint_ur K) (C: gset K),
    ⊢ ({{{ node n In C }}}
@@ -357,6 +372,58 @@ Section Give_Up_Template.
 
 
   (** Proofs of traverse and CSSOp *)
+
+  Theorem init_spec :
+   ⊢ {{{ True }}}
+        init #()
+     {{{ γ_I γ_f γ_k (r: Node), RET #r; CSS γ_I γ_f γ_k r ∅ }}}.
+  Proof.
+    iIntros (Φ). iModIntro.
+    iIntros "_ HΦ".
+    wp_lam. wp_apply createRoot_spec; try done.
+    iIntros (r Ir ks) "(node & Hl & HIr & Hks)".
+    iDestruct "HIr" as %HIr. iDestruct "Hks" as %Hks.
+    iApply fupd_wp.
+    iMod (own_alloc ( (● Ir) ⋅ (◯ Ir))) as (γ_I)"(HIr● & HIr◯)".
+    { apply auth_both_valid_discrete. split; try done.
+      unfold valid, cmra_valid. simpl. unfold ucmra_valid.
+      simpl. unfold flowint_valid. subst Ir.
+      split; try done. apply map_disjoint_dom. set_solver. }
+    iMod (own_alloc ((● prod (KS, ∅)) ⋅ (◯ (prod (KS, ∅))))) 
+          as (γ_k)"(Hks● & Hks◯)".
+    { apply auth_both_valid_discrete. split; try done. }
+    iMod (own_alloc (● (domm Ir))) 
+          as (γ_f)"Hf". { apply auth_auth_valid. try done. }
+    iModIntro. wp_pures.
+    iModIntro. iApply ("HΦ" $! γ_I γ_f γ_k r).
+    iExists Ir. iFrame. iSplitR.
+    - iPureIntro. repeat split; try done.
+      unfold valid, cmra_valid, flowint_valid.
+      subst Ir; split; try done.
+      apply map_disjoint_dom; set_solver.
+      subst Ir. unfold domm, dom, flowint_dom. simpl.
+      rewrite dom_singleton. set_solver.
+      unfold closed, outset, dom_ms, out, out_map.
+      subst Ir; simpl. try done.
+      unfold inset, dom_ms, inf.
+      subst Ir; simpl. rewrite lookup_singleton; simpl.
+      intros k Hk; rewrite Hks; try done.
+    - assert (domm Ir = {[r]}) as Domm_Ir.
+      { subst Ir; unfold domm, dom, flowint_dom, inf_map; simpl.
+        apply leibniz_equiv. by rewrite dom_singleton. }
+      rewrite Domm_Ir. rewrite big_opS_singleton.
+      iExists false, Ir, ∅. iFrame "∗%".
+      assert (keyset K Ir r = KS) as Hkeyset.
+      { unfold keyset. unfold dom_ms, inf, out; subst Ir; simpl.
+        rewrite nzmap_lookup_empty. rewrite lookup_singleton.
+        unfold ccmunit at 2. unfold ccm_unit. simpl.
+        unfold nzmap_dom. simpl.
+        assert (dom (gset K) (∅: gmap K nat) = ∅) as H'.
+        { apply leibniz_equiv. by rewrite dom_empty. }
+        rewrite H' Hks. set_solver. }
+      by rewrite Hkeyset.   
+  Qed.     
+
 
   Lemma traverse_spec (γ_I γ_f γ_k: gname) (k: K) (r n: Node):
    ⊢ ⌜k ∈ KS⌝ ∗ inFP γ_f n -∗
