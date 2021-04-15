@@ -1,4 +1,4 @@
-## Artifact for ECOOP'21 submission: Verifying Concurrent Multicopy Structures
+## Artifact for OOPSLA'21 submission: Verifying Concurrent Multicopy Structures
 
 ### Getting Started Guide
 

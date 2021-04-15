@@ -1,14 +1,14 @@
 #!/bin/bash
 set -e -x
 
-[ -d "./ecoop21_artifact" ] && rm -rf ecoop21_artifact
-mkdir ecoop21_artifact
-cd ecoop21_artifact
+[ -d "./oopsla21_artifact" ] && rm -rf oopsla21_artifact
+mkdir oopsla21_artifact
+cd oopsla21_artifact
 
-cp ../README_ecoop21.md .
-mv README_ecoop21.md README.md
-cp ../run_experiments_ecoop21.sh .
-mv run_experiments_ecoop21.sh run_experiments.sh
+cp ../README_oopsla21.md .
+mv README_oopsla21.md README.md
+cp ../run_experiments_oopsla21.sh .
+mv run_experiments_oopsla21.sh run_experiments.sh
 cp ../setup.sh .
 
 mkdir implementations
@@ -18,12 +18,12 @@ mkdir templates/util
 mkdir templates/multicopy
 
 files=(
-"implementations/xp_ecoop21.sh" 
+"implementations/xp_oopsla21.sh" 
 "implementations/array_util.spl"
 "implementations/ordered_type.spl"
 "implementations/multicopy-lsm.spl"
-"templates/xp_ecoop21.sh"
-"templates/_CoqProject_ecoop21"
+"templates/xp_oopsla21.sh"
+"templates/_CoqProject_oopsla21"
 "templates/flows/gmap_more.v"
 "templates/flows/ccm.v"
 "templates/flows/flows.v"
@@ -46,10 +46,10 @@ for t in ${files[@]}; do
   cp ../$t $t
 done
 
-mv templates/_CoqProject_ecoop21 templates/_CoqProject
+mv templates/_CoqProject_oopsla21 templates/_CoqProject
 
 cd ..
 
-zip -r ecoop21_artifact.zip ecoop21_artifact/
+zip -r oopsla21_artifact.zip oopsla21_artifact/
 
-# rm -rf ecoop21_artifact/
+# rm -rf oopsla21_artifact/
