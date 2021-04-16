@@ -71,18 +71,32 @@ lemma append_none(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
   }
 }
 
-lemma append_write(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
-  ensures append(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)]) == append(m1, m2)[p.key := SomeV(p.val)]
+lemma append_write(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p1: Pair, p2: Pair)
+  requires p1.key == p2.key
+  ensures append(m1[p1.key := SomeV(p1.val)], m2[p2.key := SomeV(p2.val)]) == append(m1, m2)[p1.key := SomeV(p1.val)]
 {
-  pure assert forall k: K :: append(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == append(m1, m2)[p.key := SomeV(p.val)][k] with {
-    if (k == p.key) {
-      pure assert append(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == SomeV(p.val);
+  pure assert forall k: K :: append(m1[p1.key := SomeV(p1.val)], m2[p2.key := SomeV(p2.val)])[k] == append(m1, m2)[p1.key := SomeV(p1.val)][k] with {
+    if (k == p1.key) {
+      pure assert append(m1[p1.key := SomeV(p1.val)], m2[p2.key := SomeV(p2.val)])[k] == SomeV(p1.val);
     } else if (m1[k] == NoneV) {
-      pure assert append(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == m2[k];
+      pure assert append(m1[p1.key := SomeV(p1.val)], m2[p2.key := SomeV(p2.val)])[k] == m2[k];
     }
   }
 }
 
+
+/*
+lemma append_write_2(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
+  ensures append(m1[p.key := SomeV(p.val)], m2) == append(m1, m2)[p.key := SomeV(p.val)];
+{
+  pure assert forall k: K :: append(m1[p.key := SomeV(p.val)], m2)[k] == append(m1, m2)[p.key := SomeV(p.val)][k] with {
+    if (k == p.key) {
+      pure assert append(m1[p.key := SomeV(p.val)], m2)[k] == SomeV(p.val);
+    } else if (m1[k] == NoneV) {
+      pure assert append(m1[p.key := SomeV(p.val)], m2)[k] == m2[k];
+    }
+  }
+}*/
 
 lemma append_write_left(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
   ensures append(m1[p.key := SomeV(p.val)], m2) == append(m1, m2)[p.key := SomeV(p.val)];
@@ -400,7 +414,7 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
     contents_extensional(a.map, old(a.map), 0, i);
     contents_extensional(a.map, old(a.map), i + 1, len);
     not_in_sorted_seg(a.map, 0, i, p.key);
-    append_write(contents(old(a.map), 0, i), contents(old(a.map), i, len), p);
+    append_write(contents(old(a.map), 0, i), contents(old(a.map), i, len), p, p);
 
     pure assert contents(old(a.map), i + 1, len)[p.key := SomeV(p.val)] == contents(a.map, i, len)[p.key := SomeV(p.val)];
     pure assert contents(old(a.map), i + 1, len)[p.key := SomeV(p.val)] == contents(old(a.map), i, len)[p.key := SomeV(p.val)];
@@ -483,48 +497,67 @@ procedure arr_merge(a: Array<Pair>, alen: Int, b: Array<Pair>, blen: Int, c: Arr
     invariant b.map == old(b.map)
     invariant contents(c.map, 0, ci) == append(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi))
   {
+    var p: Pair;
+    ghost var cmap := c.map;  
     if (ai < alen) {
       not_in_sorted_seg(old(a.map), 0, ai, b[bi].key);
       if (bi < blen) {
         not_in_sorted_seg(old(b.map), 0, bi, b[bi].key);
         if (lt(b[bi].key, a[ai].key)) {
-          ghost var cmap := c.map;
-          c[ci] := b[bi];
-          append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), b[bi]);
-          append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), b[bi]);
-          not_in_sorted_seg(c.map, 0, ci, b[bi].key);
+          p := b[bi];
+          c[ci] := p;
+
           contents_extend(old(b.map), 0, bi);
-          contents_extensional(c.map, cmap, 0, ci);
-          contents_extend(c.map, 0, ci);
-          //pure assert "test" contents(c.map, 0, ci + 1) == append(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi + 1));
+          append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+          append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+
           bi := bi + 1;
-          
           assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
         } else {
-          c[ci] := a[ai];
+          p := a[ai];
+          c[ci] := p;
+
+          contents_extend(old(a.map), 0, ai);
+          append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+          append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+
           if (a[ai].key == b[bi].key) {
+            contents_extend(old(b.map), 0, bi);
+            append_write(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), a[ai], b[bi]);
             bi := bi + 1;
-            assume false;
           }
+          
           ai := ai + 1;
           assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
-          assume false;
         }
       } else {
-        c[ci] := a[ai];
+        p := a[ai];
+        c[ci] := p;
+
+        contents_extend(old(a.map), 0, ai);
+        append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+        append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+
         ai := ai + 1;
         assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
-        assume false;
       }
     } else {
-      c[ci] := b[bi];
+      p := b[bi];
+      c[ci] := p;
+
+      contents_extend(old(b.map), 0, bi);
+      append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+      append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), p);
+
       bi := bi + 1;
       assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
-      assume false;
     }
+    not_in_sorted_seg(c.map, 0, ci, p.key);
+    contents_extensional(c.map, cmap, 0, ci);
+    contents_extend(c.map, 0, ci);
+    pure assert contents(c.map, 0, ci + 1) == append(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi));
     ci := ci + 1;
   }
-  assume false;
   return ci;
 }
   
