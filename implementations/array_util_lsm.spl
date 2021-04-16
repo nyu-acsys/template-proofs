@@ -175,16 +175,27 @@ lemma contents_split(m: Map<Int, Pair>, i: Int, j: Int, k: Int)
 }
 
 
+lemma contents_extensional2(m1: Map<Int, Pair>, m2: Map<Int, Pair>, i1: Int, j1: Int, i2: Int, j2: Int)
+  requires j1 - i1 == j2 - i2;
+  requires forall k: Int :: 0 <= k < j1 - i1 ==> m1[i1 + k] == m2[i2 + k];
+  ensures contents(m1, i1, j1) == contents(m2, i2, j2)
+{
+  if (i1 < j1) {
+    pure assert forall k: Int :: 0 <= k < j1 - (i1 + 1) ==> m1[(i1 + 1) + k] == m2[(i2 + 1) + k] with {
+      if (0 <= k < j1 - (i1 + 1)) {
+        pure assert 0 <= 1 + k < j1 - i1;
+        pure assert m1[i1 + (1 + k)] == m2[i2 + (1 + k)];
+      }
+    }
+    contents_extensional2(m1, m2, i1 + 1, j1, i2 + 1, j2);
+  }
+}
+
 lemma contents_extensional(m1: Map<Int, Pair>, m2: Map<Int, Pair>, i: Int, j: Int)
   requires forall i1: Int :: i <= i1 < j ==> m1[i1] == m2[i1];
   ensures contents(m1, i, j) == contents(m2, i, j)
 {
-  if (i < j) {
-    contents_extensional(m1, m2, i + 1, j);
-    return;
-  } else {
-    return;
-  }
+  contents_extensional2(m1, m2, i, j, i, j);
 }
 
 lemma not_in_sorted_seg(m: Map<Int, Pair>, i: Int, j: Int, k: K)
@@ -451,8 +462,21 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
   }
 
   pure assert contents(a.map, 0, len + 1) == contents(old(a.map), 0, len)[p.key := SomeV(p.val)] with {
-    // TODO
-    assume false;
+    contents_split(a.map, 0, i + 1, len + 1);
+    contents_split(old(a.map), 0, i, len);
+    contents_extensional(a.map, old(a.map), 0, i);
+
+    pure assert forall k: Int :: 0 <= k < (len + 1) - (i + 1) ==> a.map[(i + 1) + k] == old(a.map)[i + k] with {
+      if (0 <= k < (len + 1) - (i + 1)) {
+        pure assert a.map[(i + 1) + k] == old(a.map)[i + (((i + 1) + k) - (i + 1))];
+      }
+    }   
+    contents_extensional2(a.map, old(a.map), i + 1, len + 1, i, len);
+
+    not_in_sorted_seg(a.map, 0, i, p.key);
+    contents_extend(a.map, 0, i);          
+
+    append_write_left(contents(a.map, 0, i), contents(a.map, i + 1, len + 1), p);
   }
   
   return i, len + 1;
