@@ -448,7 +448,7 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
 
     return i, len;
   }
-  assume false;
+
   arr_shift(a, i, i + 1, len - i);
 
   ghost var ms := a.map;
@@ -473,6 +473,11 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
     } else if (i < i2) {
       pure assert a.map[i2] == old(a.map)[i + (i2 - (i + 1))];
     }
+  }
+
+  pure assert contents_of_map(a.map, 0, len + 1) == contents_of_map(old(a.map), 0, len)[p.key := SomeV(p.val)] with {
+    // TODO
+    assume false;
   }
   
   return i, len + 1;
