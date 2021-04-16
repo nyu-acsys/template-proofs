@@ -198,7 +198,7 @@ lemma not_in_sorted_seg(m: Map<Int, Pair>, i: Int, j: Int, k: K)
 }
 
 
-pure predicate sorted_map_seg(m: Map<Int, Pair>, i: Int, j: Int)
+define sorted_map_seg(m, i, j)
 {
   forall i1: Int, i2: Int :: i <= i1 < i2 < j ==> lt(m[i1].key, m[i2].key) @(noinst i1) @(noinst i2)
 }
@@ -467,40 +467,64 @@ procedure arr_merge(a: Array<Pair>, alen: Int, b: Array<Pair>, blen: Int, c: Arr
   while (ai < alen || bi < blen)
     invariant 0 <= ai <= alen
     invariant 0 <= bi <= blen
-    invariant 0 <= ci <= c.length
+    invariant 0 <= ci <= ai + bi
+    invariant ci == 0 ==> ai == 0 && bi == 0
     invariant alen + blen <= c.length
     invariant alen == old(alen)
     invariant blen == old(blen)
     invariant sorted_array_prefix(a, alen)
     invariant sorted_array_prefix(b, blen)
     invariant sorted_array_prefix(c, ci)
+    invariant ci > 0 && ai > 0 ==> le(a[ai - 1].key, c[ci - 1].key)
+    invariant ci > 0 && bi > 0 ==> le(b[bi - 1].key, c[ci - 1].key)
+    invariant ci > 0 && ai < alen ==> lt(c[ci - 1].key, a[ai].key)
+    invariant ci > 0 && bi < blen ==> lt(c[ci - 1].key, b[bi].key)
     invariant a.map == old(a.map)
     invariant b.map == old(b.map)
     invariant contents(c.map, 0, ci) == append(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi))
   {
     if (ai < alen) {
+      not_in_sorted_seg(old(a.map), 0, ai, b[bi].key);
       if (bi < blen) {
+        not_in_sorted_seg(old(b.map), 0, bi, b[bi].key);
         if (lt(b[bi].key, a[ai].key)) {
+          ghost var cmap := c.map;
           c[ci] := b[bi];
+          append_none(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), b[bi]);
+          append_write_left(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi), b[bi]);
+          not_in_sorted_seg(c.map, 0, ci, b[bi].key);
+          contents_extend(old(b.map), 0, bi);
+          contents_extensional(c.map, cmap, 0, ci);
+          contents_extend(c.map, 0, ci);
+          //pure assert "test" contents(c.map, 0, ci + 1) == append(contents(old(a.map), 0, ai), contents(old(b.map), 0, bi + 1));
           bi := bi + 1;
+          
+          assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
         } else {
           c[ci] := a[ai];
-          ai := ai + 1;
           if (a[ai].key == b[bi].key) {
             bi := bi + 1;
+            assume false;
           }
+          ai := ai + 1;
+          assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
+          assume false;
         }
       } else {
         c[ci] := a[ai];
         ai := ai + 1;
+        assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
+        assume false;
       }
     } else {
       c[ci] := b[bi];
       bi := bi + 1;
+      assert sorted_array_prefix(a, alen) &*& sorted_array_prefix(b, blen) &*& sorted_array_prefix(c, ci + 1);
+      assume false;
     }
     ci := ci + 1;
-    assume false;
   }
+  assume false;
   return ci;
 }
   
