@@ -1,0 +1,410 @@
+/** LSM-like implementation of the multicopy template. */
+
+options "-abspreds -simplearrays -propreads -stratify -module multicopy-lsm"
+
+include "array_util_lsm.spl"
+
+type V = Int
+ 
+
+datatype OptionNode = someNode(nd: Node) | noneNode
+
+/** Definition of a node */
+
+datatype NodeType = memtableNode | sstableNode
+
+struct Node {
+  var nodeType: NodeType;
+  var table: Array<Pair>;
+  var tableLen: Int;
+  var next: Node;
+  //ghost var indices: Map<Key, Int>;  // inverse of table for sstableNodes
+}
+
+const B: Int
+
+axiom B > 1
+
+/** {Spec} Definition of heap representation predicate, node */
+
+define nodeSpatial(x) {
+  acc(x) &*& acc(x.table)
+}
+
+function contents_memtable_aux(table: Map<Int, Pair>,
+    len: Int, i: Int)
+  returns (Cn: Map<K, OptionV>)
+{
+  0 <= i ?
+    (i < len ?
+    contents_memtable_aux(table, len, i-1)[table[i].key := SomeV(table[i].val)]
+      : contents_memtable_aux(table, len, i-1))
+    : empty_map
+}
+
+define contents_memtable(table, len) {
+  contents_memtable_aux(table.map, len, len)
+}
+
+define nodePure(r, n, esn, Cn) {
+  true
+  // Node is either memtable or sstable:
+  && (n.nodeType == memtableNode
+      && n == r
+      && Cn == contents_memtable(n.table, n.tableLen)
+    || n.nodeType == sstableNode
+      && n != r
+      && sorted_map_seg(n.table.map, 0, n.tableLen)
+      // Cn is given by table
+      && Cn == contents_of_map(n.table.map, 0, n.tableLen)
+      /*&& (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.table[i].key] == n.table[i].ts)
+      // For keys not in tableKey, Cn is 0
+      && (forall k: Key :: n.indices[k] == -1 ==> Cn[k] == 0)
+      // n.indices is the inverse of n.tableKey
+      && (forall k: Key :: 0 <= n.indices[k] < n.tableLen
+        ==> n.table.map[n.indices[k]].key == k)
+      && (forall i: Int :: 0 <= i < n.tableLen
+        ==> n.indices[n.table.map[i].key] == i @(noinst i))
+         && (forall k: Key :: -1 <= n.indices[k] < n.tableLen)*/
+  )
+  && 0 <= n.tableLen <= n.table.length
+  // No self-loops
+  && n.next != n && n.next != r
+  // Edgeset to next node is KeyS if non-null
+  && (n.next != null
+    ==> (forall k: K :: k in esn[n.next]))
+  // All other nodes have empty edgeset
+  && (forall n1: Node :: n1 != n.next ==> esn[n1] == {})
+  && esn[null] == {}
+}
+
+// TODO make n first or last arg
+define node(r, n, esn, Cn) {
+  nodeSpatial(n)
+  &*& nodePure(r, n, esn, Cn)
+}
+
+define needsNewNode(r, n, esn, Cn) {
+  n.next == null
+}
+
+/** {Spec} Some lemmas used by the proof of the programs below */
+
+lemma contents_memtable_found(n: Node, k: K, i: Int)
+  requires nodeSpatial(n)
+  requires 0 <= i < n.tableLen && n.table[i].key == k
+  requires forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+  ensures nodeSpatial(n)
+  ensures contents_memtable(n.table, n.tableLen)[k] == SomeV(n.table[i].val)
+{
+  // TODO missing term/inst?
+  pure assert contents_memtable_aux(n.table.map, n.tableLen, i)
+    == contents_memtable_aux(n.table.map, n.tableLen, i-1)[n.table[i].key := SomeV(n.table[i].val)];
+
+  var j := i;
+  while (j < n.tableLen)
+    invariant i <= j <= n.tableLen
+    invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+    invariant contents_memtable_aux(n.table.map, n.tableLen, j)[k] == SomeV(n.table[i].val)
+  {
+    j := j + 1;
+
+    pure assert j < n.tableLen ==>
+      contents_memtable_aux(n.table.map, n.tableLen, j)
+      == contents_memtable_aux(n.table.map, n.tableLen, j-1)[n.table[j].key := SomeV(n.table[j].val)];
+  }
+}
+
+lemma contents_memtable_not_found(n: Node, k: K)
+  requires nodeSpatial(n)
+  requires 0 <= n.tableLen
+  requires forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
+  ensures nodeSpatial(n)
+  ensures contents_memtable(n.table, n.tableLen)[k] == NoneV
+{
+  var i := -1;
+
+  while (i < n.tableLen)
+    invariant -1 <= i <= n.tableLen
+    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
+    invariant
+      contents_memtable_aux(n.table.map, n.tableLen, i)[k] == NoneV
+  {
+    i := i + 1;
+
+    pure assert 0 <= i < n.tableLen ==>
+      contents_memtable_aux(n.table.map, n.tableLen, i)
+      == contents_memtable_aux(n.table.map, n.tableLen, i-1)
+      [n.table[i].key := SomeV(n.table[i].val)];
+    pure assert 0 <= i < n.tableLen ==> n.table[i].key != k;
+  }
+}
+
+/*
+lemma contents_sstable_not_found(n: Node, k: Key,
+    ghost r: Node, ghost esn: Map<Node, Set<Key>>,
+    ghost Cn: Map<Key, Int>)
+  requires node(r, n, esn, Cn) &*& n.nodeType == sstableNode
+  requires forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
+  ensures node(r, n, esn, Cn)
+  ensures Cn[k] == NoneV
+{
+  var i := 0;
+  while (i < n.tableLen)
+    invariant node(r, n, esn, Cn) &*& n.nodeType == sstableNode
+    invariant 0 <= i <= n.tableLen
+    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
+    invariant forall j: Int :: 0 <= j < i ==> n.indices[k] != j
+  {
+    pure assert n.table[i].key != k;
+    pure assert n.indices[k] != i;
+    i := i + 1;
+  }
+}
+ */
+
+lemma contents_memtable_add(table: Map<Int, Pair>,
+  old_table: Map<Int, Pair>, len: Int, k: K, t: Int)
+    requires table == old_table[len-1 := pair(k,t)]
+  requires 0 < len //<= tableKey.length && tableKey.length == tableT.length
+  // requires tableKey.length == old_tableKey.length && tableT.length == old_tableT.length
+  ensures contents_memtable_aux(table, len, len)
+    == contents_memtable_aux(old_table, len-1, len-1)[k := SomeV(t)]
+{
+  assert contents_memtable_aux(table, len, len)
+    == contents_memtable_aux(table, len, len-1);
+  assert contents_memtable_aux(table, len, len-1)
+    == contents_memtable_aux(table, len, len-2)[k := SomeV(t)];
+
+  if (len-2 < 0) {
+    assert contents_memtable_aux(table, len, len-2)
+      == contents_memtable_aux(old_table, len-1, len-2);
+  } else {
+    var i := 0;
+    while (i < len-2)
+      invariant 0 <= i <= len-2
+      invariant contents_memtable_aux(table, len, i)
+        == contents_memtable_aux(old_table, len-1, i);
+        invariant table == old_table[len-1 := pair(k,t)]
+      invariant 0 < len //<= tableKey.length && tableKey.length == tableT.length
+      // invariant tableKey.length == old_tableKey.length
+        // && tableT.length == old_tableT.length
+    {
+      i := i + 1;
+      assert contents_memtable_aux(table, len, i)
+        == contents_memtable_aux(table, len, i-1)[table[i].key := SomeV(table[i].val)];
+      assert contents_memtable_aux(old_table, len-1, i)
+        == contents_memtable_aux(old_table, len-1, i-1)[table[i].key := SomeV(table[i].val)];
+    }
+  }
+
+  assert contents_memtable_aux(table, len, len-2)
+    == contents_memtable_aux(old_table, len-1, len-2);
+  assert contents_memtable_aux(old_table, len-1, len-2)
+    == contents_memtable_aux(old_table, len-1, len-1);
+}
+
+
+/** {Spec} Implementation-specific lemmas needed by Iris */
+
+lemma node_sep_star(r: Node, n: Node, esn: Map<Node, Set<K>>, es1: Map<Node, Set<K>>, C: Map<K, OptionV>, C1: Map<K, OptionV>)
+  requires node(r, n, esn, C) &*& node(r, n, es1, C1)
+  ensures false
+{}
+
+lemma node_es_disjoint(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, OptionV>)
+  requires node(r, n, esn, C)
+  ensures node(r, n, esn, C)
+  ensures forall k: K, n1: Node, n2: Node ::
+    n1 != n2 ==> (k !in esn[n1] || k !in esn[n2]) 
+{
+  pure assert forall k: K, n1: Node, n2: Node ::
+    n1 != n2 ==> (k !in esn[n1] || k !in esn[n2]) 
+  with {
+    if (n1 != n2) {
+      pure assert true;
+    }
+  }
+}
+
+lemma node_es_empty(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, OptionV>)
+  requires node(r, n, esn, C)
+  ensures node(r, n, esn, C)
+  ensures forall k: K :: (k !in esn[r] && k !in esn[n])
+{}
+
+/** Begin programs */
+
+procedure init()
+  returns (r: Node, esr: Map<Node, Set<K>>, Cr: Map<K, OptionV>)
+  ensures node(r, r, esr, Cr)
+{
+  r := new Node;
+  r.table := new Array<Pair>(2*B);
+  r.tableLen := 0;
+  r.next := null;
+  r.nodeType := memtableNode;
+
+  esr := { n: Node :: {} };
+  Cr := empty_map;
+
+  return r, esr, Cr;
+}
+
+procedure inContents(n: Node, k: K,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (res: OptionV)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures Cn[k] == res
+{
+  if (n.nodeType == memtableNode) {
+    var i := n.tableLen - 1;
+    var flag := false;
+    while (i >= 0 && !flag)
+      invariant node(r, n, esn, Cn)
+      invariant -1 <= i < n.tableLen
+      invariant flag ==> 0 <= i < n.tableLen && n.table[i].key == k
+      invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+    {
+      if (n.table[i].key == k) {
+        flag := true;
+      } else {
+        i := i - 1;
+      }
+    }
+    if (flag) {
+      contents_memtable_found(n, k, i);
+      return SomeV(n.table[i].val);
+    } else {
+      contents_memtable_not_found(n, k);
+      return NoneV;
+    }
+  } else {
+    var v, i := arr_find(n.table, n.tableLen, k);
+    return v;
+  }
+}
+
+procedure addContents(n: Node, k: K, t: Int,
+   ghost r: Node, ghost esn: Map<Node, Set<K>>,
+   ghost Cn: Map<K, OptionV>)
+  returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
+  requires node(r, n, esn, Cn) &*& n == r
+  ensures node(r, n, esn, Cn1)
+  ensures (succ && Cn1 == Cn[k := SomeV(t)]) || (!succ && Cn1 == Cn)
+{
+  pure assert n.nodeType == memtableNode;
+  pure assert Cn == contents_memtable(n.table, n.tableLen);
+
+  if (n.tableLen < n.table.length) {
+    n.table[n.tableLen] := pair(k,t);
+    n.tableLen := n.tableLen + 1;
+
+    contents_memtable_add(
+      n.table.map, old(n.table.map), n.tableLen, k, t
+    );
+
+    return true;
+  } else {
+    return false;
+  }
+}
+
+procedure findNext(n: Node, k: K,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (res: OptionNode)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures res != noneNode ==> k in esn[res.nd]
+  ensures res == noneNode ==> (forall n1: Node :: k !in esn[n1])
+{
+  if (n.next == null) {  // Leaf node
+    return noneNode;
+  } else {
+    return someNode(n.next);
+  }
+}
+
+procedure atCapacity(n: Node,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (b: Bool)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures b == true || b == false
+{
+  if (n.tableLen < n.table.length) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+procedure chooseNext(n: Node,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (res: OptionNode)
+  requires node(r, n, esn, Cn)
+  ensures node(r, n, esn, Cn)
+  ensures (res == noneNode && needsNewNode(r, n, esn, Cn)
+    || res != noneNode && esn[res.nd] != {})
+{
+  if (n.next != null) {
+    return someNode(n.next);
+  } else {
+    return noneNode;
+  }
+}
+
+procedure insertNode(n: Node, m: Node,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (ghost esn1: Map<Node, Set<K>>, ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, OptionV>)
+  requires node(r, n, esn, Cn) &*& nodeSpatial(m)
+  requires needsNewNode(r, n, esn, Cn) &*& m != r
+  ensures node(r, n, esn1, Cn) &*& node(r, m, esm, Cm)
+  ensures esn1[m] != {} && esn1 == esn[m := esn1[m]]
+  ensures esm == { x: Node :: {} } && Cm == empty_map
+{
+  pure assert n != m;
+  n.next := m;
+  esn1 := { x: Node :: x == m ? { k: K :: true } : {} };
+
+  m.tableLen := 0;
+  m.next := null;
+  m.nodeType := sstableNode;
+  esm := { x: Node :: {} };
+  Cm := empty_map;
+
+  return esn1, esm, Cm;
+}
+
+/*
+procedure addSStable(n: Node, k: K, t: Int,
+    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>)
+  returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
+  requires node(r, n, esn, Cn) &*& n != r &*& n.tableLen < n.tableK.length
+  ensures node(r, n, esn, Cn1)
+  ensures Cn1 == Cn[k := t]
+{
+  pure assert n.nodeType == sstableNode;
+  //pure assert Cn == contents_sstable(n.tableK, n.tableT, n.tableLen);
+
+  ghost var keys := n.tableK.map;
+  ghost var times := n.tableT.map;
+  var old_len := n.tableLen;
+
+  var idx1, new_len := arr_insert(n.tableK, k, n.tableLen);
+  var idx2, _ := arr_insert(n.tableT, k, n.tableLen);
+  n.tableLen := new_len;
+
+  map_insert_content_set(keys, n.tableK.map, idx1, k, old_len, new_len);
+  map_insert_content_set(times, n.tableK.map, idx2, k, old_len, new_len);
+
+  assume false;
+}
+ */
