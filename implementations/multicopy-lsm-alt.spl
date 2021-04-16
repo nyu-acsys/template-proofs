@@ -51,7 +51,7 @@ define nodePure(r, n, esn, Cn) {
   // Node is either memtable or sstable:
   && (n.nodeType == memtableNode
       && n == r
-      && Cn == contents_memtable(n.table, n.tableLen)
+     && Cn == contents_of_map(n.table.map, n.table.length - n.tableLen, n.table.length)
     || n.nodeType == sstableNode
       && n != r
       && sorted_map_seg(n.table.map, 0, n.tableLen)
@@ -89,120 +89,6 @@ define needsNewNode(r, n, esn, Cn) {
 }
 
 /** {Spec} Some lemmas used by the proof of the programs below */
-
-lemma contents_memtable_found(n: Node, k: K, i: Int)
-  requires nodeSpatial(n)
-  requires 0 <= i < n.tableLen && n.table[i].key == k
-  requires forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
-  ensures nodeSpatial(n)
-  ensures contents_memtable(n.table, n.tableLen)[k] == SomeV(n.table[i].val)
-{
-  // TODO missing term/inst?
-  pure assert contents_memtable_aux(n.table.map, n.tableLen, i)
-    == contents_memtable_aux(n.table.map, n.tableLen, i-1)[n.table[i].key := SomeV(n.table[i].val)];
-
-  var j := i;
-  while (j < n.tableLen)
-    invariant i <= j <= n.tableLen
-    invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
-    invariant contents_memtable_aux(n.table.map, n.tableLen, j)[k] == SomeV(n.table[i].val)
-  {
-    j := j + 1;
-
-    pure assert j < n.tableLen ==>
-      contents_memtable_aux(n.table.map, n.tableLen, j)
-      == contents_memtable_aux(n.table.map, n.tableLen, j-1)[n.table[j].key := SomeV(n.table[j].val)];
-  }
-}
-
-lemma contents_memtable_not_found(n: Node, k: K)
-  requires nodeSpatial(n)
-  requires 0 <= n.tableLen
-  requires forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
-  ensures nodeSpatial(n)
-  ensures contents_memtable(n.table, n.tableLen)[k] == NoneV
-{
-  var i := -1;
-
-  while (i < n.tableLen)
-    invariant -1 <= i <= n.tableLen
-    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
-    invariant
-      contents_memtable_aux(n.table.map, n.tableLen, i)[k] == NoneV
-  {
-    i := i + 1;
-
-    pure assert 0 <= i < n.tableLen ==>
-      contents_memtable_aux(n.table.map, n.tableLen, i)
-      == contents_memtable_aux(n.table.map, n.tableLen, i-1)
-      [n.table[i].key := SomeV(n.table[i].val)];
-    pure assert 0 <= i < n.tableLen ==> n.table[i].key != k;
-  }
-}
-
-/*
-lemma contents_sstable_not_found(n: Node, k: Key,
-    ghost r: Node, ghost esn: Map<Node, Set<Key>>,
-    ghost Cn: Map<Key, Int>)
-  requires node(r, n, esn, Cn) &*& n.nodeType == sstableNode
-  requires forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
-  ensures node(r, n, esn, Cn)
-  ensures Cn[k] == NoneV
-{
-  var i := 0;
-  while (i < n.tableLen)
-    invariant node(r, n, esn, Cn) &*& n.nodeType == sstableNode
-    invariant 0 <= i <= n.tableLen
-    invariant forall j: Int :: 0 <= j < n.tableLen ==> n.table[j].key != k
-    invariant forall j: Int :: 0 <= j < i ==> n.indices[k] != j
-  {
-    pure assert n.table[i].key != k;
-    pure assert n.indices[k] != i;
-    i := i + 1;
-  }
-}
- */
-
-lemma contents_memtable_add(table: Map<Int, Pair>,
-  old_table: Map<Int, Pair>, len: Int, k: K, t: Int)
-    requires table == old_table[len-1 := pair(k,t)]
-  requires 0 < len //<= tableKey.length && tableKey.length == tableT.length
-  // requires tableKey.length == old_tableKey.length && tableT.length == old_tableT.length
-  ensures contents_memtable_aux(table, len, len)
-    == contents_memtable_aux(old_table, len-1, len-1)[k := SomeV(t)]
-{
-  assert contents_memtable_aux(table, len, len)
-    == contents_memtable_aux(table, len, len-1);
-  assert contents_memtable_aux(table, len, len-1)
-    == contents_memtable_aux(table, len, len-2)[k := SomeV(t)];
-
-  if (len-2 < 0) {
-    assert contents_memtable_aux(table, len, len-2)
-      == contents_memtable_aux(old_table, len-1, len-2);
-  } else {
-    var i := 0;
-    while (i < len-2)
-      invariant 0 <= i <= len-2
-      invariant contents_memtable_aux(table, len, i)
-        == contents_memtable_aux(old_table, len-1, i);
-        invariant table == old_table[len-1 := pair(k,t)]
-      invariant 0 < len //<= tableKey.length && tableKey.length == tableT.length
-      // invariant tableKey.length == old_tableKey.length
-        // && tableT.length == old_tableT.length
-    {
-      i := i + 1;
-      assert contents_memtable_aux(table, len, i)
-        == contents_memtable_aux(table, len, i-1)[table[i].key := SomeV(table[i].val)];
-      assert contents_memtable_aux(old_table, len-1, i)
-        == contents_memtable_aux(old_table, len-1, i-1)[table[i].key := SomeV(table[i].val)];
-    }
-  }
-
-  assert contents_memtable_aux(table, len, len-2)
-    == contents_memtable_aux(old_table, len-1, len-2);
-  assert contents_memtable_aux(old_table, len-1, len-2)
-    == contents_memtable_aux(old_table, len-1, len-1);
-}
 
 
 /** {Spec} Implementation-specific lemmas needed by Iris */
@@ -260,25 +146,28 @@ procedure inContents(n: Node, k: K,
   ensures Cn[k] == res
 {
   if (n.nodeType == memtableNode) {
-    var i := n.tableLen - 1;
+    var start := n.table.length - n.tableLen;
+    var i := start;
     var flag := false;
-    while (i >= 0 && !flag)
+    while (i < n.table.length && !flag)
+      invariant start == n.table.length - n.tableLen;
       invariant node(r, n, esn, Cn)
-      invariant -1 <= i < n.tableLen
-      invariant flag ==> 0 <= i < n.tableLen && n.table[i].key == k
-      invariant forall j: Int :: i < j < n.tableLen ==> n.table[j].key != k
+      invariant start <= i <= n.table.length
+      invariant flag ==> start <= i < n.table.length && n.table[i].key == k
+      invariant contents_of_map(n.table.map, start, i)[k] == NoneV
     {
       if (n.table[i].key == k) {
         flag := true;
       } else {
-        i := i - 1;
+        contents_of_map_extend(n.table.map, start, i);
+        i := i + 1;
       }
     }
     if (flag) {
-      contents_memtable_found(n, k, i);
+      contents_of_map_split(n.table.map, start, i + 1, n.table.length);
+      contents_of_map_extend(n.table.map, start, i);
       return SomeV(n.table[i].val);
     } else {
-      contents_memtable_not_found(n, k);
       return NoneV;
     }
   } else {
@@ -296,15 +185,15 @@ procedure addContents(n: Node, k: K, t: Int,
   ensures (succ && Cn1 == Cn[k := SomeV(t)]) || (!succ && Cn1 == Cn)
 {
   pure assert n.nodeType == memtableNode;
-  pure assert Cn == contents_memtable(n.table, n.tableLen);
+  var start := n.table.length - n.tableLen;  
+  pure assert Cn == contents_of_map(n.table.map, start, n.table.length);
 
   if (n.tableLen < n.table.length) {
-    n.table[n.tableLen] := pair(k,t);
-    n.tableLen := n.tableLen + 1;
+    n.table[start - 1] := pair(k,t);
 
-    contents_memtable_add(
-      n.table.map, old(n.table.map), n.tableLen, k, t
-    );
+    contents_of_map_extensional(n.table.map, old(n.table.map), start, n.table.length);
+    
+    n.tableLen := n.tableLen + 1;
 
     return true;
   } else {
