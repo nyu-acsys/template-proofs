@@ -36,12 +36,12 @@ define nodePure(r, n, esn, Cn) {
   // Node is either memtable or sstable:
   && (n.nodeType == memtableNode
       && n == r
-     && Cn == contents_of_map(n.table.map, n.table.length - n.tableLen, n.table.length)
+     && Cn == contents(n.table.map, n.table.length - n.tableLen, n.table.length)
     || n.nodeType == sstableNode
       && n != r
       && sorted_map_seg(n.table.map, 0, n.tableLen)
       // Cn is given by table
-      && Cn == contents_of_map(n.table.map, 0, n.tableLen)
+      && Cn == contents(n.table.map, 0, n.tableLen)
   )
   && 0 <= n.tableLen <= n.table.length
   // No self-loops
@@ -130,18 +130,18 @@ procedure inContents(n: Node, k: K,
       invariant node(r, n, esn, Cn)
       invariant start <= i <= n.table.length
       invariant flag ==> start <= i < n.table.length && n.table[i].key == k
-      invariant contents_of_map(n.table.map, start, i)[k] == NoneV
+      invariant contents(n.table.map, start, i)[k] == NoneV
     {
       if (n.table[i].key == k) {
         flag := true;
       } else {
-        contents_of_map_extend(n.table.map, start, i);
+        contents_extend(n.table.map, start, i);
         i := i + 1;
       }
     }
     if (flag) {
-      contents_of_map_split(n.table.map, start, i + 1, n.table.length);
-      contents_of_map_extend(n.table.map, start, i);
+      contents_split(n.table.map, start, i + 1, n.table.length);
+      contents_extend(n.table.map, start, i);
       return SomeV(n.table[i].val);
     } else {
       return NoneV;
@@ -162,12 +162,12 @@ procedure addContents(n: Node, k: K, t: Int,
 {
   pure assert n.nodeType == memtableNode;
   var start := n.table.length - n.tableLen;  
-  pure assert Cn == contents_of_map(n.table.map, start, n.table.length);
+  pure assert Cn == contents(n.table.map, start, n.table.length);
 
   if (n.tableLen < n.table.length) {
     n.table[start - 1] := pair(k,t);
 
-    contents_of_map_extensional(n.table.map, old(n.table.map), start, n.table.length);
+    contents_extensional(n.table.map, old(n.table.map), start, n.table.length);
     
     n.tableLen := n.tableLen + 1;
 
