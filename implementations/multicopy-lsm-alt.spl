@@ -307,3 +307,34 @@ procedure addSStable(n: Node, k: K, t: Int,
   var idx, new_len := arr_insert(n., pair(k, t), n.tableLen);
   n.tableLen := new_len;
 }
+*/
+
+function dom(C: Map<K, OptionV>) returns (res: Set<K>) {
+    { k: K :: C[k] != NoneV ? true : false}
+}
+
+function set_of_map(C: Map<K, OptionV>) returns (res: Set<Pair>) {
+    { p: Pair :: C[p.key] == SomeV(p.val) ? true : false }
+}
+
+
+procedure mergeContents(r: Node, n: Node, m: Node, implicit ghost esn: Map<Node, Set<K>>,
+    implicit ghost Cn: Map<K, OptionV>, implicit ghost esm: Map<Node, Set<K>>,
+    implicit ghost Cm: Map<K, OptionV>) returns (implicit ghost Cn1: Map<K, OptionV>, implicit ghost Cm1: Map<K, OptionV>)
+    requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
+    requires esn[m] != {}
+    ensures node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1)
+    ensures (set_of_map(Cn1) subsetof (set_of_map(Cn)))
+    ensures set_of_map(Cm1) subsetof (set_of_map(Cn)) ++ (set_of_map(Cm))
+    ensures Disjoint(set_of_map(Cn) ** set_of_map(Cm1), set_of_map(Cn1))
+    ensures dom(Cm) subsetof dom(Cm1)
+    ensures append(Cn, Cm) == append(Cn1, Cm1)
+{
+  pure assert m != r;
+  if (n.nodeType == memtableNode) {
+  
+  } else {
+
+  }
+  assume false;
+}
