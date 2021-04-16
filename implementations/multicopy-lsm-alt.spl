@@ -87,7 +87,48 @@ define needsNewNode(r, n, esn, Cn) {
   n.next == null
 }
 
+function dom(C: Map<K, OptionV>) returns (res: Set<K>) {
+  { k: K :: C[k] != NoneV ? true : false}
+}
+
+function set_of_map(C: Map<K, OptionV>) returns (res: Set<Pair>) {
+  { p: Pair :: C[p.key] == SomeV(p.val) ? true : false }
+}
+
+function merge(Cn: Map<K, OptionV>, Es: Set<K>, Cm: Map<K, OptionV>)
+  returns (res: Map<K, OptionV>)
+{
+  { k: K :: Cn[k] != NoneV ? Cn[k] : (k in Es ? Cm[k] : NoneV) }
+}
+
 /** {Spec} Some lemmas used by the proof of the programs below */
+
+lemma merge_equals_append(Cn: Map<K, OptionV>, Es: Set<K>, Cm: Map<K, OptionV>)
+  requires forall k: K :: k in Es
+  ensures merge(Cn, Es, Cm) == append(Cn, Cm)
+{
+  pure assert forall k: K :: merge(Cn, Es, Cm)[k] == append(Cn, Cm)[k] with {
+    if (Cn[k] == NoneV) {
+      pure assert merge(Cn, Es, Cm)[k] == Cm[k];
+    }
+  }
+}
+
+lemma dom_empty_map()
+  ensures dom(empty_map) == {}
+{
+  pure assert forall k: K :: k !in dom(empty_map) with {
+    pure assert empty_map[k] == NoneV;
+  }
+}
+
+lemma set_of_empty_map()
+  ensures set_of_map(empty_map) == {}
+{
+  pure assert forall p: Pair :: p !in set_of_map(empty_map) with {
+    pure assert empty_map[p.key] == NoneV;
+  }
+}
 
 
 /** {Spec} Implementation-specific lemmas needed by Iris */
@@ -309,32 +350,46 @@ procedure addSStable(n: Node, k: K, t: Int,
 }
 */
 
-function dom(C: Map<K, OptionV>) returns (res: Set<K>) {
-    { k: K :: C[k] != NoneV ? true : false}
-}
-
-function set_of_map(C: Map<K, OptionV>) returns (res: Set<Pair>) {
-    { p: Pair :: C[p.key] == SomeV(p.val) ? true : false }
-}
-
-
-procedure mergeContents(r: Node, n: Node, m: Node, implicit ghost esn: Map<Node, Set<K>>,
-    implicit ghost Cn: Map<K, OptionV>, implicit ghost esm: Map<Node, Set<K>>,
-    implicit ghost Cm: Map<K, OptionV>) returns (implicit ghost Cn1: Map<K, OptionV>, implicit ghost Cm1: Map<K, OptionV>)
-    requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
-    requires esn[m] != {}
-    ensures node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1)
-    ensures (set_of_map(Cn1) subsetof (set_of_map(Cn)))
-    ensures set_of_map(Cm1) subsetof (set_of_map(Cn)) ++ (set_of_map(Cm))
-    ensures Disjoint(set_of_map(Cn) ** set_of_map(Cm1), set_of_map(Cn1))
-    ensures dom(Cm) subsetof dom(Cm1)
-    ensures append(Cn, Cm) == append(Cn1, Cm1)
+procedure mergeContentsHelper(r: Node, n: Node, m: Node,
+  ghost esn: Map<Node, Set<K>>,
+  ghost Cn: Map<K, OptionV>,
+  ghost esm: Map<Node, Set<K>>,
+  ghost Cm: Map<K, OptionV>)
+  returns (implicit ghost Cm1: Map<K, OptionV>)
+  requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
+  requires esn[m] != {}
+  ensures node(r, n, esn, empty_map) &*& node(r, m, esm, append(Cn, Cm))
 {
-  pure assert m != r;
-  if (n.nodeType == memtableNode) {
-  
-  } else {
-
-  }
   assume false;
+}
+
+procedure mergeContents(r: Node, n: Node, m: Node,
+  ghost esn: Map<Node, Set<K>>,
+  ghost Cn: Map<K, OptionV>,
+  ghost esm: Map<Node, Set<K>>,
+  ghost Cm: Map<K, OptionV>)
+  returns (implicit ghost Cn1: Map<K, OptionV>, implicit ghost Cm1: Map<K, OptionV>)
+  requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
+  requires esn[m] != {}
+  ensures node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1)
+  ensures set_of_map(Cn1) subsetof set_of_map(Cn)
+  ensures set_of_map(Cm1) subsetof set_of_map(Cn) ++ set_of_map(Cm)
+  ensures Disjoint(set_of_map(Cn) ** set_of_map(Cm1), set_of_map(Cn1))
+  ensures dom(Cm) subsetof dom(Cm1)
+  ensures merge(Cn, esn[m], Cm) == merge(Cn1, esn[m], Cm1)
+{
+  mergeContentsHelper(r, n, m, esn, Cn, esm, Cm);
+  ghost var Cm11 := append(Cn, Cm);
+  ghost var Cn11 := empty_map;
+  pure assert merge(Cn, esn[m], Cm) == merge(Cn11, esn[m], Cm11) with {
+    merge_equals_append(Cn11, esn[m], Cm11);
+    merge_equals_append(Cn, esn[m], Cm);
+    append_empty_left(Cm11);
+  }
+  dom_empty_map();
+  set_of_empty_map();
+  pure assert set_of_map(Cm11) subsetof set_of_map(Cn) ++ set_of_map(Cm);
+  pure assert set_of_map(Cn11) subsetof set_of_map(Cn);
+  pure assert Disjoint(set_of_map(Cn) ** set_of_map(Cm11), set_of_map(Cn11));
+  pure assert dom(Cm) subsetof dom(Cm11);
 }
