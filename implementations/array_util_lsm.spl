@@ -482,6 +482,8 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
   return i, len + 1;
 }
 
+// Merge two sorted arrays a and b into a sorted array c such that
+// the resulting contents of c appends the contents of a and b.
 procedure arr_merge(a: Array<Pair>, alen: Int, b: Array<Pair>, blen: Int, c: Array<Pair>)
   returns (clen: Int)
   requires sorted_array_prefix(a, alen)
