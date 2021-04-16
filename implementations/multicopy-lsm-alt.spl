@@ -1,11 +1,33 @@
-/** LSM-like implementation of the multicopy template. */
-
 options "-abspreds -simplearrays -propreads -stratify -module multicopy-lsm"
 
 include "array_util_lsm.spl"
 
 type V = Int
- 
+
+/* File axiomatization */
+type FileT = Array<Pair>;
+
+predicate File(f: FileT) {
+    acc(f)
+}
+
+procedure createFile(d: Array<Pair>) returns (f: FileT)
+    requires acc(d)
+    ensures File(f)
+    ensures f == d
+{
+    return d;
+}
+
+procedure readFile(f: FileT) returns (res: Array<Pair>)
+    requires File(f)
+    ensures File(f)
+    ensures res == f
+{
+    return f;
+}
+
+/** LSM-like implementation of the multicopy template. */
 
 datatype OptionNode = someNode(nd: Node) | noneNode
 
@@ -18,7 +40,7 @@ struct Node {
   var table: Array<Pair>;
   var tableLen: Int;
   var next: Node;
-  //ghost var indices: Map<Key, Int>;  // inverse of table for sstableNodes
+  var file: Array<Pair>
 }
 
 const B: Int
@@ -28,7 +50,7 @@ axiom B > 1
 /** {Spec} Definition of heap representation predicate, node */
 
 define nodeSpatial(x) {
-  acc(x) &*& acc(x.table)
+  acc(x) &*& acc(x.table) &*& File(x.file)
 }
 
 define nodePure(r, n, esn, Cn) {
@@ -36,14 +58,15 @@ define nodePure(r, n, esn, Cn) {
   // Node is either memtable or sstable:
   && (n.nodeType == memtableNode
       && n == r
-     && Cn == contents(n.table.map, n.table.length - n.tableLen, n.table.length)
+      && Cn == contents(n.table.map, n.table.length - n.tableLen, n.table.length)
+      && 0 <= n.tableLen <= n.table.length
     || n.nodeType == sstableNode
       && n != r
-      && sorted_map_seg(n.table.map, 0, n.tableLen)
+      && sorted_map_seg(n.file.map, 0, n.tableLen)
       // Cn is given by table
-      && Cn == contents(n.table.map, 0, n.tableLen)
+      && Cn == contents(n.file.map, 0, n.tableLen)
+      && 0 <= n.tableLen <= n.file.length
   )
-  && 0 <= n.tableLen <= n.table.length
   // No self-loops
   && n.next != n && n.next != r
   // Edgeset to next node is KeyS if non-null
@@ -107,6 +130,9 @@ procedure init()
   r.next := null;
   r.nodeType := memtableNode;
 
+  var arr_file := new Array<Pair>(2*B);
+  r.file := createFile(arr_file);
+
   esr := { n: Node :: {} };
   Cr := empty_map;
 
@@ -147,7 +173,9 @@ procedure inContents(n: Node, k: K,
       return NoneV;
     }
   } else {
-    var v, i := arr_find(n.table, n.tableLen, k);
+    var arr_file := readFile(n.file);
+
+    var v, i := arr_find(arr_file, n.tableLen, k);
     return v;
   }
 }
@@ -201,8 +229,12 @@ procedure atCapacity(n: Node,
   ensures node(r, n, esn, Cn)
   ensures b == true || b == false
 {
-  if (n.tableLen < n.table.length) {
-    return false;
+  if (n.nodeType == memtableNode) {
+    if (n.tableLen < n.table.length) {
+      return false;
+    } else {
+      return true;
+    }
   } else {
     return true;
   }
@@ -247,7 +279,18 @@ procedure insertNode(n: Node, m: Node,
   return esn1, esm, Cm;
 }
 
+procedure allocNode() returns (m: Node)
+  requires true
+  ensures nodeSpatial(m)
+{
+  m := new Node;
+  m.table := new Array<Pair>(2*B);
 
+  var arr_file := new Array<Pair>(2*B);
+  m.file := createFile(arr_file);
+}  
+
+/*
 procedure addSStable(n: Node, k: K, t: Int,
     ghost r: Node, ghost esn: Map<Node, Set<K>>,
     ghost Cn: Map<K, OptionV>)
@@ -261,6 +304,6 @@ procedure addSStable(n: Node, k: K, t: Int,
 
   var old_len := n.tableLen;
 
-  var idx, new_len := arr_insert(n.table, pair(k, t), n.tableLen);
+  var idx, new_len := arr_insert(n., pair(k, t), n.tableLen);
   n.tableLen := new_len;
 }
