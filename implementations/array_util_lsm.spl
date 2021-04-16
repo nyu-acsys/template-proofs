@@ -61,6 +61,19 @@ lemma append_none(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
   }
 }
 
+lemma append_write(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
+  ensures append_partial_map(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)]) == append_partial_map(m1, m2)[p.key := SomeV(p.val)]
+{
+  pure assert forall k: K :: append_partial_map(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == append_partial_map(m1, m2)[p.key := SomeV(p.val)][k] with {
+    if (k == p.key) {
+      pure assert append_partial_map(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == SomeV(p.val);
+    } else if (m1[k] == NoneV) {
+      pure assert append_partial_map(m1[p.key := SomeV(p.val)], m2[p.key := SomeV(p.val)])[k] == m2[k];
+    }
+  }
+}
+
+
 lemma append_write_left(m1: Map<K, OptionV>, m2: Map<K, OptionV>, p: Pair)
   ensures append_partial_map(m1[p.key := SomeV(p.val)], m2) == append_partial_map(m1, m2)[p.key := SomeV(p.val)];
 {
@@ -98,21 +111,6 @@ lemma extend_right(m: Map<Int, Pair>, i: Int, j: Int)
   }
 }
 
-/*
-lemma contents_of_map_right_none(m: Map<Int, Pair>, i: Int, j: Int, k: Int)
-  requires i <= j < k
-  requires sorted_map_seg(m, i, k)
-  ensures contents_of_map(m, i, j)[m[j].key] == NoneV
-{
-  if (i < j) {
-    contents_of_map_right_none(m, i + 1, j, k);
-    swap_writes(contents_of_map(m, i + 1, j), m[i], m[j]);
-  } else {
-    pure assert empty_map[m[j].key] == NoneV;
-  }
-}
-*/
-
 lemma contents_of_map_extend(m: Map<Int, Pair>, i: Int, j: Int)
   requires i <= j
   ensures contents_of_map(m, i, j)[m[j].key] == NoneV ==>
@@ -137,11 +135,9 @@ lemma contents_of_map_extend(m: Map<Int, Pair>, i: Int, j: Int)
 
 lemma contents_of_map_split(m: Map<Int, Pair>, i: Int, j: Int, k: Int)
   requires i <= j <= k
-  //requires sorted_map_seg(m, i, k)
   ensures contents_of_map(m, i, k) == append_partial_map(contents_of_map(m, i, j), contents_of_map(m, j, k))
 {
   if (i < j) {
-  //extend_right(m, i, j);
   contents_of_map_split(m, i, j - 1, k);
   contents_of_map_extend(m, i, j - 1);
   if (contents_of_map(m, i, j - 1)[m[j - 1].key] == NoneV) {
@@ -421,6 +417,7 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
   requires len < a.length
   ensures sorted_array_prefix(a, new_len)
   ensures idx == map_find(old(a.map), 0, len, p.key)
+  ensures contents_of_map(a.map, 0, new_len) == contents_of_map(old(a.map), 0, len)[p.key := SomeV(p.val)];
   ensures contents_of_map(old(a.map), 0, len)[p.key] != NoneV ==> new_len == len && a.map == old(a.map)[idx := p]
   ensures contents_of_map(old(a.map), 0, len)[p.key] == NoneV ==> (new_len == len + 1
     && a.map == map_shift(old(a.map), idx, idx + 1, len - idx)[idx := p])
@@ -437,9 +434,21 @@ procedure arr_insert(a: Array<Pair>, p: Pair, len: Int)
   // k already in C?
   if (v != NoneV) {
     a[i] := p;
+    contents_of_map_split(a.map, 0, i, len);
+    contents_of_map_split(old(a.map), 0, i, len);
+    contents_of_map_extensional(a.map, old(a.map), 0, i);
+    contents_of_map_extensional(a.map, old(a.map), i + 1, len);
+    not_in_sorted_seg(a.map, 0, i, p.key);
+    append_write(contents_of_map(old(a.map), 0, i), contents_of_map(old(a.map), i, len), p);
+
+    pure assert contents_of_map(old(a.map), i + 1, len)[p.key := SomeV(p.val)] == contents_of_map(a.map, i, len)[p.key := SomeV(p.val)];
+    pure assert "test" contents_of_map(old(a.map), i + 1, len)[p.key := SomeV(p.val)] == contents_of_map(old(a.map), i, len)[p.key := SomeV(p.val)];
+      
+    append_none(contents_of_map(old(a.map), 0, i), contents_of_map(a.map, i, len), p);
+
     return i, len;
   }
-
+  assume false;
   arr_shift(a, i, i + 1, len - i);
 
   ghost var ms := a.map;

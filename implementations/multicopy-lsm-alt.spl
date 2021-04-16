@@ -247,29 +247,20 @@ procedure insertNode(n: Node, m: Node,
   return esn1, esm, Cm;
 }
 
-/*
+
 procedure addSStable(n: Node, k: K, t: Int,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
-    implicit ghost Cn: Map<K, OptionV>)
+    ghost r: Node, ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>)
   returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
-  requires node(r, n, esn, Cn) &*& n != r &*& n.tableLen < n.tableK.length
+  requires node(r, n, esn, Cn) &*& n != r &*& n.tableLen < n.table.length
   ensures node(r, n, esn, Cn1)
-  ensures Cn1 == Cn[k := t]
+  ensures Cn1 == Cn[k := SomeV(t)]
+  ensures n.tableLen <= n.tableLen + 1
 {
   pure assert n.nodeType == sstableNode;
-  //pure assert Cn == contents_sstable(n.tableK, n.tableT, n.tableLen);
 
-  ghost var keys := n.tableK.map;
-  ghost var times := n.tableT.map;
   var old_len := n.tableLen;
 
-  var idx1, new_len := arr_insert(n.tableK, k, n.tableLen);
-  var idx2, _ := arr_insert(n.tableT, k, n.tableLen);
+  var idx, new_len := arr_insert(n.table, pair(k, t), n.tableLen);
   n.tableLen := new_len;
-
-  map_insert_content_set(keys, n.tableK.map, idx1, k, old_len, new_len);
-  map_insert_content_set(times, n.tableK.map, idx2, k, old_len, new_len);
-
-  assume false;
 }
- */
