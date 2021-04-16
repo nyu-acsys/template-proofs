@@ -31,21 +31,6 @@ define nodeSpatial(x) {
   acc(x) &*& acc(x.table)
 }
 
-function contents_memtable_aux(table: Map<Int, Pair>,
-    len: Int, i: Int)
-  returns (Cn: Map<K, OptionV>)
-{
-  0 <= i ?
-    (i < len ?
-    contents_memtable_aux(table, len, i-1)[table[i].key := SomeV(table[i].val)]
-      : contents_memtable_aux(table, len, i-1))
-    : empty_map
-}
-
-define contents_memtable(table, len) {
-  contents_memtable_aux(table.map, len, len)
-}
-
 define nodePure(r, n, esn, Cn) {
   true
   // Node is either memtable or sstable:
@@ -57,15 +42,6 @@ define nodePure(r, n, esn, Cn) {
       && sorted_map_seg(n.table.map, 0, n.tableLen)
       // Cn is given by table
       && Cn == contents_of_map(n.table.map, 0, n.tableLen)
-      /*&& (forall i: Int :: 0 <= i < n.tableLen ==> Cn[n.table[i].key] == n.table[i].ts)
-      // For keys not in tableKey, Cn is 0
-      && (forall k: Key :: n.indices[k] == -1 ==> Cn[k] == 0)
-      // n.indices is the inverse of n.tableKey
-      && (forall k: Key :: 0 <= n.indices[k] < n.tableLen
-        ==> n.table.map[n.indices[k]].key == k)
-      && (forall i: Int :: 0 <= i < n.tableLen
-        ==> n.indices[n.table.map[i].key] == i @(noinst i))
-         && (forall k: Key :: -1 <= n.indices[k] < n.tableLen)*/
   )
   && 0 <= n.tableLen <= n.table.length
   // No self-loops
