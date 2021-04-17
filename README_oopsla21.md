@@ -96,9 +96,11 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
   The GRASShopper proofs of the LSM tree implementation
   - ordered_type.spl:
       An ordered type, used for the type of keys
-  - array_util.spl:
-      Library of basic manipulations of arrays
-  - multicopy-lsm.spl:
+  - array_basic.spl:
+      Library of basic functions manipulating arrays
+  - array_map.spl:
+      Library of partial maps represented as arrays
+  - multicopy_lsm.spl:
       The LSM tree implementation of the LSM DAG template 
   
 - README.md:

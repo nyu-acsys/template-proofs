@@ -19,9 +19,10 @@ mkdir templates/multicopy
 
 files=(
 "implementations/xp_oopsla21.sh" 
-"implementations/array_util.spl"
+"implementations/array_basic.spl"
+"implementations/array_map.spl"
 "implementations/ordered_type.spl"
-"implementations/multicopy-lsm.spl"
+"implementations/multicopy_lsm.spl"
 "templates/xp_oopsla21.sh"
 "templates/_CoqProject_oopsla21"
 "templates/flows/gmap_more.v"

@@ -1,4 +1,4 @@
-options "-simplearrays -propreads -module multicopy-lsm"
+options "-simplearrays -propreads -module multicopy_lsm"
 
 include "array_map.spl"
 
