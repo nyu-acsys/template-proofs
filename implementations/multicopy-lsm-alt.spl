@@ -4,26 +4,33 @@ include "array_util_lsm.spl"
 
 type V = Int
 
-/* File axiomatization */
+/* File system model */
+
+// Representation of a write-once file
 struct FileT {
   var ram:  Array<Pair>; // file contents is mapped to a RAM disk in memory
   ghost var disk_cont: Array<Pair>; // actual contents on disk
-  var is_new: Bool;
+  var is_new: Bool; // indicates whether file has not yet been written
   var is_open: Bool; // indicates whether RAM disk has been populated
+  var size: Int; // The size of the file
 }
 
 define FilePure(f, isn, iso, len) {
-  len == f.ram.length
+  len == f.size
+    && len == f.ram.length
     && isn == f.is_new && iso == f.is_open
     && len == f.disk_cont.length
 }
 
+// Abstract predicate describing a file
 define File(f, isn, iso, len) {
   acc(f) &*& acc(f.disk_cont) &*& acc(f.ram) &*&
     FilePure(f, isn, iso, len)
 }
 
-procedure deleteFile(f: FileT, ghost isn: Bool, ghost iso: Bool, ghost len: Int)
+// Delete the given file
+procedure deleteFile(f: FileT,
+    implicit ghost isn: Bool, implicit ghost iso: Bool, implicit ghost len: Int)
   requires File(f, isn, iso, len)
   ensures emp
 {
@@ -32,6 +39,7 @@ procedure deleteFile(f: FileT, ghost isn: Bool, ghost iso: Bool, ghost len: Int)
   free f;
 }
 
+// Create a new file of the given size
 procedure createFile(len: Int) returns (f: FileT)
   requires len >= 0
   ensures File(f, true, false, len)
@@ -41,9 +49,11 @@ procedure createFile(len: Int) returns (f: FileT)
   f.disk_cont := new Array<Pair>(len);
   f.is_new := true;
   f.is_open := false;
+  f.size := len;
   return f;
 }
 
+// Close the given file
 procedure closeFile(f: FileT,
     implicit ghost isn: Bool, implicit ghost len: Int)
   requires len >= 0
@@ -54,26 +64,29 @@ procedure closeFile(f: FileT,
   f.is_open := false;
 }
 
+// Open the given file
 procedure openFile(f: FileT, implicit ghost isn: Bool, implicit ghost len: Int)
   requires File(f, isn, false, len)
   ensures File(f, isn, true, len)
   ensures f.ram.map == f.disk_cont.map
   ensures old(f.disk_cont.map) == f.disk_cont.map
 {
-  arr_copy(f.disk_cont, f.ram, 0, 0, len);
+  arr_copy(f.disk_cont, f.ram, 0, 0, f.size);
   f.is_open := true;
 }
 
-procedure writeFile(f: FileT, ghost len: Int)
+// Write the contents of the memory-mapped RAM disk to the file system
+procedure writeFile(f: FileT, implicit ghost len: Int)
   requires File(f, true, true, len)
   ensures File(f, false, true, len)
   ensures f.ram.map == old(f.ram.map)
   ensures f.disk_cont.map == f.ram.map
 {
-  arr_copy(f.ram, f.disk_cont, 0, 0, len);
+  arr_copy(f.ram, f.disk_cont, 0, 0, f.size);
   f.is_new := false;
 }
 
+// Test whether file is open
 procedure isOpenFile(f: FileT,
   implicit ghost isn: Bool, implicit ghost iso: Bool, implicit ghost len: Int)
   returns (res: Bool)
@@ -84,24 +97,6 @@ procedure isOpenFile(f: FileT,
   ensures res == iso
 {
   return f.is_open;
-}
-
-procedure dummy(a: Array<Pair>)
-  requires acc(a)
-  ensures acc(a)
-{
-
-}
-
-procedure file_test() 
-{
-  var f := createFile(10);
-  openFile(f);
-
-  dummy(f.ram);
-
-  writeFile(f, 10);
-  //assert false;
 }
 
 
@@ -147,14 +142,13 @@ define nodePure(r, n, esn, Cn) {
       && n != r
       && sorted_map_seg(n.file.disk_cont.map, 0, n.tableLen)
       // Cn is given by table
-      //&& n.table.length == n.file.ram.length
-      && (n.file.is_open ==> n.file.ram.map == n.file.disk_cont.map)
       && Cn == contents(n.file.disk_cont.map, 0, n.tableLen)
+      && (n.file.is_open ==> n.file.ram.map == n.file.disk_cont.map)
       && 0 <= n.tableLen <= n.file.disk_cont.length
   )
   // No self-loops
   && n.next != n && n.next != r
-  // Edgeset to next node is KeyS if non-null
+  // Edgeset to next node is entire keyspace if non-null
   && (n.next != null
     ==> (forall k: K :: k in esn[n.next]))
   // All other nodes have empty edgeset
@@ -171,6 +165,8 @@ define node(r, n, esn, Cn) {
 define needsNewNode(r, n, esn, Cn) {
   n.next == null
 }
+
+/** {Spec} Functions used in specs connecting to Iris template proof. */
 
 function dom(C: Map<K, OptionV>) returns (res: Set<K>) {
   { k: K :: C[k] != NoneV ? true : false}
@@ -212,6 +208,27 @@ lemma set_of_empty_map()
 {
   pure assert forall p: Pair :: p !in set_of_map(empty_map) with {
     pure assert empty_map[p.key] == NoneV;
+  }
+}
+
+lemma set_of_map_append(Cn: Map<K, OptionV>, Cm: Map<K, OptionV>)
+  ensures set_of_map(append(Cn, Cm)) subsetof set_of_map(Cn) ++ set_of_map(Cm)
+{
+  pure assert forall p: Pair :: p in set_of_map(append(Cn, Cm)) ==>
+    p in set_of_map(Cn) || p in set_of_map(Cm) with {
+    if (Cn[p.key] == NoneV) {
+      pure assert append(Cn, Cm)[p.key] == Cm[p.key];
+    }       
+  }
+}
+
+lemma dom_append_right(Cn: Map<K, OptionV>, Cm: Map<K, OptionV>)
+  ensures dom(Cm) subsetof dom(append(Cn, Cm))
+{
+  pure assert forall k: K :: k in dom(Cm) ==> k in dom(append(Cn, Cm)) with {
+    if (Cn[k] == NoneV) {
+      pure assert append(Cn, Cm)[k] == Cm[k];
+    }       
   }
 }
 
@@ -263,9 +280,9 @@ procedure init()
   return r, esr, Cr;
 }
 
-procedure inContents(n: Node, k: K,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
-    implicit ghost Cn: Map<K, OptionV>)
+procedure inContents(r: Node, n: Node, k: K,
+    ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>)
   returns (res: OptionV)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
@@ -307,8 +324,8 @@ procedure inContents(n: Node, k: K,
   }
 }
 
-procedure addContents(n: Node, k: K, t: Int,
-   ghost r: Node, ghost esn: Map<Node, Set<K>>,
+procedure addContents(r: Node, n: Node, k: K, t: Int,
+   ghost esn: Map<Node, Set<K>>,
    ghost Cn: Map<K, OptionV>)
   returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
   requires node(r, n, esn, Cn) &*& n == r
@@ -332,29 +349,27 @@ procedure addContents(n: Node, k: K, t: Int,
   }
 }
 
-procedure findNext(n: Node, k: K,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+procedure findNext(r: Node, n: Node, k: K,
+    implicit ghost esn: Map<Node, Set<K>>,
     implicit ghost Cn: Map<K, OptionV>)
-  returns (succ: Bool, n1: Node)
+  returns (res: OptionNode)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
-  ensures succ ==> k in esn[n1]
-  ensures !succ ==> (forall n1: Node :: k !in esn[n1])
+  ensures res != noneNode ==> k in esn[res.nd]
+  ensures res == noneNode ==> (forall n1: Node :: k !in esn[n1])
 {
   if (n.next == null) {  // Leaf node
-    return false, n;
+    return noneNode;
   } else {
-    return true, n.next;
+    return someNode(n.next);
   }
 }
 
-procedure atCapacity(n: Node,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
+procedure atCapacity(r: Node, n: Node, implicit ghost esn: Map<Node, Set<K>>,
     implicit ghost Cn: Map<K, OptionV>)
   returns (b: Bool)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
-  ensures b == true || b == false
 {
   if (n.nodeType == memtableNode) {
     if (n.tableLen < n.table.length) {
@@ -367,25 +382,25 @@ procedure atCapacity(n: Node,
   }
 }
 
-procedure chooseNext(n: Node,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
-    implicit ghost Cn: Map<K, OptionV>)
-  returns (succ: Bool, n1: Node)
+procedure chooseNext(r: Node, n: Node,
+    ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>)
+  returns (res: OptionNode)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
-  ensures !succ ==> needsNewNode(r, n, esn, Cn)
-  ensures succ ==> esn[n1] != {}
+  ensures res == noneNode ==> needsNewNode(r, n, esn, Cn)
+  ensures res != noneNode ==> esn[res.nd] != {}
 {
   if (n.next != null) {
-    return true, n.next;
+    return someNode(n.next);
   } else {
-    return false, n;
+    return noneNode;
   }
 }
 
-procedure insertNode(n: Node, m: Node,
-    implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
-    implicit ghost Cn: Map<K, OptionV>)
+procedure insertNode(r: Node, n: Node, m: Node,
+    ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>)
   returns (ghost esn1: Map<Node, Set<K>>, ghost esm: Map<Node, Set<K>>, ghost Cm: Map<K, OptionV>)
   requires node(r, n, esn, Cn) &*& nodeSpatial(m)
   requires needsNewNode(r, n, esn, Cn) &*& m != r
@@ -413,98 +428,52 @@ procedure allocNode() returns (m: Node)
   m := new Node;
 }  
 
-/*
-procedure addSStable(n: Node, k: K, t: Int,
-    ghost r: Node, ghost esn: Map<Node, Set<K>>,
-    ghost Cn: Map<K, OptionV>)
-  returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
-  requires node(r, n, esn, Cn) &*& n != r &*& n.tableLen < n.table.length
-  ensures node(r, n, esn, Cn1)
-  ensures Cn1 == Cn[k := SomeV(t)]
-  ensures n.tableLen <= n.tableLen + 1
-{
-  pure assert n.nodeType == sstableNode;
 
-  var old_len := n.tableLen;
-
-  var idx, new_len := arr_insert(n., pair(k, t), n.tableLen);
-  n.tableLen := new_len;
-}
-*/
-
-/*
 procedure mergeContentsHelper(r: Node, n: Node, m: Node,
-  ghost esn: Map<Node, Set<K>>,
-  ghost Cn: Map<K, OptionV>,
-  ghost esm: Map<Node, Set<K>>,
-  ghost Cm: Map<K, OptionV>)
+    ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>,
+    ghost esm: Map<Node, Set<K>>,
+    ghost Cm: Map<K, OptionV>)
   returns (implicit ghost Cm1: Map<K, OptionV>)
   requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
   requires esn[m] != {}
   ensures node(r, n, esn, empty_map) &*& node(r, m, esm, append(Cn, Cm))
 {
-  //pure assert false;
   pure assert m != r;
   if (n.nodeType == memtableNode) {
-    //assume false;
+    // n is root node: flush
     var f := m.file;
 
     if (!isOpenFile(f)) {
       openFile(f);
     }
 
-    var f_new := createFile(n.table.length + f.ram.length + 1);
+    var f_new := createFile(n.table.length + f.size + 1);
     openFile(f_new);
 
     arr_copy(f.ram, f_new.ram, 0, 0, f.ram.length);
 
-    pure assert f.is_open;
-    pure assert sorted_map_seg(f.disk_cont.map, 0, m.tableLen);
-    pure assert f.ram.map == f.disk_cont.map;
-    pure assert sorted_map_seg(f.ram.map, 0, m.tableLen);
-    pure assert sorted_map_seg(f_new.ram.map, 0, m.tableLen);
+    contents_extensional(f.ram.map, f_new.ram.map, 0, m.tableLen);
 
     var rlen := flush(n.table, n.table.length - n.tableLen, n.table.length, f_new.ram, m.tableLen);
 
-    //pure assert Cn == contents(old(n.table.map), old(n.table.length) - old(n.tableLen), old(n.table.length));
-    //pure assert Cm == contents(old(m.file.disk_cont.map), 0, old(m.tableLen));
-    //pure assert contents(f_new.ram.map, 0, rlen) == append(Cn, Cm); 
+    writeFile(f_new);
 
-
-
-    writeFile(f_new, n.table.length + f.ram.length + 1);
-
-    deleteFile(f, f.is_new, f.is_open, f.ram.length);
+    contents_extensional(f_new.ram.map, f_new.disk_cont.map, 0, rlen);
+    
+    deleteFile(f);
     m.file := f_new;
     m.tableLen := rlen;
 
-    //assert false;
-
-    var empty_array := new Array<Pair>(2*B);
-    free(n.table);
-    n.table := empty_array;
     n.tableLen := 0;
-
-    //pure assume false;
     
-    pure assert empty_map == contents(empty_array.map, 2*B, 2*B);
-    pure assert sorted_map_seg(f_new.disk_cont.map, 0, rlen);
-    pure assert (f_new.is_open ==> f_new.ram.map == f_new.disk_cont.map);
-
-    pure assert Cn == contents(old(n.table.map), old(n.table.length) - old(n.tableLen), old(n.table.length));
-    pure assert Cm == contents(old(m.file.disk_cont.map), 0, old(m.tableLen));
-    //pure assert contents(f_new.ram.map, 0, rlen) == append(Cn, Cm); 
-    pure assume append(Cn, Cm) == contents(f_new.disk_cont.map, 0, rlen);
-    assert nodeSpatialFull(n) &*& nodeSpatialFull(m);
-    //assert false;
-
+    return;
   } else {
-    //assume false;
+    // n and m are disk nodes: compact
     var fn := n.file;
     var fm := m.file;
-
-    //var res := new Array<Pair>(n.tableLen + m.tableLen + 1);
-
+    
+    
     if (!isOpenFile(fm)) {
       openFile(fm);
     }
@@ -512,47 +481,36 @@ procedure mergeContentsHelper(r: Node, n: Node, m: Node,
     if (!isOpenFile(fn)) {
       openFile(fn);
     }
-
+    
     var fm_new := createFile(n.tableLen + m.tableLen + 1);
     openFile(fm_new);
 
-    pure assert fm.is_open;
-    pure assert sorted_map_seg(fm.disk_cont.map, 0, m.tableLen);
-    pure assert fm.ram.map == fm.disk_cont.map;
-    pure assert sorted_map_seg(fm.ram.map, 0, m.tableLen);
-
-    pure assert fn.is_open;
-    pure assert sorted_map_seg(fn.disk_cont.map, 0, n.tableLen);
-    pure assert fn.ram.map == fn.disk_cont.map;
-    pure assert sorted_map_seg(fn.ram.map, 0, n.tableLen);
-
     var rlen := arr_merge(fn.ram, n.tableLen, fm.ram, m.tableLen, fm_new.ram);
 
-    writeFile(fm_new, n.tableLen + m.tableLen + 1);
+    writeFile(fm_new);
 
-    deleteFile(fm, fm.is_new, fm.is_open, fm.ram.length);
+    deleteFile(fm);
     m.file := fm_new;
     m.tableLen := rlen;
 
-    var fn_new := createFile(0);
+    var fn_new := createFile(n.file.size);
     openFile(fn_new);
 
-    writeFile(fn_new, 0);
+    writeFile(fn_new);
 
-    deleteFile(fn, fn.is_new, fn.is_open, fn.ram.length);
+    deleteFile(fn);
     n.file := fn_new;
     n.tableLen := 0;
 
-    assert nodeSpatialFull(n) &*& nodeSpatialFull(m);
-    //assert false;
+    return;
   }
 }
 
 procedure mergeContents(r: Node, n: Node, m: Node,
-  ghost esn: Map<Node, Set<K>>,
-  ghost Cn: Map<K, OptionV>,
-  ghost esm: Map<Node, Set<K>>,
-  ghost Cm: Map<K, OptionV>)
+    ghost esn: Map<Node, Set<K>>,
+    ghost Cn: Map<K, OptionV>,
+    ghost esm: Map<Node, Set<K>>,
+    ghost Cm: Map<K, OptionV>)
   returns (implicit ghost Cn1: Map<K, OptionV>, implicit ghost Cm1: Map<K, OptionV>)
   requires node(r, n, esn, Cn) &*& node(r, m, esm, Cm)
   requires esn[m] != {}
@@ -564,6 +522,8 @@ procedure mergeContents(r: Node, n: Node, m: Node,
   ensures merge(Cn, esn[m], Cm) == merge(Cn1, esn[m], Cm1)
 {
   mergeContentsHelper(r, n, m, esn, Cn, esm, Cm);
+
+  // Some ghost code to relate to spec assumed in Iris proof
   ghost var Cm11 := append(Cn, Cm);
   ghost var Cn11 := empty_map;
   pure assert merge(Cn, esn[m], Cm) == merge(Cn11, esn[m], Cm11) with {
@@ -573,8 +533,6 @@ procedure mergeContents(r: Node, n: Node, m: Node,
   }
   dom_empty_map();
   set_of_empty_map();
-
-  //assume /*nodePure(r, n, esn, Cn1) &*&*/ nodePure(r, m, esm, Cm1);
-  //assert node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1);
-  //assert false;
+  set_of_map_append(Cn, Cm);
+  dom_append_right(Cn, Cm);
 }
