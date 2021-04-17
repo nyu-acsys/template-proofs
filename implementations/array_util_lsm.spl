@@ -586,6 +586,64 @@ procedure arr_merge(a: Array<Pair>, alen: Int, b: Array<Pair>, blen: Int, c: Arr
   }
   return ci;
 }
+
+lemma append_contents_extend_left(m1: Map<Int, Pair>, i: Int, j: Int, m2: Map<K, OptionV>)
+  requires i-1 < j
+  ensures append(contents(m1, i-1, j), m2) == append(contents(m1, i, j), m2)[m1[i-1].key := SomeV(m1[i-1].val)]
+{
+  pure assert i-1 < j;
+  pure assert contents(m1, i-1, j) == contents(m1, i, j)[m1[i-1].key := SomeV(m1[i-1].val)];
+  append_write_left(contents(m1, i, j), m2, pair(m1[i-1].key, m1[i-1].val));
+}  
+
+// merges a[start..end] to sorted array b
+procedure flush(a: Array<Pair>, start: Int, end: Int, b: Array<Pair>, blen: Int) returns (blen1: Int)
+  requires acc(a)
+  requires sorted_array_prefix(b, blen)
+  requires 0 <= start <= end <= a.length
+  //requires blen + a.length < b.length
+  requires blen + end < b.length
+  ensures a.map == old(a.map)
+  ensures acc(a)
+  ensures sorted_array_prefix(b, blen1)
+  ensures contents(b.map, 0, blen1) == append(contents(old(a.map), start, end), contents(old(b.map), 0, blen))
+{
+  var i := end - 1;
+  blen1 := blen;
+
+  pure assert contents(old(a.map), i + 1, end) == empty_map;
+  append_empty_left(contents(old(b.map), 0, blen));
+  pure assert contents(b.map, 0, blen1) == append(contents(old(a.map), i + 1, end), contents(old(b.map), 0, blen));
+
+  while (start <= i) 
+    invariant acc(a)
+    invariant sorted_array_prefix(b, blen1)
+    invariant -1 <= start-1 <= i < end
+    invariant blen1 + i <= blen + end < b.length
+    invariant a.map == old(a.map)
+    invariant contents(b.map, 0, blen1) == append(contents(old(a.map), i + 1, end), contents(old(b.map), 0, blen))
+  {
+    ghost var bmap := b.map;
+    ghost var blen_i := blen1;
+    ghost var c := contents(bmap, 0, blen_i); 
+    
+    //assume blen1 < b.length;
+    var idx1, new_blen := arr_insert(b, a[i], blen1);
+    blen1 := new_blen;
+    i := i - 1;
+
+    pure assert c == append(contents(old(a.map), i+2, end), contents(old(b.map), 0, blen));
+
+    pure assert contents(b.map, 0, blen1) == c[a[i+1].key := SomeV(a[i+1].val)];
+    
+    append_contents_extend_left(old(a.map), i+2, end, contents(old(b.map), 0, blen));
+  }
+
+  pure assert contents(b.map, 0, blen1) == append(contents(old(a.map), start, end), contents(old(b.map), 0, blen));
+
+  //pure assert false;
+}
+
   
 /*
 

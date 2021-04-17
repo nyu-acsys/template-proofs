@@ -1,4 +1,4 @@
-options "-abspreds -simplearrays -propreads -stratify -module multicopy-lsm"
+options "-abspreds -simplearrays -propreads -stratify -module multicopy-lsm-alt"
 
 include "array_util_lsm.spl"
 
@@ -85,6 +85,25 @@ procedure isOpenFile(f: FileT,
 {
   return f.is_open;
 }
+
+procedure dummy(a: Array<Pair>)
+  requires acc(a)
+  ensures acc(a)
+{
+
+}
+
+procedure file_test() 
+{
+  var f := createFile(10);
+  openFile(f);
+
+  dummy(f.ram);
+
+  writeFile(f, 10);
+  //assert false;
+}
+
 
 /** LSM-like implementation of the multicopy template. */
 
@@ -422,9 +441,112 @@ procedure mergeContentsHelper(r: Node, n: Node, m: Node,
   requires esn[m] != {}
   ensures node(r, n, esn, empty_map) &*& node(r, m, esm, append(Cn, Cm))
 {
-  assume false;
+  //pure assert false;
+  pure assert m != r;
+  if (n.nodeType == memtableNode) {
+    //assume false;
+    var f := m.file;
+
+    if (!isOpenFile(f)) {
+      openFile(f);
+    }
+
+    var f_new := createFile(n.table.length + f.ram.length + 1);
+    openFile(f_new);
+
+    arr_copy(f.ram, f_new.ram, 0, 0, f.ram.length);
+
+    pure assert f.is_open;
+    pure assert sorted_map_seg(f.disk_cont.map, 0, m.tableLen);
+    pure assert f.ram.map == f.disk_cont.map;
+    pure assert sorted_map_seg(f.ram.map, 0, m.tableLen);
+    pure assert sorted_map_seg(f_new.ram.map, 0, m.tableLen);
+
+    var rlen := flush(n.table, n.table.length - n.tableLen, n.table.length, f_new.ram, m.tableLen);
+
+    //pure assert Cn == contents(old(n.table.map), old(n.table.length) - old(n.tableLen), old(n.table.length));
+    //pure assert Cm == contents(old(m.file.disk_cont.map), 0, old(m.tableLen));
+    //pure assert contents(f_new.ram.map, 0, rlen) == append(Cn, Cm); 
+
+
+
+    writeFile(f_new, n.table.length + f.ram.length + 1);
+
+    deleteFile(f, f.is_new, f.is_open, f.ram.length);
+    m.file := f_new;
+    m.tableLen := rlen;
+
+    //assert false;
+
+    var empty_array := new Array<Pair>(2*B);
+    free(n.table);
+    n.table := empty_array;
+    n.tableLen := 0;
+
+    //pure assume false;
+    
+    pure assert empty_map == contents(empty_array.map, 2*B, 2*B);
+    pure assert sorted_map_seg(f_new.disk_cont.map, 0, rlen);
+    pure assert (f_new.is_open ==> f_new.ram.map == f_new.disk_cont.map);
+
+    pure assert Cn == contents(old(n.table.map), old(n.table.length) - old(n.tableLen), old(n.table.length));
+    pure assert Cm == contents(old(m.file.disk_cont.map), 0, old(m.tableLen));
+    //pure assert contents(f_new.ram.map, 0, rlen) == append(Cn, Cm); 
+    pure assume append(Cn, Cm) == contents(f_new.disk_cont.map, 0, rlen);
+    assert nodeSpatialFull(n) &*& nodeSpatialFull(m);
+    //assert false;
+
+  } else {
+    //assume false;
+    var fn := n.file;
+    var fm := m.file;
+
+    //var res := new Array<Pair>(n.tableLen + m.tableLen + 1);
+
+    if (!isOpenFile(fm)) {
+      openFile(fm);
+    }
+
+    if (!isOpenFile(fn)) {
+      openFile(fn);
+    }
+
+    var fm_new := createFile(n.tableLen + m.tableLen + 1);
+    openFile(fm_new);
+
+    pure assert fm.is_open;
+    pure assert sorted_map_seg(fm.disk_cont.map, 0, m.tableLen);
+    pure assert fm.ram.map == fm.disk_cont.map;
+    pure assert sorted_map_seg(fm.ram.map, 0, m.tableLen);
+
+    pure assert fn.is_open;
+    pure assert sorted_map_seg(fn.disk_cont.map, 0, n.tableLen);
+    pure assert fn.ram.map == fn.disk_cont.map;
+    pure assert sorted_map_seg(fn.ram.map, 0, n.tableLen);
+
+    var rlen := arr_merge(fn.ram, n.tableLen, fm.ram, m.tableLen, fm_new.ram);
+
+    writeFile(fm_new, n.tableLen + m.tableLen + 1);
+
+    deleteFile(fm, fm.is_new, fm.is_open, fm.ram.length);
+    m.file := fm_new;
+    m.tableLen := rlen;
+
+    var fn_new := createFile(0);
+    openFile(fn_new);
+
+    writeFile(fn_new, 0);
+
+    deleteFile(fn, fn.is_new, fn.is_open, fn.ram.length);
+    n.file := fn_new;
+    n.tableLen := 0;
+
+    assert nodeSpatialFull(n) &*& nodeSpatialFull(m);
+    //assert false;
+  }
 }
 
+/*
 procedure mergeContents(r: Node, n: Node, m: Node,
   ghost esn: Map<Node, Set<K>>,
   ghost Cn: Map<K, OptionV>,
@@ -450,4 +572,7 @@ procedure mergeContents(r: Node, n: Node, m: Node,
   }
   dom_empty_map();
   set_of_empty_map();
+
+  assert node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1);
 }
+*/
