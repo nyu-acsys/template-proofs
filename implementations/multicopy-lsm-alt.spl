@@ -6,7 +6,7 @@ type V = Int
 
 /* File axiomatization */
 struct FileT {
-  var ram:  Array<Pair>; // file contents is represented as a RAM disk
+  var ram:  Array<Pair>; // file contents is mapped to a RAM disk in memory
   ghost var disk_cont: Array<Pair>; // actual contents on disk
   var is_new: Bool;
   var is_open: Bool; // indicates whether RAM disk has been populated
@@ -58,9 +58,10 @@ procedure openFile(f: FileT, implicit ghost isn: Bool, implicit ghost len: Int)
   requires File(f, isn, false, len)
   ensures File(f, isn, true, len)
   ensures f.ram.map == f.disk_cont.map
-  ensures old(f.ram.map) == f.disk_cont.map
+  ensures old(f.disk_cont.map) == f.disk_cont.map
 {
-  assume false;
+  arr_copy(f.disk_cont, f.ram, 0, 0, len);
+  f.is_open := true;
 }
 
 procedure writeFile(f: FileT, ghost len: Int)
@@ -69,7 +70,8 @@ procedure writeFile(f: FileT, ghost len: Int)
   ensures f.ram.map == old(f.ram.map)
   ensures f.disk_cont.map == f.ram.map
 {
-  assume false;
+  arr_copy(f.ram, f.disk_cont, 0, 0, len);
+  f.is_new := false;
 }
 
 procedure isOpenFile(f: FileT,
@@ -81,7 +83,7 @@ procedure isOpenFile(f: FileT,
   ensures f.disk_cont.map == old(f.disk_cont.map)
   ensures res == iso
 {
-  assume false;
+  return f.is_open;
 }
 
 /** LSM-like implementation of the multicopy template. */
