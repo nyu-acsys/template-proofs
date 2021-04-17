@@ -100,8 +100,6 @@ Section multicopy_df_upsert.
       iDestruct "d_pred" as (bd) "d_pred".
 
       iDestruct "mcs_high" as "(>MCS_auth & >HH & >Hist & >MaxTS & Prot)".
-      (* iDestruct "Hglob" as "(Ht & HI & Out_I & HR 
-            & Out_J & Inf_J & Hf & Hγ & _ & domm_IR & domm_Iγ)". *)
       wp_store. 
       
       iDestruct "Hif" as %HCr.

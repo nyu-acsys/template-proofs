@@ -30,5 +30,8 @@ multicopy/multicopy_lsm_util.v
 multicopy/multicopy_lsm_search.v
 multicopy/multicopy_lsm_upsert.v
 multicopy/multicopy_lsm_compact.v
+multicopy/multicopy_df.v
+multicopy/multicopy_df_search.v
+multicopy/multicopy_df_upsert.v
 
 

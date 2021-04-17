@@ -68,26 +68,18 @@ Section multicopy_df.
 
   (** Assumptions on the implementation made by the template algorithms. *)
 
-  (* The node predicate is specific to each template implementation. 
-     See GRASShopper files multicopy-lsm.spl for the concrete definition. *)
   Parameter node : Node → Node → (gmap K natUR) → iProp.
 
   Parameter nodeSpatial : Node → iProp.
   
-(*   Parameter needsNewNode : Node → Node → esT → (gmap K nat) → iProp.  *)
-
-  (* The following assumption is justified by the fact that GRASShopper uses a
-   * first-order separation logic. *)
   Parameter node_timeless_proof : ∀ r n C, Timeless (node r n C).
   Global Instance node_timeless r n C: Timeless (node r n C).
   Proof. apply node_timeless_proof. Qed.
 
-  (* The following hypothesis are proved as a GRASShopper lemma in
-   * multicopy-lsm.spl *)
   Parameter node_sep_star: ∀ r n C C',
     node r n C ∗ node r n C' -∗ False.
 
-  (** The LSM multicopy structure invariant *)
+  (** The DF multicopy structure invariant *)
 
   Definition clock lc (t: nat) : iProp := lc ↦ #t.
 
@@ -132,9 +124,6 @@ Section multicopy_df.
   Qed.
   
   (** Helper functions specs *)
-
-  (* The following specs are proved for each implementation in GRASShopper
-   * (see multicopy-lsm.spl *)
 
   Parameter inContents_spec : ∀ r n Cn (k: K),
      ⊢ ({{{ node r n Cn }}}

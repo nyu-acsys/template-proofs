@@ -10,15 +10,15 @@ The artifact has the following external dependencies
 
 - ocamlbuild, version 0.14.0 (or newer)
 
-- Coq, version 8.12.2
+- Coq, version 8.13.1
 
-- Coq stdpp, version coq-stdpp.dev.2020-12-11.0.881f2f38
+- Coq stdpp, version coq-stdpp.1.5.0
 
-- Iris, version coq-iris.dev.2020-12-19.0.58c1caae
+- Iris, version coq-iris.3.4.0
 
-- Iris heap lang library, version coq-iris-heap-lang.dev.2020-12-19.0.58c1caae
+- Iris heap lang library, version coq-iris-heap-lang.3.4.0
 
-- GRASShopper, version pldi_2020.
+- GRASShopper, commit 108473b0a678f0d93fffec6da2ad6bcdce5bddb9.
 
 - Z3, version >= 4.5
 
@@ -28,8 +28,9 @@ The easiest way to satisfy all OCaml and Coq-related requirements is to install 
 opam switch 4.07.1
 opam install -y ocamlfind
 opam install -y ocamlbuild
-opam install -y coq
-opam install -y coq-iris-heap-lang.dev.2020-12-19.0.58c1caae
+opam install -y coq.8.13.1
+opam install -y coq-iris.3.4.0
+opam install -y coq-iris-heap-lang.3.4.0
 eval $(opam config env)
 ```
 
@@ -86,11 +87,17 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     - multicopy_lsm_util.v:
         Auxiliary utility lemmas for template proofs
     - multicopy_lsm_search.v:
-        Proof of search template
+        Proof of LSM DAG search template
     - multicopy_lsm_upsert.v:
-        Proof of upsert template
+        Proof of LSM DAG upsert template
     - multicopy_lsm_compact.v
-        Proof of compact template
+        Proof of LSM DAG compact template
+    - multicopy_df.v:
+    		Shared definitions for Differential Files(DF) template proofs
+    - multicopy_df_search.v:
+        Proof of DF search template
+    - multicopy_df_upsert.v:
+        Proof of DF upsert template
         
 + implementations/:
   The GRASShopper proofs of the LSM tree implementation
@@ -149,19 +156,29 @@ You can verify that our GRASShopper proof scripts have no "holes" in them by che
 
 #### LSM DAG Template and Implementation
 
-The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy-lsm.spl`):
+The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy_lsm.spl`):
 
-* Parameters `node`, `nodeSpatial` and `needsNewNode`:
-  These are predicates that are defined in the implementation by macros of the same name.
 * Parameters `findNext`, `inContent`, and `addContents`:
   These are GRASShopper procedures in the implementation file. These procedure are used by the `search` and `upsert` operations.
 * Parameters `atCapacity`, `chooseNext`, `mergeContents`, `allocNode` and `insertNode` :
   These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
+* Parameters `node`, `nodeSpatial` and `needsNewNode`:
+  These are predicates that are defined in the implementation by macros of the same name.
+* Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
+  These have GRASShopper lemmas of the same names, with proofs in the implementation file.
 * Parameters `findNext_spec`, `inContent_spec`, `addContents_spec`:
   These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures used by `search` and `upsert`. These are checked manually to ensure that they match (modulo the different syntax for each tool).
 * Parameters `atCapacity_spec`, `chooseNext_spec`, `mergeContents_spec`, `allocNode_spec` and `insertNode_spec` :
   These are the specifications of procedures used by the compact operation, manually checked to ensure that they match. 
-* Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
-  These have GRASShopper lemmas of the same names, with proofs in the implementation file.
  
+#### DF Template
+
+The DF template proofs (`templates/multicopy/multicopy_df*.v`) makes the following assumptions:
+
+* Parameters `findNext`, `inContent`, and `addContents`:
+  These are helper functions used by the DF `search` and `upsert` operations.
+* Parameters `node` and `nodeSpatial`:
+  These are predicates that capture resources needed to implement nodes in a Differential File data structure. 
+* Parameter `node_sep_star`:
+	This predicate is an assumption on the implementation made by the template algorithm.
 

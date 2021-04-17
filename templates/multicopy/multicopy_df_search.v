@@ -43,10 +43,6 @@ Section multicopy_df_search.
     - (* Case 1: k not in r. *)
       wp_pures.
       (** Unlock node r **)
-  (*   awp_apply (unlockNode_spec_high with "[] []
-      [Hγ_c Hdecide node_n]"); try done. iFrame "∗#".
-      iAaccIntro with ""; try eauto with iFrame.
-      iIntros "_". iModIntro. wp_pures.*)
 
       (* Open the invariant. *)
       iApply fupd_wp.

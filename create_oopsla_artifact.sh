@@ -41,6 +41,9 @@ files=(
 "templates/multicopy/multicopy_lsm_search.v"
 "templates/multicopy/multicopy_lsm_upsert.v"
 "templates/multicopy/multicopy_lsm_compact.v"
+"templates/multicopy/multicopy_df.v"
+"templates/multicopy/multicopy_df_search.v"
+"templates/multicopy/multicopy_df_upsert.v"
 )
 
 for t in ${files[@]}; do
