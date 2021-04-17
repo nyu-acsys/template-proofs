@@ -50,9 +50,9 @@ Section multicopy_lsm_search.
       wp_pures.
       (** Find next node to visit **)
       wp_apply (findNext_spec with "node_n").
-      iIntros (b n1) "(node_n & Hif)". 
+      iIntros (n1) "(node_n & Hif)". 
       (** Case analysis on whether there exists a next node **)
-      destruct b.
+      destruct n1 as [ n1 | ].
       + (** Case : exists next node n' **)
         wp_pures. iDestruct "Hif" as %k_in_es.
         iApply fupd_wp.

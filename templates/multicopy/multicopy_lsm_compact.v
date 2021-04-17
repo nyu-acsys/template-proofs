@@ -1988,7 +1988,7 @@ Section multicopy_lsm_compact.
     iPoseProof ((node_es_disjoint r n) with "[$node_n]") as "%".
     rename H into Disj_esn.                        
     wp_apply (atCapacity_spec with "node_n").
-    iIntros (b) "(node_n & _)". destruct b; last first; wp_pures.
+    iIntros (b) "node_n". destruct b; last first; wp_pures.
     - awp_apply (unlockNode_spec_high with "[] [] [-AU]"); try done.
       iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T. iFrame "∗#".
       iAaccIntro with ""; try eauto with iFrame.
@@ -1996,11 +1996,10 @@ Section multicopy_lsm_compact.
       iMod ("Hclose" with "MCS_high") as "HΦ".
       by iModIntro.
     - wp_apply (chooseNext_spec with "node_n").
-      iIntros (succ m)"(node_n & Hif)".
-      destruct succ; last first.
+      iIntros (m)"(node_n & Hif)".
+      destruct m as [m | ]; last first.
       + wp_pures. iDestruct "Hif" as "NeedsNew".
         wp_apply allocNode_spec; try done.
-        clear m.
         iIntros (m lm)"(NodeSp_m & % & Hl_m)".
         subst lm. wp_pures.
         iApply fupd_wp. iInv "HInv" as (T'' H'')"(mcs_high & >Inv_LSM)".

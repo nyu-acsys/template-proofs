@@ -343,10 +343,11 @@ Section multicopy_lsm.
   Parameter findNext_spec : ∀ r n esn (Cn: gmap K natUR) (k: K),
      ⊢ ({{{ node r n esn Cn }}}
            findNext #n #k
-       {{{ (succ: bool) (n1: Node),
-              RET (match succ with true => SOMEV #n1 | false => NONEV end);
-                  node r n esn Cn ∗ if succ then ⌜k ∈ esn !!! n1⌝
-                                else ⌜∀ n1, k ∉ esn !!! n1⌝ }}})%I.
+       {{{ (n1: option Node),
+              RET (match n1 with Some n1 => SOMEV #n1 | None => NONEV end);
+                  node r n esn Cn 
+                  ∗ (match n1 with Some n1 => ⌜k ∈ esn !!! n1⌝ 
+                                 | None => ⌜∀ n1, k ∉ esn !!! n1⌝ end) }}})%I.
 
   Lemma readClock_spec: ∀ γ_t lc q t, 
      ⊢ ({{{ own γ_t (●{q} MaxNat t) ∗ clock lc t }}}
@@ -371,15 +372,16 @@ Section multicopy_lsm.
      ⊢ ({{{ node r n esn Cn }}}
            atCapacity #n
        {{{ (b: bool), RET #b;
-           node r n esn Cn ∗ ⌜b = true ∨ b = false⌝ }}})%I.
+           node r n esn Cn }}})%I.
 
   Parameter chooseNext_spec : ∀ r n esn (Cn: gmap K natUR),
      ⊢ ({{{ node r n esn Cn }}}
            chooseNext #n
-       {{{ (succ: bool) (n1: Node), 
-              RET (match succ with true => SOMEV #n1 | false => NONEV end);
-           node r n esn Cn ∗ (if succ then ⌜esn !!! n1 ≠ ∅⌝ else
-                              needsNewNode r n esn Cn) }}})%I.  
+       {{{ (n1: option Node), 
+              RET (match n1 with Some n1 => SOMEV #n1 | None => NONEV end);
+           node r n esn Cn 
+           ∗ (match n1 with Some n1 => ⌜esn !!! n1 ≠ ∅⌝ 
+                          | None => needsNewNode r n esn Cn end) }}})%I.  
     
   Parameter mergeContents_spec : ∀ r n m esn esm (Cn Cm: gmap K natUR),
      ⊢ ({{{ node r n esn Cn ∗ node r m esm Cm ∗ ⌜esn !!! m ≠ ∅⌝ }}}
@@ -412,4 +414,3 @@ Section multicopy_lsm.
 
 
 End multicopy_lsm.
-  
