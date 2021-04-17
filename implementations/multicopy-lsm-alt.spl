@@ -246,6 +246,7 @@ lemma node_es_empty(r: Node, n: Node, esn: Map<Node, Set<K>>, C: Map<K, OptionV>
 
 /** Begin programs */
 
+
 procedure init()
   returns (r: Node, esr: Map<Node, Set<K>>, Cr: Map<K, OptionV>)
   ensures node(r, r, esr, Cr)
@@ -312,7 +313,7 @@ procedure addContents(n: Node, k: K, t: Int,
   returns (succ: Bool, implicit ghost Cn1: Map<K, OptionV>)
   requires node(r, n, esn, Cn) &*& n == r
   ensures node(r, n, esn, Cn1)
-  ensures (succ && Cn1 == Cn[k := SomeV(t)]) || (!succ && Cn1 == Cn)
+  ensures (succ ==> Cn1 == Cn[k := SomeV(t)]) && (!succ ==> Cn1 == Cn)
 {
   pure assert n.nodeType == memtableNode;
   var start := n.table.length - n.tableLen;  
@@ -334,16 +335,16 @@ procedure addContents(n: Node, k: K, t: Int,
 procedure findNext(n: Node, k: K,
     implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
     implicit ghost Cn: Map<K, OptionV>)
-  returns (res: OptionNode)
+  returns (succ: Bool, n1: Node)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
-  ensures res != noneNode ==> k in esn[res.nd]
-  ensures res == noneNode ==> (forall n1: Node :: k !in esn[n1])
+  ensures succ ==> k in esn[n1]
+  ensures !succ ==> (forall n1: Node :: k !in esn[n1])
 {
   if (n.next == null) {  // Leaf node
-    return noneNode;
+    return false, n;
   } else {
-    return someNode(n.next);
+    return true, n.next;
   }
 }
 
@@ -369,16 +370,16 @@ procedure atCapacity(n: Node,
 procedure chooseNext(n: Node,
     implicit ghost r: Node, implicit ghost esn: Map<Node, Set<K>>,
     implicit ghost Cn: Map<K, OptionV>)
-  returns (res: OptionNode)
+  returns (succ: Bool, n1: Node)
   requires node(r, n, esn, Cn)
   ensures node(r, n, esn, Cn)
-  ensures (res == noneNode && needsNewNode(r, n, esn, Cn)
-    || res != noneNode && esn[res.nd] != {})
+  ensures !succ ==> needsNewNode(r, n, esn, Cn)
+  ensures succ ==> esn[n1] != {}
 {
   if (n.next != null) {
-    return someNode(n.next);
+    return true, n.next;
   } else {
-    return noneNode;
+    return false, n;
   }
 }
 
@@ -431,6 +432,7 @@ procedure addSStable(n: Node, k: K, t: Int,
 }
 */
 
+/*
 procedure mergeContentsHelper(r: Node, n: Node, m: Node,
   ghost esn: Map<Node, Set<K>>,
   ghost Cn: Map<K, OptionV>,
@@ -546,7 +548,6 @@ procedure mergeContentsHelper(r: Node, n: Node, m: Node,
   }
 }
 
-/*
 procedure mergeContents(r: Node, n: Node, m: Node,
   ghost esn: Map<Node, Set<K>>,
   ghost Cn: Map<K, OptionV>,
@@ -573,6 +574,7 @@ procedure mergeContents(r: Node, n: Node, m: Node,
   dom_empty_map();
   set_of_empty_map();
 
-  assert node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1);
+  //assume /*nodePure(r, n, esn, Cn1) &*&*/ nodePure(r, m, esm, Cm1);
+  //assert node(r, n, esn, Cn1) &*& node(r, m, esm, Cm1);
+  //assert false;
 }
-*/

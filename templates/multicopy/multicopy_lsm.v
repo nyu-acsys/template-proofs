@@ -343,12 +343,11 @@ Section multicopy_lsm.
   Parameter findNext_spec : ∀ r n esn (Cn: gmap K natUR) (k: K),
      ⊢ ({{{ node r n esn Cn }}}
            findNext #n #k
-       {{{ (succ: bool) (n': Node),
-              RET (match succ with true => SOMEV #n' | false => NONEV end);
-                  node r n esn Cn ∗ if succ then ⌜k ∈ esn !!! n'⌝
-                                else ⌜∀ n', k ∉ esn !!! n'⌝ }}})%I.
+       {{{ (succ: bool) (n1: Node),
+              RET (match succ with true => SOMEV #n1 | false => NONEV end);
+                  node r n esn Cn ∗ if succ then ⌜k ∈ esn !!! n1⌝
+                                else ⌜∀ n1, k ∉ esn !!! n1⌝ }}})%I.
 
-  (* Remove? *)
   Lemma readClock_spec: ∀ γ_t lc q t, 
      ⊢ ({{{ own γ_t (●{q} MaxNat t) ∗ clock lc t }}}
            readClock #lc
@@ -363,10 +362,10 @@ Section multicopy_lsm.
   Parameter addContents_spec : ∀ r n esn (Cn: gmap K natUR) (k: K) (t:nat),
      ⊢ ({{{ node r n esn Cn ∗ ⌜n = r⌝ }}}
            addContents #r #k #t
-       {{{ (succ: bool) (Cn': gmap K natUR),
+       {{{ (succ: bool) (Cn1: gmap K natUR),
               RET #succ;
-                  node r n esn Cn' ∗ if succ then ⌜Cn' = <[k := t]> Cn⌝ 
-                                else ⌜Cn' = Cn⌝ }}})%I.
+                  node r n esn Cn1 ∗ if succ then ⌜Cn1 = <[k := t]> Cn⌝ 
+                                else ⌜Cn1 = Cn⌝ }}})%I.
 
   Parameter atCapacity_spec : ∀ r n esn (Cn: gmap K natUR),
      ⊢ ({{{ node r n esn Cn }}}
@@ -377,9 +376,9 @@ Section multicopy_lsm.
   Parameter chooseNext_spec : ∀ r n esn (Cn: gmap K natUR),
      ⊢ ({{{ node r n esn Cn }}}
            chooseNext #n
-       {{{ (succ: bool) (m: Node), 
-              RET (match succ with true => SOMEV #m | false => NONEV end);
-           node r n esn Cn ∗ (if succ then ⌜esn !!! m ≠ ∅⌝ else
+       {{{ (succ: bool) (n1: Node), 
+              RET (match succ with true => SOMEV #n1 | false => NONEV end);
+           node r n esn Cn ∗ (if succ then ⌜esn !!! n1 ≠ ∅⌝ else
                               needsNewNode r n esn Cn) }}})%I.  
     
   Parameter mergeContents_spec : ∀ r n m esn esm (Cn Cm: gmap K natUR),
@@ -405,10 +404,10 @@ Section multicopy_lsm.
     ⊢ {{{ node r n esn Cn ∗ needsNewNode r n esn Cn 
           ∗ nodeSpatial m ∗ ⌜m ≠ r⌝ }}}
           insertNode #r #n #m
-      {{{ esn' esm Cm, RET #();
-          node r n esn' Cn ∗ node r m esm Cm
-          ∗ ⌜esn' = <[m:=esn' !!! m]> esn⌝
-          ∗ ⌜esn' !!! m ≠ ∅⌝
+      {{{ esn1 esm Cm, RET #();
+          node r n esn1 Cn ∗ node r m esm Cm
+          ∗ ⌜esn1 = <[m:=esn1 !!! m]> esn⌝
+          ∗ ⌜esn1 !!! m ≠ ∅⌝
           ∗ ⌜Cm = ∅⌝ ∗ ⌜esm = ∅⌝ }}}.
 
 
