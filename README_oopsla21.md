@@ -171,9 +171,9 @@ The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the fo
 * Parameters `atCapacity_spec`, `chooseNext_spec`, `mergeContents_spec`, `allocNode_spec` and `insertNode_spec` :
   These are the specifications of procedures used by the compact operation, manually checked to ensure that they match. 
  
-#### DF Template
+#### Differential File Template
 
-The DF template proofs (`templates/multicopy/multicopy_df*.v`) makes the following assumptions:
+The Differential File template proof (`templates/multicopy/multicopy_df*.v`) makes the following assumptions:
 
 * Parameters `findNext`, `inContent`, and `addContents`:
   These are helper functions used by the DF `search` and `upsert` operations.
