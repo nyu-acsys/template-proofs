@@ -61,12 +61,37 @@ procedure arr_shift(a: Array<E>, src: Int, dst: Int, len: Int)
       invariant -1 <= i < len
       invariant map_shift(m, src + i + 1, dst + i + 1, len - i - 1) == a.map
     {
+      ghost var j: Int;
+      pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == a.map[j];
+      //map_shift_def();
       ghost var m1 := a.map;
+      
       var tmp := a[src + i];
       a[dst + i] := tmp;
       pure assert a.map == m1[dst + i := tmp];
+      pure assert "test" forall j: Int :: map_shift(m, src + (i-1) + 1, dst + (i-1) + 1, len - (i-1) - 1)[j] == a.map[j] with {
+        if (j < (dst + (i-1) + 1) || (dst + (i-1) + 1) + (len - (i-1) - 1) <= j) {
+          pure assert "test" map_shift(m, src + (i-1) + 1, dst + (i-1) + 1, len - (i-1) - 1)[j] == m[j];
+        } else {
+          pure assert "test" map_shift(m, src + (i-1) + 1, dst + (i-1) + 1, len - (i-1) - 1)[j] == m[(src + (i-1) + 1) + (j - (dst + (i-1) + 1))];
+        }
+        if (j < (dst + i + 1) || (dst + i + 1) + (len - i - 1) <= j) {
+          pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == m1[j];
+          
+        } else {
+          pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == m[(src + i + 1) + (j - (dst + i + 1))];
+        }
+      }
       i := i - 1;
     }
+    pure assert forall j: Int :: map_shift(m, src, dst, len)[j] == a.map[j] with {
+      if (j < (dst + i + 1) || (dst + i + 1) + (len - i - 1) <= j) {
+        pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == m[j];
+      } else {
+        pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == m[(src + i + 1) + (j - (dst + i + 1))];
+      }
+    }
+    return;
   } else if (src > dst) {
     var i := 0;
     while (i < len)
@@ -81,7 +106,27 @@ procedure arr_shift(a: Array<E>, src: Int, dst: Int, len: Int)
       var tmp := a[src + i];
       a[dst + i] := a[src + i];
       pure assert a.map == m1[dst + i := tmp];
+      pure assert "test" forall j: Int :: map_shift(m, src, dst, i+1)[j] == a.map[j] with {
+        if (j < dst || dst + (i+1) <= j) {
+          pure assert "test" map_shift(m, src, dst, i+1)[j] == m[j];
+        } else {
+          pure assert "test" map_shift(m, src, dst, i+1)[j] == m[src + (j - dst)];
+        }
+        if (j < dst || dst + i <= j) {
+          pure assert "test" map_shift(m, src, dst, i)[j] == m1[j];
+          
+        } else {
+          pure assert "test" map_shift(m, src, dst, i)[j] == m[src + (j - dst)];
+        }
+      }
       i := i + 1;
+    }
+  } 
+  pure assert forall j: Int :: map_shift(m, src, dst, len)[j] == a.map[j] with {
+    if (j < dst || dst + len <= j) {
+      pure assert "test" map_shift(m, src, dst, len)[j] == m[j];
+    } else {
+      pure assert "test" map_shift(m, src, dst, len)[j] == m[src + (j - dst)];
     }
   }
 }
