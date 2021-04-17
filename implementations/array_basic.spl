@@ -63,7 +63,6 @@ procedure arr_shift(a: Array<E>, src: Int, dst: Int, len: Int)
     {
       ghost var j: Int;
       pure assert "test" map_shift(m, src + i + 1, dst + i + 1, len - i - 1)[j] == a.map[j];
-      //map_shift_def();
       ghost var m1 := a.map;
       
       var tmp := a[src + i];
