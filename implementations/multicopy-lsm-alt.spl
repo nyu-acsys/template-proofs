@@ -5,26 +5,83 @@ include "array_util_lsm.spl"
 type V = Int
 
 /* File axiomatization */
-type FileT = Array<Pair>;
-
-predicate File(f: FileT) {
-    acc(f)
+struct FileT {
+  var ram:  Array<Pair>; // file contents is represented as a RAM disk
+  ghost var disk_cont: Array<Pair>; // actual contents on disk
+  var is_new: Bool;
+  var is_open: Bool; // indicates whether RAM disk has been populated
 }
 
-procedure createFile(d: Array<Pair>) returns (f: FileT)
-    requires acc(d)
-    ensures File(f)
-    ensures f == d
-{
-    return d;
+define FilePure(f, isn, iso, len) {
+  len == f.ram.length
+    && isn == f.is_new && iso == f.is_open
+    && len == f.disk_cont.length
 }
 
-procedure readFile(f: FileT) returns (res: Array<Pair>)
-    requires File(f)
-    ensures File(f)
-    ensures res == f
+define File(f, isn, iso, len) {
+  acc(f) &*& acc(f.disk_cont) &*& acc(f.ram) &*&
+    FilePure(f, isn, iso, len)
+}
+
+procedure deleteFile(f: FileT, ghost isn: Bool, ghost iso: Bool, ghost len: Int)
+  requires File(f, isn, iso, len)
+  ensures emp
 {
-    return f;
+  free f.ram;
+  free f.disk_cont;
+  free f;
+}
+
+procedure createFile(len: Int) returns (f: FileT)
+  requires len >= 0
+  ensures File(f, true, false, len)
+{
+  f := new FileT();
+  f.ram := new Array<Pair>(len);
+  f.disk_cont := new Array<Pair>(len);
+  f.is_new := true;
+  f.is_open := false;
+  return f;
+}
+
+procedure closeFile(f: FileT,
+    implicit ghost isn: Bool, implicit ghost len: Int)
+  requires len >= 0
+  requires File(f, isn, true, len)
+  ensures File(f, isn, false, len)
+  ensures f.disk_cont.map == old(f.disk_cont.map)
+{
+  f.is_open := false;
+}
+
+procedure openFile(f: FileT, implicit ghost isn: Bool, implicit ghost len: Int)
+  requires File(f, isn, false, len)
+  ensures File(f, isn, true, len)
+  ensures f.ram.map == f.disk_cont.map
+  ensures old(f.ram.map) == f.disk_cont.map
+{
+  assume false;
+}
+
+procedure writeFile(f: FileT, ghost len: Int)
+  requires File(f, true, true, len)
+  ensures File(f, false, true, len)
+  ensures f.ram.map == old(f.ram.map)
+  ensures f.disk_cont.map == f.ram.map
+{
+  assume false;
+}
+
+procedure isOpenFile(f: FileT,
+  implicit ghost isn: Bool, implicit ghost iso: Bool, implicit ghost len: Int)
+  returns (res: Bool)
+  requires File(f, isn, iso, len)
+  ensures File(f, isn, iso, len)
+  ensures iso ==> f.ram.map == old(f.ram.map)
+  ensures f.disk_cont.map == old(f.disk_cont.map)
+  ensures res == iso
+{
+  assume false;
 }
 
 /** LSM-like implementation of the multicopy template. */
@@ -40,7 +97,7 @@ struct Node {
   var table: Array<Pair>;
   var tableLen: Int;
   var next: Node;
-  var file: Array<Pair>
+  var file: FileT;
 }
 
 const B: Int
@@ -50,7 +107,12 @@ axiom B > 1
 /** {Spec} Definition of heap representation predicate, node */
 
 define nodeSpatial(x) {
-  acc(x) &*& acc(x.table) &*& File(x.file)
+  acc(x)
+}
+
+define nodeSpatialFull(x) {
+  nodeSpatial(x) &*&
+    (x.nodeType == memtableNode &*& acc(x.table) || x.nodeType != memtableNode &*& File(x.file, x.file.is_new, x.file.is_open, x.file.ram.length))
 }
 
 define nodePure(r, n, esn, Cn) {
@@ -62,10 +124,12 @@ define nodePure(r, n, esn, Cn) {
       && 0 <= n.tableLen <= n.table.length
     || n.nodeType == sstableNode
       && n != r
-      && sorted_map_seg(n.file.map, 0, n.tableLen)
+      && sorted_map_seg(n.file.disk_cont.map, 0, n.tableLen)
       // Cn is given by table
-      && Cn == contents(n.file.map, 0, n.tableLen)
-      && 0 <= n.tableLen <= n.file.length
+      //&& n.table.length == n.file.ram.length
+      && (n.file.is_open ==> n.file.ram.map == n.file.disk_cont.map)
+      && Cn == contents(n.file.disk_cont.map, 0, n.tableLen)
+      && 0 <= n.tableLen <= n.file.disk_cont.length
   )
   // No self-loops
   && n.next != n && n.next != r
@@ -79,7 +143,7 @@ define nodePure(r, n, esn, Cn) {
 
 // TODO make n first or last arg
 define node(r, n, esn, Cn) {
-  nodeSpatial(n)
+  nodeSpatialFull(n)
   &*& nodePure(r, n, esn, Cn)
 }
 
@@ -171,9 +235,6 @@ procedure init()
   r.next := null;
   r.nodeType := memtableNode;
 
-  var arr_file := new Array<Pair>(2*B);
-  r.file := createFile(arr_file);
-
   esr := { n: Node :: {} };
   Cr := empty_map;
 
@@ -193,6 +254,7 @@ procedure inContents(n: Node, k: K,
     var i := start;
     var flag := false;
     while (i < n.table.length && !flag)
+      invariant n.nodeType == memtableNode;
       invariant start == n.table.length - n.tableLen;
       invariant node(r, n, esn, Cn)
       invariant start <= i <= n.table.length
@@ -214,9 +276,11 @@ procedure inContents(n: Node, k: K,
       return NoneV;
     }
   } else {
-    var arr_file := readFile(n.file);
-
-    var v, i := arr_find(arr_file, n.tableLen, k);
+    var f := n.file;
+    if (!isOpenFile(f)) {
+      openFile(f);
+    }
+    var v, i := arr_find(f.ram, n.tableLen, k);
     return v;
   }
 }
@@ -314,9 +378,9 @@ procedure insertNode(n: Node, m: Node,
   m.tableLen := 0;
   m.next := null;
   m.nodeType := sstableNode;
+  m.file := createFile(2*B);
   esm := { x: Node :: {} };
   Cm := empty_map;
-
   return esn1, esm, Cm;
 }
 
@@ -325,10 +389,6 @@ procedure allocNode() returns (m: Node)
   ensures nodeSpatial(m)
 {
   m := new Node;
-  m.table := new Array<Pair>(2*B);
-
-  var arr_file := new Array<Pair>(2*B);
-  m.file := createFile(arr_file);
 }  
 
 /*
@@ -388,8 +448,4 @@ procedure mergeContents(r: Node, n: Node, m: Node,
   }
   dom_empty_map();
   set_of_empty_map();
-  pure assert set_of_map(Cm11) subsetof set_of_map(Cn) ++ set_of_map(Cm);
-  pure assert set_of_map(Cn11) subsetof set_of_map(Cn);
-  pure assert Disjoint(set_of_map(Cn) ** set_of_map(Cm11), set_of_map(Cn11));
-  pure assert dom(Cm) subsetof dom(Cm11);
 }
