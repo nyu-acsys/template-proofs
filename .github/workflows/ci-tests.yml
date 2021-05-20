@@ -85,4 +85,4 @@ jobs:
 
       - name: Check implementation proofs
         working-directory: implementations
-        run: bash xp_pldi20.sh
+        run: bash xp_book.sh
