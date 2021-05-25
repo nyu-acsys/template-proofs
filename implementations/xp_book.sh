@@ -60,7 +60,7 @@ run "Hash table (link)" "hashtbl-give-up"
 run "Hash table (give-up)" "hashtbl-link"
 run "Lock-coupling list" "list-coupling"
 echo -e "Multicopy:"
-run "LSM Implementation" "multicopy_lsm"
+run "LSM Tree" "multicopy-lsm"
 
 echo -n -e "Total\t\t" >> $outputfile
 awk -F "\t" '{progs+=$1; specs+=$2; total+=$3} END{printf("\t& %d\t& %d\t& %d", progs, specs, total);}' $loctotalfile >> $outputfile

@@ -49,7 +49,7 @@ run "Lock-coupling template" "single_copy/coupling"
 echo -e "Multicopy:" >> $outputfile
 run "Client-level Spec" "util/one_shot_proph util/typed_proph multicopy/multicopy multicopy/multicopy_util multicopy/multicopy_client_level"
 run "LSM DAG Template" "multicopy/multicopy_lsm multicopy/multicopy_lsm_util multicopy/multicopy_lsm_search multicopy/multicopy_lsm_upsert multicopy/multicopy_lsm_compact"
-run "DF Template" "multicopy/multicopy_df multicopy/multicopy_df_search multicopy/multicopy_df_upsert"
+run "Two-node Template" "multicopy/multicopy_df multicopy/multicopy_df_search multicopy/multicopy_df_upsert"
 
 echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile
