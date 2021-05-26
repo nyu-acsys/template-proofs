@@ -1,6 +1,8 @@
-## Artifact for the Book: Automated Verification of Concurrent Search Structures
+## Automated Verification of Concurrent Search Structures
 
-Authors:  Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies
+This artifact contains the mechanized proofs described in the book 
+
+Krishna, S., Patel, N., Shasha, D., & Wies, T. (2021). *Automated Verification of Concurrent Search Structures*. Synthesis Lectures on Computer Science. Morgan & Claypool.
 
 For the most recent version of this artifact, please visit:
 
