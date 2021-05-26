@@ -48,7 +48,7 @@ For your convenience, you can download and install the correct GRASShopper versi
 ./setup.sh
 ```
 
-Use the following script to generate the rows for Table 1 (Section 4 of the paper):
+Use the following script to generate the rows for Table 13.1 of the book:
 
 ```bash
 ./run_experiments_book.sh
