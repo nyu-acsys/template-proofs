@@ -1,4 +1,10 @@
-## Artifact for the book: Automated Verificatrion of Concurrent Search Structures
+## Artifact for the Book: Automated Verification of Concurrent Search Structures
+
+Authors:  Siddharth Krishna, Nisarg Patel, Dennis Shasha, and Thomas Wies
+
+For the most recent version of this artifact, please visit:
+
+https://github.com/nyu-acsys/template-proofs/
 
 ### Getting Started Guide
 
@@ -47,8 +53,6 @@ Use the following script to generate the rows for Table 1 (Section 4 of the pape
 ```
 
 Please make sure that the Z3 executable is in your PATH. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
-
-### Contents
 
 ### Contents
 
