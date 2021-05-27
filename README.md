@@ -36,6 +36,7 @@ The easiest way to satisfy all OCaml and Coq-related requirements is to install 
 opam switch 4.07.1
 opam install -y ocamlfind
 opam install -y ocamlbuild
+opam repo add coq-released https://coq.inria.fr/opam/released
 opam install -y coq.8.13.1
 opam install -y coq-iris.3.4.0
 opam install -y coq-iris-heap-lang.3.4.0
@@ -63,7 +64,7 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     
   + util/:
     - lock.v:
-        The implementation and proofs for node locking operations
+        The implementation and proofs for node locking operations (Chp 2)
     - auth_ext.v:
         Assorted auxiliary lemmas for authoritative cameras
     - typed_proph.v:
@@ -72,7 +73,7 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
         One-shot prophecies
         
   + flows/:
-    Formalization of the flow framework
+    Formalization of the flow framework (Chp 7)
     - ccm.v:
         Commutative Cancelative Monoids, the basis for flow domains
     - gmap_more.v:
@@ -85,42 +86,42 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
   + single_copy/:
     Single-copy structure proofs
 	  - inset_flows.v:
-        Instantiation of flows used by the single-copy templates
+        Instantiation of flows to encode keysets (Chp 7) 
 	  - keyset_ra.v:
-        The Keyset RA from Chp 5 of the book
+        The Keyset RA (from Chp 5)
     - search_str.v:
-        Abstract specification of search structure operations
+        Abstract specification of search structure operations (Chp 3)
 	  - single_node.v:
-        The single-node template algorithm and proof
+        The single-node template algorithm and proof (Chp 2)
 	  - two_node.v:
-        The two-node template algorithm and proof
+        The two-node template algorithm and proof (Chp 5)
 	  - link.v:
-        The link template algorithm and proof
+        The link template algorithm and proof (Chp 8)
 	  - give_up.v:
-        The give-up template algorithm and proof
+        The give-up template algorithm and proof (Chp 8)
 	  - coupling_inv.v:
-        The lock coupling template algorithm and proof
+        The lock coupling template algorithm and proof (Chp 8)
         
   + multicopy/:
     Multicopy structure proofs
     - multicopy.v:
-        Shared definitions for multicopy proofs
+        Shared definitions for multicopy proofs (Chp 9)
     - multicopy_util.v:
         Auxiliary utility lemmas for multicopy proofs
     - multicopy_client_level.v:
         Proofs relating client-level and template-level specs (Chp 11)
     - multicopy_lsm.v:
-        Shared definitions for LSM DAG template proofs
+        Shared definitions for LSM DAG template proofs (Chp 12)
     - multicopy_lsm_util.v:
         Auxiliary utility lemmas for template proofs
     - multicopy_lsm_search.v:
-        Proof of LSM DAG search template
+        Proof of LSM DAG search template (Chp 12)
     - multicopy_lsm_upsert.v:
-        Proof of LSM DAG upsert template
+        Proof of LSM DAG upsert template (Chp 12)
     - multicopy_lsm_compact.v
-        Proof of LSM DAG compact template
+        Proof of LSM DAG compact template (Chp 12)
     - multicopy_df.v:
-    		Shared definitions for Differential Files(DF) template proofs
+    		Shared definitions for Differential Files(DF) template proofs (Chp 9)
     - multicopy_df_search.v:
         Proof of DF search template
     - multicopy_df_upsert.v:
@@ -129,31 +130,31 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
 + implementations/:
      The GRASShopper proofs of implementations
   - ccm.spl, multiset-ccm.spl:
-        CCM definition, and CCM instances used in implementations
+        CCM definition, and CCM instances used in implementations (Chp 7)
   - flows.spl, inset-flows.spl:
-        Flow framework and flow interfaces definitions
+        Flow framework and flow interfaces definitions (Chp 7)
   - ordered_type.spl:
         An ordered type, used for the type of keys
   - array_util.spl:
         Library of basic manipulations of arrays
   - b-link-core.spl:
-        The B-link tree implementation of the link template
+        The B-link tree implementation of the link template (Chp 8)
   - b-link-half.spl:
-        The half split operation on B-link trees
+        The half split operation on B-link trees (Chp 8)
   - b-link-full.spl:
-        The full split operation on B-link trees
+        The full split operation on B-link trees (Chp 8)
   - b+-tree.spl:
-        The B+ tree implementation of the give-up template
+        The B+ tree implementation of the give-up template (Chp 8)
   - hashtbl-give-up.spl:
-        The hash table implementation of the give-up template
+        The hash table implementation of the give-up template (Chp 8)
   - hashtbl-link.spl:
-        The hash table implementation of the link template
+        The hash table implementation of the link template (Chp 8)
   - lock-coupling.spl:
-        Common definitions for lock coupling template implementations
+        Common definitions for lock coupling template implementations (Chp 8)
   - list-coupling.spl:
-        The list-based implementation of the lock coupling template
+        The list-based implementation of the lock coupling template (Chp 8)
   - multicopy-lsm.spl:
-      The LSM tree implementation of the LSM DAG template 
+      The LSM tree implementation of the LSM DAG template (Chp 12)
 
 - README.md:
      This file.
