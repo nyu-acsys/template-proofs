@@ -14,6 +14,7 @@ Require Export multicopy multicopy_util auth_ext.
 Parameter search : val.
 Parameter upsert : val.
 
+(** \overline{search} in the paper *)
 Definition search' : val :=
   λ: "k",
     let: "t_id" := NewProph in

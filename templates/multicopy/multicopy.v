@@ -138,6 +138,7 @@ Section multicopy.
       ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = R⌝  
       ∗ ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght H t_id).
 
+  (** \overline{MCS} in the paper *)
   Definition MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght t M : iProp :=
   ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝
      ∗ mcs_inv N γ_te γ_he γ_s (Prot_help N γ_te γ_he γ_td γ_ght) Inv_tpl.      

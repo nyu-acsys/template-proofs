@@ -18,7 +18,7 @@ The artifact has the following external dependencies
 
 - Iris heap lang library, version coq-iris-heap-lang.3.4.0
 
-- GRASShopper, commit 108473b0a678f0d93fffec6da2ad6bcdce5bddb9.
+- GRASShopper, commit 5828de4d9a995e5b33197b837246929926fe4c5f.
 
 - Z3, version >= 4.5
 
@@ -28,6 +28,7 @@ The easiest way to satisfy all OCaml and Coq-related requirements is to install 
 opam switch 4.07.1
 opam install -y ocamlfind
 opam install -y ocamlbuild
+opam repo add coq-released https://coq.inria.fr/opam/released
 opam install -y coq.8.13.1
 opam install -y coq-iris.3.4.0
 opam install -y coq-iris-heap-lang.3.4.0
@@ -55,7 +56,7 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     
   + util/:
     - lock.v:
-        The implementation and proofs for node locking operations
+        The implementation and proofs for node locking operations (Appx. A.6 - Fig 12) 
     - auth_ext.v:
         Assorted auxiliary lemmas for authoritative cameras
     - typed_proph.v:
@@ -63,7 +64,7 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     - one_shot_proph.v:
         One-shot prophecies
         
-  + flows/:
+  + flows/: (Sec. 6.2)
     Formalization of the flow framework
     - ccm.v:
         Commutative Cancelative Monoids, the basis for flow domains
@@ -77,21 +78,21 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
   + multicopy/:
     Multicopy structure proofs
     - multicopy.v:
-        Shared definitions for multicopy proofs
+        Shared definitions for multicopy proofs (Sec. 4 - Fig. 5, Appx. A.4 - Fig 10) 
     - multicopy_util.v:
         Auxiliary utility lemmas for multicopy proofs
     - multicopy_client_level.v:
-        Proofs relating client-level and template-level specs (Sec. 4)
+        Proofs relating client-level and template-level specs (Sec. 4, Appx. A.4)
     - multicopy_lsm.v:
-        Shared definitions for LSM DAG template proofs
+        Shared definitions for LSM DAG template proofs (Appx. A.5)
     - multicopy_lsm_util.v:
         Auxiliary utility lemmas for template proofs
     - multicopy_lsm_search.v:
-        Proof of LSM DAG search template
+        Proof of LSM DAG search template (Sec. 6.1, Appx. A.6.1)
     - multicopy_lsm_upsert.v:
-        Proof of LSM DAG upsert template
+        Proof of LSM DAG upsert template (Sec. 6.1, Appx. A.6.2)
     - multicopy_lsm_compact.v
-        Proof of LSM DAG compact template
+        Proof of LSM DAG compact template (Sec. 7, Appx. A.6.3)
     - multicopy_df.v:
     		Shared definitions for Differential Files(DF) template proofs
     - multicopy_df_search.v:
@@ -99,7 +100,7 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     - multicopy_df_upsert.v:
         Proof of DF upsert template
         
-+ implementations/:
++ implementations/ (Sec. 8):
   The GRASShopper proofs of the LSM tree implementation
   - ordered_type.spl:
       An ordered type, used for the type of keys
@@ -181,4 +182,33 @@ The Differential File template proof (`templates/multicopy/multicopy_df*.v`) mak
   These are predicates that capture resources needed to implement nodes in a Differential File data structure. 
 * Parameter `node_sep_star`:
 	This predicate is an assumption on the implementation made by the template algorithm.
+	
+### Paper-to-Artifact Correspondence Guide:
+
+Below we list points that will make it easier to make the connection between the definitions in the paper and the artifact.
+
+* The artifact uses (and includes) the Coq formalization of the Flow Framework [1]. This files are contained in the directory templates/flows. 
+
+* In Section 3.1, we define the contents of a node as finite map from KS to Timestamps, but we also alternately view contents as a set over KS x Timestamps. We also express the invariants with the notion of contents as a set (e.g., Invariant 3 in Sec. 6.1). In the artifact, the conversion between a set over KS x Timestamps and a map from KS to Timestamps is performed by the functions set_of_map and map_of_set in file multicopy.v in the directory templates/multicopy.
+
+* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost location. This map also needs to be explicitly stored in the invariant, however we do not present how exactly in the paper. As a result, the definition of an invariant in the artifact might contain an additional variable of type authoritative of finite maps (gmaps in Iris standard library terms) to track this information. This variables are usually named hγ, hγt, etc in the artifact.
+
+* The table below lists the discrepancies between the names used in the paper versus the artifact (also listed in the code appropriately).
+
+    | Paper |  Artifact |
+    | :---- | ---------: |
+    | \overline{MCS} | MCS_high |
+    | Inv | mcs |
+    | \overline{search} | search' |
+    | G | global_state |
+    | N_L | nodePred |
+    | N_S | nodeShared |
+
+### References
+
+[1] Siddharth Krishna, Alexander J. Summers, and Thomas Wies. 2020b.  Local Reasoning for Global Graph Properties. InProgramming Languages and Systems - 29th European Symposium on Programming, ESOP 2020, Held as Part of the EuropeanJoint Conferences on Theory and Practice of Software, ETAPS 2020, Dublin, Ireland, April 25-30, 2020, Proceedings (LectureNotes in Computer Science, Vol. 12075), Peter Müller (Ed.). Springer, 308–335.  https://doi.org/10.1007/978-3-030-44914-8_12
+ 
+
+
+ 	
 
