@@ -10,7 +10,7 @@ Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.
 
 ### Step-by-step Setup Guide
 
-Before diving into details about how to use the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/book`. Instructions below to generate the `oopsla21_artifact` directory:
+Before diving into details about how to use the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/book`. The instructions to generate the `oopsla21_artifact` directory are as follows:
 
 ```bash
 sudo apt install git 			# ignore if git already installed
@@ -40,7 +40,7 @@ Now let's set up the tools required by the artifact. The artifact has the follow
 
 - Z3, version >= 4.5
 
-The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM. We provide instructions for Linux below:
+The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM. We provide instructions for Debian/Ubuntu below:
 
 #### Installing OPAM
 
@@ -73,7 +73,7 @@ opam install -y coq-iris-heap-lang.3.4.0
 eval $(opam config env)
 ```
 
-Note that OPAM might run into errors due to missing dependencies depending on your system. In that case, try again after installing the missing dependencies.
+Depending on your system, OPAM might run into errors due to missing dependencies. In that case, try again after installing the missing dependencies using your distributions package manager.
 
 #### Installing GRASShopper
 
@@ -89,7 +89,7 @@ Now your system has all the tools required to use the artifact.
 
 ### Contents
 
-The contents of `oopsla21_artifact` directory is described below:
+The contents of the `oopsla21_artifact` directory is described below:
 
 + templates/:
     The Iris proofs
