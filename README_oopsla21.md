@@ -232,11 +232,11 @@ The Differential File template proof (`templates/multicopy/multicopy_df*.v`) mak
 
 Below we list points that will make it easier to make the connection between the definitions in the paper and the artifact.
 
-* The artifact uses (and includes) the Coq formalization of the Flow Framework [1]. This files are contained in the directory templates/flows. 
+* The artifact uses (and includes) the Coq formalization of the Flow Framework [1]. These files are contained in the directory templates/flows. 
 
 * In Section 3.1, we define the contents of a node as finite map from KS to Timestamps, but we also alternately view contents as a set over KS x Timestamps. We also express the invariants with the notion of contents as a set (e.g., Invariant 3 in Sec. 6.1). In the artifact, the conversion between a set over KS x Timestamps and a map from KS to Timestamps is performed by the functions set_of_map and map_of_set in file multicopy.v in the directory templates/multicopy.
 
-* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost locations. This map also needs to be explicitly stored in the invariant, however we do not present how exactly in the paper. As a result, the definition of an invariant in the artifact might contain an additional variable of type authoritative finite maps (gmaps in Iris standard library terms) to track this information. These variables are usually named hγ, hγt, etc in the artifact.
+* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost locations. This map also needs to be explicitly stored in the invariant, however we do not present in the paper how exactly this is done. As a result, the definition of an invariant in the artifact contains additional variables of type authoritative finite maps (gmaps in Iris standard library terms) to track this information. These variables are usually named hγ, hγt, etc in the artifact.
 
 * The table below lists the discrepancies between the names used in the paper versus the artifact (also listed in the code appropriately).
 
