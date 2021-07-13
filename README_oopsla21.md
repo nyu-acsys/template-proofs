@@ -1,8 +1,26 @@
 ## Artifact for OOPSLA'21 submission: Verifying Concurrent Multicopy Structures
 
+The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The login is `templates:templates`.
+
 ### Getting Started Guide
 
-The artifact has the following external dependencies
+This artifact relies on two tools: Iris (a high-order concurrent separation logic built on top of Coq) and GRASShopper (a program verification tool). The artifact is packaged with these software preinstalled and the necessary files precompiled. 
+
+Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.sh` to generate the data from Table 1 (Section 8) from the paper. The script is expected to run for ~9 minutes. Note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
+
+### Step-by-step Setup Guide
+
+Before diving into details about how to use the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/book`. Instructions below to generate the `oopsla21_artifact` directory:
+
+```bash
+sudo apt install git 			# ignore if git already installed
+git clone https://github.com/nyu-acsys/template-proofs.git
+cd template-proof
+git checkout book
+./create_oopsla_artifact.sh
+``` 
+
+Now let's set up the tools required by the artifact. The artifact has the following external dependencies:
 
 - OCaml, version 4.07.1 (or newer)
 
@@ -22,34 +40,56 @@ The artifact has the following external dependencies
 
 - Z3, version >= 4.5
 
-The easiest way to satisfy all OCaml and Coq-related requirements is to install the OCaml package manager OPAM and then execute the following commands
+The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM. We provide instructions for Linux below:
+
+#### Installing OPAM
 
 ```bash
-opam switch 4.07.1
+sudo apt install opam
+```
+
+#### Setting up OPAM dependencies 
+
+```bash
+opam switch create 4.07.1
+eval $(opam env)
 opam install -y ocamlfind
 opam install -y ocamlbuild
+```
+
+#### Installing Coq/CoqIDE
+
+```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam install -y coq.8.13.1
+opam install -y coqide.8.13.1
+```
+
+#### Installing Iris
+
+```bash
 opam install -y coq-iris.3.4.0
 opam install -y coq-iris-heap-lang.3.4.0
 eval $(opam config env)
 ```
 
-For your convenience, you can download and install the correct GRASShopper version by executing the script
+Note that OPAM might run into errors due to missing dependencies depending on your system. In that case, try again after installing the missing dependencies.
+
+#### Installing GRASShopper
+
+The easiest way to install GRASShopper is to navigate to the `oopsla21_artifact` directory, and execute the command
 
 ```bash
 ./setup.sh
 ```
 
-Use the following script to generate the rows for Table 1 (Section 8 of the paper):
+The script will download and install the correct version of GRASShopper. Please make sure that Z3 is installed and the Z3 executable is in your PATH before running the script. 
 
-```bash
-./run_experiments.sh
-```
-
-Please make sure that the Z3 executable is in your PATH. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
+Now your system has all the tools required to use the artifact.   
 
 ### Contents
+
+The contents of `oopsla21_artifact` directory is described below:
 
 + templates/:
     The Iris proofs
@@ -122,7 +162,6 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
 
 Our artifact consists of two parts: the proofs of the Iris formalization, to be verified by Coq, and the proofs of the template implementation, to be verified by GRASShopper.
 
-
 #### Iris Proofs
 
 These proofs live in the `templates/multicopy` directory and are verified by Iris/Coq.
@@ -134,6 +173,12 @@ make multicopy/multicopy.vo
 ```
 
 You can prefix the make command with e.g. `TIMED=true` in order to time each check, or `VERBOSE=true` in order to see the exact command being used. We suppress certain Coq warnings, but these are the same as the ones suppressed by Iris (see https://gitlab.mpi-sws.org/iris/iris/blob/master/_CoqProject).
+
+The artifact comes preinstalled with CoqIDE, a graphical tool to step through the coq proofs in a user-friendly manner. CoqIDE can be started by executing in terminal the command:
+
+```bash
+coqide
+```
 
 You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as a `Parameter`. The assumption is either a helper function implementation or an implementation-dependent lemma of the same name checked by GRASShopper. See below for a complete list of such assumptions.
 
