@@ -207,7 +207,7 @@ The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the fo
 * Parameters `findNext`, `inContent`, and `addContents`:
   These are GRASShopper procedures in the implementation file. These procedure are used by the `search` and `upsert` operations.
 * Parameters `atCapacity`, `chooseNext`, `mergeContents`, `allocNode` and `insertNode` :
-  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
+  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation.
 * Parameters `node`, `nodeSpatial` and `needsNewNode`:
   These are predicates that are defined in the implementation by macros of the same name.
 * Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
