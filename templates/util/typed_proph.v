@@ -185,3 +185,29 @@ Section nat_proph.
 End nat_proph.
 
 Definition NatTypedProph `{!heapG Σ} := make_TypedProph NatProph.
+
+(** Instantiation of the interface with VT (value-timestamp pairs). *)
+
+Section vt_proph.
+  Definition vt_from_val (v : val) : option (Z * nat) :=
+    match v with
+    | PairV (LitV(LitInt v)) (LitV(LitInt t)) => Some (v, Z.to_nat t)
+    | _              => None
+    end.
+
+  Definition vt_to_val (vt : Z*nat) : val := 
+              PairV (LitV(LitInt vt.1)) (LitV(LitInt vt.2)).
+
+  Lemma vt_inj_prop : ∀ (vt : Z*nat), vt_from_val (vt_to_val vt) = Some vt.
+  Proof. 
+    intros vt. simpl. apply f_equal. 
+    destruct vt as [v t]. simpl. 
+    assert (Z.to_nat t = t) as Ht by lia.
+    by rewrite Ht.
+  Qed.
+
+  Definition VTProph : TypedProphSpec :=
+    mkTypedProphSpec (Z*nat) vt_from_val vt_to_val vt_inj_prop.
+End vt_proph.
+
+Definition VTTypedProph `{!heapG Σ} := make_TypedProph VTProph.
