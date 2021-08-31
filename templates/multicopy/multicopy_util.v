@@ -19,17 +19,20 @@ Section multicopy_util.
     by iPureIntro.
   Qed.
 
-  Lemma map_of_set_lookup_cases H k:
-        (∃ v t, (k, v, t) ∈ H ∧ (∀ v' t', (k, v', t') ∈ H → t' ≤ t) ∧ map_of_set H !! k = Some (v, t))
-      ∨ ((∀ v t, (k, v, t) ∉ H) ∧ map_of_set H !! k = None).
+  Lemma map_of_set_lookup_cases H1 k:
+        (∃ v t, (k, (v, t)) ∈ H1 
+          ∧ (∀ v' t', (k, (v', t')) ∈ H1 → t' ≤ t) 
+          ∧ map_of_set H1 !! k = Some (v, t))
+      ∨ ((∀ v t, (k, (v, t)) ∉ H1) 
+          ∧ map_of_set H1 !! k = None).
   Proof.
-    set (P := λ (m: gmap K (V*TS)) (X: gset KVT),
-                (∃ v t, (k, v, t) ∈ X ∧ (∀ v' t', (k, v', t') ∈ X → t' ≤ t)
+    set (P := λ (m: gmap K (V*T)) (X: gset KVT),
+                (∃ v t, (k, (v, t)) ∈ X ∧ (∀ v' t', (k, (v', t')) ∈ X → t' ≤ t)
                           ∧ m !! k = Some (v, t))
-              ∨ ((∀ v t, (k, v, t) ∉ X) ∧ m !! k = None)).
+              ∨ ((∀ v t, (k, (v, t)) ∉ X) ∧ m !! k = None)).
     apply (set_fold_ind_L P); try done.
     - unfold P. right. split; try done.
-    - intros [[k' v'] t'] X m Hnotin Hp.
+    - intros [k' [v' t']] X m Hnotin Hp.
       destruct (decide (k' = k)).
       + replace k'. unfold P. left. unfold P in Hp.
         destruct Hp as [Hp | Hp].
@@ -83,7 +86,7 @@ Section multicopy_util.
         destruct Hp as [Hp | Hp].
         * destruct Hp as [v [t [Hp1 [Hp2 Hp3]]]].
           left. exists v, t. repeat split; first set_solver.
-          intros v'' t'' Hkt. assert ((k, v'', t'') ∈ X) as Hx by set_solver.
+          intros v'' t'' Hkt. assert ((k, (v'', t'')) ∈ X) as Hx by set_solver.
           by pose proof Hp2 v'' t'' Hx. simpl.
           destruct (decide ((m !!! k').2 <= t')).
           rewrite lookup_insert_ne; try done. done.
@@ -94,40 +97,41 @@ Section multicopy_util.
   Qed.
 
   Lemma map_of_set_lookup H k v t :
-        unique_val H → 
-          (k, v, t) ∈ H → (∀ v' t', (k, v', t') ∈ H → t' ≤ t) →
+        HUnique H → 
+          (k, (v, t)) ∈ H → (∀ v' t', (k, (v', t')) ∈ H → t' ≤ t) →
             map_of_set H !! k = Some (v, t).
   Proof.
-    intros Uniq Hkt Hmax.
+    intros HUniq Hkt Hmax.
     pose proof (map_of_set_lookup_cases H k) as Hp.
     destruct Hp as [Hp | Hp].
     - destruct Hp as [v' [t' [Hp1 [Hp2 Hp3]]]].
       pose proof Hmax v' t' Hp1 as Ht1.
       pose proof Hp2 v t Hkt as Ht2.
       assert (t = t') as Ht by lia. subst t'.
-      pose proof Uniq k v v' t Hkt Hp1 as Uniq.
+      pose proof HUniq k t v v' Hkt Hp1 as Uniq.
       by subst v'.
     - destruct Hp as [Hp _].
       pose proof Hp v t. set_solver.
   Qed.  
   
   Lemma map_of_set_lookup_some_aux (H: gset KVT) k :
-        unique_val H → 
-          (∀ v t, (k, v, t) ∉ H) ∨ 
-            (∃ v t, (k, v, t) ∈ H ∧ (∀ v' t', (k, v', t') ∈ H → t' ≤ t)).
+        HUnique H → 
+          (∀ v t, (k, (v, t)) ∉ H) ∨ 
+            (∃ v t, (k, (v, t)) ∈ H 
+              ∧ (∀ v' t', (k, (v', t')) ∈ H → t' ≤ t)).
   Proof.
     intros Uniq.
-    set (P := λ (X: gset KVT), (∀ v t, (k, v, t) ∉ X) ∨
-                  (∃ v T, (k, v, T) ∈ X ∧ (∀ v' t', (k, v', t') ∈ X → t' ≤ T))).
+    set (P := λ (X: gset KVT), (∀ v t, (k, (v, t)) ∉ X) ∨
+                  (∃ v T, (k, (v, T)) ∈ X ∧ (∀ v' t', (k, (v', t')) ∈ X → t' ≤ T))).
     apply (set_ind_L P); try done.
     - unfold P. left. intros v t. set_solver.
-    - intros [[k' v'] t'] X Hkt HP. subst P.
+    - intros [k' [v' t']] X Hkt HP. subst P.
       simpl in HP. simpl. destruct (decide (k' = k)).
       + subst k'. destruct HP as [H' | H'].
         * right. exists v', t'. split.
           set_solver. intros v t. destruct (decide (t' = t)).
           subst t'. intros; done.
-          intros H''. assert ((k,v,t) ∈ X).
+          intros H''. assert ((k, (v, t)) ∈ X).
           set_solver. pose proof H' v t as H'.
           done.
         * right. destruct H' as [v [T H']].
@@ -161,11 +165,11 @@ Section multicopy_util.
   Qed.
   
   Lemma map_of_set_lookup_some (H: gset KVT) k v t :
-          unique_val H →    
-            (k, v, t) ∈ H → is_Some(map_of_set H !! k).
+          HUnique H →    
+            (k, (v, t)) ∈ H → is_Some(map_of_set H !! k).
   Proof.
-    intros Uniq Hkt.
-    pose proof map_of_set_lookup_some_aux H k Uniq as Hkt'.
+    intros HUniq Hkt.
+    pose proof map_of_set_lookup_some_aux H k HUniq as Hkt'.
     destruct Hkt' as [Hkt' | Hkt'].
     { pose proof Hkt' v t as H'. set_solver. }
     pose proof (map_of_set_lookup_cases H k) as H'.
@@ -181,7 +185,7 @@ Section multicopy_util.
   Qed.
   
   Lemma map_of_set_lookup_lb H k v t :
-    (k, v, t) ∈ H → t ≤ (map_of_set H !!! k).2.
+    (k, (v, t)) ∈ H → t ≤ (map_of_set H !!! k).2.
   Proof. 
     intros kt_in_H.
     pose proof map_of_set_lookup_cases H k as [H' | H'].
@@ -193,12 +197,12 @@ Section multicopy_util.
       contradiction.
   Qed.
   
-  Lemma set_of_map_member_ne (C: gmap K (V*TS)) k :
+  Lemma set_of_map_member_ne (C: gmap K (V*T)) k :
             C !! k = None →
-              ∀ v t, (k, v, t) ∉ set_of_map C.
+              ∀ v t, (k, (v, t)) ∉ set_of_map C.
   Proof.  
-    set (P := λ (s: gset KVT) (m: gmap K (V*TS)),
-                   m !! k = None → ∀ v t, (k, v, t) ∉ s).
+    set (P := λ (s: gset KVT) (m: gmap K (V*T)),
+                   m !! k = None → ∀ v t, (k, (v, t)) ∉ s).
     apply (map_fold_ind P); try done.
     intros kx tx m r Hm HP. unfold P.
     unfold P in HP. destruct (decide (kx = k)).
@@ -214,27 +218,27 @@ Section multicopy_util.
   Qed.
   
   Lemma map_of_set_union_ne H k v t k' :
-          unique_val H → k' ≠ k → 
-            map_of_set (H ∪ {[(k, v, t)]}) !! k' = map_of_set H !! k'.
+          HUnique H → k' ≠ k → 
+            map_of_set (H ∪ {[(k, (v, t))]}) !! k' = map_of_set H !! k'.
   Proof.
-    intros Uniq Hk.
+    intros HUniq Hk.
     pose proof (map_of_set_lookup_cases H k') as Hp.
-    pose proof (map_of_set_lookup_cases (H ∪ {[(k, v, t)]}) k') as Hu.
+    pose proof (map_of_set_lookup_cases (H ∪ {[(k, (v, t))]}) k') as Hu.
     destruct Hp as [Hp | Hp].
     - destruct Hu as [Hu | Hu].
       + destruct Hp as [v0 [T [Hp1 [Hp2 Hp3]]]].
         destruct Hu as [v0' [T' [Hu1 [Hu2 Hu3]]]].
         assert (T ≤ T') as Ht1.
-        { assert ((k', v0, T) ∈ H ∪ {[k, v, t]}) as Ht by set_solver.
+        { assert ((k', (v0, T)) ∈ H ∪ {[(k, (v, t))]}) as Ht by set_solver.
           by pose proof Hu2 v0 T Ht. }
         assert (T' ≤ T) as Ht2.
-        { assert ((k', v0', T') ∈ H) as Ht by set_solver.
+        { assert ((k', (v0', T')) ∈ H) as Ht by set_solver.
           by pose proof Hp2 v0' T' Ht. }
         rewrite Hp3 Hu3. assert (T = T') as Ht by lia.
-        subst T'. assert ((k', v0', T) ∈ H) as H'.
+        subst T'. assert ((k', (v0', T)) ∈ H) as H'.
         { clear -Hu1 Hk; set_solver. }
-        pose proof Uniq k' v0 v0' T Hp1 H' as Uniq.
-        by rewrite Uniq.
+        pose proof HUniq k' T v0 v0' Hp1 H' as HUniq.
+        by rewrite HUniq.
       + destruct Hp as [v0 [T [Hp1 [Hp2 Hp3]]]].
         destruct Hu as [Hu1 Hu2].
         pose proof Hu1 v0 T as Hu1. set_solver.
@@ -247,42 +251,41 @@ Section multicopy_util.
         by rewrite Hp2 Hu2.
   Qed.
   
-  Lemma map_of_set_insert_eq (C: gmap K (V*TS)) k v t H :
-        unique_val H →
-          (∀ v' t', (k, v', t') ∈ H → t' < t) →
-            C = map_of_set H →
-              <[k := (v, t)]> C = map_of_set (H ∪ {[(k, v, t)]}).
+  Lemma map_of_set_insert_eq k v t H1 :
+        HUnique H1 →
+          HClock t H1 →
+              <[k := (v, t)]> (map_of_set H1) 
+                          = map_of_set (H1 ∪ {[(k, (v, t))]}).
   Proof.
-    intros Uniq Hmax Hc. apply map_eq. intros k'.
+    intros HUniq HClock. apply map_eq. intros k'.
     destruct (decide (k' = k)).
     - replace k'. rewrite lookup_insert.
       rewrite (map_of_set_lookup _ _ v t); try done.
-      { intros k0 v0 v0' t0. rewrite !elem_of_union.
+      { intros k0 t0 v0 v0'. rewrite !elem_of_union.
         intros [Hkvt0 | Hkvt0]; intros [Hkvt0' | Hkvt0'].
-        - by pose proof Uniq k0 v0 v0' t0 Hkvt0 Hkvt0'.
+        - by pose proof HUniq k0 t0 v0 v0' Hkvt0 Hkvt0'.
         - assert ((k0, v0', t0) = (k, v, t)) as H' by set_solver.
           inversion H'. subst k0 v0' t0.
-          pose proof Hmax v0 t Hkvt0 as Hmax. lia.
+          pose proof HClock k v0 t Hkvt0 as HClock. lia.
         - assert ((k0, v0, t0) = (k, v, t)) as H' by set_solver.
           inversion H'. subst k0 v0 t0.
-          pose proof Hmax v0' t Hkvt0' as Hmax. lia.
+          pose proof HClock k v0' t Hkvt0' as Hmax. lia.
         - assert ((k0, v0, t0) = (k0, v0', t0)) as H' by set_solver.
           by inversion H'. }  
       set_solver. intros v' t'. rewrite elem_of_union.
-      intros [Hk | Hk]. pose proof Hmax v' t' Hk. lia.
+      intros [Hk | Hk]. pose proof HClock k v' t' Hk. lia.
       assert (t' = t) by set_solver. by replace t'.
     - rewrite map_of_set_union_ne; try done.
       rewrite lookup_insert_ne; try done.
-      by rewrite Hc.
   Qed.
   
-  Lemma set_of_map_member (C: gmap K (V*TS)) k v t :
+  Lemma set_of_map_member (C: gmap K (V*T)) k v t :
             C !! k = Some((v, t)) →
-              (k, v, t) ∈ set_of_map C.
+              (k, (v, t)) ∈ set_of_map C.
   Proof.
     intros Hc. unfold set_of_map.
-    set (P := λ (s: gset KVT) (m: gmap K (V*TS)),
-                  ∀ j v x, m !! j = Some (v, x) → (j, v, x) ∈ s).
+    set (P := λ (s: gset KVT) (m: gmap K (V*T)),
+                  ∀ j v x, m !! j = Some (v, x) → (j, (v, x)) ∈ s).
     apply (map_fold_ind P); try done.
     intros i x m s Hmi Hp. unfold P.
     intros j v' x'. destruct (decide (i = j)).
@@ -292,12 +295,12 @@ Section multicopy_util.
       pose proof Hp j v' x' as Hp'. set_solver.
   Qed.
   
-  Lemma set_of_map_member_rev (C: gmap K (V*TS)) k v t :
-            (k, v, t) ∈ set_of_map C →
+  Lemma set_of_map_member_rev (C: gmap K (V*T)) k v t :
+            (k, (v, t)) ∈ set_of_map C →
                 C !! k = Some((v, t)).
   Proof.
-    set (P := λ (s: gset KVT) (m: gmap K (V*TS)),
-                  ∀ k v t, (k, v, t) ∈ s → m !! k = Some (v, t)).
+    set (P := λ (s: gset KVT) (m: gmap K (V*T)),
+                  ∀ k v t, (k, (v, t)) ∈ s → m !! k = Some (v, t)).
     apply (map_fold_ind P); try done.
     intros k' vt m r Hmi Hp. unfold P.
     intros k0 v0 t0 Hkvt0. destruct (decide (k0 = k')).
@@ -308,15 +311,15 @@ Section multicopy_util.
       rewrite Hp in Hmi. inversion Hmi.
       assert ((v0, t0) = (vt.1, vt.2)) as H' by set_solver.
       inversion H'. destruct vt as [v' t']; by simpl.
-    - assert ((k0, v0, t0) ∈ r) as Hj by set_solver.
+    - assert ((k0, (v0, t0)) ∈ r) as Hj by set_solver.
       pose proof Hp k0 v0 t0 Hj as Hp.
       rewrite lookup_insert_ne; try done.
   Qed.
   
-  Lemma set_of_map_insert_subseteq (C: gmap K (V*TS)) k v t :
-    set_of_map (<[k := (v, t)]> C) ⊆ set_of_map C ∪ {[(k, v, t)]}.
+  Lemma set_of_map_insert_subseteq (C: gmap K (V*T)) k v t :
+    set_of_map (<[k := (v, t)]> C) ⊆ set_of_map C ∪ {[(k, (v, t))]}.
   Proof.
-    intros [[k' v'] t'] Hkt. destruct (decide (k' = k)).
+    intros [k' [v' t']] Hkt. destruct (decide (k' = k)).
     - subst k'.
       apply set_of_map_member_rev in Hkt.
       rewrite lookup_insert in Hkt.
@@ -326,5 +329,69 @@ Section multicopy_util.
       apply set_of_map_member in Hkt.
       set_solver.
   Qed.
+
+  Lemma chop_ts_lookup_total M k :
+      chop_ts M !!! k = (M !!! k).1.
+  Proof.
+    set (P := λ (m': gmap K V) (m: gmap K (V*T)),
+                   ∀ k, m' !!! k = (m !!! k).1).
+    apply (map_fold_ind P _ _); try done.
+    intros k0 vt m m' Hm HP. subst P.
+    intros k1. destruct (decide (k1 = k0)).
+    - subst k1. by rewrite !lookup_total_insert.
+    - rewrite !lookup_total_insert_ne; try done.
+  Qed.
+  
+  Lemma chop_ts_dom M :
+    dom (gset K) (chop_ts M) = dom (gset K) M.
+  Proof.
+    set (P := λ (m': gmap K V) (m: gmap K (V*T)),
+                   dom (gset K) m' = dom (gset K) m).
+    apply (map_fold_ind P _ _); try done.
+    - unfold P. set_solver.
+    - intros k [v t] m m' Hmk HP.
+      unfold P. simpl. apply leibniz_equiv. 
+      repeat rewrite dom_insert. unfold P in HP.
+      by rewrite HP.                 
+  Qed.   
+
+  Lemma chop_ts_insert M k v t :
+        chop_ts (<[k := (v, t)]> M) = <[k := v]> (chop_ts M).
+  Proof.
+    apply map_eq; intros k'.
+    pose proof chop_ts_dom (<[k:=(v, t)]> M) as Hdom.
+    assert (dom (gset K) (<[k:=(v, t)]> M) = {[k]} ∪ dom (gset K) M) as Hdom'.
+    { apply leibniz_equiv. by rewrite dom_insert. }
+    destruct (decide (k' = k)); last first.
+    - destruct (decide (k' ∈ dom (gset K) M)).
+      + assert (k' ∈ dom (gset K) (chop_ts (<[k:=(v, t)]> M))) as Hk.
+        { rewrite Hdom Hdom'. set_solver. }
+        apply lookup_lookup_total_dom in Hk.
+        rewrite Hk. rewrite chop_ts_lookup_total.
+        rewrite lookup_insert_ne; try done.
+        rewrite lookup_total_insert_ne; try done.
+        pose proof chop_ts_lookup_total M k' as Hchop.
+        assert (k' ∈ dom (gset K) (chop_ts M)) as Hdom''.
+        { by rewrite chop_ts_dom. }
+        apply lookup_lookup_total_dom in Hdom''.
+        rewrite Hdom''. apply f_equal.
+        by rewrite chop_ts_lookup_total.
+      + rewrite lookup_insert_ne; try done.
+        assert (k' ∉ dom (gset K) (chop_ts (<[k:=(v, t)]> M))) as Hdom''.
+        { rewrite Hdom Hdom'. set_solver. }
+        assert (k' ∉ dom (gset K) (chop_ts M)) as Hdom'''.
+        { by rewrite chop_ts_dom. }
+        rewrite not_elem_of_dom in Hdom''*; intros Hdom''.
+        rewrite not_elem_of_dom in Hdom'''*; intros Hdom'''.
+        by rewrite Hdom'' Hdom'''.
+    - subst k'. rewrite lookup_insert.
+      assert (k ∈ dom (gset K) (chop_ts (<[k:=(v, t)]> M))) as Hk.
+      { rewrite Hdom Hdom'. set_solver. }
+      apply lookup_lookup_total_dom in Hk.
+      rewrite Hk. rewrite chop_ts_lookup_total.
+      rewrite lookup_total_insert. by simpl.
+  Qed.       
+
+
 
 End multicopy_util.

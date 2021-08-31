@@ -12,7 +12,7 @@ datatype Pair = pair(key: K, val: V)
 // Define array element type used in array_basic.spl
 type E = Pair
   
-datatype OptionV = NoneV | SomeV(some: V)
+datatype OptionV = NoneV | SomeV(value: V)
   
 /** {Spec} Utility functions on maps */
 

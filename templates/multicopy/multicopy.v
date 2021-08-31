@@ -15,13 +15,14 @@ Require Export multiset_flows one_shot_proph typed_proph.
 
 Definition K := Z.
 Definition V := Z.
-Definition TS := nat.
-Definition KVT : Type := K * V * TS.
+Definition T := nat.
+Definition KVT : Type := K * (V * T).
 Parameter KS : gset K.
+Parameter bot : V.
 
-Notation "kvt .key" := (kvt.1.1) (at level 5).
-Notation "kvt .value" := (kvt.1.2) (at level 5).
-Notation "kvt .ts" := (kvt.2) (at level 5).
+Notation "kvt .key" := (kvt.1) (at level 5).
+Notation "kvt .value" := (kvt.2.1) (at level 5).
+Notation "kvt .ts" := (kvt.2.2) (at level 5).
 
 (* RAs used in proof *)
 
@@ -64,51 +65,54 @@ Section multicopy.
     
   Definition SR γ_s (kvt: KVT) : iProp := own γ_s (◯ {[kvt]}).  
 
-  Definition map_of_set (C: gset KVT) : gmap K (V*TS) := 
-              let f := λ (kvt: KVT) (M: gmap K (V*TS)), 
+  Definition map_of_set (C: gset KVT) : gmap K (V*T) := 
+              let f := λ (kvt: KVT) (M: gmap K (V*T)), 
                          if (decide ((M !!! kvt.key).2 <= kvt.ts)) 
                          then <[kvt.key := (kvt.value, kvt.ts)]> M 
                          else M in
-              set_fold f (∅: gmap K (V*TS)) C.
+              set_fold f (∅: gmap K (V*T)) C.
 
-  Definition set_of_map (M: gmap K (V*TS)) : gset KVT := 
-             let f := λ k vt H, H ∪ {[(k, vt.1, vt.2)]} in
+  Definition set_of_map (M: gmap K (V*T)) : gset KVT := 
+             let f := λ k vt H, H ∪ {[(k, (vt.1, vt.2))]} in
              map_fold f (∅: gset KVT) M.
 
-  Definition maxTS (T: nat) (H: gset KVT) := 
-              (∀ k v t', (k, v, t') ∈ H → t' < T) ∧ (T > 0).
+  Definition chop_ts (M: gmap K (V*T)) : (gmap K V) := 
+             let f := λ k vt m, <[k := vt.1]> m in
+             map_fold f (∅: gmap K V) M.
 
-  Definition unique_val (H: gset KVT) := 
-              ∀ k v v' t, (k, v, t) ∈ H → (k, v', t) ∈ H → v = v'.
+  Definition HClock (t: T) (H: gset KVT) := 
+              (∀ k v t', (k, (v, t')) ∈ H → t' < t).
 
-  Definition MCS_auth (γ_te γ_he: gname) (T: nat) (H: gset KVT) : iProp := 
-      own γ_te (● Excl' T) ∗ own γ_he (● Excl' H).
+  Definition HUnique (H: gset KVT) := 
+              ∀ k t' v v', (k, (v, t')) ∈ H → (k, (v', t')) ∈ H → v = v'.
 
-  Definition MCS (γ_te γ_he: gname) (T: nat) (H: gset KVT) : iProp := 
-      own γ_te (◯ Excl' T) ∗ own γ_he (◯ Excl' H) ∗ ⌜maxTS T H⌝ ∗ ⌜unique_val H⌝.
+  Definition MCS_auth (γ_te γ_he: gname) (t: nat) (H: gset KVT) : iProp := 
+      own γ_te (● Excl' t) ∗ own γ_he (● Excl' H).
+
+  Definition MCS (γ_te γ_he: gname) (t: nat) (H: gset KVT) : iProp := 
+      own γ_te (◯ Excl' t) ∗ own γ_he (◯ Excl' H) ∗ ⌜HClock t H⌝ ∗ ⌜HUnique H⌝.
   
-  (* Convention that 0%Z is the default value for all key initially *)
-  Definition init (H: gset KVT) := ∀ k, k ∈ KS → (k, 0%Z, 0) ∈ H.
+  Definition HInit (H: gset KVT) := ∀ k, k ∈ KS → (k, (bot, 0)) ∈ H.
 
   Definition mcs_inv_high (γ_te γ_he γ_s: gname) (Prot: gset KVT → iProp) 
-                          (T: TS) (H: gset KVT) : iProp :=
+                          (T: T) (H: gset KVT) : iProp :=
       MCS_auth γ_te γ_he T H
     ∗ own γ_s (● H) 
-    ∗ ⌜init H⌝
-    ∗ ⌜maxTS T H⌝
-    ∗ ⌜unique_val H⌝
+    ∗ ⌜HInit H⌝
+    ∗ ⌜HClock T H⌝
+    ∗ ⌜HUnique H⌝
     ∗ Prot H.
     
   (** Invariant Inv in the paper *)
   Definition mcs (γ_te γ_he γ_s: gname) (Prot: gset KVT → iProp) 
-                    (Inv_tpl: TS → gset KVT → iProp) : iProp :=
-    ∃ (T: TS) (H: gset KVT),
-      mcs_inv_high γ_te γ_he γ_s Prot T H
-    ∗ Inv_tpl T H.  
+                    (Inv_tpl: gset KVT → iProp) : iProp :=
+    ∃ (t: T) (H: gset KVT),
+      mcs_inv_high γ_te γ_he γ_s Prot t H
+    ∗ Inv_tpl H.  
 
   Definition mcs_inv (N: namespace) (γ_te γ_he γ_s: gname)
                       (Prot: gset KVT → iProp) 
-                      (Inv_tpl: nat → gset KVT → iProp) := 
+                      (Inv_tpl: gset KVT → iProp) := 
     inv (mcsN N) (mcs γ_te γ_he γ_s Prot Inv_tpl).
 
   (** Helping Inv **)
@@ -116,31 +120,31 @@ Section multicopy.
   Definition pau N γ_te γ_he P (Q : val → iProp) k := 
     (▷ P -∗ ◇ AU << ∀ t H, MCS γ_te γ_he t H >> 
                   @ ⊤ ∖ (↑(mcsN N) ∪ ↑(threadN N)), ∅
-                 << ∃ (vt : V * TS), MCS γ_te γ_he t H ∗ ⌜map_of_set H !!! k = vt⌝, 
-                                                          COMM Q (PairV #vt.1 #vt.2) >>)%I.
+                 << ∃ (v': V) (t': T), MCS γ_te γ_he t H 
+                         ∗ ⌜map_of_set H !!! k = (v', t')⌝, 
+                         COMM Q #v' >>)%I.
 
-
-  Definition Pending (P: iProp) (H: gset KVT) (k: K) (vtp: V * TS) : iProp := 
-    P ∗ ⌜(k, vtp.1, vtp.2) ∉ H⌝.
+  Definition Pending (P: iProp) (H: gset KVT) (k: K) (vp: V) (t0: T) : iProp := 
+    P ∗ ⌜∀ t', (k, (vp, t')) ∈ H → t' < t0⌝.
 
   Definition Done (γ_tk: gname) (Q: val → iProp) 
-                              (H: gset KVT) (k: K) (vtp : V * TS) : iProp := 
-    (Q (PairV #vtp.1 #vtp.2) ∨ own γ_tk (Excl ())) ∗ ⌜(k, vtp.1, vtp.2) ∈ H⌝. 
+                              (H: gset KVT) (k: K) (vp: V) (t0: T) : iProp := 
+    (Q #vp ∨ own γ_tk (Excl ())) ∗ ⌜∃ t', (k, (vp, t')) ∈ H ∧ t0 ≤ t'⌝. 
 
   Definition State γ_sy (t_id: proph_id) 
-                          γ_tk P Q H (k: K) (vtp: V * TS) : iProp :=
-                        own γ_sy (to_frac_agree (1/2) H) 
-                     ∗ (Pending P H k vtp 
-                        ∨ Done γ_tk Q H k vtp).
+                          γ_tk P Q H (k: K) (vp: V) (t0: T) : iProp :=
+                        own γ_sy (to_frac_agree (1/2) H)
+                     ∗ (Pending P H k vp t0 
+                        ∨ Done γ_tk Q H k vp t0).
 
   Definition Reg (N: namespace) (γ_te γ_he γ_ght: gname) 
                             (H: gset KVT) (t_id: proph_id) : iProp :=
-    ∃ (P: iProp) (Q: val → iProp) (k: K) (vtp: V * TS) (vt: val) (γ_tk γ_sy: gname), 
-        proph1 t_id vt
+    ∃ (P: iProp) (Q: val → iProp) (k: K) (vp: V) (t0: T) (vtid: val) (γ_tk γ_sy: gname), 
+        proph1 t_id vtid
       ∗ own γ_ght (◯ {[t_id := to_agree γ_sy]})  
       ∗ own (γ_sy) (to_frac_agree (1/2) H)
       ∗ □ pau N γ_te γ_he P Q k
-      ∗ inv (threadN N) (∃ H, State γ_sy t_id γ_tk P Q H (k: K) (vtp: V * TS)).
+      ∗ inv (threadN N) (∃ H, State γ_sy t_id γ_tk P Q H (k: K) (vp: V) (t0: T)).
 
   Definition Prot_help (N: namespace) (γ_te γ_he γ_td γ_ght: gname) 
                                         (H: gset KVT) : iProp :=
@@ -150,16 +154,16 @@ Section multicopy.
       ∗ ([∗ set] t_id ∈ R, Reg N γ_te γ_he γ_ght H t_id).
 
   (** \overline{MCS} in the paper *)
-  Definition MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght t M : iProp :=
-  ∃ H, MCS γ_te γ_he t H ∗ ⌜map_of_set H = M⌝
-     ∗ mcs_inv N γ_te γ_he γ_s (Prot_help N γ_te γ_he γ_td γ_ght) Inv_tpl.      
+  Definition MCS_high N γ_te γ_he γ_s Inv_tpl γ_td γ_ght M : iProp :=
+    ∃ t H, MCS γ_te γ_he t H ∗ ⌜chop_ts (map_of_set H) = M⌝
+      ∗ mcs_inv N γ_te γ_he γ_s (Prot_help N γ_te γ_he γ_td γ_ght) Inv_tpl.
 
   Definition ghost_update_protocol N γ_te γ_he Prot_help k : iProp :=
-        (∀ v T H, ⌜map_of_set (H ∪ {[k, v, T]}) !!! k = (v, T)⌝ -∗  
-                MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, v, T)]}) -∗ 
+        ∀ v T H, ⌜map_of_set (H ∪ {[k, (v, T)]}) !!! k = (v, T)⌝ -∗  
+                MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, (v, T))]}) -∗ 
                   Prot_help H ={⊤ ∖ ↑mcsN N}=∗
-                    Prot_help (H ∪ {[(k, v, T)]}) 
-                      ∗ MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, v, T)]})).
+                    Prot_help (H ∪ {[(k, (v, T))]}) 
+                      ∗ MCS_auth γ_te γ_he (T+1) (H ∪ {[(k, (v, T))]}).
 
 End multicopy.
 
