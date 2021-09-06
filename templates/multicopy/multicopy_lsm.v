@@ -36,8 +36,7 @@ Definition upsert (r: Node) : val :=
   rec: "upsert_rec" "k" "v" := 
     lockNode #r ;;
     let: "res" := addContents #r "k" "v" in
-    if: "res" then
-       
+    if: "res" then       
       unlockNode #r
     else
       unlockNode #r;;
