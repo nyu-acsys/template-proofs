@@ -299,22 +299,6 @@ Section multicopy_client_level.
     iFrame "M_k". iExists T1, H1. iFrame "∗#%".
     by iModIntro.
   Qed.
-
-(*
-  Lemma chop_ts_lookup_total M M' k :
-    M' = chop_ts M →
-       M' !!! k = (M !!! k).1.
-  Proof.
-    intros Hm; subst M'.
-    set (P := λ (m': gmap K V) (m: gmap K (V*TS)),
-                   ∀ k, m' !!! k = (m !!! k).1).
-    apply (map_fold_ind P _ _); try done.
-    intros k0 vt m m' Hm HP. subst P.
-    intros k1. destruct (decide (k1 = k0)).
-    - subst k1. by rewrite !lookup_total_insert.
-    - rewrite !lookup_total_insert_ne; try done.
-  Qed.    
-*)
   
   Lemma ghost_update_registered (k: K) (v: V) (t: T) (N: namespace) 
                 (γ_te γ_he γ_ght: gname) 

@@ -6,11 +6,11 @@ The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The logi
 
 This artifact relies on two tools: Iris (a high-order concurrent separation logic built on top of Coq) and GRASShopper (a program verification tool). The artifact is packaged with these software preinstalled and the necessary files precompiled. 
 
-Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.sh` to generate the data from Table 1 (Section 8) from the paper. The script is expected to run for ~9 minutes. Note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
+Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.sh` to generate the data from Table 1 (Section 8) from the paper. The script is expected to run for ~9 minutes. Note that the line count for the code of the template algorithms is obtained manually from the Coq proof scripts. Hence, the relevant entries are filled with `?` in the generated rows.
 
 ### Step-by-step Setup Guide
 
-Before diving into details about how to use the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/book`. The instructions to generate the `oopsla21_artifact` directory are as follows:
+Before instructions for the usage of the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/multicopy_with_vals`. The instructions to generate the `oopsla21_artifact` directory are as follows:
 
 ```bash
 sudo apt install git 			# ignore if git already installed
@@ -18,7 +18,7 @@ git clone https://github.com/nyu-acsys/template-proofs.git
 cd template-proof
 git checkout book
 ./create_oopsla_artifact.sh
-``` 
+```
 
 Now let's set up the tools required by the artifact. The artifact has the following external dependencies:
 
@@ -85,7 +85,7 @@ The easiest way to install GRASShopper is to navigate to the `oopsla21_artifact`
 
 The script will download and install the correct version of GRASShopper. Please make sure that Z3 is installed and the Z3 executable is in your PATH before running the script. 
 
-Now your system has all the tools required to use the artifact.   
+Now your system has all the tools required to use the artifact.
 
 ### Contents
 
@@ -234,9 +234,9 @@ Below we list points that will make it easier to make the connection between the
 
 * The artifact uses (and includes) the Coq formalization of the Flow Framework [1]. These files are contained in the directory templates/flows. 
 
-* In Section 3.1, we define the contents of a node as finite map from KS to Timestamps, but we also alternately view contents as a set over KS x Timestamps. We also express the invariants with the notion of contents as a set (e.g., Invariant 3 in Sec. 6.1). In the artifact, the conversion between a set over KS x Timestamps and a map from KS to Timestamps is performed by the functions set_of_map and map_of_set in file multicopy.v in the directory templates/multicopy.
+* In Section 3.1, we define the contents of a node as finite map from Key to (Value, Timestamp), but we also alternately view contents as a set over Key x (Value, Timestamp). We also express the invariants with the notion of contents as a set (e.g., Invariant 3 in Sec. 6.1). In the artifact, the conversion between a set over Key x (Value, Timestamp) and a map from Key to (Value, Timestamp) is performed by the functions set_of_map and map_of_set in file multicopy.v in the directory templates/multicopy.
 
-* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost locations. This map also needs to be explicitly stored in the invariant, however we do not present in the paper how exactly this is done. As a result, the definition of an invariant in the artifact contains additional variables of type authoritative finite maps (gmaps in Iris standard library terms) to track this information. These variables are usually named hγ, hγt, etc in the artifact.
+* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost locations. This map also needs to be explicitly stored in the invariant, however we do not present in the paper how exactly this is done. As a result, the definition of an invariant in the artifact contains additional variables of type authoritative finite maps (gmaps in Iris standard library terms) to track this information. These variables are usually named hγ, hγt, etc. in the artifact.
 
 * The table below lists the discrepancies between the names used in the paper versus the artifact (also listed in the code appropriately).
 
@@ -252,8 +252,3 @@ Below we list points that will make it easier to make the connection between the
 ### References
 
 [1] Siddharth Krishna, Alexander J. Summers, and Thomas Wies. 2020b.  Local Reasoning for Global Graph Properties. InProgramming Languages and Systems - 29th European Symposium on Programming, ESOP 2020, Held as Part of the EuropeanJoint Conferences on Theory and Practice of Software, ETAPS 2020, Dublin, Ireland, April 25-30, 2020, Proceedings (LectureNotes in Computer Science, Vol. 12075), Peter Müller (Ed.). Springer, 308–335.  https://doi.org/10.1007/978-3-030-44914-8_12
- 
-
-
- 	
-
