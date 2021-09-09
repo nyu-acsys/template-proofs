@@ -1,4 +1,4 @@
-## Artifact for OOPSLA'21 submission: Verifying Concurrent Multicopy Structures
+## Artifact for OOPSLA'21 paper: Verifying Concurrent Multicopy Structures
 
 The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The login is `templates:templates`.
 
