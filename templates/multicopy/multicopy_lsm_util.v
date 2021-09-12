@@ -16,14 +16,6 @@ Section multicopy_lsm_util.
 
   (** Useful lemmas *)
 
-  Global Instance HnP_t_laterable (r n: Node) γ_t lc T :
-              Laterable (if decide (n = r)
-                         then own γ_t (●{1 / 2} MaxNat T) ∗ clock lc T
-                         else True)%I.
-  Proof.
-    destruct (decide (n = r)); apply timeless_laterable; apply _.
-  Qed.
-
   Lemma inFP_domm γ_f n D : inFP γ_f n -∗ own γ_f (● D) -∗ ⌜n ∈ D⌝.
   Proof.
     iIntros "FP HD".
@@ -35,11 +27,11 @@ Section multicopy_lsm_util.
     iPureIntro. set_solver.
   Qed.
 
-  Lemma inFP_domm_glob γ_t γ_I γ_J γ_f γ_gh r T hγ I J n :
-    inFP γ_f n -∗ global_state γ_t γ_I γ_J γ_f γ_gh r T hγ I J -∗ ⌜n ∈ domm I⌝.
+  Lemma inFP_domm_glob γ_I γ_J γ_f γ_gh r hγ I J n :
+    inFP γ_f n -∗ global_state γ_I γ_J γ_f γ_gh r hγ I J -∗ ⌜n ∈ domm I⌝.
   Proof.
     iIntros "#FP_n Hglob".
-    iDestruct "Hglob" as "(Ht & HI & Out_I & HJ
+    iDestruct "Hglob" as "(HI & Out_I & HJ
             & Out_J & Inf_J & Hf & Hγ & FP_r & domm_IJ & domm_Iγ)".
     iPoseProof (inFP_domm with "[$FP_n] [$]") as "%".
     by iPureIntro.
@@ -242,9 +234,9 @@ Section multicopy_lsm_util.
               let f := λ a s', s' ∪ {[(a, C !!! a)]} in
                         set_fold f (∅: gset KT) S.
 
-  Definition map_restriction (S: gset K) (C: gmap K nat) :=
+  Definition map_restriction (S: gset K) (C: gmap K T) :=
               let f := λ a m, <[a := C !!! a ]> m in
-                        set_fold f (∅: gmap K nat) S.
+                        set_fold f (∅: gmap K T) S.
 
 
   Lemma lookup_map_restriction S (C: gmap K nat) (k: K):
@@ -300,20 +292,19 @@ Section multicopy_lsm_util.
   Qed.
 
 
-
   Lemma nodePred_nodeShared_eq γ_I γ_J γ_f γ_gh r n
                                γ_en γ_cn γ_qn γ_cirn
                                γ_en' γ_cn' γ_qn' γ_cirn'
-                               es Cn Qn es' Cn' Qn'
+                               es Tn Qn es' Tn' Qn'
                                Bn In Jn H :
         own γ_gh (◯ {[n := ghost_loc γ_en γ_cn γ_qn γ_cirn]}) -∗
-          frac_ghost_state γ_en γ_cn γ_qn es Cn Qn -∗
-            nodeShared' γ_I γ_J γ_f γ_gh r n Cn' Qn' H
-                        γ_en' γ_cn' γ_qn' γ_cirn' es' Bn In Jn -∗
-              frac_ghost_state γ_en γ_cn γ_qn es Cn Qn
-              ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Cn Qn H
-                          γ_en γ_cn γ_qn γ_cirn es Bn In Jn
-              ∗ ⌜es' = es⌝ ∗ ⌜Cn' = Cn⌝  ∗ ⌜Qn' = Qn⌝.
+          frac_ghost_state γ_en γ_cn γ_qn es Tn Qn -∗
+            nodeShared' γ_I γ_J γ_f γ_gh r n Tn' Qn' Bn H 
+                    γ_en' γ_cn' γ_qn' γ_cirn' es' In Jn -∗
+              frac_ghost_state γ_en γ_cn γ_qn es Tn Qn
+              ∗ nodeShared' γ_I γ_J γ_f γ_gh r n Tn Qn Bn H 
+                    γ_en γ_cn γ_qn γ_cirn es In Jn
+              ∗ ⌜es' = es⌝ ∗ ⌜Tn' = Tn⌝  ∗ ⌜Qn' = Qn⌝.
   Proof.
     iIntros "HnP_gh HnP_frac HnS".
     iDestruct "HnS" as "(HnS_gh & HnS_frac & HnS_si & HnS_FP
@@ -323,19 +314,19 @@ Section multicopy_lsm_util.
     subst γ_en'. subst γ_cn'. subst γ_qn'. subst γ_cirn'.
     iPoseProof (frac_eq with "[$HnP_frac] [$HnS_frac]") as "%".
     destruct H0 as [Hes [Hc Hq]].
-    subst es'. subst Cn'. subst Qn'.
+    subst es'. subst Tn'. subst Qn'.
     iFrame. by iPureIntro.
   Qed.
 
   (** Lock module **)
 
-  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r n:
+  Lemma lockNode_spec_high N γ_te γ_he γ_s Prot γ_I γ_J γ_f γ_gh r n:
     ⊢ mcs_inv N γ_te γ_he γ_s Prot
-                (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
+                (Inv_LSM γ_s γ_I γ_J γ_f γ_gh r) -∗
         inFP γ_f n -∗
               <<< True >>>
                 lockNode #n    @ ⊤ ∖ ↑(mcsN N)
-              <<< ∃ Cn Qn, nodePred γ_gh γ_t γ_s lc r n Cn Qn, RET #() >>>.
+              <<< ∃ Cn Qn, nodePred γ_gh γ_s r n Cn Qn, RET #() >>>.
   Proof.
     iIntros "#mcsInv #FP_n".
     iIntros (Φ) "AU".
@@ -371,29 +362,29 @@ Section multicopy_lsm_util.
   Qed.
 
 
-  Lemma nodePred_lockR_true γ_gh γ_t γ_s lc r bn n es Cn Cn' Qn' :
+  Lemma nodePred_lockR_true γ_gh γ_s r bn n es Cn Cn' Qn' :
     node r n es Cn -∗
-      lockR bn n (nodePred γ_gh γ_t γ_s lc r n Cn' Qn') -∗
+      lockR bn n (nodePred γ_gh γ_s r n Cn' Qn') -∗
         ⌜bn = true⌝.
   Proof.
     iIntros "node Hl_n".
     destruct bn; try done.
     iDestruct "Hl_n" as "(Hl & HnP')".
-    iDestruct "HnP'" as (? ? ? ? ? ?) "(n' & _)".
+    iDestruct "HnP'" as (? ? ? ? ? ? ?) "(n' & _)".
     iExFalso. iApply (node_sep_star r n). iFrame.
   Qed.
 
-  Lemma lockR_true Cn' Qn' γ_gh γ_t γ_s lc r n Cn Qn:
-    lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn Qn) -∗
-      lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn' Qn').
+  Lemma lockR_true Cn' Qn' γ_gh γ_s r n Cn Qn:
+    lockR true n (nodePred γ_gh γ_s r n Cn Qn) -∗
+      lockR true n (nodePred γ_gh γ_s r n Cn' Qn').
   Proof.
     iIntros "(Hl & _)". iFrame.
   Qed.
 
-  Lemma unlockNode_spec_high N γ_te γ_he γ_s Prot γ_t γ_I γ_J γ_f γ_gh lc r
+  Lemma unlockNode_spec_high N γ_te γ_he γ_s Prot γ_I γ_J γ_f γ_gh r
                                                           n Cn Qn:
-    ⊢ mcs_inv N γ_te γ_he γ_s Prot (Inv_LSM γ_s γ_t γ_I γ_J γ_f γ_gh lc r) -∗
-        inFP γ_f n -∗ nodePred γ_gh γ_t γ_s lc r n Cn Qn -∗
+    ⊢ mcs_inv N γ_te γ_he γ_s Prot (Inv_LSM γ_s γ_I γ_J γ_f γ_gh r) -∗
+        inFP γ_f n -∗ nodePred γ_gh γ_s r n Cn Qn -∗
               <<< True >>>
                 unlockNode #n    @ ⊤ ∖ ↑(mcsN N)
               <<< True, RET #() >>>.
@@ -408,15 +399,15 @@ Section multicopy_lsm_util.
            last by eauto) in "Hstar".
     iDestruct "Hstar" as "(Hn & Hstar')".
     iDestruct "Hn" as (b Cn' Qn') "(HlockR & Hns)".
-    iAssert (lockR true n (nodePred γ_gh γ_t γ_s lc r n Cn Qn)
-              ∗ (nodePred γ_gh γ_t γ_s lc r n Cn Qn))%I
+    iAssert (lockR true n (nodePred γ_gh γ_s r n Cn Qn)
+              ∗ (nodePred γ_gh γ_s r n Cn Qn))%I
       with "[HlockR Hnp]" as "HlockR".
     {
       destruct b eqn: Hb.
     - (* Case n locked *)
       iFrame "∗".
     - (* Case n unlocked: impossible *)
-      iDestruct "Hnp" as (? ? ? ? ? ?)"(node & _)".
+      iDestruct "Hnp" as (? ? ? ? ? ? ?)"(node & _)".
       iPoseProof (nodePred_lockR_true with "[$node] [$HlockR]") as "H'".
       iDestruct "H'" as %H'; inversion H'.
     }
@@ -437,20 +428,21 @@ Section multicopy_lsm_util.
     iExists hγ, I, J. iFrame.
     iPoseProof ("Hstar'" with "[HlockR Hns]") as "Hstar".
     iExists false, Cn, Qn.
-    iAssert (lockR false n (nodePred γ_gh γ_t γ_s lc r n Cn Qn)
-                      ∗ nodeShared γ_I γ_J γ_f γ_gh r n Cn Qn H)%I
+    iAssert (lockR false n (nodePred γ_gh γ_s r n Cn Qn)
+                      ∗ nodeShared γ_I γ_J γ_f γ_gh r n Qn H)%I
       with "[Hns HlockR]" as "(HlockR & Hns)".
     {
       iDestruct "HlockR" as "(Hl & Hnp)".
-      iDestruct "Hnp" as (γ_en γ_cn γ_qn γ_cirn esn T')
-                             "(node_n & #HnP_gh & HnP_frac & HnP_C & HnP_t)".
-      iDestruct "Hns" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Bn' In0 Jn0) "Hns'".
+      iDestruct "Hnp" as (γ_en γ_cn γ_qn γ_cirn esn Vn Tn)
+                             "(node_n & #HnP_gh & HnP_frac & HnP_C & HnP_cts)".
+      iDestruct "Hns" as (γ_en' γ_cn' γ_qn' γ_cirn' es' Tn' Bn' In0 Jn0) "Hns'".
       iPoseProof (nodePred_nodeShared_eq with "[$HnP_gh] [$HnP_frac] [$Hns']")
          as "(HnP_frac & Hns' & % & % & %)".
       iSplitR "Hns'".
-      - iFrame. iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, T'.
+      - iFrame. iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Vn, Tn.
         iFrame "∗#".
-      - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Bn', In0, Jn0.
+      - iExists γ_en, γ_cn, γ_qn, γ_cirn, esn, Tn, Bn', In0.
+        iExists Jn0.
         iFrame.
     }
     iFrame. iFrame. iFrame.
