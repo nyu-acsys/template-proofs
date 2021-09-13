@@ -1,16 +1,26 @@
-## Automated Verification of Concurrent Search Structures
+## Artifact for OOPSLA'21 paper: Verifying Concurrent Multicopy Structures
 
-This artifact contains the mechanized proofs described in the book 
-
-Krishna, S., Patel, N., Shasha, D., & Wies, T. (2021). *Automated Verification of Concurrent Search Structures*. Synthesis Lectures on Computer Science. Morgan & Claypool.
-
-For the most recent version of this artifact, please visit:
-
-https://github.com/nyu-acsys/template-proofs/
+The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The login is `templates:templates`.
 
 ### Getting Started Guide
 
-The artifact has the following external dependencies
+This artifact relies on two tools: Iris (a high-order concurrent separation logic built on top of Coq) and GRASShopper (a program verification tool). The artifact is packaged with these software preinstalled and the necessary files precompiled. 
+
+Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.sh` to generate the data from Table 1 (Section 8) from the paper. The script is expected to run for ~9 minutes. Note that the line count for the code of the template algorithms is obtained manually from the Coq proof scripts. Hence, the relevant entries are filled with `?` in the generated rows.
+
+### Step-by-step Setup Guide
+
+Before instructions for the usage of the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/multicopy_with_vals`. The instructions to generate the `oopsla21_artifact` directory are as follows:
+
+```bash
+sudo apt install git 			# ignore if git already installed
+git clone https://github.com/nyu-acsys/template-proofs.git
+cd template-proof
+git checkout multicopy
+./create_oopsla_artifact.sh
+```
+
+Now let's set up the tools required by the artifact. The artifact has the following external dependencies:
 
 - OCaml, version 4.07.1 (or newer)
 
@@ -30,41 +40,63 @@ The artifact has the following external dependencies
 
 - Z3, version >= 4.5
 
-The easiest way to satisfy all OCaml and Coq-related requirements is to install the OCaml package manager OPAM and then execute the following commands
+The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM. We provide instructions for Debian/Ubuntu below:
+
+#### Installing OPAM
 
 ```bash
-opam switch 4.07.1
+sudo apt install opam
+```
+
+#### Setting up OPAM dependencies 
+
+```bash
+opam switch create 4.07.1
+eval $(opam env)
 opam install -y ocamlfind
 opam install -y ocamlbuild
+```
+
+#### Installing Coq/CoqIDE
+
+```bash
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam install -y coq.8.13.1
+opam install -y coqide.8.13.1
+```
+
+#### Installing Iris
+
+```bash
 opam install -y coq-iris.3.4.0
 opam install -y coq-iris-heap-lang.3.4.0
 eval $(opam config env)
 ```
 
-For your convenience, you can download and install the correct GRASShopper version by executing the script
+Depending on your system, OPAM might run into errors due to missing dependencies. In that case, try again after installing the missing dependencies using your distributions package manager.
+
+#### Installing GRASShopper
+
+The easiest way to install GRASShopper is to navigate to the `oopsla21_artifact` directory, and execute the command
 
 ```bash
 ./setup.sh
 ```
 
-Use the following script to generate the rows for Table 13.1 of the book:
+The script will download and install the correct version of GRASShopper. Please make sure that Z3 is installed and the Z3 executable is in your PATH before running the script. 
 
-```bash
-./run_experiments_book.sh
-```
-
-Please make sure that the Z3 executable is in your PATH. Also note that the line counts for the code of the templates are obtained manually from the Coq proof scripts. Hence the relevant entries are filled with `?` in the generated rows.
+Now your system has all the tools required to use the artifact.
 
 ### Contents
+
+The contents of the `oopsla21_artifact` directory is described below:
 
 + templates/:
     The Iris proofs
     
   + util/:
     - lock.v:
-        The implementation and proofs for node locking operations (Chp 2)
+        The implementation and proofs for node locking operations (Appx. A.6 - Fig 12) 
     - auth_ext.v:
         Assorted auxiliary lemmas for authoritative cameras
     - typed_proph.v:
@@ -72,8 +104,8 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
     - one_shot_proph.v:
         One-shot prophecies
         
-  + flows/:
-    Formalization of the flow framework (Chp 7)
+  + flows/: (Sec. 6.2)
+    Formalization of the flow framework
     - ccm.v:
         Commutative Cancelative Monoids, the basis for flow domains
     - gmap_more.v:
@@ -82,106 +114,73 @@ Please make sure that the Z3 executable is in your PATH. Also note that the line
         The flow framework and flow interfaces camera definitions
     - multiset_flows.v:
         Flow interface cameras of multisets over some arbitrary set
-
-  + single_copy/:
-    Single-copy structure proofs
-	  - inset_flows.v:
-        Instantiation of flows to encode keysets (Chp 7) 
-	  - keyset_ra.v:
-        The Keyset RA (from Chp 5)
-    - search_str.v:
-        Abstract specification of search structure operations (Chp 3)
-	  - single_node.v:
-        The single-node template algorithm and proof (Chp 2)
-	  - two_node.v:
-        The two-node template algorithm and proof (Chp 5)
-	  - link.v:
-        The link template algorithm and proof (Chp 8)
-	  - give_up.v:
-        The give-up template algorithm and proof (Chp 8)
-	  - coupling_inv.v:
-        The lock coupling template algorithm and proof (Chp 8)
         
   + multicopy/:
     Multicopy structure proofs
     - multicopy.v:
-        Shared definitions for multicopy proofs (Chp 9)
+        Shared definitions for multicopy proofs (Sec. 4 - Fig. 5, Appx. A.4 - Fig 10) 
     - multicopy_util.v:
         Auxiliary utility lemmas for multicopy proofs
     - multicopy_client_level.v:
-        Proofs relating client-level and template-level specs (Chp 11)
+        Proofs relating client-level and template-level specs (Sec. 4, Appx. A.4)
     - multicopy_lsm.v:
-        Shared definitions for LSM DAG template proofs (Chp 12)
+        Shared definitions for LSM DAG template proofs (Appx. A.5)
     - multicopy_lsm_util.v:
         Auxiliary utility lemmas for template proofs
     - multicopy_lsm_search.v:
-        Proof of LSM DAG search template (Chp 12)
+        Proof of LSM DAG search template (Sec. 6.1, Appx. A.6.1)
     - multicopy_lsm_upsert.v:
-        Proof of LSM DAG upsert template (Chp 12)
+        Proof of LSM DAG upsert template (Sec. 6.1, Appx. A.6.2)
     - multicopy_lsm_compact.v
-        Proof of LSM DAG compact template (Chp 12)
+        Proof of LSM DAG compact template (Sec. 7, Appx. A.6.3)
     - multicopy_df.v:
-    		Shared definitions for Differential Files(DF) template proofs (Chp 9)
+    		Shared definitions for Differential Files(DF) template proofs
     - multicopy_df_search.v:
         Proof of DF search template
     - multicopy_df_upsert.v:
         Proof of DF upsert template
-
-+ implementations/:
-     The GRASShopper proofs of implementations
-  - ccm.spl, multiset-ccm.spl:
-        CCM definition, and CCM instances used in implementations (Chp 7)
-  - flows.spl, inset-flows.spl:
-        Flow framework and flow interfaces definitions (Chp 7)
+        
++ implementations/ (Sec. 8):
+  The GRASShopper proofs of the LSM tree implementation
   - ordered_type.spl:
-        An ordered type, used for the type of keys
-  - array_util.spl:
-        Library of basic manipulations of arrays
-  - b-link-core.spl:
-        The B-link tree implementation of the link template (Chp 8)
-  - b-link-half.spl:
-        The half split operation on B-link trees (Chp 8)
-  - b-link-full.spl:
-        The full split operation on B-link trees (Chp 8)
-  - b+-tree.spl:
-        The B+ tree implementation of the give-up template (Chp 8)
-  - hashtbl-give-up.spl:
-        The hash table implementation of the give-up template (Chp 8)
-  - hashtbl-link.spl:
-        The hash table implementation of the link template (Chp 8)
-  - lock-coupling.spl:
-        Common definitions for lock coupling template implementations (Chp 8)
-  - list-coupling.spl:
-        The list-based implementation of the lock coupling template (Chp 8)
-  - multicopy-lsm.spl:
-      The LSM tree implementation of the LSM DAG template (Chp 12)
-
+      An ordered type, used for the type of keys
+  - array_basic.spl:
+      Library of basic functions manipulating arrays
+  - array_map.spl:
+      Library of partial maps represented as arrays
+  - multicopy_lsm.spl:
+      The LSM tree implementation of the LSM DAG template 
+  
 - README.md:
      This file.
-+ setup.sh:
+- setup.sh:
      A script to download and compile the correct GRASShopper version.
-+ run_experiments_book.sh:
-     The script to re-run the experiments reported in the book.
-
+- run_experiments.sh:
+     The script to re-run the experiments reported in our paper
 
 ### Step-by-Step Evaluation Instructions
 
-Our artifact consists of two parts: the proofs of template algorithms, to be verified by Iris/Coq, and the proofs of implementations, to be verified by GRASShopper.
+Our artifact consists of two parts: the proofs of the Iris formalization, to be verified by Coq, and the proofs of the template implementation, to be verified by GRASShopper.
 
+#### Iris Proofs
 
-#### Template Proofs
-
-These proofs live in the `templates/` directory and are verified by Iris/Coq.
+These proofs live in the `templates/multicopy` directory and are verified by Iris/Coq.
 From the `templates/` directory, one can check individual files by running, for example:
 
 ```bash
 coq_makefile -f _CoqProject -o Makefile
-make give_up.vo
+make multicopy/multicopy.vo
 ```
 
 You can prefix the make command with e.g. `TIMED=true` in order to time each check, or `VERBOSE=true` in order to see the exact command being used. We suppress certain Coq warnings, but these are the same as the ones suppressed by Iris (see https://gitlab.mpi-sws.org/iris/iris/blob/master/_CoqProject).
 
-You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as either `Parameter` (for the helper function implementations) or `Hypothesis` (for an implementation-dependent lemma of the same name checked by GRASShopper). See below for a complete list of such assumptions.
+The artifact comes preinstalled with CoqIDE, a graphical tool to step through the coq proofs in a user-friendly manner. CoqIDE can be started by executing in terminal the command:
+
+```bash
+coqide
+```
+
+You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands. Our proofs make some assumptions about the implementation proofs checked by GRASShopper, but each of these are tagged as a `Parameter`. The assumption is either a helper function implementation or an implementation-dependent lemma of the same name checked by GRASShopper. See below for a complete list of such assumptions.
 
 Apart from these, we make the following assumptions in our Iris proofs:
 `lockLoc`, `getLockLoc`, `getLockLoc_spec`, and `node_timeless_proof`. The first three assumptions are a way to talk about the lock field of each node that all GRASShopper implementations have. These assumptions are declared in the file `lock.v`. The assumption `node_timeless_proof` is justified because GRASShopper uses a first-order separation logic.
@@ -194,63 +193,31 @@ These proofs live in the `implementations/` directory and are verified by GRASSh
 From the `implementations/` directory, one can check individual implementation files by running, for example:
 
 ```bash
-../grasshopper/grasshopper.native hashtbl-link.spl -module hashtbl-link
+../grasshopper/grasshopper.native multicopy-lsm.spl -module multicopy-lsm
 ```
 
 You can prefix the command with `time` in order to time each check, or append `-v` in order to see more verbose outputs.
 
-You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands. Note that there are some procedures/lemmas without bodies in ccm.spl. These should be interpreted as forward declarations that serve as axioms of the theory of CCMs.  The bodies (i.e. proofs) of these lemmas are then provided in `multiset_ccm.spl` for the specific instantiations of the CCM theory.
+You can verify that our GRASShopper proof scripts have no "holes" in them by checking that they contain no `assume` commands.
 
-#### Linking Templates and Implementations
+#### LSM DAG Template and Implementation
 
-The link template proof (`templates/link.v`) makes the following assumptions on its implementation proof (`implementations/{hashtbl-link,b-link}.spl`):
+The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy_lsm.spl`):
 
-* Parameter `node`:
-  This is a predicate that is defined in each implementation by a macro of the same name.
-* Parameters `findNext` and `decisiveOp`:
-  These are GRASShopper procedures in the implementation files. Note that `decisiveOp` is a placeholder for each of the three search structure operations: search, insert, and delete.
-* Parameters `findNext_spec` and `decisiveOp_spec`:
-  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
-* Hypotheses `node_sep_star` and `node_implies_nodeinv`:
-  These have GRASShopper lemmas of the same names, with proofs in each implementation file.
-
-The give-up template proof (`templates/give_up.v`) makes the following assumptions on its implementation proof (`implementations/{hashtbl-give-up,b+-tree}.spl`):
-
-* Parameter `node`:
-  This is a predicate that is defined in each implementation by a macro of the same name.
-* Parameters `findNext`, `inRange`, and `decisiveOp`:
-  These are GRASShopper procedures in the implementation files. Note that `decisiveOp` is a placeholder for each of the three search structure operations: search, insert, and delete.
-* Parameters `findNext_spec`, `inRange_spec`, and `decisiveOp_spec`:
-  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
-* Hypothesis `node_sep_star` and `node_implies_nodeinv`:
-  These have GRASShopper lemmas of the same name, with proofs in each implementation file.
-
-The lock-coupling template proof (`templates/coupling.v`) makes the following assumptions on its implementation proof (`implementations/{list-coupling}.spl`):
-
-* Parameter `node`:
-  This is a predicate that is defined in each implementation by a macro of the same name.
-* Parameters `allocRoot`, `findNext`, `inRange`, and `decisiveOp`:
-  These are GRASShopper procedures in the implementation files. Note that `decisiveOp` is a placeholder for each of the three search structure operations: search, insert, and delete.
-* Parameters `allocRoot_spec`, `findNext_spec`, `inRange_spec`, and `decisiveOp_spec`:
-  These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures mentioned above. These are checked manually to ensure that they match (modulo the different syntax for each tool).
-* Hypothesis `node_sep_star` and `node_implies_nodeinv`:
-  These have GRASShopper lemmas of the same name, with proofs in each implementation file.
-
-  
-The LSM DAG template proof (`templates/multicopy/multicopy_lsm*.v`) makes the following assumptions on its implementation proof (`implementations/multicopy-lsm.spl`):
-
-* Parameters `node`, `nodeSpatial` and `needsNewNode`:
-  These are predicates that are defined in the implementation by macros of the same name.
 * Parameters `findNext`, `inContent`, and `addContents`:
   These are GRASShopper procedures in the implementation file. These procedure are used by the `search` and `upsert` operations.
 * Parameters `atCapacity`, `chooseNext`, `mergeContents`, `allocNode` and `insertNode` :
-  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation. We do not anticipate any difficulty in extending the implementation proof to also support `mergeContents` and `allocNode`.
+  These are GRASShopper procedures in the implementation file, except for `mergeContents` and `allocNode`. These procedures are used by the `compact` operation.
+* Parameters `node`, `nodeSpatial` and `needsNewNode`:
+  These are predicates that are defined in the implementation by macros of the same name.
+* Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
+  These have GRASShopper lemmas of the same names, with proofs in the implementation file.
 * Parameters `findNext_spec`, `inContent_spec`, `addContents_spec`:
   These are the specifications (pre and post-conditions, denoted by requires and ensures keywords) of the procedures used by `search` and `upsert`. These are checked manually to ensure that they match (modulo the different syntax for each tool).
 * Parameters `atCapacity_spec`, `chooseNext_spec`, `mergeContents_spec`, `allocNode_spec` and `insertNode_spec` :
   These are the specifications of procedures used by the compact operation, manually checked to ensure that they match. 
-* Parameters `node_sep_star`, `node_es_disjoint` and `node_es_empty`:
-  These have GRASShopper lemmas of the same names, with proofs in the implementation file.
+ 
+#### Differential File Template
 
 The Differential File template proof (`templates/multicopy/multicopy_df*.v`) makes the following assumptions:
 
@@ -260,3 +227,28 @@ The Differential File template proof (`templates/multicopy/multicopy_df*.v`) mak
   These are predicates that capture resources needed to implement nodes in a Differential File data structure. 
 * Parameter `node_sep_star`:
 	This predicate is an assumption on the implementation made by the template algorithm.
+	
+### Paper-to-Artifact Correspondence Guide:
+
+Below we list points that will make it easier to make the connection between the definitions in the paper and the artifact.
+
+* The artifact uses (and includes) the Coq formalization of the Flow Framework [1]. These files are contained in the directory templates/flows. 
+
+* In Section 3.1, we define the contents of a node as finite map from Key to (Value, Timestamp), but we also alternately view contents as a set over Key x (Value, Timestamp). We also express the invariants with the notion of contents as a set (e.g., Invariant 3 in Sec. 6.1). In the artifact, the conversion between a set over Key x (Value, Timestamp) and a map from Key to (Value, Timestamp) is performed by the functions set_of_map and map_of_set in file multicopy.v in the directory templates/multicopy.
+
+* The invariants presented as Iris formulae in the paper use ghost locations of the form γ(n) for a node n (e.g. γ_e(n) in predicate N_L in Fig. 11). This suggests that γ is a map from nodes to ghost locations. This map also needs to be explicitly stored in the invariant, however we do not present in the paper how exactly this is done. As a result, the definition of an invariant in the artifact contains additional variables of type authoritative finite maps (gmaps in Iris standard library terms) to track this information. These variables are usually named hγ, hγt, etc. in the artifact.
+
+* The table below lists the discrepancies between the names used in the paper versus the artifact (also listed in the code appropriately).
+
+    | Paper |  Artifact |
+    | :---- | ---------: |
+    | \overline{MCS} | MCS_high |
+    | Inv | mcs |
+    | \overline{search} | search' |
+    | G | global_state |
+    | N_L | nodePred |
+    | N_S | nodeShared |
+
+### References
+
+[1] Siddharth Krishna, Alexander J. Summers, and Thomas Wies. 2020b.  Local Reasoning for Global Graph Properties. InProgramming Languages and Systems - 29th European Symposium on Programming, ESOP 2020, Held as Part of the EuropeanJoint Conferences on Theory and Practice of Software, ETAPS 2020, Dublin, Ireland, April 25-30, 2020, Proceedings (LectureNotes in Computer Science, Vol. 12075), Peter Müller (Ed.). Springer, 308–335.  https://doi.org/10.1007/978-3-030-44914-8_12
