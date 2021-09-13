@@ -5,8 +5,7 @@ set -e -x
 mkdir oopsla21_artifact
 cd oopsla21_artifact
 
-cp ../README_oopsla21.md .
-mv README_oopsla21.md README.md
+cp ../README.md .
 cp ../run_experiments_oopsla21.sh .
 mv run_experiments_oopsla21.sh run_experiments.sh
 cp ../setup.sh .
