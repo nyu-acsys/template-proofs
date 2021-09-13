@@ -1,6 +1,8 @@
-## Artifact for OOPSLA'21 paper: Verifying Concurrent Multicopy Structures
+## Artifact for OOPSLA'21 paper: Verifying Concurrent Multicopy Search Structures
 
-The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The login is `templates:templates`.
+Patel, N., Krishna, S., Shasha, D., & Wies, T. (2021). Verifying Concurrent Multicopy Search Structures. OOPSLA'21: Object Oriented Programming Languages, Systems and Applications, October 2021.
+
+The artifact is packaged as a VirtualBox Image based on Ubuntu 20.04.2. The login is `templates:templates`. An archived version can be downlaoded from Zenodo at `https://doi.org/10.5281/zenodo.5496104`. The artifact can also be generated from the script `create_oopsla_artifact.sh`.
 
 ### Getting Started Guide
 
@@ -10,7 +12,7 @@ Navigate to the folder `~/oopsla21_artifact`. Run the script `./run_experiments.
 
 ### Step-by-step Setup Guide
 
-Before instructions for the usage of the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/multicopy_with_vals`. The instructions to generate the `oopsla21_artifact` directory are as follows:
+Before instructions for the usage of the tools packaged with the artifact, we first provide details below about how to reproduce the setup of the VirtualBox Image. The proofs contained in this artifact are available publicly at `https://github.com/nyu-acsys/template-proofs/tree/multicopy`. The instructions to generate the `oopsla21_artifact` directory are as follows:
 
 ```bash
 sudo apt install git 			# ignore if git already installed
