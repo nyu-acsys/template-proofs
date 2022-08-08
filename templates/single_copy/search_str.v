@@ -17,7 +17,7 @@ Context `{Countable K}.
 Inductive dOp := searchOp | insertOp | deleteOp.
 
 (* Specification of a search structure operation *)
-Definition Ψ dop k (C: gsetO K) (C': gsetO K) (res: bool) :=
+Definition Ψ dop k (C: gset K) (C': gset K) (res: bool) :=
   match dop with
   | searchOp => C' = C ∧ (if res then k ∈ C else k ∉ C)
   | insertOp => C' = C ∪ {[k]} ∧ (if res then k ∉ C else k ∈ C)

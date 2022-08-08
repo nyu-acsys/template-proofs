@@ -224,7 +224,7 @@ Section keyset_updates.
     iIntros "Hks".
     iPoseProof (own_valid with "Hks") as "HvldCn".
     iDestruct "HvldCn" as %HvldCn.
-    rewrite auth_frag_valid in HvldCn *; intros HvldCn.
+    rewrite auth_frag_valid in HvldCn.
     unfold valid, cmra_valid in HvldCn.
     simpl in HvldCn. unfold ucmra_valid in HvldCn. simpl in HvldCn.
       by iPureIntro.

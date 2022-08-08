@@ -35,6 +35,11 @@ Class CcmUnit (A : Type) := ccmunit : A.
 Arguments ccmunit {_ _}.
 Notation "0" := ccmunit : ccm_scope.
 
+(*
+Class DiagNone {A B C} (f : option A → option B → option C) :=
+  diag_none : f None None = None.
+*)
+
 Open Scope ccm_scope.
 
 (* Definition of CCMs *)
@@ -309,11 +314,13 @@ Definition nzmap_merge_op `{CCM A} (f : A → A → A) :=
     if (decide (0 = r)) then None else Some r
   end.
 
+(*
 Instance nzmap_diag_merge_op `{CCM A} (f : A → A → A) : DiagNone (nzmap_merge_op f).
 Proof.
   unfold DiagNone.
   auto.
 Defined.
+*)
   
 Lemma nzmap_merge_wf `{Countable K} `{CCM A}
       (f : A → A → A) (m1 m2 : gmap K A) :
@@ -323,9 +330,8 @@ Proof.
   intros Hm1 Hm2 k x Hm.
   rewrite lookup_merge in Hm.
   unfold nzmap_merge_op in Hm.
-  destruct (m1 !! _), (m2 !! _);
-    try destruct (decide (0 = _)) eqn:?;
-        naive_solver.
+  destruct (m1 !! _), (m2 !! _); try done. 
+  all: simpl in Hm; destruct (decide (0 = _)) eqn:?; naive_solver.
 Qed.
 
 Definition nzmap_merge `{Countable K} `{CCM A} :=
@@ -345,11 +351,13 @@ Definition nzmap_imerge_op `{Countable K} `{CCM A} (f : K → A → A → A) :=
     if (decide (0 = r)) then None else Some r
   end.
 
+(*
 Instance nzmap_diag_imerge_op `{Countable K} `{CCM A} (k: K) (f : K → A → A → A) : DiagNone (nzmap_imerge_op f k).
 Proof.
   unfold DiagNone.
   auto.
 Defined.
+*)
 
 Lemma nzmap_imerge_wf `{Countable K} `{CCM A}
       (f : K → A → A → A) (m1 m2 : gmap K A) :
@@ -359,9 +367,9 @@ Proof.
   intros Hm1 Hm2 k x Hm.
   rewrite gmap_imerge_prf in Hm.
   unfold nzmap_imerge_op in Hm.
-  destruct (m1 !! _), (m2 !! _);
-    try destruct (decide (0 = _)) eqn:?;
-        naive_solver.
+  destruct (m1 !! _), (m2 !! _); 
+  try (destruct (decide (0 = _)) eqn:?; naive_solver).
+  all: naive_solver.
 Qed. 
 
 Definition nzmap_imerge `{Countable K} `{CCM A} :=
@@ -648,6 +656,7 @@ Proof.
   unfold UnitId in H1.
   rewrite H1.
   reflexivity.
+  try done.
 Qed.
 
 Lemma nzmap_imerge_empty {A} `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)}

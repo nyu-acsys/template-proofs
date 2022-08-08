@@ -33,7 +33,7 @@ Definition process_prophecy1 {A} {hA : Inhabited A} (f : val → option A) (vs :
   end.
 
 Section TypedProph.
-Context `{!heapG Σ}.
+Context `{!heapGS Σ}.
 
 Notation iProp := (iProp Σ).
 
@@ -142,7 +142,7 @@ Section bool_proph.
     mkTypedProphSpec bool bool_from_val bool_to_val bool_inj_prop.
 End bool_proph.
 
-Definition BoolTypedProph `{!heapG Σ} := make_TypedProph BoolProph.
+Definition BoolTypedProph `{!heapGS Σ} := make_TypedProph BoolProph.
 
 (** Instantiation of the interface with integers. *)
 
@@ -162,7 +162,7 @@ Section int_proph.
     mkTypedProphSpec Z int_from_val int_to_val int_inj_prop.
 End int_proph.
 
-Definition IntTypedProph `{!heapG Σ} := make_TypedProph IntProph.
+Definition IntTypedProph `{!heapGS Σ} := make_TypedProph IntProph.
 
 (** Instantiation of the interface with nats. *)
 
@@ -184,7 +184,7 @@ Section nat_proph.
     mkTypedProphSpec nat nat_from_val nat_to_val nat_inj_prop.
 End nat_proph.
 
-Definition NatTypedProph `{!heapG Σ} := make_TypedProph NatProph.
+Definition NatTypedProph `{!heapGS Σ} := make_TypedProph NatProph.
 
 (** Instantiation of the interface with VT (value-timestamp pairs). *)
 
@@ -210,4 +210,4 @@ Section vt_proph.
     mkTypedProphSpec (Z*nat) vt_from_val vt_to_val vt_inj_prop.
 End vt_proph.
 
-Definition VTTypedProph `{!heapG Σ} := make_TypedProph VTProph.
+Definition VTTypedProph `{!heapGS Σ} := make_TypedProph VTProph.

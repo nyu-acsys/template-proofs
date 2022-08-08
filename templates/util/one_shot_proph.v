@@ -16,7 +16,7 @@ Definition val_of_list (vs : list (val * val)) : val :=
 (** Specification for one-shot prophecy variables. *)
 
 Section one_shot.
-  Context `{!heapG Σ}.
+  Context `{!heapGS Σ}.
 
   Definition proph1 (p : proph_id) (v : val) :=
     (∃ vs, proph p vs ∗ ⌜match vs with [] => True | (_,w) :: _ => v = w end⌝)%I.
@@ -57,7 +57,7 @@ End one_shot.
 (** Alternative specification. *)
 
 Section one_shot'.
-  Context `{!heapG Σ}.
+  Context `{!heapGS Σ}.
 
   Definition proph1' (p : proph_id) (v : val) :=
     (∃ vs, proph p vs ∗ ⌜val_of_list vs = v⌝)%I.

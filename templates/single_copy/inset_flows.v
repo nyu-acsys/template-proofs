@@ -9,7 +9,7 @@ Section inset_flows.
 
 Context `{Countable K}.
 
-Definition KS := @KS K _ _.
+(* Definition KS := @KS K _ _. *)
 
 (** Keysets of flow interfaces *)
 
@@ -69,15 +69,14 @@ Proof.
         { unfold domm, dom, flowint_dom in e.
           set_solver.
         }
-        rewrite I'_def in H1.
-        rewrite nzmap_elem_of_dom_total in H1 *.
-        intros.
-        apply dec_stable in H1.
-        unfold out_map in H1.
-        by rewrite H1.
+        rewrite I'_def in H0.
+        rewrite nzmap_elem_of_dom_total in H0.
+        apply dec_stable in H0.
+        unfold out_map in H0.
+        by rewrite H0.
       }
       unfold outset, multiset_flows.dom_ms, nzmap_dom, out.
-      rewrite H1. simpl.
+      rewrite H0. simpl.
       rewrite dom_empty.
       apply not_elem_of_empty.
     * assert (n ∉ domm I) by set_solver.
