@@ -55,7 +55,6 @@ Class CCM (M: Type) :=
     ccm_cancel : Cancelative (=) ((+) : M → M → M);
     ccm_pinv : PartialInv (=) ((+) : M → M → M) (-);
   }.
-
 Arguments ccm_op : simpl never.
 Arguments ccm_opinv : simpl never.
 (*Arguments ccm_unit : simpl never.*)
@@ -65,10 +64,31 @@ Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
 (** Auxiliary lemmas and type classes. *)
 
+Instance ccm_eq_proper `{CCM A} : Proper (eq ==> eq ==> eq) ccm_op.
+Proof.
+  unfold Proper. intros x y Hxy a b Hab.
+  by rewrite Hxy Hab.
+Qed.
+
+Instance ccm_assoc1 `{CCM A} : Assoc (=) (ccm_op).
+Proof.
+  apply ccm_assoc.
+Qed.  
+
+Instance ccm_comm1 `{CCM A} : Comm (=) (ccm_op).
+Proof.
+  apply ccm_comm.
+Qed.
+
 Instance ccm_eq_eq `{CCM A}: EqDecision A.
 Proof.
   apply ccm_eq.
 Defined.
+
+Instance ccm_left_id1 `{CCM A}: LeftId (=) 0 (ccm_op).
+Proof.
+  apply ccm_left_id.
+Defined. 
   
 Lemma ccm_right_id `{CCM M} : RightId (=) 0 (+).
 Proof. intros x. etrans; [apply ccm_comm|apply ccm_left_id]. Qed.
@@ -78,6 +98,18 @@ Proof.
   rewrite <- (ccm_right_id x) at 1.
   apply ccm_pinv.
 Qed.
+
+Lemma ccm_misc `{CCM M} (x y z: M) : x + z - (y + z) = x - y.
+Proof.
+Admitted.
+
+Lemma ccm_misc2 `{CCM M} (x y z: M) : x - (y + z) = x - y - z.
+Proof.
+Admitted.
+
+Lemma ccm_misc3 `{CCM M} (x y z: M) : x - y - z = x - z - y.
+Proof.
+Admitted.
 
 Close Scope ccm_scope.
 
@@ -89,7 +121,7 @@ Instance nat_opinv : CcmOpInv nat := λ x y, (x - y)%nat.
 
 Instance nat_unit : CcmUnit nat := 0.
 
-Instance plus_assoc: Assoc (=) nat_op.
+Instance nat_assoc: Assoc (=) nat_op.
 Proof.
   unfold Assoc.
   intros.
@@ -97,7 +129,7 @@ Proof.
   lia.
 Qed.
 
-Instance plus_comm: Comm (=) nat_op.
+Instance nat_comm: Comm (=) nat_op.
 Proof.
   unfold Comm.
   intros.
@@ -105,7 +137,7 @@ Proof.
   lia.
 Qed.
 
-Instance plus_leftid: LeftId (=) 0 nat_op.
+Instance nat_leftid: LeftId (=) 0 nat_op.
 Proof.
   unfold LeftId.
   intros.
@@ -114,7 +146,7 @@ Proof.
   lia.
 Qed.
 
-Instance plus_cancel: Cancelative (=) nat_op.
+Instance nat_cancel: Cancelative (=) nat_op.
 Proof.
   unfold Cancelative.
   intros.
@@ -122,7 +154,7 @@ Proof.
   lia.
 Qed.
 
-Instance plus_pinv: PartialInv (=) nat_op nat_opinv.
+Instance nat_pinv: PartialInv (=) nat_op nat_opinv.
 Proof.
   unfold PartialInv.
   intros.
@@ -132,6 +164,56 @@ Qed.
 
 Instance nat_ccm : CCM nat := { }.
 
+(** The CCM of integers with addition. *)
+
+Instance Z_op : CcmOp Z := Z.add.
+
+Instance Z_opinv : CcmOpInv Z := Z.sub.
+
+Instance Z_unit : CcmUnit Z := 0.
+
+Instance Z_assoc: Assoc (=) Z_op.
+Proof.
+  unfold Assoc.
+  intros.
+  unfold Z_op.
+  lia.
+Qed.
+
+Instance Z_comm: Comm (=) Z_op.
+Proof.
+  unfold Comm.
+  intros.
+  unfold Z_op.
+  lia.
+Qed.
+
+Instance Z_leftid: LeftId (=) 0%Z Z_op.
+Proof.
+  unfold LeftId.
+  intros.
+  unfold Z_op.
+  unfold Z_unit.
+  lia.
+Qed.
+
+Instance Z_cancel: Cancelative (=) Z_op.
+Proof.
+  unfold Cancelative.
+  intros.
+  unfold Z_op in H.
+  lia.
+Qed.
+
+Instance Z_pinv: PartialInv (=) Z_op Z_opinv.
+Proof.
+  unfold PartialInv.
+  intros.
+  unfold Z_op, Z_opinv.
+  lia.
+Qed.
+
+Instance Z_ccm : CCM Z := { }.
 
 (** Products of CCMs are CCMs *)
 

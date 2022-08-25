@@ -38,4 +38,5 @@ multicopy/multicopy_lsm_search.v
 multicopy/multicopy_lsm_upsert.v
 multicopy/multicopy_lsm_compact.v
 
-lockfree/one_skiplist.v
+lockfree/skiplist_v0.v
+lockfree/skiplist_v0_search.v

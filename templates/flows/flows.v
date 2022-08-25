@@ -5,7 +5,7 @@
    Local Reasoning for Global Graph Properties: Siddharth Krishna and Alexander J. Summers and Thomas Wies, ESOP'20.
 *)
 
-From iris.algebra Require Export auth updates local_updates.
+From iris.algebra Require Export monoid auth updates local_updates.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
 Require Export ccm gmap_more.
@@ -485,6 +485,19 @@ Proof.
         rewrite H0. rewrite H1_dec. rewrite H2_dec.
         exact intUndef_not_valid.
 Qed.
+
+Lemma intComp_dom_disjoint : ∀ I1 I2, ✓ (I1 ⋅ I2) → domm I1 ## domm I2.
+Proof.
+  intros I1 I2 valid.
+  unfold op, intComp in valid.
+  destruct (decide (intComposable I1 I2)) as [H' | H'].
+  - unfold intComposable in H'.
+    by destruct H' as [_ [_ [? _]]].
+  - clear H'. destruct (decide (I1 = ∅)) as [-> | _].
+    + unfold domm. set_solver.
+    + destruct (decide (I2 = ∅)) as [-> | _]; set_solver.
+Qed.       
+     
 
 (* Interface composition is commutative. *)
 Lemma intComp_comm : ∀ (I1 I2: flowintT), I1 ⋅ I2 ≡ I2 ⋅ I1.
@@ -1439,6 +1452,7 @@ Proof.
   - exists intUndef. done.
 Qed.
 
+
 Lemma flowint_ucmra_mixin : UcmraMixin flowintT.
 Proof.
   split; try apply _; try done.
@@ -1459,6 +1473,8 @@ Open Scope ccm_scope.
 
 (* The unital camera of flow interfaces. *)
 Canonical Structure flowintUR : ucmra := Ucmra flowintT flowint_ucmra_mixin.
+
+Global Instance flowint_monoid : Monoid (intComp) := {| monoid_unit := ∅ |}.
 
 (** Assorted convenience lemmas. *)
 
