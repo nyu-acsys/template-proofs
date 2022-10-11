@@ -332,7 +332,7 @@ Definition nzmap_total_lookup `{Countable K} `{CCM A} i (m : nzmap K A) := defau
 Notation "m ! i" := (nzmap_total_lookup i m) (at level 20).
 
 Instance nzmap_dom `{Countable K} `{CCM A} : Dom (nzmap K A) (gset K) :=
-  λ m, dom (gset K) (nzmap_car m).
+  λ m, dom (nzmap_car m).
 
 Definition nzmap_unit `{Countable K} `{CCM A} := NZMap (∅ : gmap K A) (bool_decide_pack _ empty_nzmap_wf).
   
@@ -521,7 +521,7 @@ Proof.
 Qed.
 
 
-Lemma nzmap_elem_of_dom `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ is_Some (m !! i).
+Lemma nzmap_elem_of_dom `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom m ↔ is_Some (m !! i).
 Proof.
   unfold dom, nzmap_dom.
   rewrite elem_of_dom.
@@ -578,7 +578,7 @@ Proof.
   - rewrite lookup_insert_ne; try done.
 Qed.
 
-Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom (gset K) m ↔ m ! i <> 0.
+Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom m ↔ m ! i <> 0.
 Proof.
   pose proof (nzmap_is_wf m) as m_wf.
   unfold nzmap_total_lookup, default.
@@ -602,7 +602,7 @@ Proof.
 Qed.
 
 Lemma nzmap_dom_delete `{Countable K} `{CCM A} (i : K) (m : nzmap K A): 
-  dom (gset K) (nzmap_delete i m) ≡ dom (gset K) m ∖ {[i]}.
+  dom (nzmap_delete i m) ≡ dom m ∖ {[i]}.
 Proof.
   apply set_equiv. intros j. 
   rewrite elem_of_difference.
@@ -621,7 +621,7 @@ Qed.
 
 Lemma nzmap_dom_insert_zero `{Countable K} `{CCM A} 
     (i : K) (a: A) (m : nzmap K A):
-    a = 0 → dom (gset K) (<<[i:=a]>> m) ≡ dom (gset K) (m) ∖  {[i]}. 
+    a = 0 → dom (<<[i:=a]>> m) ≡ dom (m) ∖  {[i]}. 
 Proof.
   intros Ha. apply set_equiv. intros j. 
   rewrite elem_of_difference. 
@@ -639,7 +639,7 @@ Qed.
 
 Lemma nzmap_dom_insert_nonzero `{Countable K} `{CCM A} 
     (i : K) (a: A) (m : nzmap K A):
-      a ≠ 0 → dom (gset K) (<<[i:=a]>> m) ≡ {[i]} ∪ dom (gset K) (m).
+      a ≠ 0 → dom (<<[i:=a]>> m) ≡ {[i]} ∪ dom (m).
 Proof.
   intros Ha. apply set_equiv. intros j. rewrite elem_of_union. 
   rewrite !nzmap_elem_of_dom_total.

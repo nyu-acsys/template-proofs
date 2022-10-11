@@ -358,12 +358,12 @@ Definition gmap_insert_map {A} `{Countable K} (m s: gmap K A) : (gmap K A) :=
       map_fold f m s.
 
 Lemma gmap_lookup_insert_map_aux {A} `{Countable K} (m s: gmap K A) :
-      ∀ k, (k ∈ dom (gset K) s → gmap_insert_map m s !! k = s !! k)
-          ∧ (k ∉ dom (gset K) s → gmap_insert_map m s !! k = m !! k).
+      ∀ k, (k ∈ dom s → gmap_insert_map m s !! k = s !! k)
+          ∧ (k ∉ dom s → gmap_insert_map m s !! k = m !! k).
 Proof.
   set (P := λ (m': gmap K A) (X: gmap K A),
-              ∀ j, (j ∈ dom (gset K) X → m' !! j = X !! j)
-                  ∧ (j ∉ dom (gset K) X → m' !! j = m !! j)).
+              ∀ j, (j ∈ dom X → m' !! j = X !! j)
+                  ∧ (j ∉ dom X → m' !! j = m !! j)).
   apply (map_fold_ind P); try done.
   intros k a m' r Hmi HP. unfold P. unfold P in HP.
   intros j. split.
@@ -383,13 +383,13 @@ Proof.
 Qed.                              
 
 Lemma gmap_lookup_insert_map {A} `{Countable K} (m s: gmap K A) (k: K) :
-      k ∈ dom (gset K) s → gmap_insert_map m s !! k = s !! k.
+      k ∈ dom s → gmap_insert_map m s !! k = s !! k.
 Proof.
   apply gmap_lookup_insert_map_aux.
 Qed.
 
 Lemma gmap_lookup_insert_map_ne {A} `{Countable K} (m s: gmap K A) (k: K) :
-      k ∉ dom (gset K) s → gmap_insert_map m s !! k = m !! k.
+      k ∉ dom s → gmap_insert_map m s !! k = m !! k.
 Proof.
   apply gmap_lookup_insert_map_aux.
 Qed.

@@ -57,8 +57,8 @@ Definition inf (I: flowintT) (n: Node) := default 0 (inf_map I !! n).
 Definition out (I: flowintT) (n: Node) := out_map I ! n.
 
 Global Instance flowint_dom : Dom flowintT (gset Node) :=
-  λ I, dom (gset Node) (inf_map I).
-Definition domm (I : flowintT) := dom (gset Node) I.
+  λ I, dom (inf_map I).
+Definition domm (I : flowintT) := dom I.
 
 Global Instance flowint_elem_of : ElemOf Node flowintT :=
   λ n I, n ∈ domm I.
@@ -210,10 +210,10 @@ Proof.
   unfold valid, flowint_valid in V.
   destruct I as [Ir |].
   - destruct V as (Disj & _).
-    assert (dom (gset Node) (infR Ir) ## dom (gset Node) (nzmap_car (outR Ir))).
+    assert (dom (infR Ir) ## dom (nzmap_car (outR Ir))).
     apply map_disjoint_dom. trivial.
     unfold domm, dom, flowint_dom, inf_map in D.
-    assert (n ∉ dom (gset Node) (outR Ir)).
+    assert (n ∉ dom (outR Ir)).
     { unfold dom, nzmap_dom.
       set_solver.
     }
@@ -338,14 +338,14 @@ Proof.
       unfold valid, flowint_valid in V.
       destruct V as (V & _).
       simpl in V.
-      assert (dom (gset Node) infR0 ## dom (gset Node) (nzmap_car outR0)).
+      assert (dom infR0 ## dom (nzmap_car outR0)).
       rewrite <- map_disjoint_dom.
       trivial.
       unfold flowint_dom, inf_map in H0.
       simpl in H0.
       unfold nzmap_total_lookup.
       destruct (outR0 !! k) eqn:?.
-      assert (k ∈ dom (gset Node) outR0).
+      assert (k ∈ dom outR0).
       unfold dom, nzmap_dom.
       rewrite elem_of_dom.
       unfold is_Some.
@@ -354,7 +354,7 @@ Proof.
       destruct outR0.
       simpl.
       trivial.
-      assert (k ∉ dom (gset Node) outR0).
+      assert (k ∉ dom outR0).
       set_solver.
       contradiction.
       trivial.
@@ -410,7 +410,7 @@ Proof.
 Qed.
 
 (* The domain of a composite interface is the union of the domain of its component interfaces. *)
-Lemma infComp_dom : ∀ I1 I2, dom (gset Node) (infComp I1 I2) = domm I1 ∪ domm I2.
+Lemma infComp_dom : ∀ I1 I2, dom (infComp I1 I2) = domm I1 ∪ domm I2.
 Proof.
   intros.
   unfold domm.
@@ -739,7 +739,7 @@ Proof.
   simpl.
   split.
 
-  - assert (dom (gset Node) (infComp I1 I2) ## dom (gset Node) (nzmap_car (outComp I1 I2))).
+  - assert (dom (infComp I1 I2) ## dom (nzmap_car (outComp I1 I2))).
     { apply elem_of_disjoint.
       intros n Hin Hout.
       rewrite infComp_dom in Hin.
@@ -754,7 +754,7 @@ Proof.
     trivial.
   
   - intros.
-    assert (dom (gset Node) (infComp I1 I2) ≡ dom (gset Node) (∅ : gmap Node flowdom)).
+    assert (dom (infComp I1 I2) ≡ dom (∅ : gmap Node flowdom)).
     rewrite H0. auto.
     apply nzmap_eq.
     intros n.

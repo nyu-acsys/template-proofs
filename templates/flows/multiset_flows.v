@@ -15,7 +15,7 @@ Definition K_multiset := nzmap K nat.
 
 Global Instance K_multiset_ccm : CCM K_multiset := lift_ccm K nat.
 
-Definition dom_ms (m : K_multiset) := dom (gset K) m.
+Definition dom_ms (m : K_multiset) := dom m.
 
 Global Canonical Structure multiset_flowint_ur : ucmra := flowintUR K_multiset.
 
@@ -514,7 +514,7 @@ Qed.
 
 Lemma flowint_outflow_map_set_dom f I n S I' :
   I' = outflow_map_set f I n S →
-  (dom (gset Node) (out_map I') ⊆ dom _ (out_map I) ∪ {[n]}).
+  (dom (out_map I') ⊆ dom (out_map I) ∪ {[n]}).
 Proof.
   intros Heq.
   apply elem_of_subseteq.
