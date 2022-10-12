@@ -194,33 +194,100 @@ Proof.
   destruct h1 as [ fg1 | ]; last first.
   - rewrite fgComp_undef_op in Valid.
     by unfold valid, fgValid in Valid.
-  -   
+  -    
 Admitted.
 
 Lemma fgComp_valid_proj2 : ∀ (h1 h2: flow_graphT), ✓ (h1 ⋅ h2) → ✓ h2.
 Proof.
 Admitted.
 
+Lemma fgEmpty_dom : domm (∅: flow_graphT) = ∅.
+Proof.
+  unfold domm, dom, flow_graph_dom, flow_map, 
+    empty at 1, fg_empty, FG_empty, FG_emptyR.
+  simpl. set_solver.
+Qed. 
+
+Lemma fgComp_dom_disjoint : ∀ h1 h2, ✓ (h1 ⋅ h2) → domm h1 ## domm h2.
+Proof.
+  intros h1 h2 Valid.
+  unfold op, fgComp in Valid.
+  destruct (decide (fgComposable h1 h2)) as [HComp | _].
+  - by destruct HComp as [_ [_ H']].
+  - destruct (decide (h1 = ∅)) as [-> | _].
+    + by rewrite fgEmpty_dom.
+    + destruct (decide (h2 = ∅)) as [-> | _].
+      * by rewrite fgEmpty_dom.
+      * by unfold valid, fgValid in Valid.  
+Qed.
+
+Lemma fgComp_dom : ∀ h1 h2, ✓ (h1 ⋅ h2) → domm (h1 ⋅ h2) = domm h1 ∪ domm h2.
+Proof.
+  intros h1 h2 Valid. unfold op, fgComp.
+  unfold op, fgComp in Valid.
+  destruct (decide (fgComposable h1 h2)) as [HComp | _].
+  - unfold domm at 1, dom, flow_graph_dom, flow_map. simpl.
+    assert (dom (flowComp h1 h2) ⊆ domm h1 ∪ domm h2) as H'.
+    { intros x. unfold flowComp. rewrite elem_of_dom.
+      unfold is_Some. intros [x0 Hmerge].
+      rewrite gmap_imerge_prf in Hmerge; try done.
+      unfold flowComp_op in Hmerge.
+      destruct (flow_map h1 !! x) as [x1 | ] eqn: H''.
+      - inversion Hmerge. subst x1.
+        rewrite elem_of_union; left.
+        unfold domm, dom, flow_graph_dom. rewrite elem_of_dom.
+        by exists x0. 
+      - clear H''; destruct (flow_map h2 !! x) as [x1 | ] eqn: H''. 
+        inversion Hmerge. subst x1.
+        rewrite elem_of_union; right.
+        unfold domm, dom, flow_graph_dom. rewrite elem_of_dom.
+        by exists x0.
+        inversion Hmerge. }
+    assert (domm h1 ∪ domm h2 ⊆ dom (flowComp h1 h2)) as H''.
+    { intros x. rewrite elem_of_union.
+      intros [Hdom | Hdom].
+      - unfold flowComp. rewrite elem_of_dom.
+        rewrite gmap_imerge_prf; try done.
+        unfold flowComp, flowComp_op.
+        unfold domm, dom, flow_graph_dom in Hdom.
+        rewrite elem_of_dom in Hdom.
+        destruct Hdom as [x0 Hdom].
+        rewrite Hdom. try done.
+      - unfold flowComp. rewrite elem_of_dom.
+        rewrite gmap_imerge_prf; try done.
+        unfold flowComp, flowComp_op.
+        unfold domm, dom, flow_graph_dom in Hdom.
+        rewrite elem_of_dom in Hdom.
+        destruct Hdom as [x0 Hdom].
+        rewrite Hdom. destruct (flow_map h1 !! x); try done. }
+      set_solver.
+  - destruct (decide (h1 = ∅)) as [H' | _].
+    + subst h1. rewrite fgEmpty_dom.
+      set_solver.
+    + destruct (decide (h2 = ∅)) as [H' | _].
+      * subst h2. rewrite fgEmpty_dom.
+        set_solver.
+      * try done.   
+Qed.
+
 (* The components of valid composite flow graphs are composable. *)
 Lemma fgComposable_valid : ∀ (h1 h2: flow_graphT), ✓ (h1 ⋅ h2) → fgComposable h1 h2.
 Proof.
   intros h1 h2 Valid.
-  split 
-Admitted.
-
+  repeat split; try (apply (fgComp_valid_proj1 _ _ Valid)  || 
+                    apply (fgComp_valid_proj2 _ _ Valid)).
+  by apply fgComp_dom_disjoint.
+Qed.
 
 (* The composition of composable flow graphs is valid. *)
 Lemma fgValid_composable : ∀ (h1 h2: flow_graphT), fgComposable h1 h2 → ✓ (h1 ⋅ h2).
 Proof.
+  intros h1 h2 HComp.
+  unfold valid, fgValid. unfold op, fgComp.
+  rewrite decide_True; try done.
 Admitted.
 
-Lemma fgComp_dom_disjoint : ∀ h1 h2, ✓ (h1 ⋅ h2) → domm h1 ## domm h2.
-Proof.
-Admitted.
 
-Lemma fgComp_dom : ∀ h1 h2, ✓ (h1 ⋅ h2) → domm (h1 ⋅ h2) = domm h1 ∪ domm h2.
-Proof.
-Admitted.
 
 
 (* Flow graph composition is commutative. *)
@@ -321,7 +388,6 @@ Proof.
         unfold op, fgComp.
         repeat (rewrite decide_True; last by apply fgComposable_valid).
         apply f_equal. 
-        
         assert (edgeComp 
                   (fg fg1) 
                   (fg {| edgeR := edgeComp (fg fg2) (fg fg3); 
@@ -349,8 +415,19 @@ Proof.
         by rewrite H' H''.                
 Qed.
 
+(* Flow graph composition is associative (invalid case). *)
+Lemma fgComp_assoc_invalid (h1 h2 h3 : flow_graphT) : 
+        ¬ ✓ (h1 ⋅ (h2 ⋅ h3)) → ¬ ✓ (h1 ⋅ h2 ⋅ h3) → h1 ⋅ (h2 ⋅ h3) ≡ h1 ⋅ h2 ⋅ h3.
+Proof.
+Admitted.
 
+Global Instance fgRAcore : PCore flow_graphT :=
+  λ h, match h with
+       | fg hr => Some FG_empty
+       | fgUndef => Some fgUndef
+       end.
 
+Global Instance fgRAunit : cmra.Unit flow_graphT := FG_empty.
 
 Definition flow_graphRA_mixin : RAMixin flow_graphT.
 Proof.
@@ -358,16 +435,27 @@ Proof.
   - (* Core is unique? *)
     intros ? ? cx -> ?. exists cx. done.
   - (* Associativity *)
-    unfold Assoc.
-    eauto using intComp_assoc.
+    unfold Assoc. intros h1 h2 h3.
+    destruct (decide (✓ (h1 ⋅ (h2 ⋅ h3)))).
+    + by apply fgComp_assoc_valid.
+    + destruct (decide (✓ (h1 ⋅ h2 ⋅ h3))) as [Valid | Invalid].
+      * rewrite (fgComp_comm h1) in Valid.
+        rewrite (fgComp_comm _ h3) in Valid.
+        apply fgComp_assoc_valid in Valid.
+        rewrite fgComp_comm in Valid.
+        rewrite (fgComp_comm h3) in Valid.
+        rewrite (fgComp_comm h2) in Valid.
+        rewrite (fgComp_comm _ h1) in Valid.
+        trivial.
+      * by apply fgComp_assoc_invalid. 
   - (* Commutativity *)
-    unfold Comm. eauto using intComp_comm.
+    unfold Comm. apply fgComp_comm.
   - (* Core-ID *)
     intros x cx.
-    destruct cx eqn:?; unfold pcore, flowintRAcore; destruct x eqn:?;
+    destruct cx eqn:?; unfold pcore, fgRAcore; destruct x eqn:?;
       try (intros H1; inversion H1).
-    + rewrite intComp_comm.
-      apply intComp_unit.
+    + rewrite fgComp_comm.
+      apply fgComp_unit.
     + apply intComp_undef_op.
   - (* Core-Idem *)
     intros x cx.
