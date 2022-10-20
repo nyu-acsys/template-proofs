@@ -111,6 +111,14 @@ Lemma ccm_misc3 `{CCM M} (x y z: M) : x - y - z = x - z - y.
 Proof.
 Admitted.
 
+Lemma ccm_misc4 `{CCM M} (x: M) : x - x = 0.
+Proof.
+Admitted.
+
+Lemma ccm_misc5 `{CCM M} (x y z: M) : x = (y + z) + (x - (y + z)) → x = y + (x - y).
+Proof.
+Admitted.
+
 Close Scope ccm_scope.
 
 (** The CCM of natural numbers with addition. *)
