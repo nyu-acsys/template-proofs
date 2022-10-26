@@ -64,6 +64,8 @@ Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
 (** Auxiliary lemmas and type classes. *)
 
+Global Instance ccm_inhabited `{CCM A} : Inhabited A := populate 0.
+
 Instance ccm_eq_proper `{CCM A} : Proper (eq ==> eq ==> eq) ccm_op.
 Proof.
   unfold Proper. intros x y Hxy a b Hab.
@@ -762,11 +764,11 @@ Proof.
   auto.
 Qed.
   
-Definition nzmap_map `{Countable K} `{CCM A} (f : A -> A) (k: K) (m: nzmap K A) : nzmap K A :=
-  <<[ k := f (m ! k) ]>> m.
+Definition nzmap_map `{Countable K} `{CCM A} (f : K -> A -> A) (k: K) (m: nzmap K A) : nzmap K A :=
+  <<[ k := f k (m ! k) ]>> m.
 
 Lemma nzmap_lookup_total_map `{Countable K} `{CCM A} f k (m: nzmap K A) :
-      nzmap_map f k m ! k = f (m ! k).
+      nzmap_map f k m ! k = f k (m ! k).
 Proof.
   unfold nzmap_map.
   rewrite nzmap_lookup_total_insert.
@@ -779,11 +781,11 @@ Definition nzmap_map_set `{Countable K} `{CCM A} f (s: gset K) (m : nzmap K A) :
 
 
 Lemma nzmap_lookup_total_map_set_aux `{Countable K} `{CCM A} f s (m : nzmap K A) :
-      ∀ k, (k ∈ s → nzmap_map_set f s m ! k = f (m ! k))
+      ∀ k, (k ∈ s → nzmap_map_set f s m ! k = f k (m ! k))
          ∧ (k ∉ s → nzmap_map_set f s m ! k = m ! k).
 Proof.
     set (P := λ (m': nzmap K A) (X: gset K),
-                    ∀ x, (x ∈ X → m' ! x = f (m ! x))
+                    ∀ x, (x ∈ X → m' ! x = f x (m ! x))
                        ∧ (x ∉ X → m' ! x = m ! x) ).
     apply (set_fold_ind_L P); try done.
     intros x X r Hx HP.
@@ -806,7 +808,7 @@ Proof.
 Qed.
 
 Lemma nzmap_lookup_total_map_set `{Countable K} `{CCM A} f k s (m : nzmap K A) :
-      k ∈ s → nzmap_map_set f s m ! k = f (m ! k).
+      k ∈ s → nzmap_map_set f s m ! k = f k (m ! k).
 Proof.
   apply nzmap_lookup_total_map_set_aux.
 Qed.

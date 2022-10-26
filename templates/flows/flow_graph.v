@@ -9,7 +9,7 @@
 From iris.algebra Require Export monoid auth updates local_updates.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
-Require Export ccm ccm_big_op gmap_more.
+Require Export ccm ccm_big_op gmap_more flows.
 Require Import Coq.Setoids.Setoid.
 
 (* The set of nodes over which graphs are built. *)
@@ -346,7 +346,7 @@ Proof.
   case_eq h; last by (intros ->; try done).
   intros hr Hr. rewrite Hr in Valid.
   destruct Valid as [Valid _]. unfold fg_eqn_sat in Valid.  
-  Search map_Forall. rewrite Hr in Hnm. 
+  rewrite Hr in Hnm. 
   pose proof map_Forall_lookup_1 _ _ _ _ Valid Hnm as H'''.
   by simpl in H'''.
 Qed.
@@ -600,23 +600,6 @@ Proof.
   by apply ccm_misc5 in Heqn.
 Qed.
 
-Lemma fgComp_eqn_comp : 
-  ∀ h1 h2 h3, ✓ (h1 ⋅ h2) → 
-    fgComp_eqn_check h1 h3 → 
-      fgComp_eqn_check h2 h3 → 
-        fgComp_eqn_check (h1 ⋅ h2) h3.
-Proof.
-  intros h1 h2 h3 Valid Heqn1 Heqn2.
-  unfold fgComp_eqn_check. apply map_Forall_lookup.
-  intros n m Hnm. unfold fgComp_edgeflow. 
-  rewrite edgeflow_Comp; last by apply fgComposable_valid.
-  assert (n ∈ domm (h1 ⋅ h2)) as Hdomm.
-  { apply elem_of_dom; try done. }
-  rewrite fgComp_domm in Hdomm; try done.
-  apply elem_of_union in Hdomm.
-  destruct Hdomm as [Hdomm | Hdomm].
-  -   
-Admitted.
 
 Lemma fgComp_flow : ∀ h1 h2 n, n ∈ domm h1 → ✓ (h1 ⋅ h2) → flow_map (h1 ⋅ h2) !! n = flow_map h1 !! n.
 Proof.
@@ -948,6 +931,23 @@ Proof.
     intros x y. unfold valid. apply fgComp_valid_proj1.
 Qed.
 
+(* Relating flow graph to flow interface *)
+
+Definition flowint_of_graph (h: flow_graphT) : flowintT :=
+  match h with
+  | fgUndef => intUndef
+  | fg {| edgeR := ef; flowR := fl |} => 
+    let f1 := λ n m inf', <[n := m - (edgeflow h n)]> inf' in
+    let inf := map_fold f1 ∅ fl in
+    let f2 := λ n n' e_nn' res_n, 
+              if (decide (n' ∈ dom fl)) then res_n 
+              else <<[n' := (res_n ! n') + (e_nn' ! (fl !!! n))]>> res_n in  
+    let f3 := λ n map_n res, 
+              map_fold (f2 n) res (nzmap_car map_n) in
+    let out := map_fold f3 (∅: nzmap Node flow_dom) (nzmap_car ef) in
+    int {| infR := inf; outR := out |} end.
+    
+    
 
 
 
