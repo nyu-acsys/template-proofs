@@ -121,6 +121,11 @@ Lemma ccm_misc5 `{CCM M} (x y z: M) : x = (y + z) + (x - (y + z)) → x = y + (x
 Proof.
 Admitted.
 
+Lemma ccm_misc6 `{CCM M} (x: M) : x = x + x → x = 0.
+Proof.
+Admitted.
+
+
 Close Scope ccm_scope.
 
 (** The CCM of natural numbers with addition. *)
@@ -527,9 +532,13 @@ Definition nzmap_insert_map `{Countable K} `{CCM A}
 Class nzlmap `{Countable A, CCM A} (m : nzmap A A) : Prop := nzl_def : m ! 0 = 0.
 *)
 
+Definition nzmap_compose_dom `{Countable A, CCM A} (m1 m2: nzmap A A) : gset A :=
+  let f := λ k res, if (decide (m1 ! k ∈ dom m2)) then res ∪ {[k]} else res in
+  set_fold f ∅ (dom m1). 
+
 Definition nzmap_compose `{Countable A, CCM A} (m1 m2: nzmap A A) : nzmap A A :=
   let f := λ k res, <<[k := m2 ! (m1 ! k)]>> res  in 
-  set_fold f (∅: nzmap A A) (dom m1).
+  set_fold f (∅: nzmap A A) (nzmap_compose_dom m1 m2).
 
 Notation "m1 |> m2" := (nzmap_compose m1 m2) (at level 5).       
 
@@ -837,8 +846,8 @@ Proof.
 Qed.
 
 Lemma nzmap_lookup_total_compose_aux `{Countable A, CCM A} (m1 m2: nzmap A A) : 
-  ∀ k, (k ∈ dom m1 ∩ dom m2 → m1 |> m2 ! k = m2 ! (m1 ! k)) ∧
-       (k ∉ dom m1 ∩ dom m2 → m1 |> m2 ! k = 0).
+  ∀ k, (k ∈ nzmap_compose_dom m1 m2 → m1 |> m2 ! k = m2 ! (m1 ! k)) ∧
+       (k ∉ nzmap_compose_dom m1 m2 → m1 |> m2 ! k = 0).
 Proof.
   set (P := λ (m': nzmap A A) (X: gset A),
               ∀ k, (k ∈ X → m' ! k = m2 ! (m1 ! k))
@@ -858,29 +867,69 @@ Proof.
     by apply HP in H'.
 Qed.
 
-Lemma nzmap_lookup_total_compose `{Countable A, CCM A} (m1 m2: nzmap A A)
-  (Hm1 : m1 ! 0 = 0) (Hm2 : m2 ! 0 = 0) : 
-  ∀ k, m1 ∘∘ m2 ! k = m2 ! (m1 ! k).
+Lemma nzmap_compose_dom_elem_aux `{Countable A, CCM A} (m1 m2: nzmap A A) :
+  ∀ k, (k ∈ nzmap_compose_dom m1 m2 → k ∈ dom m1 ∧ (m1 ! k) ∈ dom m2) ∧
+        (k ∉ nzmap_compose_dom m1 m2 → k ∉ dom m1 ∨ (m1 ! k) ∉ dom m2).
 Proof.
-  intros k. destruct (decide (k ∈ dom m1 ∩ dom m2)) as [Hk | Hk].
+  set (P := λ (res: gset A) (X: gset A),
+              ∀ k, (k ∈ res → k ∈ X ∧ (m1 ! k) ∈ dom m2)
+                  ∧ (k ∉ res → k ∉ X ∨ (m1 ! k) ∉ dom m2)).
+  apply (set_fold_ind_L P); try done.
+  - unfold P. split; try (by left || done).
+  - intros k X res Hx HP. unfold P. unfold P in HP.
+    intros k0. destruct (decide (m1 ! k ∈ dom m2)) as [Dec | Dec]; split.
+    + rewrite elem_of_union. intros [Hk | Hk].
+      * pose proof HP k0 as HP. destruct HP as [HP _].
+        apply HP in Hk. destruct Hk as [Hk1 Hk2].
+        split; [set_solver | done].
+      * assert (k0 = k) as -> by set_solver.
+        split; try done. set_solver.
+    + intros Hk. assert (k0 ∉ res) as Hk' by set_solver.
+      pose proof HP k0 as HP. destruct HP as [_ HP].
+      apply HP in Hk'. destruct Hk' as [Hk' | Hk'].
+      left; set_solver. by right. 
+    + intros Hk. pose proof HP k0 as HP. destruct HP as [HP _].
+      apply HP in Hk. destruct Hk as [Hk1 Hk2]. 
+      split; try done. set_solver.
+    + intros Hk. pose proof HP k0 as HP. destruct HP as [_ HP].
+      apply HP in Hk. destruct Hk as [Hk | Hk]; try done.
+      * destruct (decide (k0 = k)) as [-> | ?].
+        ** by right.
+        ** left; set_solver.
+      * by right.   
+Qed.
+
+Lemma nzmap_compose_dom_elem `{Countable A, CCM A} (m1 m2: nzmap A A) :
+  ∀ k, k ∈ nzmap_compose_dom m1 m2 → k ∈ dom m1 ∧ (m1 ! k) ∈ dom m2.
+Proof.
+  apply nzmap_compose_dom_elem_aux.
+Qed.
+
+Lemma nzmap_compose_dom_elem_not `{Countable A, CCM A} (m1 m2: nzmap A A) :
+  ∀ k, k ∉ nzmap_compose_dom m1 m2 → k ∉ dom m1 ∨ (m1 ! k) ∉ dom m2.
+Proof.
+  apply nzmap_compose_dom_elem_aux.
+Qed.
+
+Lemma nzmap_lookup_total_compose `{Countable A, CCM A} (m1 m2: nzmap A A)
+  (Hm1 : ∀ x y, m1 ! (x + y) = m1 ! x + m1 ! y)
+  (Hm2 : ∀ x y, m2 ! (x + y) = m2 ! x + m2 ! y) : 
+  ∀ k, m1 |> m2 ! k = m2 ! (m1 ! k).
+Proof.
+  intros k. destruct (decide (k ∈ nzmap_compose_dom m1 m2)) as [Hk | Hk].
   - pose proof (nzmap_lookup_total_compose_aux m1 m2 k) as [H' _].
     by apply H'.
-  - assert (dom m1 ∘∘ m2 = dom m1 ∩ dom m2) as Hdom.
-    { admit. }
-    rewrite <-Hdom in Hk.
-    rewrite nzmap_elem_of_dom_total in Hk.   
-    apply dec_stable in Hk. rewrite Hk.
-    rewrite <-nzmap_elem_of_dom_total2 in Hk.
-    rewrite Hdom in Hk.
-    destruct (decide (k ∈ dom m1)) as [Dm1 | Dm1].
-    +       
-      
-Admitted.  
-    
-   
-
-
-
+  - pose proof (nzmap_lookup_total_compose_aux m1 m2 k) as [_ H'].
+    assert (m1 ! k = 0 ∨ m2 ! (m1 ! k) = 0) as Hk'.
+    { repeat rewrite <-nzmap_elem_of_dom_total2.
+      by apply nzmap_compose_dom_elem_not. }
+    apply H' in Hk. rewrite Hk.
+    destruct Hk' as [Hk' | ->]; try done.
+    assert (m2 ! 0 = 0) as Hm2'.
+    { pose proof Hm2 0 0 as Hm2. rewrite ccm_right_id in Hm2.
+      by apply ccm_misc6. }
+    by rewrite Hk' Hm2'.
+Qed.
 
 Close Scope ccm_scope.
 

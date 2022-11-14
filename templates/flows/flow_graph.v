@@ -9,11 +9,11 @@
 From iris.algebra Require Export monoid auth updates local_updates.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
-Require Export ccm ccm_big_op gmap_more flows.
+Require Export ccm ccm_big_op gmap_more flows auxiliary.
 Require Import Coq.Setoids.Setoid.
 
 (* The set of nodes over which graphs are built. *)
-Definition Node := nat.
+(* Definition Node := nat. *)
 
 Section flow_graph.
 
@@ -933,21 +933,210 @@ Qed.
 
 (* Relating flow graph to flow interface *)
 
-Definition flowint_of_graph (h: flow_graphT) : flowintT :=
+Definition inf_fg (h: flow_graphT) : gmap Node flow_dom :=
   match h with
-  | fgUndef => intUndef
+  | fgUndef => ∅
   | fg {| edgeR := ef; flowR := fl |} => 
     let f1 := λ n m inf', <[n := m - (edgeflow h n)]> inf' in
-    let inf := map_fold f1 ∅ fl in
-    let f2 := λ n n' e_nn' res_n, 
+    map_fold f1 ∅ fl end.
+
+Definition outf_fg (h: flow_graphT) : nzmap Node flow_dom :=
+  match h with
+  | fgUndef => ∅
+  | fg {| edgeR := ef; flowR := fl |} => 
+    let f1 := λ n n' e_nn' res_n, 
               if (decide (n' ∈ dom fl)) then res_n 
               else <<[n' := (res_n ! n') + (e_nn' ! (fl !!! n))]>> res_n in  
-    let f3 := λ n map_n res, 
-              map_fold (f2 n) res (nzmap_car map_n) in
-    let out := map_fold f3 (∅: nzmap Node flow_dom) (nzmap_car ef) in
-    int {| infR := inf; outR := out |} end.
+    let f2 := λ n map_n res, 
+              map_fold (f1 n) res (nzmap_car map_n) in
+    map_fold f2 (∅: nzmap Node flow_dom) (nzmap_car ef) end.
+
+Definition flowint_of_fg (h: flow_graphT) : flowintT :=
+  match h with
+  | fgUndef => intUndef
+  | _ => int {| infR := inf_fg h; outR := outf_fg h |} end.
+
+Lemma flowint_of_fg_valid h : ✓ h → ✓ (flowint_of_fg h).
+Proof.
+Admitted.
     
+Definition delta (n n': Node) (m: flow_dom) : flow_dom :=
+  if (decide (n = n')) then m else 0.
+  
+Fixpoint cap_i (i: nat) (h: flow_graphT) (n n': Node) (m: flow_dom) : flow_dom :=
+  match i with
+  | 0 => delta n n' m
+  | S i' => delta n n' m + (fg_edge h n n' ! (cap_i i' h n n' m)) end.
+  
+Definition cap (h: flow_graphT) (n n': Node) (m: flow_dom) : flow_dom :=
+  cap_i (size (domm h)) h n n' m.
+
+(* Contextual extension of flow interfaces. *)
+Definition subflow_ext (h h': flow_graphT) : Prop := 
+  ✓ h ∧ ✓ h'
+  ∧ contextualLeq _ (flowint_of_fg h) (flowint_of_fg h')
+  ∧ (∀ n n' m, n ∈ domm h → n' ∉ domm h' 
+                 → m = m + (m - (inf_fg h !!! n)) → cap h n n' m = cap h' n n' m)
+  ∧ (∀ n n' m, n ∈ domm h' ∖ domm h → n' ∉ domm h' 
+                  → m = m + (m - (inf_fg h !!! n)) → cap h' n n' m = 0).
+
+Fixpoint chain (e: efT) (p : list Node) (n: Node) : nzmap flow_dom flow_dom :=
+  match p with
+  | [] => ∅
+  | n1 :: [] => e ! n1 ! n
+  | n1 :: n2 :: l => (e ! n1 ! n2) |> (chain e (l) n) end.
+
+(* Fix hd default *)  
+Definition eff_acy (h: flow_graphT) : Prop := 
+  ∀ (k: nat) ns, k > 0 → ns ∈ k_lists k (elements (domm h)) →
+    (chain (edge_map h) ns (hd 0 ns)) ! (flow_map h !!! (hd 0 ns)) = 0.
+
+Lemma domm_int_fg h : flows.domm (flowint_of_fg h) = domm h.
+Proof.
+Admitted.
     
-
-
-
+Lemma fg_update (h1 h1' h2: flow_graphT) :
+  ✓ (h1 ⋅ h2) → eff_acy (h1 ⋅ h2) → 
+    subflow_ext h1 h1' → domm h1' ∩ domm h2 = ∅ →
+      (∀ n, n ∈ domm h1'∖domm h1 → outf_fg h2 ! n = 0) →
+        ✓ (h1' ⋅ h2) ∧ eff_acy (h1' ⋅ h2) ∧ subflow_ext (h1 ⋅ h2) (h1' ⋅ h2).
+Proof.
+  intros V12 EA12 [V1 [V1' [HcontL [Hcap Hcap_out]]]] Domm Out.
+  assert (✓ h2) as V2 by (apply fgComp_valid_proj2 in V12; done).
+  assert (✓ (h1' ⋅ h2)) as V12'. 
+  { apply fgValid_composable. unfold fgComposable.
+    split; first done. split; first done.
+    split; first by (clear -Domm; set_solver). split.
+    + unfold fgComp_eqn_check. apply map_Forall_lookup.
+      intros n m' Hnm. unfold fgComp_edgeflow. 
+      assert (n ∈ domm h1') as n_in_h1'. { admit. }
+      destruct HcontL as [VI1 [VI2 [DommI1 [Inf Outf]]]].
+      case_eq h1; last by (intros ->; exfalso; try done).
+      intros fg1. intros Def_h1.
+      case_eq h1'; last by (intros ->; exfalso; try done).
+      intros fg1'. intros Def_h1'.
+      case_eq fg1; intros ef1 fl1 Def_fg1.
+      case_eq fg1'; intros ef1' fl1' Def_fg1'.
+      rewrite <-Def_fg1'. rewrite <-Def_h1'.
+      destruct (decide (n ∈ domm h1)) as [n_in_h1 | n_nin_h1].
+      * rewrite !domm_int_fg in Inf DommI1 Outf.
+        pose proof Inf n n_in_h1 as Inf.
+        assert (inf (flowint_of_fg h1) n = fl1 !!! n - edgeflow h1 n) as Hinf1.
+        { admit. }
+        assert (inf (flowint_of_fg h1') n = fl1' !!! n - edgeflow h1' n) as Hinf1'.
+        { admit. }
+        rewrite Hinf1 Hinf1' in Inf.
+        assert (fl1' !!! n = m') as Hfl1'_n. 
+        { unfold flow_map in Hnm. rewrite Def_h1' in Hnm.
+          rewrite Def_fg1' in Hnm. simpl in Hnm.
+          rewrite lookup_total_alt. rewrite Hnm.
+          try done. }
+        rewrite Hfl1'_n in Inf.
+        apply fgComposable_valid in V12.
+        destruct V12 as [_ [_ [_ [H' _]]]].
+        unfold fgComp_eqn_check in H'.
+        rewrite map_Forall_lookup in H'.
+        assert (is_Some (flow_map h1 !! n)) as Hfl1_n. { admit. }
+        destruct Hfl1_n as [m Hfl1_n].
+        pose proof H' n m Hfl1_n as H'.
+        unfold fgComp_edgeflow in H'.
+        (* CCM manipulation from this point on *)
+        (* Use H'; Inf *)
+        admit.
+      * assert (edgeflow h2 n = 0) as Hef2_n. { admit. }
+        rewrite Hef2_n. rewrite ccm_right_id.
+        (* Use validity of h1' *)
+        admit.
+    + unfold fgComp_eqn_check. apply map_Forall_lookup.
+      intros n m Hnm. unfold fgComp_edgeflow.
+      assert (edgeflow h1' n = edgeflow h1 n) as Hef1'_n.
+      { admit. }
+      (* Use validity of h1 ⋅ h2 *)       
+      admit. } 
+  split; last split; try done.
+  - admit. 
+  - unfold subflow_ext.
+    split; last split; try done.
+    split; last split.
+    + unfold contextualLeq. 
+      case_eq (h1 ⋅ h2); last by (intros H'; rewrite H' in V12; exfalso; try done).
+      intros fg12 Def_h12. rewrite <-Def_h12.
+      case_eq (h1' ⋅ h2); last by (intros H'; rewrite H' in V12'; exfalso; try done).
+      intros fg12' Def_h12'. rewrite <-Def_h12'.
+      case_eq fg12; intros ef12 fl12 Def_fg12.
+      case_eq fg12'; intros ef12' fl12' Def_fg12'.
+      case_eq h1; last by (intros ->; exfalso; try done).
+      intros fg1. intros Def_h1. rewrite <-Def_h1.
+      case_eq h1'; last by (intros ->; exfalso; try done).
+      intros fg1'. intros Def_h1'. rewrite <-Def_h1'.
+      case_eq h2; last by (intros ->; exfalso; try done).
+      intros fg2. intros Def_h2. rewrite <-Def_h2.
+      case_eq fg1; intros ef1 fl1 Def_fg1.
+      case_eq fg1'; intros ef1' fl1' Def_fg1'.        
+      case_eq fg2; intros ef2 fl2 Def_fg2.
+      rewrite !domm_int_fg.
+      split; first by apply flowint_of_fg_valid.
+      split; first by apply flowint_of_fg_valid.
+      split; last split.
+      * rewrite !fgComp_domm; try done.
+        assert (domm h1 ⊆ domm h1') as H'.
+        { admit. }
+        set_solver.
+      * intros n Domm_n.
+        unfold flowint_of_fg.
+        rewrite Def_h12 Def_h12'.
+        unfold inf, inf_map.
+        rewrite <-Def_h12. rewrite <-Def_h12'. simpl.
+        assert (inf_fg (h1 ⋅ h2) !! n = Some (fl12 !!! n - edgeflow (h1 ⋅ h2) n)) as H'.
+        { admit. }
+        assert (inf_fg (h1' ⋅ h2) !! n = Some (fl12' !!! n - edgeflow (h1' ⋅ h2) n)) as H''.
+        { admit. }
+        rewrite H' H''. simpl. clear H' H''.
+        assert (edgeflow (h1 ⋅ h2) n = edgeflow h1 n + edgeflow h2 n) as H'.
+        { admit. }
+        assert (edgeflow (h1' ⋅ h2) n = edgeflow h1' n + edgeflow h2 n) as H''.
+        { admit. }
+        rewrite H' H''. clear H' H''.
+        rewrite fgComp_domm in Domm_n; last done.
+        rewrite elem_of_union in Domm_n. destruct Domm_n as [Domm_n | Domm_n].
+        ** assert (fl12 !!! n = fl1 !!! n) as H'. { admit. }
+           assert (fl12' !!! n = fl1' !!! n) as H''. { admit. }
+           rewrite H' H''. clear H' H''.
+           (* From inf (h1 ⋅ h2) n = inf (h1' ⋅ h2) n *)
+           assert (fl1 !!! n - edgeflow h1 n = fl1' !!! n - edgeflow h1' n) as H'.
+           { admit. }
+           (* CCM manipulations from this point on *)
+           admit.
+         ** assert (fl12 !!! n = fl2 !!! n) as H'. { admit. }
+           assert (fl12' !!! n = fl2 !!! n) as H''. { admit. }
+           rewrite H' H''. clear H' H''.
+           (* ∀ n, n ∉ domm h1' → edgeflow h1 n = edgeflow h1' n *)
+           assert (edgeflow h1 n = edgeflow h1' n) as H'.
+           { admit. }
+           by rewrite H'.
+      * intros n Domm_n. unfold flowint_of_fg.
+        rewrite Def_h12 Def_h12'. unfold out, out_map.
+        rewrite <-Def_h12. rewrite <-Def_h12'. simpl.
+        assert (outf_fg (h1 ⋅ h2) ! n = edgeflow h1 n + edgeflow h2 n) as H'.
+        { admit. }
+        assert (outf_fg (h1' ⋅ h2) ! n = edgeflow h1' n + edgeflow h2 n) as H''.
+        { admit. }
+        (* ∀ n, n ∉ domm h1' → edgeflow h1 n = edgeflow h1' n *)
+        assert (edgeflow h1 n = edgeflow h1' n) as H'''.
+        { admit. }
+        by rewrite H' H'' H'''.
+    + intros n n' m Domm_n Domm_n' Hm.    
+        
+        
+        unfold outf_fg.
+        assert (outR {| infR := inf_fg (fg fg12); outR := outf_fg (fg fg12) |} =  simpl.
+            
+  
+  
+  
+  
+  
+  
+  
+  
+  
