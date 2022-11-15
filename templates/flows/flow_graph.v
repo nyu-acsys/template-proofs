@@ -25,6 +25,7 @@ Open Scope ccm_scope.
 Definition efT : Type := nzmap Node (nzmap Node (nzmap flow_dom flow_dom)).
 Canonical Structure efRAC := leibnizO efT.
 
+Definition edgeFn (e : efT) (n n' : Node) := e ! n ! n'.
 
 (* Representation of flow interfaces: 
    - The domain of the interface is the domain of its inflow infR. 
@@ -81,7 +82,7 @@ Qed.
 
 Definition fg_flow (h : flow_graphT) n := default 0 ((flow_map h) !! n).
 
-Definition fg_edge (h : flow_graphT) n n' := (edge_map h) ! n ! n'.
+Definition fg_edge (h : flow_graphT) n n' := edgeFn (edge_map h) n n'.
 
 Definition edgeflow (h1: flow_graphT) n := 
   ([^+ set] n' ∈ domm h1, (fg_edge h1 n' n) ! (fg_flow h1 n')).
@@ -980,16 +981,44 @@ Definition subflow_ext (h h': flow_graphT) : Prop :=
   ∧ (∀ n n' m, n ∈ domm h' ∖ domm h → n' ∉ domm h' 
                   → m = m + (m - (inf_fg h !!! n)) → cap h' n n' m = 0).
 
-Fixpoint chain (e: efT) (p : list Node) (n: Node) : nzmap flow_dom flow_dom :=
-  match p with
-  | [] => ∅
-  | n1 :: [] => e ! n1 ! n
-  | n1 :: n2 :: l => (e ! n1 ! n2) |> (chain e (l) n) end.
+Fixpoint chain (e: efT) (xs : list Node) (n: Node) (m: flow_dom) : flow_dom :=
+  match xs with
+  | [] => m
+  | n1 :: [] => edgeFn e n1 n ! m
+  | n1 :: (n2 :: _ as xs') => chain e (xs') n (edgeFn e n1 n2 ! m) end.
+
+(*
+Fixpoint chains (e: efT) (xss : list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
+  match xss with
+  | [] => m
+  | xs :: [] => chain e xs n m
+  | xs1 :: (xs2 :: _ as xss') => chains e (xss') n (chain e xs1 (hd 0 xs2) m) end.
+*)
+
+Fixpoint chains' (F: list Node → Node → flow_dom → flow_dom) 
+  (xss: list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
+  match xss with
+  | [] => m
+  | xs :: [] => F xs n m
+  | xs1 :: (xs2 :: _ as xss') => chains' F xss' n (F xs1 (hd 0 xs2) m) end.
+
+Definition chains (e: efT) (xss : list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
+  chains' (λ xs n' m', chain e xs n' m') xss n m.  
 
 (* Fix hd default *)  
 Definition eff_acy (h: flow_graphT) : Prop := 
-  ∀ (k: nat) ns, k > 0 → ns ∈ k_lists k (elements (domm h)) →
-    (chain (edge_map h) ns (hd 0 ns)) ! (flow_map h !!! (hd 0 ns)) = 0.
+  let hd_ns ns := hd 0 ns in
+  let k_paths k := k_lists k (elements (domm h)) in
+  let flow_n n := flow_map h !!! n in  
+  ∀ k ns, 
+    0 < k ∧ k ≤ size (domm h) → 
+      ns ∈ k_paths k →
+        chain (edge_map h) ns (hd_ns ns) (flow_n (hd_ns ns)) = 0.
+
+Global Instance eff_acy_dec: ∀ h, Decision (eff_acy h).
+Proof.
+  intros h; try done.
+Admitted.
 
 Lemma domm_int_fg h : flows.domm (flowint_of_fg h) = domm h.
 Proof.
