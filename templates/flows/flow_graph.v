@@ -976,16 +976,18 @@ Definition cap (h: flow_graphT) (n n': Node) (m: flow_dom) : flow_dom :=
 Definition subflow_ext (h h': flow_graphT) : Prop := 
   ✓ h ∧ ✓ h'
   ∧ contextualLeq _ (flowint_of_fg h) (flowint_of_fg h')
-  ∧ (∀ n n' m, n ∈ domm h → n' ∉ domm h' 
-                 → m = m + (m - (inf_fg h !!! n)) → cap h n n' m = cap h' n n' m)
-  ∧ (∀ n n' m, n ∈ domm h' ∖ domm h → n' ∉ domm h' 
-                  → m = m + (m - (inf_fg h !!! n)) → cap h' n n' m = 0).
+  ∧ (∀ n n' m, n ∈ domm h → n' ∉ domm h' → 
+                (inf_fg h !!! n) = (inf_fg h !!! n) + (m - (inf_fg h !!! n)) → 
+                  cap h n n' m = cap h' n n' m)
+  ∧ (∀ n n' m, n ∈ domm h' ∖ domm h → n' ∉ domm h' → 
+                (inf_fg h !!! n) = (inf_fg h !!! n) + (m - (inf_fg h !!! n)) → 
+                  cap h' n n' m = 0).
 
-Fixpoint chain (e: efT) (xs : list Node) (n: Node) (m: flow_dom) : flow_dom :=
+Fixpoint chain (f: Node → Node → flow_dom → flow_dom) (xs : list Node) (n: Node) (m: flow_dom) : flow_dom :=
   match xs with
   | [] => m
-  | n1 :: [] => edgeFn e n1 n ! m
-  | n1 :: (n2 :: _ as xs') => chain e (xs') n (edgeFn e n1 n2 ! m) end.
+  | n1 :: [] => f n1 n m
+  | n1 :: (n2 :: _ as xs') => chain f (xs') n (f n1 n2 m) end.
 
 (*
 Fixpoint chains (e: efT) (xss : list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
@@ -1002,8 +1004,15 @@ Fixpoint chains' (F: list Node → Node → flow_dom → flow_dom)
   | xs :: [] => F xs n m
   | xs1 :: (xs2 :: _ as xss') => chains' F xss' n (F xs1 (hd 0 xs2) m) end.
 
-Definition chains (e: efT) (xss : list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
-  chains' (λ xs n' m', chain e xs n' m') xss n m.  
+Definition chains (f: Node → Node → flow_dom → flow_dom) (xss : list (list Node)) (n: Node) (m: flow_dom) : flow_dom :=
+  chains' (λ xs n' m', chain f xs n' m') xss n m.  
+
+Definition eff_acy_aux (h: flow_graphT) k ns : Prop := 
+  let hd_ns ns := hd 0 ns in
+  let k_paths := k_lists k (elements (domm h)) in
+  let flow_n n := flow_map h !!! n in
+  let f n n' m := (edge_map h) ! n ! n' ! m in 
+  chain f ns (hd_ns ns) (flow_n (hd_ns ns)) = 0.
 
 (* Fix hd default *)  
 Definition eff_acy (h: flow_graphT) : Prop := 
@@ -1013,16 +1022,43 @@ Definition eff_acy (h: flow_graphT) : Prop :=
   ∀ k ns, 
     0 < k ∧ k ≤ size (domm h) → 
       ns ∈ k_paths k →
-        chain (edge_map h) ns (hd_ns ns) (flow_n (hd_ns ns)) = 0.
+        eff_acy_aux h k ns.
 
-Global Instance eff_acy_dec: ∀ h, Decision (eff_acy h).
+Global Instance eff_acy_dec: ∀ h k ns, Decision (eff_acy_aux h k ns).
 Proof.
-  intros h; try done.
-Admitted.
+  intros h k ns; unfold eff_acy_aux; try done.
+Qed.
 
 Lemma domm_int_fg h : flows.domm (flowint_of_fg h) = domm h.
 Proof.
 Admitted.
+
+(* Assumes x in X1 *)  
+Definition k_alternating (h1 h2: flow_graphT) (k: nat) (n: Node)  :=
+  let P n := bool_decide (n ∈ domm h1) in
+  let Q n := bool_decide (n ∈ domm h2) in
+  let f xs := alternating P Q xs in
+  let res' := filter f (k_lists (k-1) (elements (domm h1 ∖ {[n]} ∪ domm h2))) in
+  let f' xs := n :: xs in
+  map f' res'.  
+
+Lemma cap_comp_chain (h1 h2: flow_graphT) :
+  let inf n := inf_fg (h1 ⋅ h2) !!! n in
+  let F n n' m := if bool_decide (n ∈ domm h1) then cap h1 n n' m 
+                  else if bool_decide (n ∈ domm h2) then cap h2 n n' m else 0 in 
+  ✓ (h1 ⋅ h2) → eff_acy (h1 ⋅ h2) →
+    ∀ n n' m, 
+      n ∈ domm h1 → n' ∉ domm (h1 ⋅ h2) → 
+        inf n = inf_fg (h1 ⋅ h2) !!! n + (m - inf_fg (h1 ⋅ h2) !!! n) →
+          cap (h1 ⋅ h2) n n' m = 
+            ([^+ list] _ ↦ k ∈ seq 1 (size (domm (h1 ⋅ h2))),
+              ([^+ list] _ ↦ xs ∈ k_alternating h1 h2 k n,
+                chain F xs n' m
+              ) 
+            ).
+Proof.
+  intros inf F; subst inf F; simpl.
+Admitted.                
     
 Lemma fg_update (h1 h1' h2: flow_graphT) :
   ✓ (h1 ⋅ h2) → eff_acy (h1 ⋅ h2) → 
@@ -1155,7 +1191,7 @@ Proof.
         { admit. }
         by rewrite H' H'' H'''.
     + intros n n' m Domm_n Domm_n' Hm.    
-        
+      
         
         unfold outf_fg.
         assert (outR {| infR := inf_fg (fg fg12); outR := outf_fg (fg fg12) |} =  simpl.
