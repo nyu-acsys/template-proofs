@@ -36,7 +36,7 @@ Definition k_lists (k: nat) `{Countable A} (X: list A) : list (list A) :=
   let k_combs := k_combinations k X in
   concat (map (permutations) k_combs).
   
-Compute k_lists 3 [1;4;7;2].   
+Compute k_lists 2 [1;4;7;2].   
 
 (*
 Definition k_enum (k: nat) : list nat :=
