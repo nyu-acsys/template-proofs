@@ -419,6 +419,8 @@ Section list_flow_upd.
       intros ? ? [= <- <-]. intros In In' In1 In1' II I0' HInd'.
       intros HInd Hflow. apply HInd'; try done.
       destruct ns as [| ?].
+      + admit.
+      + admit.
       
       
     - intros I0 A0 ? n ? -> n1' ns -> (?, ?) HA0_n X_n ? [= -> ->] -> HInd <-.
