@@ -14,7 +14,7 @@ From iris.bi.lib Require Import fractional.
 Require Export one_shot_proph typed_proph.
 
 
-Definition read_low : val := 
+Definition read : val := 
   λ: "l1" "l2", 
     let: "v1" := !"l1" in
     (* { <->(l1 ↦ a1 ∗ l2 ↦ a2) } *)
@@ -30,19 +30,11 @@ Definition read_low : val :=
         ∗ a1 + a2 ≤ a1 + b2 ≤ b1 + b2 } *)
     "v1" + "v2".
 
-Definition read_high : val :=
-  λ: "l1" "l2",     
-    let: "t_id" := NewProph in
-    let: "p" := NewProph in
-    let: "v" := read_low "l1" "l2" in
-    resolve_proph: "p" to: "v";;
-    "v".
-
 Definition sing_incr: val :=
   rec: "sing_incr" "l" :=
      let: "oldv" := !"l" in
      if: CAS "l" "oldv" ("oldv" + #1)
-       then #()
+       then "oldv"
        else "sing_incr" "l".
 
 Definition incr: val :=
@@ -52,15 +44,28 @@ Definition incr: val :=
       then sing_incr "l1"
       else sing_incr "l2".
 
+Definition counterOp : val :=
+  λ: "n" "l1" "l2",     
+    let: "t_id" := NewProph in
+    let: "p" := NewProph in
+    let: "v" := 
+      if: "n" = "0" 
+        then read "l1" "l2"
+        else if: "n" = "1" then incr "l1" "l2"
+        else #() in
+    resolve_proph: "p" to: "v";;
+    "v".
+
+
 (** Proof Setup **)
 
 (* RAs used in proof *)
 
 Definition auth_natUR := authUR $ max_natUR.
 Definition frac_natR := dfrac_agreeR $ natUR.
-Definition map_natR := authR $ gmapUR nat $ agreeR (natR).
+Definition map_natR := authR $ gmapUR nat $ agreeR $ prodR natR natR.
 Definition tokenUR := exclR unitO.
-Definition frac_mapR := dfrac_agreeR $ gmapUR nat natUR.
+Definition frac_mapR := dfrac_agreeR $ gmapUR nat (prodR natUR natUR).
 Definition set_tidR := authR (gsetUR proph_id). 
 Definition thread_viewR := authUR $ gmapUR proph_id $ agreeR $ 
                                                         prodO natO gnameO.
@@ -83,15 +88,40 @@ Definition cntrΣ : gFunctors :=
 Instance subG_cntrΣ {Σ} : subG cntrΣ Σ → cntrG Σ.
 Proof. solve_inG. Qed.
 
+(* Data structure specific definitions *)
+Inductive Op := readOp | incrOp.
+Definition snapshot : Type := nat * nat.
+Definition absT : Type := nat.
+Definition resT : Type := nat.
+Definition seq_spec (op : Op) (s s': absT) (res: resT) : Prop :=
+  match op with
+  | readOp => s' = s ∧ res = s
+  | incrOp => s' = s + 1 ∧ res = s end.
+Parameter abs : snapshot -> absT.  
+  
+Instance seq_spec_dec : ∀ op s s' res, Decision (seq_spec op s s' res).
+Proof.
+Admitted.  
+
 Section counter.
   Context {Σ} `{!heapGS Σ, !cntrG Σ}.
   Notation iProp := (iProp Σ).
-  
+  Implicit Types M : gmap nat snapshot.
+  Implicit Types T : nat.
+
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
+
   
-  Definition map_max (M: gmap nat nat) : nat := 
-    max_list (elements (dom M)). 
+  Definition map_max (M: gmap nat snapshot) : nat := 
+    max_list (elements (dom M)).
+  
+  Definition hist γ_t γ_m M T : iProp :=
+    ∃ (M': gmap nat (agreeR (_))),
+      own γ_t (● MaxNat T) ∗ own γ_m (● M')
+    ∗ ⌜map_Forall (λ k a, a = to_agree (M !!! k)) M'⌝  
+    ∗ ⌜T = map_max M⌝   
+    ∗ ⌜∀ t, t < T → M !!! t ≠ M !!! (t+1)%nat⌝.
   
   Definition cntr γ_s (n: nat) : iProp := 
     own γ_s (to_frac_agree (1/2) n).
@@ -99,6 +129,7 @@ Section counter.
   Definition Cntr γ_s (n: nat) : iProp := 
     own γ_s (to_frac_agree (1/2) n).
 
+(*  
   Definition per_tick_inv (t: nat) : iProp := True. 
     
   Definition transition_inv (M: gmap nat nat) (T: nat) : iProp :=
@@ -109,69 +140,59 @@ Section counter.
   Definition resources γ_l1 γ_l2 l1 l2 (n1 n2 n: nat) : iProp :=
     l1 ↦ #n1 ∗ l2 ↦ #n2 ∗ ⌜(n1 + n2 = n)%nat⌝
     ∗ own γ_l1 (● MaxNat n1) ∗ own γ_l2 (● MaxNat n2).
+*)
     
  (** Helping Inv **)
-
-  Definition read_seq_spec (s res: nat) : Prop := s = res.
   
-  Definition pau N γ_s (Q : val → iProp) := 
+  Definition au N γ_s op (Q : val → iProp) := 
     (AU << ∃∃ n, Cntr γ_s n >> 
-                  @ ⊤ ∖ (↑(cntrN N) ∪ ↑(threadN N)), ∅
-                 << ∀∀ v, Cntr γ_s n ∗ ⌜read_seq_spec n v⌝, COMM Q #v >>)%I.
+          @ ⊤ ∖ (↑(cntrN N) ∪ ↑(threadN N)), ∅
+        << ∀∀ n' res, Cntr γ_s n' ∗ ⌜seq_spec op n n' res⌝, COMM Q #res >>)%I.
+        
+  Definition past_lin M T op res t0 : iProp :=
+    ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
 
-  Definition Pending (P: iProp) (M: gmap nat nat) (t0 vp: nat) : iProp := 
-    P ∗ ⌜∀ t, t0 ≤ t ≤ map_max M → ¬read_seq_spec (M !!! t) vp⌝.
+  Definition Pending (P: iProp) M T op vp t0 : iProp := 
+    P ∗ £ 1 ∗ ¬ past_lin M T op vp t0.
 
-  Definition Done (Q: val → iProp) (γ_tk: gname)  
-                  (M: gmap nat nat) (t0 vp: nat) : iProp := 
-      (Q #vp ∨ own γ_tk (Excl ())) 
-    ∗ ⌜∃ t, t0 ≤ t ≤ map_max M ∧ read_seq_spec (M !!! t) vp⌝.
+  Definition Done γ_tk (Q: val → iProp) M T op (vp: nat) t0 : iProp := 
+      (Q #vp ∨ own γ_tk (Excl ())) ∗ past_lin M T op vp t0.
 
-  Definition State γ_sy (t_id: proph_id) γ_tk P Q 
-                  (t0 vp: nat) (M: gmap nat nat) : iProp :=
+  Definition State γ_sy γ_tk P Q M T op vp t0 : iProp :=
       own γ_sy (to_frac_agree (1/2) M)
-    ∗ (Pending P M t0 vp ∨ Done Q γ_tk M t0 vp).
+    ∗ ⌜T = map_max M⌝ 
+    ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
 
-  Definition thread_vars γ_t γ_ght t_id t0 γ_sy : iProp := 
+  Definition thread_vars γ_t γ_ght γ_sy t_id t0 : iProp := 
     own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition Reg (N: namespace) (γ_t γ_s γ_ght: gname) 
-                   (t_id: proph_id) (M: gmap nat nat) : iProp :=
-    ∃ (Q: val → iProp) (γ_tk γ_sy: gname) 
-    (t0 vp: nat) (vtid: val), 
+  Definition Reg N γ_t γ_s γ_ght t_id M : iProp :=
+    ∃ γ_tk γ_sy Q op (vp t0: nat) (vtid: val), 
         proph1 t_id vtid
-      ∗ thread_vars γ_t γ_ght t_id t0 γ_sy  
+      ∗ thread_vars γ_t γ_ght γ_sy t_id t0
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
-      ∗ □ pau N γ_s Q
-      ∗ inv (threadN N) (∃ M, State γ_sy t_id γ_tk (pau N γ_s Q) Q t0 vp M).
+      ∗ inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_s op Q) Q M T op vp t0).
 
-  Definition helping_protocol (N: namespace) (γ_t γ_s γ_td γ_ght: gname) 
-                                        (M: gmap nat nat) : iProp :=
+  Definition helping_inv (N: namespace) γ_t γ_s γ_td γ_ght M : iProp :=
     ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR _)),
         own γ_td (● R)
       ∗ own γ_ght (● hγt) ∗ ⌜dom hγt = R⌝  
       ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id M).
-
-  Definition counter_inv N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2: iProp := 
-    inv (cntrN N) 
-    (∃ (T n: nat) (M: gmap nat nat) 
-        (M': gmap nat (agreeR (natR))),
-      cntr γ_s n
-    ∗ own γ_t (● MaxNat T) ∗ own γ_m (● M')
-    ∗ ⌜map_Forall (λ k a, a = to_agree (M !!! k)) M'⌝  
-    ∗ ⌜T = map_max M⌝ ∗ ⌜M !!! T = n⌝   
-    ∗ ⌜∀ t, t < T → M !!! t ≠ M !!! (t+1)%nat⌝
-    ∗ ([∗ set] t ∈ dom M, per_tick_inv t)
-    ∗ transition_inv M T
-    ∗ (∃ n1 n2, resources γ_l1 γ_l2 l1 l2 n1 n2 n)
-    ∗ helping_protocol N γ_t γ_s γ_td γ_ght M).
+  
+  Definition ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv : iProp :=
+    inv (cntrN N)
+    (∃ M T n,
+      cntr γ_s n ∗ ⌜abs (M !!! T) = n⌝
+    ∗ hist γ_t γ_m M T
+    ∗ helping_inv N γ_t γ_s γ_td γ_ght M
+    ∗ template_inv M T).
     
   Definition ghost_update_protocol N γ_t γ_s γ_td γ_ght : iProp :=
-        ∀ M T n, 
-          ⌜(map_max M) < T⌝ -∗   
+        ∀ M T n n1 n2, 
+          ⌜map_max M = T⌝ -∗   
             cntr γ_s n -∗ own γ_t (● MaxNat T) -∗ 
-              helping_protocol N γ_t γ_s γ_td γ_ght M ={⊤ ∖ ↑cntrN N}=∗
-                helping_protocol N γ_t γ_s γ_td γ_ght (<[T := n]> M) 
+              helping_inv N γ_t γ_s γ_td γ_ght M ={⊤ ∖ ↑cntrN N}=∗
+                helping_inv N γ_t γ_s γ_td γ_ght (<[T := (n1, n2)]> M) 
                 ∗ cntr γ_s n ∗ own γ_t (● MaxNat T).
 
   (** Low-level specs *)
@@ -179,9 +200,10 @@ Section counter.
   Definition thread_start γ_t γ_ght t_id t0 : iProp := 
     ∃ γ_sy, thread_vars γ_t γ_ght t_id t0 γ_sy.
   
-  Definition past_state γ_m (s: nat) : iProp :=
+  Definition past_state γ_m (s: snapshot) : iProp :=
     ∃ t, own γ_m (◯ {[t := to_agree s]}).
 
+(*
   Lemma sing_incr_low_spec l N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2:
       ⌜l = l1 ∨ l = l2⌝ -∗
       (ghost_update_protocol N γ_t γ_s γ_td γ_ght) -∗ 
@@ -274,16 +296,17 @@ Section counter.
         done. iPureIntro. clear -H0. lia.
         wp_pures. by iModIntro.
   Admitted.
+*)
 
 
-
-  Lemma incr_low_spec N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2:
+  Lemma incr_low_spec N γ_s γ_t γ_m γ_td γ_ght template_inv l1 l2:
       (ghost_update_protocol N γ_t γ_s γ_td γ_ght) -∗ 
-          counter_inv N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2 -∗
+          ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv -∗
               <<< ∀∀ n, Cntr γ_s n >>> 
                      incr #l1 #l2 @ ↑(cntrN N)
               <<< Cntr γ_s (n+1), RET #() >>>.
   Proof.
+  (*  
     iIntros "Ghost_upd #HInv" (Φ) "AU".
     wp_lam. wp_pures. wp_apply nondet_bool_spec; try done.
     iIntros (b) "_". wp_pures. destruct b.
@@ -308,10 +331,11 @@ Section counter.
       iFrame "HCntr". iIntros "HΦ".
       iModIntro. iFrame.
   Qed.            
+  *)
+  Admitted.              
               
-              
-  Lemma incr_high_spec N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2 :
-          counter_inv N γ_s γ_t γ_m γ_td γ_ght γ_l1 γ_l2 l1 l2 -∗
+  Lemma incr_high_spec N γ_s γ_t γ_m γ_td γ_ght template_inv l1 l2 :
+          ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv -∗
               <<< ∀∀ n, Cntr γ_s n >>> 
                      incr #l1 #l2 @ ↑(cntrN N)
               <<< Cntr γ_s (n+1), RET #() >>>.
@@ -319,12 +343,12 @@ Section counter.
     iIntros "#HInv" (Φ) "AU".
     iAssert (ghost_update_protocol N γ_t γ_s γ_td γ_ght)%I 
                   as "Ghost_updP".
-    { iIntros (M T n)"HmaxM_T".
+    { iIntros (M T n n1 n2)"HmaxM_T".
       iDestruct "HmaxM_T" as %HmaxM_T.
       iIntros "Hcntr HT Prot". 
       iDestruct "Prot" as (R hγt)"(HR & Hγt & Domm_hγt & Hstar_reg)".
       iAssert (|={⊤ ∖ ↑cntrN N}=> 
-                ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id (<[T := n]> M)) 
+                ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id (<[T := (n1, n2)]> M)) 
                 ∗ cntr γ_s n ∗ own γ_t (● MaxNat T))%I 
                 with "[Hstar_reg Hcntr HT]" 
                 as ">(Hstar_reg & Hcntr & HT)".
@@ -338,17 +362,17 @@ Section counter.
         iMod ("HInd" with "[$Hbigstar] [$Hcntr] [$HT]") 
           as "(H' & Hcntr & HT)".
         iFrame "H'".
-        iDestruct "Htid" as (Q γ_tk γ_sy t0 vp vtid)
-              "(Hreg_proph & Hreg_gh & Hreg_sy & #Pau & #Hthinv)".
-        iInv "Hthinv" as (M')"Hstate".
-        iDestruct "Hstate" as "(>Hth_sy & Hstate)".
+        iDestruct "Htid" as (γ_tk γ_sy Q op vp t0 vtid)
+              "(Hreg_proph & Hreg_gh & Hreg_sy & #Hthinv)".
+        iInv "Hthinv" as (M' T')"Hstate".
+        iDestruct "Hstate" as "(>Hth_sy & >% & Hstate)".
         iAssert (⌜M' = M⌝)%I as "%". 
         { iPoseProof (own_valid_2 _ _ _ with "[$Hth_sy] [$Hreg_sy]") as "V_H".
           iDestruct "V_H" as %V_H.
           apply frac_agree_op_valid in V_H. destruct V_H as [_ V_H].
           apply leibniz_equiv_iff in V_H.
-          by iPureIntro. } subst M'. 
-        
+          by iPureIntro. } subst M'.
+        iAssert (⌜T' = T⌝)%I as "%". { admit. } subst T'.
         iCombine "Hreg_sy Hth_sy" as "H'". 
         iEval (rewrite <-frac_agree_op) in "H'".
         iEval (rewrite Qp.half_half) in "H'".
@@ -365,30 +389,34 @@ Section counter.
         iAssert (⌜t0 ≤ T⌝)%I as %t0_le_T. { admit. }
 
         iDestruct "Hstate" as "[Hpending | Hdone]".
-        - iDestruct "Hpending" as "(P & >%)".
+        - iDestruct "Hpending" as "(AU & >Hc & >%)".
           rename H into HPending.
-          destruct (decide (read_seq_spec (<[T:=n]> M !!! T) vp)) 
-            as [Hrss | Hrss_neg].
-          + Locate lc_fupd_elim_later. iDestruct ("Pau" with "P") as ">AU".
+          destruct (decide (seq_spec op n n vp)) 
+            as [Hss | Hss_neg].
+          + iMod (lc_fupd_elim_later with "Hc AU") as "AU".
             iMod "AU" as (n')"[Cntr [_ Hclose]]".
             iAssert (⌜n' = n⌝)%I as "%".
             { admit. } subst n'.
-            iSpecialize ("Hclose" $! vp).  
+            iSpecialize ("Hclose" $! n vp).  
             iMod ("Hclose" with "[Cntr]") as "HQ".
-            { iFrame "Cntr". iPureIntro.
-              by rewrite lookup_total_insert in Hrss. }
+            { iFrame "Cntr". iPureIntro. done. }
             iModIntro. iSplitL "Hth_sy HQ".
-            * iNext. iExists (<[T:=n]> M). iFrame. 
+            * iNext. iExists (<[T:=(n1, n2)]> M), T. iFrame "∗%". 
+              admit.
+              (*
               iRight. iSplitL. by iLeft.
               iPureIntro. exists T.
               assert (map_max (<[T:=n]> M) = T) as H'.
               { admit. } rewrite H'.
               split; try done.
+              *)
             * iModIntro. iFrame. 
-              iExists P, Q, γ_tk, γ_sy, t0, vp, vtid.
+              iExists γ_tk, γ_sy, Q, op, vp, t0, vtid.
               iFrame "∗#".
-          + iModIntro. iSplitL "Hth_sy P".
-            * iNext. iExists (<[T:=n]> M). iFrame. 
+          + iModIntro. iSplitL "Hth_sy AU".
+            * iNext. iExists (<[T:=n]> M), T. iFrame. 
+              admit.
+              (*
               iLeft. iFrame.
               iPureIntro. intros t.
               assert (map_max (<[T:=n]> M) = T) as H'.
@@ -403,12 +431,14 @@ Section counter.
                    rewrite H''. clear -n0 t0_le_t. lia. }
                  rewrite lookup_total_insert_ne; last done.  
                  apply (HPending t Ht).
+              *)   
             * iModIntro. iFrame. 
-              iExists P, Q, γ_tk, γ_sy, t0, vp, vtid.
+              iExists γ_tk, γ_sy, Q, op, vp, t0, vtid.
               iFrame "∗#".
         - iModIntro.
           iSplitR "Hreg_proph Hreg_sy Hreg_gh Hcntr HT".
           iNext. iExists (<[T := n]> M). iFrame.
+          (*
           iRight. iDestruct "Hdone" as "(HQ & %)".
           destruct H as [t [H' H'']].
           iFrame "HQ". iPureIntro.
@@ -420,7 +450,8 @@ Section counter.
             by rewrite H'''.
           * iModIntro. iFrame. 
             iExists P, Q, γ_tk, γ_sy, t0, vp, vtid.
-            iFrame "∗#". }
+            iFrame "∗#".*)
+          admit.   }
       
       iModIntro. iFrame "Hcntr HT".
       iExists R, hγt. iFrame. }
