@@ -12,7 +12,7 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 Require Export one_shot_proph typed_proph.
-Require Export multiset_flows search_str keyset_ra.
+Require Export multiset_flows search_structures keyset_ra.
 
 (** Assumed functions to retrieve next pointer from a node *)
 Parameter nextLoc : Node → loc.
@@ -22,6 +22,7 @@ Parameter inContents : val.
 Parameter findNext : val.
 Parameter try_constraint : val.
 Parameter maintenance : val.
+Parameter createNode: val.
 
 (** Template algorithms *)
 
@@ -34,7 +35,7 @@ Definition traverse_rec (r: Node) : val :=
       | SOME "s" =>
           match: try_constraint "p" "c" "s" with
             NONE =>
-              let: "fn_hk" := findNext "h" "k" in
+              let: "fn_hk" := findNext #r "k" in
               match: Snd "fn_hk" with
                 NONE => ""
               | SOME "n" => 
@@ -68,15 +69,23 @@ Definition delete (r: Node) : val :=
     else
       match: try_constraint "c" with
         NONE => #false
-      | SOME "_" => maintenance "k";; #true end.        
+      | SOME "_" => maintenance "k";; #true end.
+      
+Definition insert (r: Node) : val :=
+  rec: "ins" "k" :=
+    let: "pc" := traverse r "k" in
+    let: "p" := Fst "pc" in
+    let: "c" := Snd "pc" in
+    if: inContents "c" "k" then
+      #false
+    else
+      let: "e" := createNode "k" "c" in
+      match: try_constraint "p" "e" with
+        NONE => "ins" "k"
+      | SOME "_" => #true end.
     
-(** Proof Setup **)
-
-Definition K := Z.
-(* Parameter KS : gset K.*)
-
 (*
-The state stores:
+The snapshot stores:
 0) set of nodes
 1) ghost location for interface
 2) global interface
@@ -91,38 +100,18 @@ Node local info:
 4) Marking
 *)
 
-Definition State := gset K.
+Definition K := Z.
 
-(* RAs used in proof *)
-
-Definition stateUR := gsetUR K.
-Definition flow_KR := authR (multiset_flowint_ur K).
-Definition auth_natUR := authUR $ max_natUR.
-Definition frac_natR := dfrac_agreeR $ stateUR.
-Definition map_gsetKR := authR $ gmapUR nat $ agreeR (stateUR).
-Definition tokenUR := exclR unitO.
-Definition frac_mapR := dfrac_agreeR $ gmapUR nat stateUR.
-Definition set_tidR := authR (gsetUR proph_id). 
-Definition thread_viewR := authUR $ gmapUR proph_id $ agreeR $ 
-                                                        prodO natO gnameO.
+Definition flowUR := authR (multiset_flowint_ur K).
 Definition auth_keysetUR := authUR $ (keysetUR K).
 
 Class skG Σ := SK {
-                  sk_auth_natG :> inG Σ auth_natUR;
-                  sk_frac_natG :> inG Σ frac_natR;
-                  sk_map_natG :> inG Σ map_gsetKR;
-                  sk_tokenG :> inG Σ tokenUR;
-                  sk_frac_mapG :> inG Σ frac_mapR;
-                  sk_set_tidG :> inG Σ set_tidR;
-                  sk_thread_viewG :> inG Σ thread_viewR;
-                  sk_flow_viewG :> inG Σ flow_KR;
+                  sk_flowG :> inG Σ flowUR;
                   sk_auth_keysetG :> inG Σ auth_keysetUR;
                  }.
                  
 Definition skΣ : gFunctors :=
-  #[ GFunctor auth_natUR; GFunctor frac_natR; GFunctor map_gsetKR;
-     GFunctor tokenUR; GFunctor frac_mapR; GFunctor set_tidR;
-     GFunctor thread_viewR; GFunctor flow_KR; GFunctor auth_keysetUR ].
+  #[ GFunctor flowUR;  GFunctor auth_keysetUR ].
   
 Instance subG_skΣ {Σ} : subG skΣ Σ → skG Σ.
 Proof. solve_inG. Qed.
@@ -131,52 +120,40 @@ Section skiplist_v0.
   Context {Σ} `{!heapGS Σ, !skG Σ}.
   Notation iProp := (iProp Σ).
   
-  Global Definition sstrN N := N .@ "sstr".
-  Global Definition threadN N := N .@ "thread".
-
   Parameter node : Node → bool → (multiset_flowint_ur K) → (gset K) → iProp.
   Parameter node_timeless_proof : ∀ r n es V, Timeless (node r n es V).
   Global Instance node_timeless r n es V: Timeless (node r n es V).
   Proof. apply node_timeless_proof. Qed.  
 
-  Parameter PC : State → Node → gset K.
-  Parameter mark : State → Node → bool.
-  Parameter gintf : State → (multiset_flowint_ur K).
-  Parameter intf : State → Node → (multiset_flowint_ur K).
-  Parameter γ_I : State → gname.
-  Parameter γ_ks : State → gname.
-  Parameter gcont : State → gset K.
-  Parameter FP : State → gset Node.
+  Parameter PC : snapshot → Node → gset K.
+  Parameter mark : snapshot → Node → bool.
+  Parameter gintf : snapshot → (multiset_flowint_ur K).
+  Parameter intf : snapshot → Node → (multiset_flowint_ur K).
+  Parameter γ_I : snapshot → gname.
+  Parameter γ_ks : snapshot → gname.
+  Parameter FP : snapshot → gset Node.
 
-  Definition C (s: State) (n: Node) : gset K :=
+  Definition Cont (s: snapshot) (n: Node) : gset K :=
     if decide (mark s n) then ∅ else PC s n.
 
   Parameter out_set : multiset_flowint_ur K → gset K.
   Parameter out_map : multiset_flowint_ur K → gmap Node (gset K).
-
-  Definition keyset (I : multiset_flowint_ur K) n := 
-    dom_ms (inf I n) ∖ dom_ms (out I n).
+  Parameter keyset : multiset_flowint_ur K → gset K.
     
-  Definition SearchStr2 γ_s (s: State) : iProp := 
-    own γ_s (to_frac_agree (1/2) (gcont s)).
-  
-  Definition SearchStr γ_s (s: State) : iProp := 
-    own γ_s (to_frac_agree (1/2) (gcont s)).
-
   (** data structure specific inv *)  
 
   Definition node_local_pure s n : iProp :=
       ⌜¬ (mark s n) → out_set (intf s n) ⊆ inset K (intf s n) n⌝
-    ∗ ⌜C s n ⊆ keyset (intf s n) n⌝
+    ∗ ⌜Cont s n ⊆ keyset (intf s n)⌝
     ∗ ⌜mark s n → out_set (intf s n) ≠ ∅⌝.
 
   Definition node_local_inv s n : iProp :=
       own (γ_I s) (◯ intf s n) 
-    ∗ own (γ_ks s) (◯ prod (keyset (intf s n) n, C s n))
+    ∗ own (γ_ks s) (◯ prod (keyset (intf s n), Cont s n))
     ∗ node_local_pure s n.
 
   Definition per_tick_inv r s : iProp := 
-      own (γ_I s) (● (gintf s)) ∗ own (γ_ks s) (● prod (KS, gcont s))
+      own (γ_I s) (● (gintf s)) ∗ own (γ_ks s) (● prod (KS, abs s))
     ∗ ⌜inset K (intf s r) r = KS⌝ ∗ ⌜out_set (intf s r) = KS⌝
     ∗ ⌜¬ mark s r⌝
     ∗ [∗ set] n ∈ (FP s), node_local_inv s n.
@@ -190,17 +167,6 @@ Section skiplist_v0.
     ∧ (∀ n, n ∈ FP s → PC s n = PC s' n)
     ∧ (FP s ⊆ FP s').
   
-  (** History Inv *)
-
-  Definition history_inv γ_t γ_m r (M: gmap nat (gset K)) T s : iProp :=
-    ∃ (Ag_M: gmap nat (agreeR (gsetO K))),
-      own γ_t (● MaxNat T) ∗ own γ_m (● Ag_M)
-    ∗ ⌜∀ t, t ≤ T ↔ t ∈ dom (gset nat) M⌝ ∗ ⌜M !!! T = s⌝
-    ∗ ⌜map_Forall (λ k a, a = to_agree (M !!! k)) Ag_M⌝  
-    ∗ ⌜∀ t, t < T → M !!! t ≠ M !!! (t+1)%nat⌝
-    ∗ ([∗ set] t ∈ dom (gset nat) M ∖ {[ T ]}, per_tick_inv r (M !!! t))
-    ∗ ⌜∀ t, t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
-
   (** resources inv *)
 
   Definition nodeFull s n : iProp :=
@@ -208,91 +174,35 @@ Section skiplist_v0.
       node n m In pc
     ∗ ⌜m = mark s n⌝ ∗ ⌜In = intf s n⌝ ∗ ⌜pc = PC s n⌝  
     ∗ own (γ_I s) (◯ In)
-    ∗ own (γ_ks s) (◯ prod (keyset In n, C s n)).   
+    ∗ own (γ_ks s) (◯ prod (keyset In, Cont s n)).   
   
   Definition resources s : iProp :=
       [∗ set] n ∈ FP s, nodeFull s n. 
+        
+  Definition skiplist_inv r (M: gmap nat snapshot) 
+    (T: nat) (s: snapshot): iProp :=
+      ([∗ set] t ∈ dom M, per_tick_inv r (M !!! t))
+    ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝
+    ∗ ⌜transition_inv (M !!! T) s⌝
+    ∗ ([∗ set] n ∈ FP s, nodeFull s n).
     
-  Definition res_inv r s : iProp :=
-      per_tick_inv r s
-    ∗ resources s.
-    
-  (** Helping Inv **)
-  
-  Definition map_max (M: gmap nat State) : nat := 
-    max_list (elements (dom (gset nat) M)).
- 
-  Definition seq_spec (k: K) C res : Prop := Ψ searchOp k C C res. 
-  
-  Definition pau N γ_s P (Q : val → iProp) k := 
-    (▷ P -∗ ◇ AU << ∀ C, SearchStr γ_s C >> 
-                  @ ⊤ ∖ (↑(sstrN N) ∪ ↑(threadN N)), ∅
-                 << ∃ res, SearchStr γ_s C 
-                           ∗ ⌜seq_spec k C res⌝, COMM Q #res >>)%I.
-
-  Definition pending (P: iProp) k t0 vp  (M: gmap nat State) : iProp := 
-    P ∗ ⌜∀ t, t0 ≤ t ≤ map_max M → ¬ seq_spec k (gcont (M !!! t)) vp⌝.
-
-  Definition done (γ_tk: gname) (Q: val → iProp) k (t0: nat) (vp: bool)   
-                  (M: gmap nat State) : iProp := 
-      (Q #vp ∨ own γ_tk (Excl ())) 
-    ∗ ⌜∃ t, t0 ≤ t ≤ map_max M ∧ seq_spec k (gcont (M !!! t)) vp⌝.
-
-  Definition helping_state γ_sy γ_tk P Q k t0 vp M : iProp :=
-      own γ_sy (to_frac_agree (1/2) M)
-    ∗ (pending P k t0 vp M ∨ done γ_tk Q k t0 vp M).
-
-  Definition thread_vars γ_t γ_ght t_id t0 γ_sy : iProp := 
-    own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
-
-  Definition reg (N: namespace) (γ_t γ_s γ_ght: gname)
-                   (t_id: proph_id) M : iProp :=
-    ∃ (P: iProp) (Q: val → iProp) k (γ_tk γ_sy: gname) 
-    t0 vp (vtid: val), 
-        proph1 t_id vtid
-      ∗ thread_vars γ_t γ_ght t_id t0 γ_sy  
-      ∗ own (γ_sy) (to_frac_agree (1/2) M)
-      ∗ □ pau N γ_s P Q k
-      ∗ inv (threadN N) (∃ M, helping_state γ_sy γ_tk P Q k t0 vp M).
-
-  Definition helping_inv (N: namespace) γ_t γ_s γ_td γ_ght M : iProp :=
-    ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR _)),
-        own γ_td (● R)
-      ∗ own γ_ght (● hγt) ∗ ⌜dom (gset proph_id) hγt = R⌝  
-      ∗ ([∗ set] t_id ∈ R, reg N γ_t γ_s γ_ght t_id M).
-      
-      
-  Definition thread_id γ_t γ_ght t_id : iProp := 
-    ∃ t0 γ_sy, thread_vars γ_t γ_ght t_id t0 γ_sy.
-  
-  Definition past_state γ_t γ_ght γ_m t_id (s: State) : iProp :=
-    ∃ t0 γ_sy t, 
-      thread_vars γ_t γ_ght t_id t0 γ_sy 
-    ∗ own γ_m (◯ {[t := to_agree s]}) ∗ ⌜t0 ≤ t⌝.      
-
-  (** Final Invariant *)
-
-  Definition searchstr_inv N γ_s γ_t γ_m γ_td γ_ght r: iProp := 
-    inv (sstrN N) 
-    (∃ s M T,
-      SearchStr2 γ_s s
-    ∗ res_inv r s
-    ∗ history_inv γ_t γ_m r M T s
-    ∗ helping_inv N γ_t γ_s γ_td γ_ght M).
+  Instance skiplist_inv_timeless r M T s : Timeless (skiplist_inv r M T s).
+  Proof.
+  Admitted.     
     
   (** Helper functions specs *)
     
   Parameter inContents_spec : ∀ (N: namespace) (k: K) (n: Node),
-     ⊢ (<<< ∀ m In pc, node n m In pc >>>
-           inContents #n #k @ ⊤ ∖ ↑(sstrN N)
-       <<< ∃ (v: bool),
+     ⊢ (<<< ∀∀ m In pc, node n m In pc >>>
+           inContents #n #k @ ⊤
+       <<< ∃∃ (v: bool),
               node n m In pc ∗ ⌜v ↔ k ∈ pc⌝,
               RET #v >>>)%I.
 
   Parameter findNext_spec : ∀ (N: namespace) (k: K) (n: Node),
-     ⊢ (<<< ∀ m In pc, node n m In pc >>>
-           findNext #n #k @ ⊤ ∖ ↑(sstrN N)
-       <<< ∃ (succ: bool) (n': Node),
+     ⊢ (<<< ∀∀ m In pc, node n m In pc >>>
+           findNext #n #k @ ⊤
+       <<< ∃∃ (succ: bool) (n': Node),
               node n m In pc
             ∗ (match succ with true => ⌜k ∈ outset K In n'⌝ 
                              | false => ⌜k ∉ out_set In⌝ end),
@@ -300,9 +210,9 @@ Section skiplist_v0.
                                  | false => (#m, NONEV) end)  >>>)%I.
 
   Parameter try_constraint_trav_spec : ∀ (N: namespace) (k: K) (p c s: Node),
-     ⊢ (<<< ∀ mp Ip pcp, node p mp Ip pcp >>>
-           try_constraint #p #c #s @ ⊤ ∖ ↑(sstrN N)
-       <<< ∃ (succ: bool) Ip',
+     ⊢ (<<< ∀∀ mp Ip pcp, node p mp Ip pcp >>>
+           try_constraint #p #c #s @ ⊤
+       <<< ∃∃ (succ: bool) Ip',
               node p mp Ip' pcp
             ∗ (match succ with true => ⌜mp = false ∧ k ∈ (out_map Ip) !!! c⌝
                                      ∗ ⌜k ∈ (out_map Ip') !!! s⌝ 
@@ -312,7 +222,7 @@ Section skiplist_v0.
                                  | false => NONEV end)  >>>)%I.
 
   (** Some lemmas *)
-
+(*
   Parameter ghost_update_keyset : ∀ γ_k dop (k: K) Cn Cn' res K1 C,
     ⊢   ⌜Ψ dop k Cn Cn' res⌝ 
       ∗ own γ_k (● prod (KS, C)) 
@@ -322,7 +232,7 @@ Section skiplist_v0.
           ⌜Ψ dop k C C' res⌝ 
         ∗ own γ_k (● prod (KS, C'))
         ∗ own γ_k (◯ prod (K1, Cn')).
-          
+*)          
 End skiplist_v0.
     
 

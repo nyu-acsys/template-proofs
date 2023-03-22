@@ -198,11 +198,11 @@ Section counter.
   
   Definition css_inv N γ_t γ_s γ_m γ_td γ_ght template_inv : iProp :=
     inv (cssN N)
-    (∃ M T n,
-      CSS γ_s n ∗ ⌜abs (M !!! T) = n⌝
+    (∃ M T s,
+      CSS γ_s (abs s) ∗ ⌜abs (M !!! T) = abs s⌝
     ∗ hist γ_t γ_m M T
     ∗ helping_inv N γ_t γ_s γ_td γ_ght M
-    ∗ template_inv M T).
+    ∗ template_inv M T s).
     
   Definition update_helping_protocol N γ_t γ_s γ_td γ_ght : iProp :=
         ∀ M T C s, 
@@ -492,4 +492,5 @@ Section counter.
         assert (vp = res). { clear -vp_eq_res. lia. } 
         clear vp_eq_res. wp_pures. iModIntro. by subst vp.
   *)
-  Admitted.  
+  Admitted.
+End counter.  

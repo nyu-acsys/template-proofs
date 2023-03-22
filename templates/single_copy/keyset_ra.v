@@ -6,7 +6,7 @@ From iris.base_logic.lib Require Export iprop.
 From iris.base_logic.lib Require Export invariants.
 
 Set Default Proof Using "All".
-Require Export search_str flows auth_ext.
+(* Require Export search_str flows auth_ext.*)
 
 Section keyset_ra.
 
@@ -200,9 +200,9 @@ Proof.
 Qed.
 
 End keyset_ra.
-
 Arguments keysetUR _ {_ _}.
 
+(*
 Section keyset_updates.
   Context `{Countable K}.
 
@@ -290,3 +290,4 @@ Section keyset_updates.
   Qed.
 
 End keyset_updates.
+*)

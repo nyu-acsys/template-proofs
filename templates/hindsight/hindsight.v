@@ -23,9 +23,8 @@ Definition dsOp' : val :=
     resolve_proph: "p" to: "v";;
     "v".
 
-
-(** Proof Setup **)
-Section Proof.
+  
+Section Hindsight.
 
   (* Data structure specific definitions *)
 
@@ -60,51 +59,42 @@ Section Proof.
   Parameter snapshotUR_discrete : CmraDiscrete snapshotUR.
   Parameter absTUR_discrete : CmraDiscrete absTUR.
   Parameter snapshot_leibnizequiv : LeibnizEquiv (snapshot).
-  Parameter snapshot_lookuptotal : LookupTotal nat snapshot (gmap nat snapshot).
   Parameter snapshot_inhabited : Inhabited snapshot.
   Parameter resT_inhabited : Inhabited resT.
   Parameter Op_inhabited : Inhabited Op.
 
-  Instance snapshotUR_discrete' : CmraDiscrete snapshotUR.
+  Global Instance snapshotUR_discrete' : CmraDiscrete snapshotUR.
   Proof.
     apply snapshotUR_discrete.
   Qed.
   
-  Instance absTUR_discrete' : CmraDiscrete absTUR.
+  Global Instance absTUR_discrete' : CmraDiscrete absTUR.
   Proof.
     apply absTUR_discrete.
   Qed.
 
-  Instance snapshot_leibnizequiv' : LeibnizEquiv (snapshot).
+  Global Instance snapshot_leibnizequiv' : LeibnizEquiv (snapshot).
   Proof.
     apply snapshot_leibnizequiv.
   Qed.  
-  
-  Instance snapshot_lookuptotal' : LookupTotal nat snapshot (gmap nat snapshot).
-  Proof.
-    apply snapshot_lookuptotal.
-  Qed.
 
-  Instance snapshot_inhabited' : Inhabited snapshot.
+  Global Instance snapshot_inhabited' : Inhabited snapshot.
   Proof.
     apply snapshot_inhabited.
   Qed.
 
-  Instance resT_inhabited' : Inhabited resT.
+  Global Instance resT_inhabited' : Inhabited resT.
   Proof.
     apply resT_inhabited.
   Qed.
 
-  Instance Op_inhabited' : Inhabited Op.
+  Global Instance Op_inhabited' : Inhabited Op.
   Proof.
     apply Op_inhabited.
   Qed.
 
 
 
-  
-  (* Parameter snapshot_eq: EqDecision snapshot.*)
-  
   (* RAs used in proof *)
 
   Definition auth_natUR := authUR $ max_natUR.
@@ -225,7 +215,7 @@ Section Proof.
   Definition ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
-      dsRepI γ_s (abs s) ∗ ⌜M !!! T = s⌝
+      dsRepI γ_s (abs s) ∗ ⌜abs (M !!! T) = abs s⌝
     ∗ hist γ_t γ_m M T
     ∗ helping_inv N γ_t γ_s γ_td γ_ght M
     ∗ template_inv M T s).
@@ -370,8 +360,7 @@ Section Proof.
       wp_apply ((typed_proph_wp_resolve1 resTTypedProph 
                   _ _ _ _ _ _ _ (res))
         with "Hproph"); try done.
-      { unfold typed_proph_from_val. simpl.
-        apply resT_proph_resolve. }  
+      { unfold typed_proph_from_val; simpl. by rewrite resT_proph_resolve. }  
       wp_pures. iModIntro. iIntros "%vp_eq_res". subst vp.
        
       iApply fupd_wp.
@@ -435,8 +424,10 @@ Section Proof.
           as [Hdec | Hdec]. 
         - rewrite Hdec. rewrite Hdec in HPending.
           iExFalso. admit. 
-        - destruct (decide (updater_thread op res = false)) as [Hdec' | Hdec']; try done. 
-          rewrite Hdec'. rewrite Hdec' in HPending. admit. }  
+        - destruct (decide (updater_thread op res = false)) as [Hdec' | Hdec'].
+          + rewrite Hdec'. rewrite Hdec' in HPending. 
+            iExFalso. admit.
+          + admit. }  
       
       iDestruct "Hth_or" as "(Hth_or & Hpast)".  
       iDestruct "Hth_or" as "[Hth_or | >Hth_or]"; last first.
@@ -508,8 +499,8 @@ Section Proof.
       wp_apply ((typed_proph_wp_resolve1 resTTypedProph 
                   _ _ _ _ _ _ _ (res))
         with "Hproph"); try done.
-      { unfold typed_proph_from_val. simpl.
-        apply resT_proph_resolve. }  
+      { unfold typed_proph_from_val; simpl. by rewrite resT_proph_resolve. }    
       wp_pures. iModIntro. iIntros "->".
       wp_pures. iModIntro. done. 
-  Admitted.  
+  Admitted.
+End Hindsight.
