@@ -156,7 +156,7 @@ Section skiplist_v0_search.
     destruct mc; destruct succ.
     - iModIntro. iSplitR "Hpost".
       { admit. }
-      wp_pures. awp_apply (try_constraint_trav_spec _ k).
+      wp_pures. awp_apply (try_constraint_trav_spec k).
       iInv "HInv" as (M1 T1 s1) "(>CSS & >%Habs1 & >Hist & Help & >Templ)".
       { admit. }
       iAssert (⌜p ∈ FP s1⌝)%I as %FP_p.

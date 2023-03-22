@@ -80,7 +80,7 @@ Definition insert (r: Node) : val :=
       #false
     else
       let: "e" := createNode "k" "c" in
-      match: try_constraint "p" "e" with
+      match: try_constraint "p" "c" "e" with
         NONE => "ins" "k"
       | SOME "_" => #true end.
     
@@ -192,14 +192,14 @@ Section skiplist_v0.
     
   (** Helper functions specs *)
     
-  Parameter inContents_spec : ∀ (N: namespace) (k: K) (n: Node),
+  Parameter inContents_spec : ∀ (k: K) (n: Node),
      ⊢ (<<< ∀∀ m In pc, node n m In pc >>>
            inContents #n #k @ ⊤
        <<< ∃∃ (v: bool),
               node n m In pc ∗ ⌜v ↔ k ∈ pc⌝,
               RET #v >>>)%I.
 
-  Parameter findNext_spec : ∀ (N: namespace) (k: K) (n: Node),
+  Parameter findNext_spec : ∀ (k: K) (n: Node),
      ⊢ (<<< ∀∀ m In pc, node n m In pc >>>
            findNext #n #k @ ⊤
        <<< ∃∃ (succ: bool) (n': Node),
@@ -209,30 +209,40 @@ Section skiplist_v0.
               RET (match succ with true => (#m, SOMEV #n') 
                                  | false => (#m, NONEV) end)  >>>)%I.
 
-  Parameter try_constraint_trav_spec : ∀ (N: namespace) (k: K) (p c s: Node),
+  Parameter try_constraint_trav_spec : ∀ (k: K) (p c s: Node),
      ⊢ (<<< ∀∀ mp Ip pcp, node p mp Ip pcp >>>
            try_constraint #p #c #s @ ⊤
        <<< ∃∃ (succ: bool) Ip',
               node p mp Ip' pcp
-            ∗ (match succ with true => ⌜mp = false ∧ k ∈ (out_map Ip) !!! c⌝
+            ∗ (match succ with true => ⌜mp = false⌝ ∗ ⌜k ∈ (out_map Ip) !!! c⌝
                                      ∗ ⌜k ∈ (out_map Ip') !!! s⌝ 
                              | false => ⌜mp = true ∨ k ∉ (out_map Ip) !!! c⌝
                                       ∗ ⌜Ip' = Ip⌝ end),
               RET (match succ with true => SOMEV #() 
                                  | false => NONEV end)  >>>)%I.
 
-  (** Some lemmas *)
-(*
-  Parameter ghost_update_keyset : ∀ γ_k dop (k: K) Cn Cn' res K1 C,
-    ⊢   ⌜Ψ dop k Cn Cn' res⌝ 
-      ∗ own γ_k (● prod (KS, C)) 
-      ∗ own γ_k (◯ prod (K1, Cn))
-      ∗ ⌜Cn' ⊆ K1⌝ ∗ ⌜k ∈ K1⌝ ∗ ⌜k ∈ KS⌝ ==∗ 
-        ∃ C', 
-          ⌜Ψ dop k C C' res⌝ 
-        ∗ own γ_k (● prod (KS, C'))
-        ∗ own γ_k (◯ prod (K1, Cn')).
-*)          
+  Parameter createNode_spec : ∀ (k: K) (c: Node),
+     ⊢ ({{{ True }}}
+           createNode #k #c
+       {{{ (e: Node) em Ie pce, RET #e;
+              node e em Ie pce
+            ∗ ⌜k ∈ pce⌝
+            ∗ ⌜k ∈ outset K Ie c⌝ }}})%I.
+
+  Parameter try_constraint_insert_spec : ∀ (k: K) (p c e: Node),
+     ⊢ (<<< ∀∀ mp Ip pcp, node p mp Ip pcp >>>
+           try_constraint #p #c #e @ ⊤
+       <<< ∃∃ (succ: bool) Ip',
+              node p mp Ip' pcp
+            ∗ (match succ with true => ⌜mp = false⌝ ∗ ⌜k ∈ (out_map Ip) !!! c⌝
+                                     ∗ ⌜k ∈ (out_map Ip') !!! e⌝ 
+                             | false => ⌜mp = true ∨ k ∉ (out_map Ip) !!! c⌝
+                                      ∗ ⌜Ip' = Ip⌝ end),
+              RET (match succ with true => SOMEV #() 
+                                 | false => NONEV end)  >>>)%I.
+
+
+
 End skiplist_v0.
     
 
