@@ -9,8 +9,7 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
-Set Default Proof Using "All".
-From iris.bi.lib Require Import fractional.
+From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
 Require Export one_shot_proph typed_proph.
 
 Parameter dsOp : val.
