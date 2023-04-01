@@ -11,6 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
+From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
 Require Export one_shot_proph typed_proph.
 Require Export multiset_flows search_structures keyset_ra.
 
@@ -135,7 +136,7 @@ Section skiplist_v0.
   Parameter PC : snapshot → Node → gset K.
   Parameter GFI : snapshot → (multiset_flowint_ur K).
   Parameter FI : snapshot → Node → (multiset_flowint_ur K).
-  Parameter FP : snapshot → gset Node.
+  Parameter FP : snapshot → gsetUR Node.
 
   Definition Cont (s: snapshot) (n: Node) : gset K :=
     if decide (Mark s n) then ∅ else PC s n.
@@ -151,30 +152,33 @@ Section skiplist_v0.
       own γ_I (● (GFI s)) 
     ∗ own γ_fp (● FP s) 
     ∗ own γ_ks (● prod (KS, abs s)).
+    
+(*   Lemma test γ (s: snapshot) (n: Node) : own γ (● FP s) ==∗ own γ (● (FP s ∪ {[n]})).   *)
   
   Definition outflow_constraint (In: multiset_flowint_ur K) (esn: esT) : Prop := True.
 
-  Definition node_inv_pure s n : iProp :=
-      ⌜¬ (Mark s n) → out_set (FI s n) ⊆ inset K (FI s n) n⌝
-    ∗ ⌜Cont s n ⊆ keyset (FI s n)⌝
-    ∗ ⌜Mark s n → out_set (FI s n) ≠ ∅⌝
-    ∗ ⌜outflow_constraint (FI s n) (ES s n)⌝ .
+  Definition node_inv_pure s n : Prop :=
+      (¬ (Mark s n) → out_set (FI s n) ⊆ inset K (FI s n) n)
+    ∧ (Cont s n ⊆ keyset (FI s n))
+    ∧ (Mark s n → out_set (FI s n) ≠ ∅)
+    ∧ (outflow_constraint (FI s n) (ES s n)).
 
   Definition node_inv γ_I γ_ks s n : iProp :=
       node n (Mark s n) (ES s n) (PC s n)
     ∗ own γ_I (◯ (FI s n))
     ∗ own γ_ks (◯ prod (keyset (FI s n), Cont s n))
-    ∗ node_inv_pure s n.   
+    ∗ ⌜node_inv_pure s n⌝.   
 (*
   Definition node_local_inv s n : iProp :=
       own (γ_I s) (◯ intf s n) 
     ∗ own (γ_ks s) (◯ prod (keyset (intf s n), Cont s n))
     ∗ node_local_pure s n.
 *)
-  Definition per_tick_inv r s : iProp := 
-      ⌜inset K (FI s r) r = KS⌝ ∗ ⌜out_set (FI s r) = KS⌝
-    ∗ ⌜¬ Mark s r⌝
-    ∗ [∗ set] n ∈ (FP s), node_inv_pure s n.
+  Definition per_tick_inv r s : Prop := 
+      inset K (FI s r) r = KS 
+    ∧ out_es (ES s r) = KS
+    ∧ ¬ Mark s r
+    ∧ (∀ n, n ∈ (FP s) → node_inv_pure s n).
     
   Definition transition_inv s s' : Prop :=
       (∀ n, n ∈ FP s → Mark s n → ES s' n = ES s n)
@@ -187,14 +191,14 @@ Section skiplist_v0.
     (T: nat) (s: snapshot) : iProp :=
       globalRes γ_I γ_fp γ_ks s
     ∗ ([∗ set] n ∈ FP s, node_inv γ_I γ_ks s n)
-    ∗ ([∗ set] t ∈ dom M, per_tick_inv r (M !!! t))
-    ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝
-    ∗ ⌜transition_inv (M !!! T) s⌝.
+    ∗ ⌜∀ t, t ∈ dom M → per_tick_inv r (M !!! t)⌝
+    ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
     
   Instance skiplist_inv_timeless γ_I γ_fp γ_ks r M T s : 
     Timeless (skiplist_inv γ_I γ_fp γ_ks r M T s).
   Proof.
-  Admitted.     
+    try apply _.
+  Qed.     
     
   (** Helper functions specs *)
     
@@ -234,10 +238,9 @@ Section skiplist_v0.
   Parameter createNode_spec : ∀ (k: K) (n: Node),
      ⊢ ({{{ True }}}
            createNode #k #n
-       {{{ e m es pc, RET #e;
-              node e m es pc
-            ∗ ⌜k ∈ pc⌝
-            ∗ ⌜k ∈ es !!! n⌝ }}})%I.
+       {{{ e esn, RET #e;
+              node e false {[n := esn]} {[k]}
+            ∗ ⌜k ∈ esn⌝ }}})%I.
 
   Parameter try_constraint_insert_spec : ∀ (k: K) (pred curr entry: Node),
      ⊢ (<<< ∀∀ m es pc, node pred m es pc >>>

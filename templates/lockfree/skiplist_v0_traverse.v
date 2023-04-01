@@ -140,7 +140,7 @@ Section skiplist_v0_traverse.
     wp_lam. wp_pures. awp_apply (findNext_spec); try done.
     iInv "HInv" as (M0 T0 s0) "(>CSS & >%Habs0 & >Hist & Help & >Templ)".
     { admit. }
-    iDestruct "Templ" as "(Hglob & Res & PT & %Trans_M0 & %Trans_s0)". 
+    iDestruct "Templ" as "(Hglob & Res & %PT0 & %Trans_M0)". 
     iAssert (⌜c ∈ FP s0⌝)%I as %FP_c.
     { admit. }
     rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
@@ -158,7 +158,7 @@ Section skiplist_v0_traverse.
       wp_pures. awp_apply (try_constraint_trav_spec k).
       iInv "HInv" as (M1 T1 s1) "(>CSS & >%Habs1 & >Hist & Help & >Templ)".
       { admit. }
-      iDestruct "Templ" as "(Hglob & Res & PT & %Trans_M1 & %Trans_s1)".
+      iDestruct "Templ" as "(Hglob & Res & %PT1 & %Trans_M1)".
       iAssert (⌜p ∈ FP s1⌝)%I as %FP_p.
       { admit. }
       rewrite (big_sepS_delete _ (FP s1) p); last by eauto.
@@ -200,7 +200,7 @@ Section skiplist_v0_traverse.
     wp_lam. awp_apply (findNext_spec); try done.
     iInv "HInv" as (M0 T0 s0) "(>CSS & >%Habs0 & >Hist & Help & >Templ)".
     { admit. }
-    iDestruct "Templ" as "(Hglob & Res & PT & %Trans_M0 & %Trans_s0)". 
+    iDestruct "Templ" as "(Hglob & Res & %PT0 & %Trans_M0)". 
     iAssert (⌜r ∈ FP s0⌝)%I as %FP_r0.
     { admit. }
     rewrite (big_sepS_delete _ (FP s0) r); last by eauto.
@@ -214,18 +214,12 @@ Section skiplist_v0_traverse.
     iIntros (succ n) "(Node & Hif)".
     destruct succ; last first.
     - iAssert (⌜k ∉ KS⌝)%I as %k_notin_KS.
-      { iAssert (⌜T0 ∈ dom M0⌝)%I as %t_in_M0.
+      { iAssert (⌜T0 ∈ dom M0⌝)%I as %T0_in_M0.
         { admit. }
-        rewrite (big_sepS_delete _ (dom M0) T0); last by eauto.
-        iDestruct "PT" as "(PT_T0 & PT_rest)".
-        iAssert (per_tick_inv r (s0))%I with "[PT_T0]" as "PT_T0".
-        { admit. }
-        iDestruct "PT_T0" as "(Ins_r & Out_r & Mark_r & Hbig_star)".
+        pose proof PT0 T0 T0_in_M0 as PT_s0.
+        destruct PT_s0 as [Ins_r [Out_r [Mark_r Hbig_star]]].
         iDestruct "Hif" as %Hif.
-        iDestruct "Out_r" as %Out_r.
-        iDestruct "Node_rrest" as "(_&_&%H'&_)".
-        iPureIntro. rewrite <-H' in Out_r.
-        by rewrite Out_r in Hif. }
+        iPureIntro; rewrite <-Out_r. admit. }
       iClear "∗#". clear -k_in_KS k_notin_KS. exfalso; try done.
     - iModIntro.
       iAssert (past_state γ_m t0 s0)%I as "#Hist_s0".
@@ -234,13 +228,11 @@ Section skiplist_v0_traverse.
       { admit. }
       iAssert (⌜T0 ∈ dom M0⌝)%I as %T0_in_M0.
       { admit. }
-      rewrite (big_sepS_delete _ (dom M0) T0); last by eauto.
-      iDestruct "PT" as "(PT_T0 & PT_rest)".
-      iAssert (per_tick_inv r (s0))%I with "[PT_T0]" as "PT_T0".
-      { admit. }
-      iDestruct "PT_T0" as "(HI & HKS & %Ins_r & %Out_r 
-          & %Mark_r & Hbig_star)".
-      iAssert (⌜k ∈ inset K (intf s0 r) r⌝)%I as %k_in_Insr.
+      apply PT0 in T0_in_M0.
+      assert (M0 !!! T0 ≡ s0) as H'. admit.
+      rewrite H' in T0_in_M0.
+      destruct T0_in_M0 as [Ins_r [Out_r [Mark_r Hbig_star]]].
+      iAssert (⌜k ∈ inset K (FI s0 r) r⌝)%I as %k_in_Insr.
       { iPureIntro. by rewrite Ins_r. }
       iDestruct "Hif" as %k_in_Outr.
       iAssert (⌜n ≠ r⌝)%I as "%n_neq_r".
@@ -248,26 +240,19 @@ Section skiplist_v0_traverse.
       iAssert (⌜n ∈ FP s0 ∖ {[r]}⌝)%I as "%".
       { clear -FP_n n_neq_r. iPureIntro; set_solver. } 
       rewrite (big_sepS_delete _ (FP s0 ∖ {[r]}) n); last by eauto.
-      iDestruct "Res_rest" as "(NodeFull_n & Res_rest)".
-      iDestruct "NodeFull_n" as (mn In pcn) "(Node_n & Node_n_rest)".
-      iAssert (⌜Ir = intf s0 r⌝)%I as %HIr.
-      { by iDestruct "Node_rest" as "(_&%&_)". }
-      rewrite HIr in k_in_Outr.
-      iAssert (⌜k ∈ inset K (intf s0 n) n⌝)%I as %k_in_Insn.
+      iDestruct "Res_rest" as "((Node_n & Node_nrest) & Res_rnest)".
+      iAssert (⌜k ∈ outset K (FI s0 r) n⌝)%I as %k_in_r2n.
+      { admit. }
+      iAssert (⌜k ∈ inset K (FI s0 n) n⌝)%I as %k_in_Insn.
       { admit. }
       iAssert (traverse_rec_inv γ_m t0 k s0 r n)%I as "#Tr_inv".
       { iFrame "#%". }
       iSplitR "Hpost". 
       { iNext. iExists M0, T0, s0.
         iFrame "∗#%".
-        rewrite (big_sepS_delete _ (dom M0) T0); last by eauto.
-        iFrame. iSplitL "HI HKS Hbig_star".
-        { admit. }
-        rewrite (big_sepS_delete (nodeFull s0) (FP s0) r); last by eauto.
+        rewrite (big_sepS_delete _ (FP s0) r); last by eauto.
         rewrite (big_sepS_delete _ (FP s0 ∖ {[r]}) n); last by eauto.
-        iFrame. iSplitL "Node Node_rest". 
-        iExists mr, Ir, pcr. iFrame.
-        iExists mn, In, pcn. iFrame. }   
+        iFrame. }   
       wp_pures. wp_apply traverse_rec_spec; try done.
   Admitted.
 

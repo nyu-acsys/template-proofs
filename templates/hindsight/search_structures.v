@@ -1,3 +1,11 @@
+(*
+Differences compared to hindsight.v:
+
+1) History needs to be updated anytime a snapshot is 
+  updated (and not just when the abstract state is udpated).
+2) M !!! T = s -> M !!! T ≡ s
+*)
+
 (* Hindsight reasoning for search structures *)
 
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
@@ -199,7 +207,7 @@ Section counter.
   Definition css_inv N γ_t γ_s γ_m γ_td γ_ght template_inv : iProp :=
     inv (cssN N)
     (∃ M T s,
-      CSS γ_s (abs s) ∗ ⌜abs (M !!! T) = abs s⌝
+      CSS γ_s (abs s) ∗ ⌜M !!! T ≡ s⌝
     ∗ hist γ_t γ_m M T
     ∗ helping_inv N γ_t γ_s γ_td γ_ght M
     ∗ template_inv M T s).
