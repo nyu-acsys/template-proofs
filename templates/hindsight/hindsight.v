@@ -1,5 +1,3 @@
-(* Hindsight reasoning for search structures *)
-
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -11,27 +9,14 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
 Require Export one_shot_proph typed_proph.
+Require Export multiset_flows keyset_ra.
 
-Parameter dsOp : val.
 
-Definition dsOp' : val :=
-  λ: "OP" "r",     
-    let: "t_id" := NewProph in
-    let: "p" := NewProph in
-    let: "v" := dsOp "OP" "r" in
-    resolve_proph: "p" to: "v";;
-    "v".
-
+Module Type ABSTRACT_DATA_TYPE.
   
-Section Hindsight.
-
-  (* Data structure specific definitions *)
-
+  Parameter dsOp : val.
   Parameter Op : Type.
   Parameter Op_to_val : Op -> val.
-
-  Parameter snapshotUR : ucmra.
-  Definition snapshot := ucmra_car snapshotUR.
 
   Parameter absTUR : ucmra.
   Definition absT := ucmra_car absTUR.
@@ -48,20 +33,35 @@ Section Hindsight.
   Parameter resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
   
   Parameter seq_spec : Op -> absT -> absT -> resT -> Prop.
-  Parameter abs : snapshot -> absT.
-  Parameter updater_thread: Op -> resT -> bool.
-
-  Parameter neg_seq_spec_dec : ∀ op c c' res, Decision (¬ seq_spec op c c' res).
   Parameter seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
-  Parameter updater_thread_dec: ∀ op res b, Decision (updater_thread op res = b).  
+  Parameter updater_thread: Op -> resT -> bool.
+  Parameter updater_thread_dec: ∀ op res b, Decision (updater_thread op res = b).
+
+  Parameter Op_inhabited : Inhabited Op.
+  Parameter absTUR_discrete : CmraDiscrete absTUR.
+  Parameter resT_inhabited : Inhabited resT.
+
+End ABSTRACT_DATA_TYPE.
+
+Module Type DATA_STRUCTURE (ADT: ABSTRACT_DATA_TYPE).
+  Import ADT.
+
+  Parameter snapshotUR : ucmra.
+  Definition snapshot := ucmra_car snapshotUR.
+  
+  Parameter abs : snapshot -> absT.
   
   Parameter snapshotUR_discrete : CmraDiscrete snapshotUR.
-  Parameter absTUR_discrete : CmraDiscrete absTUR.
+  
   Parameter snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   Parameter snapshot_inhabited : Inhabited snapshot.
-  Parameter resT_inhabited : Inhabited resT.
-  Parameter Op_inhabited : Inhabited Op.
 
+End DATA_STRUCTURE.  
+
+
+Module HINDSIGHT_DEFS (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT).
+  Import ADT DS.
+  
   Global Instance snapshotUR_discrete' : CmraDiscrete snapshotUR.
   Proof.
     apply snapshotUR_discrete.
@@ -92,8 +92,7 @@ Section Hindsight.
     apply Op_inhabited.
   Qed.
 
-
-
+  
   (* RAs used in proof *)
 
   Definition auth_natUR := authUR $ max_natUR.
@@ -127,7 +126,7 @@ Section Hindsight.
        GFunctor frac_historyR; GFunctor set_tidR;
        GFunctor thread_viewR ].
   
-  Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsG Σ.
+  Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsG Σ.
   Proof. solve_inG. Qed.
 
   Context {Σ} `{!heapGS Σ, !dsG Σ}.
@@ -148,7 +147,7 @@ Section Hindsight.
     ∗ ⌜T = map_max M⌝
     ∗ ⌜map_Forall (λ k a, a = to_agree (M !!! k)) M'⌝
     ∗ ⌜∀ t, t < T → M !!! t ≠ M !!! (t+1)%nat⌝.
-  
+
   Definition dsRep γ_s (a: absTUR) : iProp := 
     own γ_s (to_frac_agree (1/2) a).
 
@@ -232,10 +231,14 @@ Section Hindsight.
               helping_inv N γ_t γ_s γ_td γ_ght M ={⊤ ∖ ↑cntrN N}=∗
                 helping_inv N γ_t γ_s γ_td γ_ght (<[T := s]> M) 
                 ∗ dsRep γ_s n ∗ own γ_t (● MaxNat T).
+    
+End HINDSIGHT_DEFS.
 
-  (** Proofs *)
+Module Type HINDSIGHT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT).
+  Module DEFS := HINDSIGHT_DEFS ADT DS.
+  Import ADT DS DEFS.
 
-  Parameter dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght template_inv op r γ_sy t_id t0,
+  Parameter dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght op (r: Node) template_inv γ_sy t_id t0,
           ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv -∗
             □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
               thread_vars γ_t γ_ght γ_sy t_id t0 -∗
@@ -243,6 +246,22 @@ Section Hindsight.
                      dsOp (Op_to_val op) #r
                 {{{ res, RET #res; past_lin_witness γ_m op res t0  }}}.
 
+End HINDSIGHT_SPEC.
+
+Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT) 
+  (HS: HINDSIGHT_SPEC ADT DS).
+  (* Module DEFS := HINDSIGHT_DEFS ADT DS. *)
+  Import ADT DS HS DEFS.
+
+  Definition dsOp' : val :=
+    λ: "OP" "r",     
+      let: "t_id" := NewProph in
+      let: "p" := NewProph in
+      let: "v" := dsOp "OP" "r" in
+      resolve_proph: "p" to: "v";;
+      "v".
+        
+  (** Proofs *)
 
   Lemma dsOp'_spec N γ_s γ_t γ_m γ_td γ_ght template_inv op r :
           ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv -∗
@@ -250,6 +269,7 @@ Section Hindsight.
                      dsOp' (Op_to_val op) #r @ ↑(cntrN N)
               <<< ∃∃ a' res, dsRep γ_s a' ∗ ⌜seq_spec op a a' res⌝, RET #res >>>.
   Proof.
+(*  
     iIntros "#HInv" (Φ) "AU". wp_lam. 
     wp_pure credit:"Hc". wp_pures.
     wp_apply wp_new_proph1; try done.
@@ -307,6 +327,8 @@ Section Hindsight.
     iAssert (own γ_t (◯ (MaxNat T0))) as "HfragT0".
     { admit. }
     
+    assert (∀ op c c' res, Decision (¬ seq_spec op c c' res)) as neg_seq_spec_dec.
+    { intros; apply not_dec. apply seq_spec_dec. }
     assert (∀ op c res, Decision (updater_thread op res = true 
               ∨ (updater_thread op res = false 
                   ∧ ¬ seq_spec op c c res))) as Hdec.
@@ -352,7 +374,7 @@ Section Hindsight.
       { admit. }
       iAssert (thread_vars γ_t γ_ght γ_sy tid T0)%I as "#Thr_vars".
       { iFrame "#". }
-      
+
       wp_apply dsOp_spec; try done.
       iIntros (res)"HpastW".
       wp_pures.
@@ -501,5 +523,358 @@ Section Hindsight.
       { unfold typed_proph_from_val; simpl. by rewrite resT_proph_resolve. }    
       wp_pures. iModIntro. iIntros "->".
       wp_pures. iModIntro. done. 
+*)
   Admitted.
-End Hindsight.
+  
+End CLIENT_SPEC.
+
+Module SEARCH_STRUCTURE : ABSTRACT_DATA_TYPE with Definition absTUR := gsetUR nat.
+
+  Parameter search : val.
+  Parameter insert : val.
+  Parameter delete : val.
+
+  Definition dsOp : val :=
+  λ: "OP" "r" "k",     
+    if: "OP" = #0 
+    then search "r" "k"
+    else if: "OP" = #1 
+    then insert "r" "k"
+    else delete "r" "k".
+
+  (* Definition K := Z. *)
+  Inductive Opp := searchOp : nat → Opp | insertOp : nat → Opp | deleteOp : nat → Opp.
+  Definition Op := Opp.
+
+  Definition Op_to_val (op: Op) : val :=
+    match op with
+    | searchOp _ => #0
+    | insertOp _ => #1
+    | deleteOp _ => #2 
+    end.
+    
+  Definition absTUR := gsetUR nat.
+  Definition absT := ucmra_car absTUR.
+
+  Definition resT := bool.
+  Definition resT_to_base_lit (b: resT) : base_lit := LitBool b.
+  Coercion resT_to_base_lit : resT >-> base_lit.
+  Definition resT_from_val (v : val) : option bool :=
+    match v with
+    | LitV(LitBool b) => Some b
+    | _               => None
+    end.
+  Definition resT_to_val (b : bool) : val := LitV(LitBool b).
+  
+  Lemma resT_inj_prop : ∀ (b : bool), bool_from_val (bool_to_val b) = Some b.
+  Proof. done. Qed.
+
+  Definition resTProph : TypedProphSpec :=
+    mkTypedProphSpec resT resT_from_val resT_to_val resT_inj_prop.
+  Definition resTTypedProph `{!heapGS Σ} := make_TypedProph resTProph.
+
+  Lemma resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
+  Proof. try done. Qed.
+
+  Definition seq_spec (op: Op) (C: absT) (C': absT) (res: bool) : Prop :=
+    match op with
+    | searchOp k => C' = C ∧ (if res then k ∈ C else k ∉ C)
+    | insertOp k => C' = C ∪ {[k]} ∧ (if res then k ∉ C else k ∈ C)
+    | deleteOp k => C' = C ∖ {[k]} ∧ (if res then k ∈ C else k ∉ C)
+    end.
+
+  Global Instance seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
+  Proof.
+    intros op c c' res. unfold seq_spec. 
+    destruct op; try apply and_dec; try destruct res; try apply _.
+  Qed.
+
+  Definition updater_thread (op: Op) (res: resT) : bool := 
+    match op, res with
+    | searchOp _, _ => false
+    | _, false => false
+    | _, _ => true
+    end.
+
+  Global Instance updater_thread_dec: ∀ op res b, 
+    Decision (updater_thread op res = b).
+  Proof.
+    intros op res b. unfold updater_thread.
+    destruct op; destruct res; try apply _.
+  Qed.  
+
+  Global Instance Op_inhabited : Inhabited Op := populate (searchOp 0).
+  Global Instance absTUR_discrete : CmraDiscrete absTUR.
+  Proof. try apply _. Qed.
+  Global Instance resT_inhabited : Inhabited resT.
+  Proof. try apply _. Qed.
+
+End SEARCH_STRUCTURE.
+
+Module SKIPLIST0 <: DATA_STRUCTURE SEARCH_STRUCTURE.
+  Import SEARCH_STRUCTURE.
+  
+  (*
+    The snapshot stores:
+    0) set of nodes
+    1) ghost location for interface
+    2) global interface
+    3) ghost location for keyset
+    4) global contents
+    5) map from nodes to node-local info
+
+    Node local info:
+    1) singleton interface
+    2) keyset
+    3) physical contents
+    4) Marking
+  *)
+
+  
+  Definition snapshotUR := natUR.
+  Definition snapshot := ucmra_car snapshotUR.
+  
+  Definition abs (s: snapshot) : absT := ∅.
+
+  Global Instance snapshotUR_discrete : CmraDiscrete snapshotUR.
+  Proof. try apply _. Qed.
+
+  Global Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
+  Proof. try apply _. Qed.
+  
+  Global Instance snapshot_inhabited : Inhabited snapshot := populate 0.
+  
+  Parameter inContents : val.
+  Parameter findNext : val.
+  Parameter try_constraint : val.
+  Parameter maintenance : val.
+  Parameter createNode: val.
+
+  (** Template algorithms *)
+
+  Definition traverse_rec (r: Node) : val :=
+    rec: "tr" "p" "c" "k" :=
+      let: "fn_ck" := findNext "c" "k" in
+      if: Fst "fn_ck" then
+        match: Snd "fn_ck" with
+          NONE => ""
+        | SOME "s" =>
+            match: try_constraint "p" "c" "s" with
+              NONE =>
+                let: "fn_hk" := findNext #r "k" in
+                match: Snd "fn_hk" with
+                  NONE => ""
+                | SOME "n" => 
+                    "tr" #r "n" "k" end
+            | SOME "_" => "tr" "p" "s" "k" end end  
+      else
+        match: Snd "fn_ck" with
+          NONE => ("p", "c")
+        | SOME "s" => "tr" "c" "s" "k" end.
+
+  Definition traverse (r: Node) : val := 
+    λ: "k", 
+      let: "fn_hk" := findNext #r "k" in
+      match: Snd "fn_hk" with
+        NONE => ""
+      | SOME "n" => 
+          traverse_rec r #r "n" "k" end.
+
+  Definition search (r: Node) : val :=
+    λ: "k",
+      let: "pc" := traverse r "k" in
+      let: "c" := Snd "pc" in
+      inContents "c" "k".
+      
+  Definition delete (r: Node) : val :=
+    λ: "k",
+      let: "pc" := traverse r "k" in
+      let: "c" := Snd "pc" in
+      if: ~ (inContents "c" "k") then
+        #false
+      else
+        match: try_constraint "c" with
+          NONE => #false
+        | SOME "_" => maintenance "k";; #true end.
+        
+  Definition insert (r: Node) : val :=
+    rec: "ins" "k" :=
+      let: "pc" := traverse r "k" in
+      let: "p" := Fst "pc" in
+      let: "c" := Snd "pc" in
+      if: inContents "c" "k" then
+        #false
+      else
+        let: "e" := createNode "k" "c" in
+        match: try_constraint "p" "c" "e" with
+          NONE => "ins" "k"
+        | SOME "_" => #true end.
+  
+  Definition esT : Type := gmap Node (gset nat).
+
+  Definition flowUR := authR (multiset_flowint_ur nat).
+  Definition auth_keysetUR := authUR $ (keysetUR nat).
+  Definition auth_setnodeUR := authUR $ (gsetUR Node).
+
+  Class skG Σ := SK {
+                    sk_flowG :> inG Σ flowUR;
+                    sk_auth_keysetG :> inG Σ auth_keysetUR;
+                    sk_auth_setnodeG :> inG Σ auth_setnodeUR;
+                   }.
+                 
+  Definition skΣ : gFunctors :=
+    #[ GFunctor flowUR;  GFunctor auth_keysetUR;
+       GFunctor auth_setnodeUR ].
+  
+  Instance subG_skΣ {Σ} : subG skΣ Σ → skG Σ.
+  Proof. solve_inG. Qed.
+
+  Section skiplist_v0.
+    Context {Σ} `{!heapGS Σ, !skG Σ}.
+    Notation iProp := (iProp Σ).
+  
+    Parameter node : Node → bool → esT → (gset nat) → iProp.
+    Parameter node_timeless_proof : ∀ r n es V, Timeless (node r n es V).
+    Global Instance node_timeless r n es V: Timeless (node r n es V).
+    Proof. apply node_timeless_proof. Qed.  
+
+    Parameter Mark : snapshot → Node → bool.
+    Parameter ES : snapshot → Node → esT.
+    Parameter PC : snapshot → Node → gset nat.
+    Parameter GFI : snapshot → (multiset_flowint_ur nat).
+    Parameter FI : snapshot → Node → (multiset_flowint_ur nat).
+    Parameter FP : snapshot → gset Node.
+  
+    Definition Cont (s: snapshot) (n: Node) : gset nat :=
+      if decide (Mark s n) then ∅ else PC s n.
+
+    Parameter out_set : multiset_flowint_ur nat → gset nat.
+    (* out_es es := ⋃_n es !!! n *)
+    Parameter out_es : esT → gset nat.
+    Parameter keyset : multiset_flowint_ur nat → gset nat. 
+    
+    (** data structure specific inv *)
+
+    Definition globalRes γ_I γ_fp γ_ks s : iProp :=
+        own γ_I (● (GFI s)) 
+      ∗ own γ_fp (● FP s) 
+      ∗ own γ_ks (● prod (KS, abs s)).
+    
+    Definition outflow_constraint (In: multiset_flowint_ur nat) (esn: esT) : Prop := True.
+  
+    Definition node_inv_pure s n : iProp :=
+        ⌜¬ (Mark s n) → out_set (FI s n) ⊆ inset nat (FI s n) n⌝
+      ∗ ⌜Cont s n ⊆ keyset (FI s n)⌝
+      ∗ ⌜Mark s n → out_set (FI s n) ≠ ∅⌝
+      ∗ ⌜outflow_constraint (FI s n) (ES s n)⌝ .
+
+    Definition node_inv γ_I γ_ks s n : iProp :=
+        node n (Mark s n) (ES s n) (PC s n)
+      ∗ own γ_I (◯ (FI s n))
+      ∗ own γ_ks (◯ prod (keyset (FI s n), Cont s n))
+      ∗ node_inv_pure s n.   
+
+    Definition per_tick_inv r s : iProp := 
+        ⌜inset nat (FI s r) r = KS⌝ ∗ ⌜out_set (FI s r) = KS⌝
+      ∗ ⌜¬ Mark s r⌝
+      ∗ [∗ set] n ∈ (FP s), node_inv_pure s n.
+    
+    Definition transition_inv s s' : Prop :=
+        (∀ n, n ∈ FP s → Mark s n → ES s' n = ES s n)
+      ∧ (∀ n, n ∈ FP s → Mark s n → Mark s' n)
+      ∧ (∀ n, n ∈ FP s → ¬ Mark s n → Mark s' n → ES s n ≠ ES s' n)
+      ∧ (∀ n, n ∈ FP s → PC s n = PC s' n)
+      ∧ (FP s ⊆ FP s').
+
+    Definition skiplist_inv γ_I γ_fp γ_ks r (M: gmap nat snapshot) 
+      (T: nat) (s: snapshot) : iProp :=
+        globalRes γ_I γ_fp γ_ks s
+      ∗ ([∗ set] n ∈ FP s, node_inv γ_I γ_ks s n)
+      ∗ ([∗ set] t ∈ dom M, per_tick_inv r (M !!! t))
+      ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝
+      ∗ ⌜transition_inv (M !!! T) s⌝.
+    
+    Instance skiplist_inv_timeless γ_I γ_fp γ_ks r M T s : 
+      Timeless (skiplist_inv γ_I γ_fp γ_ks r M T s).
+    Proof.
+    Admitted.  
+
+    (** Helper functions specs *)
+    
+    Parameter inContents_spec : ∀ (k: nat) (n: Node),
+       ⊢ (<<< ∀∀ m es pc, node n m es pc >>>
+             inContents #n #k @ ⊤
+         <<< ∃∃ (v: bool),
+                node n m es pc ∗ ⌜v ↔ k ∈ pc⌝,
+                RET #v >>>)%I.
+
+    Parameter findNext_spec : ∀ (k: nat) (n: Node),
+       ⊢ (<<< ∀∀ m es pc, node n m es pc >>>
+             findNext #n #k @ ⊤
+         <<< ∃∃ (success: bool) (n': Node),
+                node n m es pc
+              ∗ (match success with true => ⌜k ∈ es !!! n'⌝ 
+                                  | false => ⌜k ∉ out_es es⌝ end),
+             RET (match success with true => (#m, SOMEV #n') 
+                                   | false => (#m, NONEV) end)  >>>)%I.
+                                 
+    Definition edgset_update es k curr succ : esT :=
+      <[ succ := (es !!! succ) ∪ {[k]} ]>
+        (<[ curr := (es !!! curr) ∖ {[k]} ]> es).
+
+    Parameter try_constraint_trav_spec : ∀ (k: nat) (pred curr succ: Node),
+       ⊢ (<<< ∀∀ m es pc, node pred m es pc >>>
+             try_constraint #pred #curr #succ @ ⊤
+         <<< ∃∃ (success: bool) es',
+                node pred m es' pc
+              ∗ (match success with true => ⌜m = false⌝ ∗ ⌜k ∈ es !!! curr⌝
+                                            ∗ ⌜es' = edgset_update es k curr succ⌝ 
+                                  | false => ⌜m = true ∨ k ∉ es !!! curr⌝
+                                             ∗ ⌜es' = es⌝ end),
+                RET (match success with true => SOMEV #() 
+                                      | false => NONEV end)  >>>)%I.
+  
+    Parameter createNode_spec : ∀ (k: nat) (n: Node),
+       ⊢ ({{{ True }}}
+             createNode #k #n
+         {{{ e m es pc, RET #e;
+                node e m es pc
+              ∗ ⌜k ∈ pc⌝
+              ∗ ⌜k ∈ es !!! n⌝ }}})%I.
+  
+    Parameter try_constraint_insert_spec : ∀ (k: nat) (pred curr entry: Node),
+       ⊢ (<<< ∀∀ m es pc, node pred m es pc >>>
+             try_constraint #pred #curr #entry @ ⊤
+         <<< ∃∃ (success: bool) es',
+                node pred m es' pc
+              ∗ (match success with true => ⌜m = false⌝ ∗ ⌜k ∈ es !!! curr⌝
+                                            ∗ ⌜es' = edgset_update es k curr entry⌝ 
+                                  | false => ⌜m = true ∨ k ∉ es !!! curr⌝
+                                             ∗ ⌜es' = es⌝ end),
+                RET (match success with true => SOMEV #() 
+                                      | false => NONEV end)  >>>)%I.
+End skiplist_v0.   
+    
+End SKIPLIST0.
+
+Module SKIPLIST_SPEC : HINDSIGHT_SPEC SEARCH_STRUCTURE SKIPLIST0.
+  Module DEFS := HINDSIGHT_DEFS SEARCH_STRUCTURE SKIPLIST0.
+  Import SEARCH_STRUCTURE SKIPLIST0 DEFS.
+  
+  Context {Σ} `{!heapGS Σ, !skG DEFS.Σ}.
+  Notation iProp := (iProp Σ).
+  Context {γ_I γ_fp γ_ks: gname}.
+
+  Lemma dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght op r (template_inv := skiplist_inv γ_I γ_fp γ_ks r) γ_sy t_id t0,
+          ds_inv N γ_t γ_s γ_m γ_td γ_ght (skiplist_inv γ_I γ_fp γ_ks r) -∗
+            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+                {{{ True }}} 
+                     dsOp (Op_to_val op) #r
+                {{{ res, RET #res; past_lin_witness γ_m op res t0  }}}.
+  Proof.
+  Admitted.              
+                
+                
+
+End SKIPLIST_SPEC.
