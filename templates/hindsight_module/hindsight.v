@@ -8,11 +8,68 @@ From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
-Require Export one_shot_proph typed_proph data_structure.
+Require Export one_shot_proph typed_proph.
+Require Export multiset_flows keyset_ra.
 
-Module Type HINDSIGHT_DEFS.
-  Declare Module DS : DATA_STRUCTURE.
-  Import DS.
+
+Module Type ABSTRACT_DATA_TYPE.
+  
+  Parameter dsOp : val.
+  Parameter Op : Type.
+  Parameter Op_to_val : Op -> val.
+
+  Parameter absTUR : ucmra.
+  Definition absT := ucmra_car absTUR.
+
+  Parameter resT : Type.
+  Parameter resT_to_base_lit : resT -> base_lit.
+  Coercion resT_to_base_lit : resT >-> base_lit.
+  Parameter resT_from_val : val -> option resT.
+  Parameter resT_to_val : resT -> val.
+  Parameter resT_inj_prop : ∀ (r : resT), resT_from_val (resT_to_val r) = Some r.
+  Definition resTProph : TypedProphSpec :=
+    mkTypedProphSpec resT resT_from_val resT_to_val resT_inj_prop.
+  Definition resTTypedProph `{!heapGS Σ} := make_TypedProph resTProph.
+  Parameter resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
+  
+  Parameter seq_spec : Op -> absT -> absT -> resT -> Prop.
+  Parameter seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
+  Parameter updater_thread: Op -> resT -> bool.
+  Parameter updater_thread_dec: ∀ op res b, Decision (updater_thread op res = b).
+
+  Parameter Op_inhabited : Inhabited Op.
+  Parameter absTUR_discrete : CmraDiscrete absTUR.
+  Parameter resT_inhabited : Inhabited resT.
+
+End ABSTRACT_DATA_TYPE.
+
+Module Type DATA_STRUCTURE (ADT: ABSTRACT_DATA_TYPE).
+  Import ADT.
+
+  Parameter snapshotUR : ucmra.
+  Definition snapshot := ucmra_car snapshotUR.
+  
+  Parameter abs : snapshot -> absT.
+  
+  Parameter snapshotUR_discrete : CmraDiscrete snapshotUR.
+  
+  Parameter snapshot_leibnizequiv : LeibnizEquiv (snapshot).
+  Parameter snapshot_inhabited : Inhabited snapshot.
+  
+(*   Parameter dsG : gFunctors -> Set. *)
+  (* Parameter dsΣ : gFunctors. *)
+  
+  (* Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ. *)
+  
+  Context `{!heapGS Σ, !dsG Σ}.
+  
+  Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ.
+
+End DATA_STRUCTURE.  
+
+
+Module HINDSIGHT_DEFS (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT).
+  Import ADT DS.
   
   Global Instance snapshotUR_discrete' : CmraDiscrete snapshotUR.
   Proof.
@@ -59,29 +116,29 @@ Module Type HINDSIGHT_DEFS.
                               gmapUR proph_id $ 
                                 agreeR $ prodO natO gnameO.
 
-  Class dsG Σ := DS {
-                  dsG_auth_natG :> inG Σ auth_natUR;
-                  dsG_agree_snapshotG :> inG Σ agree_snapshotR;
-                  dsG_frac_absTG :> inG Σ frac_absTR;
-                  dsG_historyG :> inG Σ historyR;
-                  dsG_auth_historyG :> inG Σ auth_historyR;
-                  dsG_tokenG :> inG Σ tokenUR;
-                  dsG_frac_historyG :> inG Σ frac_historyR;
-                  dsG_set_tidG :> inG Σ set_tidR;
-                  dsG_thread_viewG :> inG Σ thread_viewR
+  Class hsG Σ := HS {
+                  hsG_auth_natG :> inG Σ auth_natUR;
+                  hsG_agree_snapshotG :> inG Σ agree_snapshotR;
+                  hsG_frac_absTG :> inG Σ frac_absTR;
+                  hsG_historyG :> inG Σ historyR;
+                  hsG_auth_historyG :> inG Σ auth_historyR;
+                  hsG_tokenG :> inG Σ tokenUR;
+                  hsG_frac_historyG :> inG Σ frac_historyR;
+                  hsG_set_tidG :> inG Σ set_tidR;
+                  hsG_thread_viewG :> inG Σ thread_viewR
                  }.
                  
-  Definition dsΣ : gFunctors :=
+  Definition hsΣ : gFunctors :=
     #[ GFunctor auth_natUR; GFunctor agree_snapshotR;
        GFunctor frac_absTR; GFunctor historyR;
        GFunctor auth_historyR; GFunctor tokenUR; 
        GFunctor frac_historyR; GFunctor set_tidR;
        GFunctor thread_viewR ].
   
-  Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsG Σ.
+  Global Instance subG_hsΣ {Σ} : subG hsΣ Σ → hsG Σ.
   Proof. solve_inG. Qed.
-
-  Context {Σ} `{!heapGS Σ, !dsG Σ}.
+  
+  Context `{!heapGS Σ, !hsG Σ}.
   Notation iProp := (iProp Σ).
   Implicit Types M : gmap nat snapshot.
   Implicit Types T : nat.
@@ -162,20 +219,14 @@ Module Type HINDSIGHT_DEFS.
       ∗ own γ_ght (● hγt) ∗ ⌜dom hγt = R⌝  
       ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id M).
   
-  Definition ds_inv N γ_t γ_s γ_m γ_td γ_ght template_inv : iProp :=
+  Definition main_inv N γ_t γ_s γ_m γ_td γ_ght : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
       dsRepI γ_s (abs s) ∗ ⌜abs (M !!! T) = abs s⌝
     ∗ hist γ_t γ_m M T
     ∗ helping_inv N γ_t γ_s γ_td γ_ght M
-    ∗ template_inv M T s).
-(*    
-  Instance dsRep_timeless : ∀ γ_s C, Timeless (dsRep γ_s C).
-  Proof.
-    intros γ_s C. rewrite /dsRep. Search Timeless. 
-    apply own_timeless; apply _.
-  Qed.   
-*)    
+    ∗ ds_inv M T s).
+
   Definition update_helping_protocol N γ_t γ_s γ_td γ_ght : iProp :=
         ∀ M T n s, 
           ⌜map_max M = T⌝ -∗   
@@ -185,3 +236,5 @@ Module Type HINDSIGHT_DEFS.
                 ∗ dsRep γ_s n ∗ own γ_t (● MaxNat T).
     
 End HINDSIGHT_DEFS.
+
+
