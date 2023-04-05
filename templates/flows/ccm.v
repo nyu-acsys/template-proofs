@@ -1,12 +1,12 @@
 (** Theory of Commutative Cancelative Monoids (CCMs) *)
 
 Require Import Coq.Logic.Decidable.
-
+From Coq Require Import QArith Qcanon.
 From iris Require Export base.
 From stdpp Require Export decidable.
 From stdpp Require Export gmap.
 From stdpp Require Import mapset.
-From stdpp Require Import finite.
+From stdpp Require Import finite numbers.
 From flows Require Import gmap_more.
 
 Delimit Scope ccm_scope with CCM.
@@ -229,6 +229,48 @@ Proof.
 Qed.
 
 Instance Z_ccm : CCM Z := { }.
+
+(** The CCM of rational numbers with addition. *)
+
+Instance Qc_op : CcmOp Qc := Qcplus.
+
+Instance Qc_opinv : CcmOpInv Qc := Qcminus.
+
+Instance Qc_unit : CcmUnit Qc := 0%Qc.
+
+Instance Qc_assoc: Assoc (=) Qc_op.
+Proof.
+  unfold Assoc. intros.
+  unfold Qc_op. ring. 
+Qed.
+
+Instance Qc_comm: Comm (=) Qc_op.
+Proof.
+  unfold Comm. intros.
+  unfold Qc_op. ring.
+Qed.
+
+Instance Qc_leftid: LeftId (=) 0%Qc Qc_op.
+Proof.
+  unfold LeftId. intros.
+  unfold Qc_op. ring.
+Qed.
+
+Instance Qc_cancel: Cancelative (=) Qc_op.
+Proof.
+  unfold Cancelative.
+  intros x y z. unfold Qc_op.
+  apply Qcplus_inj_r.
+Qed.
+
+Instance Qc_pinv: PartialInv (=) Qc_op Qc_opinv.
+Proof.
+  unfold PartialInv. intros.
+  unfold Qc_op, Qc_opinv.
+  ring.
+Qed.
+
+Instance Qc_ccm : CCM Qc := { }.
 
 (** Products of CCMs are CCMs *)
 
@@ -1027,4 +1069,3 @@ End lifting.
 Arguments NZMap {_ _ _ _ _} _ _ : assert.
 Arguments nzmap_car {_ _ _ _ _} _ : assert.
 Arguments nzmap_total_lookup {_ _ _ _ _} _ _ : assert.
-

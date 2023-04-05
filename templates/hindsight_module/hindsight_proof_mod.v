@@ -8,7 +8,7 @@ From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
-Require Export hindsight.
+Require Export hindsight_mod.
 
 Module Type HINDSIGHT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT).
   Module DEFS := HINDSIGHT_DEFS ADT DS.

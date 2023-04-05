@@ -16,9 +16,9 @@ From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
-Require Export hindsight.
+Require Export hindsight_mod.
 
-Module SEARCH_STRUCTURE : ABSTRACT_DATA_TYPE with Definition absTUR := gsetUR nat.
+Module SEARCH_STRUCTURE <: ABSTRACT_DATA_TYPE with Definition absTUR := gsetUR nat.
 
   Parameter search : val.
   Parameter insert : val.

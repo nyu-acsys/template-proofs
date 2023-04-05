@@ -12,9 +12,9 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 (* From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob. *)
-Require Export search_structures hindsight_proof.
+Require Export search_structures_mod.
 
-Module SKIPLIST0 : DATA_STRUCTURE SEARCH_STRUCTURE.
+Module SKIPLIST0 <: DATA_STRUCTURE SEARCH_STRUCTURE.
   Import SEARCH_STRUCTURE.
   
   (*

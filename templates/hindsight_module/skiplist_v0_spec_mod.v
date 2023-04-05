@@ -10,7 +10,7 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 (* From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob. *)
-Require Export skiplist_v0.
+Require Export skiplist_v0_mod hindsight_proof_mod.
 
 
 Module SKIPLIST_SPEC : HINDSIGHT_SPEC SEARCH_STRUCTURE SKIPLIST0.
@@ -26,7 +26,7 @@ Module SKIPLIST_SPEC : HINDSIGHT_SPEC SEARCH_STRUCTURE SKIPLIST0.
                 {{{ res, RET #res; past_lin_witness γ_m op res t0  }}}.
   Proof.
     iIntros (N γ_s γ_t γ_m γ_td γ_ght op r γ_sy t_id t0) "HInv HUpd Thd_vars".
-    unfold dsOp. wp_pures.
+    unfold dsOp. 
   Admitted.
 
 End SKIPLIST_SPEC. 

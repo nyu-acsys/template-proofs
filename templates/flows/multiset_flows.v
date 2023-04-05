@@ -35,11 +35,15 @@ Definition in_outsets k In := ∃ n, in_outset k In n.
 
 Definition closed I := ∀ k n, k ∉ outset I n.
 
+Definition insets I := 
+  let f := λ (n: Node) (ms: K_multiset) res, res ∪ dom ms in
+    map_fold f (∅: gset K) (inf_map I).
+
 Definition outsets I :=
   let f := λ (n: Node) (ms: K_multiset) res, res ∪ dom ms in
     map_fold f (∅: gset K) (nzmap_car (out_map I)).
     
-Definition keyset I n := dom (inf I n) ∖ (outsets I).
+Definition keyset I := (insets I) ∖ (outsets I).
 
 (** Assorted lemmas for multiset flow interfaces *)
 
@@ -299,54 +303,46 @@ Proof.
   trivial. trivial.
 Qed.
 
-Lemma outflow_map_set_out_map_ne f I n S I' n' :
-      n' ≠ n → I' = outflow_map_set f I n S → 
-           out_map I' ! n' = out_map I ! n'.
+Lemma outflow_map_set_out_map_ne f I n S n' :
+      n' ≠ n → 
+           out_map (outflow_map_set f I n S) ! n' = out_map I ! n'.
 Proof.
-  intros Hneq Heq.
-  replace I'.
+  intros Hneq.
   unfold outflow_map_set. simpl.
   rewrite nzmap_lookup_total_insert_ne.
   trivial. auto.
 Qed.
 
-Lemma outflow_map_set_outset_ne f I n S I' n' :
-      n' ≠ n → I' = outflow_map_set f I n S → 
-           outset I' n' = outset I n'.
+Lemma outflow_map_set_outset_ne f I n S n' :
+      n' ≠ n → 
+           outset (outflow_map_set f I n S) n' = outset I n'.
 Proof.
-  intros Hneq Heq. unfold outset.
+  intros Hneq. unfold outset.
   unfold out.
-  rewrite (outflow_map_set_out_map_ne f I n S I' n').
-  trivial. auto. auto.
+  rewrite (outflow_map_set_out_map_ne f I n S n').
+  trivial. auto.
 Qed.
   
-Lemma outflow_map_set_inf f I n S I' :
-      I' = outflow_map_set f I n S →
-          inf_map I' = inf_map I.
+Lemma outflow_map_set_inf f I n S :
+          inf_map (outflow_map_set f I n S) = inf_map I.
 Proof.
-  intros Heq.
-  rewrite Heq.
   unfold outflow_map_set.
   trivial.
 Qed.
 
-Lemma inflow_map_set_ne f I n S I' n' :
-      n' ≠ n → I' = inflow_map_set f I n S → 
-           inf_map I' !! n' = inf_map I !! n'.
+Lemma inflow_map_set_ne f I n S n' :
+      n' ≠ n → 
+           inf_map (inflow_map_set f I n S) !! n' = inf_map I !! n'.
 Proof.
-  intros Hneq Heq.
-  replace I'. 
+  intros Hneq.
   unfold inf. simpl.
   rewrite lookup_partial_alter_ne.
   auto. auto.
 Qed.
 
-Lemma inflow_map_set_out_eq f I n S I' :
-      I' = inflow_map_set f I n S →
-          out_map I' = out_map I.
+Lemma inflow_map_set_out_eq f I n S :
+          out_map (inflow_map_set f I n S) = out_map I.
 Proof.
-  intros Heq.
-  rewrite Heq.
   unfold inflow_map_set.
   unfold outset.
   unfold inf.
@@ -354,18 +350,13 @@ Proof.
   trivial.
 Qed.
 
-Lemma inflow_map_set_outset_ne f I n S I' n' :
-      I' = inflow_map_set f I n S → 
-           outset I' n' = outset I n'.
+Lemma inflow_map_set_outset_ne f I n S n' :
+           outset (inflow_map_set f I n S) n' = outset I n'.
 Proof.
-  intros Heq.
   unfold outset.
-  rewrite Heq.
-  pose proof (inflow_map_set_out_eq f I n S I').
-  rewrite <- Heq.
-  apply H0 in Heq.
+  pose proof (inflow_map_set_out_eq f I n S).
   unfold out.
-  by rewrite Heq.
+  by rewrite H0.
 Qed.
 
 Definition nzmap_decrement (k: K) (m : nzmap K nat) :=
@@ -393,12 +384,10 @@ Definition inflow_insert_set I (n: Node) (s: gset K) : multiset_flowint_ur :=
 Definition inflow_delete_set I (n: Node) (s: gset K) : multiset_flowint_ur := 
   inflow_map_set (λ _ n, n - 1) I n s.
 
-Lemma outflow_insert_set_outset I n S I' :
-      I' = outflow_insert_set I n S → 
-           outset I' n = (outset I n) ∪ S.
+Lemma outflow_insert_set_outset I n S :
+           outset (outflow_insert_set I n S) n = (outset I n) ∪ S.
 Proof.
-  intros Heq. unfold outset.
-  replace I'. unfold outflow_insert_set.
+  unfold outset. unfold outflow_insert_set.
   unfold out. simpl.
   rewrite nzmap_lookup_total_insert.
   apply leibniz_equiv.
@@ -426,13 +415,12 @@ Proof.
     contradiction.
 Qed.
 
-Lemma outflow_delete_set_outset I n S I' :
+Lemma outflow_delete_set_outset I n S :
       (∀ k, k ∈ S → out I n ! k ≤ 1) →
-        I' = outflow_delete_set I n S → 
-           outset I' n = (outset I n) ∖ S.
+           outset (outflow_delete_set I n S) n = (outset I n) ∖ S.
 Proof.
-  intros Hkb Heq. unfold outset.
-  replace I'. unfold outflow_delete_set.
+  intros Hkb. unfold outset.
+  unfold outflow_delete_set.
   unfold out. simpl.
   rewrite nzmap_lookup_total_insert.
   apply leibniz_equiv.
@@ -458,74 +446,68 @@ Proof.
     unfold out. all: done.
 Qed.    
 
-Lemma outflow_insert_set_outset_ne I n S I' n' :
-      n' ≠ n → I' = outflow_insert_set I n S → 
-           outset I' n' = outset I n'.
+Lemma outflow_insert_set_outset_ne I n S n' :
+      n' ≠ n → 
+           outset (outflow_insert_set I n S) n' = outset I n'.
 Proof.
   apply outflow_map_set_outset_ne.
 Qed.
 
-Lemma outflow_delete_set_outset_ne I n S I' n' :
-      n' ≠ n → I' = outflow_delete_set I n S → 
-           outset I' n' = outset I n'.
+Lemma outflow_delete_set_outset_ne I n S n' :
+      n' ≠ n → 
+           outset (outflow_delete_set I n S)  n' = outset I n'.
 Proof.
   apply outflow_map_set_outset_ne.
 Qed.
 
 
-Lemma inflow_insert_set_out_eq I n S I' n' :
-      I' = inflow_insert_set I n S →
-          out I' n' = out I n'.
+Lemma inflow_insert_set_out_eq I n S n' :
+      out (inflow_insert_set I n S) n' = out I n'.
 Proof.
   unfold out.
   intros.
-  rewrite (inflow_map_set_out_eq (λ _ n, n + 1) I n S I').
-  trivial. trivial.
+  rewrite (inflow_map_set_out_eq (λ _ n, n + 1) I n S).
+  trivial.
 Qed.
 
-Lemma inflow_insert_set_outset_ne I n S I' n' :
-      I' = inflow_insert_set I n S → 
-           outset I' n' = outset I n'.
+Lemma inflow_insert_set_outset_ne I n S n' :
+      outset (inflow_insert_set I n S) n' = outset I n'.
 Proof.
   apply inflow_map_set_outset_ne.
 Qed.
 
-Lemma outflow_insert_set_inset I n S I' n' :
-      I' = outflow_insert_set I n S → 
-          inset I' n' = inset I n'.
+Lemma outflow_insert_set_inset I n S n' :
+        inset (outflow_insert_set I n S) n' = inset I n'.
 Proof.
   unfold inset.
-  pose proof (outflow_map_set_inf (λ _ n, n + 1) I n S I').
+  pose proof (outflow_map_set_inf (λ _ n, n + 1) I n S).
   unfold outflow_insert_set.
   intros.
   unfold inf.
-  rewrite H0. auto. auto.
+  rewrite H0. auto.
 Qed.
 
 
-Lemma inflow_insert_set_inset_ne I n S I' n' :
-      n' ≠ n → I' = inflow_insert_set I n S → 
-           inset I' n' = inset I n'.
+Lemma inflow_insert_set_inset_ne I n S n' :
+      n' ≠ n → 
+           inset (inflow_insert_set I n S) n' = inset I n'.
 Proof.
   unfold inset.
-  pose proof (inflow_map_set_ne (λ _ n, n + 1) I n S I' n').
+  pose proof (inflow_map_set_ne (λ _ n, n + 1) I n S n').
   intros.
   unfold inf.
   rewrite H0; done.
 Qed.
 
-Lemma flowint_outflow_map_set_dom f I n S I' :
-  I' = outflow_map_set f I n S →
-  (dom (out_map I') ⊆ dom (out_map I) ∪ {[n]}).
+Lemma flowint_outflow_map_set_dom f I n S :
+      (dom (out_map (outflow_map_set f I n S)) ⊆ dom (out_map I) ∪ {[n]}).
 Proof.
-  intros Heq.
   apply elem_of_subseteq.
   intros n' HinI'.
   apply elem_of_union.
   destruct (decide (n = n')).
   - set_solver.
   - left.
-    replace I' in HinI'.
     unfold outflow_map_set, out_map at 1 in HinI'. simpl in HinI'.
     apply nzmap_elem_of_dom_total in HinI'.
     rewrite nzmap_lookup_total_insert_ne in HinI'.
@@ -534,23 +516,20 @@ Proof.
     trivial.
 Qed.    
 
-Lemma flowint_inflow_map_set_dom f (I: multiset_flowint_ur) n S I':
-    I' = inflow_map_set f I n S
-    → domm I' = domm I ∪ {[n]}.
+Lemma flowint_inflow_map_set_dom f (I: multiset_flowint_ur) n S:
+        domm (inflow_map_set f I n S) = domm I ∪ {[n]}.
 Proof.
-  intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
   apply set_equiv.
   intros n'.
-  pose proof (inflow_map_set_ne f I n S I' n').
+  pose proof (inflow_map_set_ne f I n S n').
   unfold inset, inf in H0.
   destruct (decide (n = n')).
   - rewrite <- e. split.
     * intros. rewrite elem_of_union. right. set_solver.
     * rewrite elem_of_dom.
       intros.
-      rewrite Heq.
       unfold inflow_map_set.
       simpl.
       rewrite lookup_partial_alter.
@@ -560,7 +539,7 @@ Proof.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       rewrite H0.
-      auto. auto. auto.
+      auto. auto.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       intros.
@@ -570,12 +549,9 @@ Proof.
       set_solver.
 Qed.      
 
-Lemma flowint_outflow_map_set_domm f (I: multiset_flowint_ur) n S I':
-    I' = outflow_map_set f I n S
-    → domm I' = domm I.
+Lemma flowint_outflow_map_set_domm f (I: multiset_flowint_ur) n S:
+        domm (outflow_map_set f I n S) = domm I.
 Proof.
-  intros Heq.
-  replace I'.
   unfold outflow_map_set.
   unfold domm, dom, flowint_dom. trivial.
 Qed.
@@ -653,7 +629,7 @@ Proof.
   intros n_in_I2 Hi1 Hi2. apply nzmap_eq. intros n'.
   unfold outComp. rewrite !nzmap_lookup_imerge.
   unfold outComp_op.
-  pose proof (flowint_inflow_map_set_dom _ I2 n S I2' Hi2) as domm_2.
+  pose proof (flowint_inflow_map_set_dom f I2 n S) as domm_2.
   destruct (decide (n' = n)).
   - replace n'.
     assert (n ∈ domm I2') as n_in_I2' by set_solver.
@@ -669,19 +645,19 @@ Proof.
       unfold ccmop, ccm_op. simpl. unfold lift_op, ccmop, ccm_op.
       simpl. apply nzmap_eq. intros kt'.
       rewrite !nzmap_lookup_merge. unfold nat_op.
-      rewrite (outflow_map_set_out_map_ne f I1 n S I1' n').
-      rewrite (inflow_map_set_out_eq f I2 n S I2').
-      auto. auto. auto. auto.
+      subst I1' I2'.
+      rewrite (outflow_map_set_out_map_ne f I1 n S n').
+      rewrite (inflow_map_set_out_eq f I2 n S).
+      auto. auto.
 Qed.
 
-Lemma inflow_map_set_valid f I1 I1' n S :
+Lemma inflow_map_set_valid f I1 n S :
       n ∈ domm I1 →
-        I1' = inflow_map_set f I1 n S →
-          ✓ I1 → ✓ I1'.
+          ✓ I1 → ✓ (inflow_map_set f I1 n S).
 Proof.
-    intros n_domm Hi1_eq Valid1.
+    intros n_domm Valid1.
   unfold valid, flowint_valid.
-  replace I1'. unfold inflow_map_set. 
+  unfold inflow_map_set. 
   destruct (I1) as [ [i o] | ] eqn: Hi1; [| exfalso; try done].
   unfold valid, flowint_valid in Valid1. 
   simpl in Valid1. 
@@ -689,12 +665,12 @@ Proof.
   - apply map_disjoint_dom.
     simpl.
     destruct Valid1 as [H' _].
-    apply map_disjoint_dom in H'. rewrite <-Hi1 in Hi1_eq.
-    pose proof (flowint_inflow_map_set_dom _ I1 n S I1' Hi1_eq) as Hdomm.
+    apply map_disjoint_dom in H'.
+    pose proof (flowint_inflow_map_set_dom f I1 n S) as Hdomm.
     rewrite <-Hi1 in n_domm.
-    assert (domm I1' = domm I1) as H'' by set_solver.
+    assert (domm (inflow_map_set f I1 n S) = domm I1) as H'' by set_solver.
     unfold domm, dom, flowint_dom in H''.
-    replace I1' in H''. unfold inflow_map_set in H''.
+    unfold inflow_map_set in H''.
     simpl in H''. rewrite Hi1 in H''. simpl in H''.
     rewrite <-Hi1 in H''. apply leibniz_equiv_iff in H''.
     rewrite (dom_insert i) in H''.
@@ -711,22 +687,21 @@ Proof.
 Qed.    
 
 
-Lemma outflow_map_set_valid f I1 I1' n S :
+Lemma outflow_map_set_valid f I1 n S :
       n ∉ domm I1 → 
         domm I1 ≠ ∅ →
-          I1' = outflow_map_set f I1 n S →
-            ✓ I1 → ✓ I1'.
+            ✓ I1 → ✓ (outflow_map_set f I1 n S).
 Proof.
-  intros n_domm domm_I1 Hi1_eq Valid1.
+  intros n_domm domm_I1 Valid1.
   apply intValid_unfold.
   split.
-  - replace I1'. unfold outflow_map_set, outflow_map_set.
+  - unfold outflow_map_set, outflow_map_set.
     discriminate.
   - rewrite intValid_unfold in Valid1.
-    apply flowint_outflow_map_set_dom in Hi1_eq as Hi1_domm.
+    pose proof flowint_outflow_map_set_dom f I1 n S as Hi1_domm.
     split.
     + apply map_disjoint_dom.
-      apply outflow_map_set_inf in Hi1_eq.
+      pose proof outflow_map_set_inf f I1 n S as Hi1_eq.
       rewrite Hi1_eq.
       unfold domm, dom, flowint_dom in Hi1_domm.
       rewrite elem_of_subseteq in Hi1_domm.
@@ -745,7 +720,7 @@ Proof.
         contradiction.
         set_solver.
     + intros inf_I1'_emp.
-      assert (domm I1' = ∅) as domm_I1'.
+      assert (domm (outflow_map_set f I1 n S) = ∅) as domm_I1'.
       { unfold domm, dom, flowint_dom.
         rewrite inf_I1'_emp.
         set_solver. }      
@@ -753,7 +728,6 @@ Proof.
       rewrite (outflow_map_set_inf f I1 n S) in domm_I1'.
       unfold domm, dom, flowint_dom in domm_I1.
       contradiction.
-      trivial.
 Qed.
 
 Lemma flowint_map_set_intComposable f I1 I1' I2 I2' n S :
@@ -771,11 +745,11 @@ Proof.
     destruct Intcomp as [_ [_ [H' _]]].
     clear -H' n_in_I2. set_solver. }
   unfold intComposable. repeat split.
-  - apply (outflow_map_set_valid f I1 I1' n S); try done.
+  - subst I1'; apply (outflow_map_set_valid f I1 n S); try done.
     by destruct Intcomp as [H' _].
-  - apply (inflow_map_set_valid f I2 I2' n S); try done.
+  - subst I2'; apply (inflow_map_set_valid f I2 n S); try done.
     by destruct Intcomp as [_ [H' _]].
-  - pose proof (flowint_inflow_map_set_dom f I2 n S I2' Hi2) as domm_2.
+  - pose proof (flowint_inflow_map_set_dom f I2 n S) as domm_2.
     assert (domm I1' = domm I1) as domm_1. 
     { unfold domm, dom, flowint_dom. replace I1'.
       unfold outflow_map_set. unfold inf_map. by simpl. }
@@ -944,12 +918,10 @@ Proof.
   all: auto.
 Qed.
 
-Lemma inflow_insert_set_inset I n S I' :
-      I' = inflow_insert_set I n S → 
-           inset I' n = inset I n ∪ S.
+Lemma inflow_insert_set_inset I n S: 
+           inset (inflow_insert_set I n S) n = inset I n ∪ S.
 Proof.
-  intros Heq. unfold inset.
-  replace I'. unfold inflow_insert_set.
+  unfold inset. unfold inflow_insert_set.
   unfold inflow_map_set. unfold inf at 1; simpl.
   rewrite lookup_insert. simpl.
   apply leibniz_equiv.
@@ -977,13 +949,11 @@ Proof.
     contradiction.
 Qed.
 
-Lemma inflow_delete_set_inset I n S I' :
+Lemma inflow_delete_set_inset I n S :
       (∀ k, k ∈ S → inf I n ! k ≤ 1) →
-        I' = inflow_delete_set I n S → 
-           inset I' n = inset I n ∖ S.
+           inset (inflow_delete_set I n S) n = inset I n ∖ S.
 Proof.
-  intros Hkb Heq. unfold inset.
-  replace I'. unfold inflow_delete_set.
+  intros Hkb. unfold inset. unfold inflow_delete_set.
   unfold inf at 1. simpl.
   rewrite lookup_insert. simpl.
   apply leibniz_equiv.
@@ -1008,35 +978,32 @@ Proof.
     unfold out. all: done.
 Qed.
 
-Lemma inflow_delete_set_inset_ne I n S I' n' :
-      n' ≠ n → I' = inflow_delete_set I n S → 
-           inset I' n' = inset I n'.
+Lemma inflow_delete_set_inset_ne I n S n' :
+      n' ≠ n → 
+           inset (inflow_delete_set I n S) n' = inset I n'.
 Proof.
   unfold inset.
-  pose proof (inflow_map_set_ne (λ _ n, n - 1) I n S I' n').
+  pose proof (inflow_map_set_ne (λ _ n, n - 1) I n S n').
   intros.
   unfold inf.
   rewrite H0; done.
 Qed.
 
 
-Lemma flowint_inflow_delete_set_dom (I: multiset_flowint_ur) n S I':
-    I' = inflow_delete_set I n S
-    → domm I' = domm I ∪ {[n]}.
+Lemma flowint_inflow_delete_set_dom (I: multiset_flowint_ur) n S:
+      domm (inflow_delete_set I n S) = domm I ∪ {[n]}.
 Proof.
-  intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
   apply set_equiv.
   intros n'.
-  pose proof (inflow_map_set_ne (λ _ n, n - 1) I n S I' n').
+  pose proof (inflow_map_set_ne (λ _ n, n - 1) I n S n').
   unfold inset, inf in H0.
   destruct (decide (n = n')).
   - rewrite <- e. split.
     * intros. rewrite elem_of_union. right. set_solver.
     * rewrite elem_of_dom.
       intros.
-      rewrite Heq.
       unfold inflow_insert_set.
       unfold inflow_map_set.
       simpl.
@@ -1047,7 +1014,7 @@ Proof.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       rewrite H0.
-      auto. auto. auto.
+      auto. auto.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       intros.
@@ -1057,23 +1024,20 @@ Proof.
       set_solver.
 Qed.      
 
-Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S I':
-    I' = inflow_insert_set I n S
-    → domm I' = domm I ∪ {[n]}.
+Lemma flowint_inflow_insert_set_dom (I: multiset_flowint_ur) n S:
+        domm (inflow_insert_set I n S) = domm I ∪ {[n]}.
 Proof.
-  intros Heq.
   unfold domm, dom, flowint_dom.
   apply leibniz_equiv.
   apply set_equiv.
   intros n'.
-  pose proof (inflow_map_set_ne (λ _ n, n + 1) I n S I' n').
+  pose proof (inflow_map_set_ne (λ _ n, n + 1) I n S n').
   unfold inset, inf in H0.
   destruct (decide (n = n')).
   - rewrite <- e. split.
     * intros. rewrite elem_of_union. right. set_solver.
     * rewrite elem_of_dom.
       intros.
-      rewrite Heq.
       unfold inflow_insert_set.
       unfold inflow_map_set.
       simpl.
@@ -1084,7 +1048,7 @@ Proof.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       rewrite H0.
-      auto. auto. auto.
+      auto. auto.
     * rewrite elem_of_union.
       repeat rewrite elem_of_dom.
       intros.
