@@ -197,29 +197,44 @@ Section list_flow_upd.
               destruct Hn' as [n'' [n''_in_I0 n'_in_n'']].
               rewrite domm_II in n'_in_n''.
               assert (n' = n'') as <- by (clear -n'_in_n''; set_solver).
-              rewrite (flow_big_op_inf _ _ n'); try done. 
-              2: rewrite domm_II; clear; set_solver.
-              2: apply Valid_II.
               rewrite (flow_big_op_inf _ _ n'); try done.
-              2: admit. 2: admit.
-              clear HL HR. 
-              assert (([^+ set] x ∈ (dom I0 ∖ {[n']}), out (FI (<[n:=In']> I0) x) n')
-                = ([^+ set] x ∈ (dom I0 ∖ {[n']}), out (FI I0 x) n')) as Hout.
-              { destruct (decide (n' = n)) as [-> | Hn'].
-                - (* forall x ∈ dom I0 ∖ {[n]}, FI (<[n:=In']> I0) x = FI I0 x *)
-                  admit.
-                - admit. }
-              assert (inf (FI (<[n:=In']> I0) n') n' = inf (FI I0 n') n') as Hin.
-              { destruct (decide (n' = n)) as [-> | Hn'].
-                - rewrite /FI. rewrite lookup_total_insert. subst In'.
-                  unfold inf. rewrite outflow_map_set_inf. by subst In.
-                - rewrite /FI. rewrite lookup_total_insert_ne; try done. }
-              by rewrite Hin Hout.
+              + rewrite (flow_big_op_inf _ _ n'); try done.
+                * clear HL HR. 
+                  assert (([^+ set] x ∈ (dom I0 ∖ {[n']}), out (FI (<[n:=In']> I0) x) n')
+                    = ([^+ set] x ∈ (dom I0 ∖ {[n']}), out (FI I0 x) n')) as Hout.
+                  { destruct (decide (n' = n)) as [-> | Hn'].
+                    - (* forall x ∈ dom I0 ∖ {[n]}, FI (<[n:=In']> I0) x = FI I0 x *)
+                      admit.
+                    - admit. }
+                  assert (inf (FI (<[n:=In']> I0) n') n' = inf (FI I0 n') n') as Hin.
+                  { destruct (decide (n' = n)) as [-> | Hn'].
+                    - rewrite /FI. rewrite lookup_total_insert. subst In'.
+                      unfold inf. rewrite outflow_map_set_inf. by subst In.
+                    - rewrite /FI. rewrite lookup_total_insert_ne; try done. }
+                  by rewrite Hin Hout.
+                * admit. 
+                * admit.
+              + rewrite domm_II; clear; set_solver.
+              + apply Valid_II. 
             - admit.
           }
           by rewrite HI0 Heq.
-          - intros n'.           
-                   }
+        - rewrite Heq.
+          assert (∀ x n', x ∈ dom I0 ∖ {[n]} → out (FI I0 x) n' = 0).
+          { admit. }
+          intros n'.  
+          destruct (decide (n' = n1)) as [-> | Hn'].
+          + rewrite /outflow_map_set. unfold out at 2, out_map at 2.
+            simpl. rewrite nzmap_lookup_total_insert.
+            rewrite flow_big_op_out.
+            * rewrite nzmap_eq. intros k.
+              destruct (decide (k ∈ Xk)).
+              ** rewrite nzmap_lookup_total_map_set; try done.
+                 admit.
+              ** admit.   
+
+            * apply Valid_II. 
+            * admit. }
       assert (In1' = inflow_map_set (λ (_ : K) (x0 : nat), (x0 + 1)%nat) (I !!! n1) n1 Xk) as H0''.
       { rewrite /In1' /In1. try done. }
       assert (✓ (([^op set] y ∈ dom I0, FI I y) ⋅ (FI I n1))) as H0'''.
