@@ -54,7 +54,7 @@ Definition inf_map (I: flowintT) :=
   end.
 
 Definition inf (I: flowintT) (n: Node) := default 0 (inf_map I !! n).
-Definition out (I: flowintT) (n: Node) := out_map I ! n.
+Definition out (I: flowintT) (n: Node) := out_map I !!! n.
 
 Global Instance flowint_dom : Dom flowintT (gset Node) :=
   λ I, dom (inf_map I).
@@ -125,7 +125,7 @@ Definition outComp I1 I2 :=
   nzmap_imerge (outComp_op I1 I2) (out_map I1) (out_map I2).
 
 Lemma outComp_inv I1 I2 :
-  ∀ n, n ∉ domm I1 ∪ domm I2 → outComp I1 I2 ! n = out I1 n + out I2 n.
+  ∀ n, n ∉ domm I1 ∪ domm I2 → outComp I1 I2 !!! n = out I1 n + out I2 n.
 Proof.
   intros n D.
   unfold outComp.
@@ -343,7 +343,7 @@ Proof.
       trivial.
       unfold flowint_dom, inf_map in H0.
       simpl in H0.
-      unfold nzmap_total_lookup.
+      unfold nzmap_lookup_total.
       destruct (outR0 !! k) eqn:?.
       assert (k ∈ dom outR0).
       unfold dom, nzmap_dom.
@@ -357,6 +357,7 @@ Proof.
       assert (k ∉ dom outR0).
       set_solver.
       contradiction.
+      rewrite nzmap_lookup_total_alt. rewrite Heqo.
       trivial.
       unfold dom, flowint_dom, I_empty, I_emptyR in H0. simpl in H0.
       rewrite dom_empty in H0 *.
@@ -1647,7 +1648,7 @@ Proof.
   - trivial.   
   - apply nzmap_eq.
     intros n.
-    assert (out_map (I1 ⋅ I2) ! n = out_map (I1 ⋅ I3) ! n) as Eqout.
+    assert (out_map (I1 ⋅ I2) !!! n = out_map (I1 ⋅ I3) !!! n) as Eqout.
     { rewrite Eq. reflexivity. }
     unfold op, cmra_op, ucmra_cmraR, flowintUR, ucmra_op, intComp, inf_map in Eqout.
   destruct (decide (intComposable I1 I2)); last first. contradiction.
@@ -1791,7 +1792,7 @@ Proof.
           destruct I1 as [I1 | ]; last first.
           { admit. }
           destruct I1 as [inf1 out1].
-          assert (out1' ! n = 0 → 
+          assert (out1' !!! n = 0 → 
             dom (nzmap_car out1') = dom (nzmap_car out1) ∖ {[n]}) as Hor1.
           { intros H'.
             assert (dom (nzmap_car out1') ⊆ dom (nzmap_car out1) ∖ {[n]}) as H''.
@@ -1819,7 +1820,7 @@ Proof.
                 unfold out, out_map in Out. simpl in Out.
                 by rewrite Out. }
              clear -H'' H'''. set_solver. }
-          assert (out1' ! n ≠ 0 → 
+          assert (out1' !!! n ≠ 0 → 
             dom (nzmap_car out1') = dom (nzmap_car out1) ∪ {[n]}) as Hor2.
           { intros H'.
             assert (dom (nzmap_car out1') ⊆ dom (nzmap_car out1) ∪ {[n]}) as H''.
@@ -1847,7 +1848,7 @@ Proof.
              clear -H'' H'''. set_solver. }
           assert (dom (nzmap_car out1') = dom (nzmap_car out1) ∖ {[n]} ∨
                   dom (nzmap_car out1') = dom (nzmap_car out1) ∪ {[n]}) as Hor.
-          { destruct (decide (out1' ! n = 0)). 
+          { destruct (decide (out1' !!! n = 0)). 
             + left; by apply Hor1.
             + right; by apply Hor2. }
           admit.   
@@ -1952,7 +1953,7 @@ Definition flowint_update_P (I I_n I_n': flowintUR) (x : authR flowintUR) : Prop
 
 (* Contextual extension allows frame-preserving updates. *)
 Lemma flowint_update : ∀ (Io I_n I_n': flowintUR),
-  contextualLeq I_n I_n' ∧ (domm I_n' ∩ domm Io = ∅) ∧ (∀ n, n ∈ domm I_n'∖domm I_n → out_map Io ! n = 0)
+  contextualLeq I_n I_n' ∧ (domm I_n' ∩ domm Io = ∅) ∧ (∀ n, n ∈ domm I_n'∖domm I_n → out_map Io !!! n = 0)
        → (● (I_n ⋅ Io) ⋅ ◯ I_n)  ~~>: (flowint_update_P (I_n ⋅ Io) I_n I_n').
 Proof.
  intros Io In In' (conteq & Hintersect & Hcond). apply cmra_discrete_updateP. intros z.
