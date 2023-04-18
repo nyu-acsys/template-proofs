@@ -1069,7 +1069,7 @@ Section lifting.
   Implicit Types m : nzmap K A.
 
   (* The monoid operation distributes over lookup. *)  
-  Lemma lookup_op m1 m2 i : (m1 + m2) !!! i = m1 !!! i + m2 !!! i.
+  Lemma lookup_total_lifting m1 m2 i : (m1 + m2) !!! i = m1 !!! i + m2 !!! i.
   Proof.
     unfold ccm_op,ccmop at 1.
     unfold lift_op.

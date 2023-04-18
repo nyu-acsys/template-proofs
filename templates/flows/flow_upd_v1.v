@@ -84,12 +84,12 @@ Section list_flow_upd.
     match l with
     | [] => I'
     | [n] => I'
-    | n :: (n1 :: ns as nss) =>
+    | n :: (n1 :: ns) as nss =>
       (* Have to pick from I' because its inflow is already updated *)
       let In := I' !!! n in
       (* Add k to outf(In, n1) *)
       let In' := outflow_insert_set In n1 {[k]} in
-      (* Pick from I because n2 must be untouched so far *)
+      (* Pick from I because n1 must be untouched so far *)
       let In1 := I !!! n1 in
       (* Add k to inf(In1, n1) *)
       let In1' := inflow_insert_set In1 n1 {[k]} in
@@ -99,7 +99,7 @@ Section list_flow_upd.
         
   Functional Scheme flow_upd_rec_ind := Induction for flow_upd_rec Sort Prop.
     
-  Definition flow_upd S es n0 k I : gmap Node (multiset_flowint_ur K) :=
+  Definition flow_upd S es n0 (k: K) I : gmap Node (multiset_flowint_ur K) :=
     match find_next (es !!! n0) k with
     | None => I
     | Some n1 =>
@@ -113,91 +113,67 @@ Section list_flow_upd.
 
   Lemma flow_upd_intfEq k I I' l II' :
     let FI := λ I x, I !!! x in 
-    (* ((∀ n n1 Xn, A !! n = Some (n1, Xn) → dom (out_map (FI I n)) = {[n1]})) → *)
-    (match l with [] => True 
-                | n :: ns => 
-                    (∀ x, x ∈ dom I' ∖ {[n]} → dom (out_map (FI I' x)) ⊆ dom I')
-                    ∧ True (* (∀ n1 Xn1, A !! n = Some (n1, Xn1) → 
-                                    dom (out_map (FI I' n)) = {[n1]}) *) end) →
+      (NoDup l) →
+      (match l with [] => True | n :: ns => n ∈ dom I' ∧ (list_to_set ns ## dom I') end) →
+      (✓ ([^op set] x ∈ dom I, FI I x)) →
+      (dom I' ⊆ dom I) → (list_to_set l ⊆ dom I) →
       ([^op set] x ∈ dom I', FI I x) = ([^op set] x ∈ dom I', FI I' x) →
         flow_upd_rec k I I' l = II' → 
           ([^op set] x ∈ dom II', FI I x) = ([^op set] x ∈ dom II', FI II' x).
   Proof.
     intros FI. apply flow_upd_rec_ind.
-    - intros ? ?  -> _ ? ->. done.
-    - intros I0 ? n ? -> -> ? Heq ->. done.
+    - intros ? ? -> _ _ _ _ _ ? ->. done.
+    - intros I0 ? n ? -> -> _ HdomI _ _ _ Heq ->. done.
     - intros I0 ? n ? -> n1 ns ->. 
-      intros In In' In1 In1' II I0' HInd (* HoutI *) [Hout_dom Houtn_dom] Heq Hflow.
-      apply HInd; try done.
-      { destruct ns; try done. 
-        assert (n0 = n1) as ->. { admit. }
-        assert (dom I0' = dom I0 ∪ {[n1]}) as ->.
-        { admit. } split.
-        - intros x Hx.
-          assert (n1 ∉ dom I0) as n1_notin_I0.
-          { admit. }
-          assert ((dom I0 ∪ {[n1]}) ∖ {[n1]} = dom I0) as H'.
-          { set_solver. }
-          rewrite H' in Hx. clear H'.
-          destruct (decide (x = n)) as [-> | Hxn].
-          + assert (n ≠ n1) as n_neq_n1 by set_solver.
-            subst I0'. unfold FI.
-            rewrite lookup_total_insert_ne; try done.
-            subst II.
-            rewrite lookup_total_insert.
-            subst In'.
-            (*
-            pose proof (flowint_outflow_map_set_dom (λ (_ : K) (x : nat), x + 1) In n1 {[k]}) as H'.
-            pose proof Houtn_dom n1 {[k]} HA0 as H''.
-            rewrite /In in H'. rewrite /FI in H''.
-            rewrite H'' in H'. clear -H'; set_solver.
-            *)
-            admit.
-          + assert (x ∈ dom I0 ∖ {[n]}) as H' by set_solver.
-            apply Hout_dom in H'. 
-            subst I0'. unfold FI.
-            assert (x ≠ n1) by set_solver.
-            rewrite lookup_total_insert_ne; try done.
-            subst II.
-            rewrite lookup_total_insert_ne; try done.
-            rewrite /FI in H'.
-            clear -H'; set_solver.  
-        - (*
-          intros n2 X2 HA_n2. rewrite /I0' /FI.
-          rewrite lookup_total_insert. rewrite /In1'.
-          unfold out_map. unfold inflow_map_set.
-          simpl. rewrite /In1.
-          apply (HoutI _ _ X2); try done.
-          *) done. }
-      assert (n ∈ dom I0) as dom_I0.
-      { admit. }
-      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as dom_I0'.
-      { admit. }
-      assert (n1 ∉ dom I0) as n_notin_I0.
-      { admit. }
-      rewrite dom_I0'. rewrite !big_opS_union.
+      intros In In' In1 In1' II I0' HInd NoDup [n_in_I0 HdomI_disj] 
+        VI Dom_I0_in_I l_in_I Heq Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { clear -HdomI_disj. set_solver. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II.
+        repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0.
+        set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { clear -l_in_I. set_solver. }  
+      apply HInd; try done; clear HInd.
+      { clear -NoDup. apply NoDup_cons in NoDup.
+        destruct NoDup as [_ ?]; try done. }
+      { rewrite Dom_I0'. split. 
+        - clear; set_solver.
+        - apply NoDup_cons in NoDup. destruct NoDup as [_ NoDup]. 
+          apply NoDup_cons in NoDup. destruct NoDup as [NoDup _].
+          clear -HdomI_disj NoDup. set_solver. }
+      { rewrite Dom_I0'. clear -Dom_I0_in_I n1_in_I. set_solver. }
+      { clear -l_in_I. set_solver. }
+      rewrite Dom_I0'. rewrite !big_opS_union; [try done | set_solver | set_solver].
       rewrite !big_opS_singleton. 
       all: try (clear -n_notin_I0; set_solver).
       rewrite /I0'; rewrite /FI. rewrite lookup_total_insert.
       rewrite /II.
       assert (([^op set] y ∈ dom I0, FI (<[n1:=In1']> (<[n:=In']> I0)) y) = 
                 ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y)) as Def_II.
-      { admit. }
+      { (* syntactic rewriting *) admit. }
       rewrite Def_II.
-      assert (✓ ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y)) as Valid_II.
-      { admit. }
       assert (✓ ([^op set] y ∈ dom I0, FI I y)) as Valid_I.
       { admit. }
-      assert (∀ x, domm (FI I x) = {[x]}) as domm_I.
+      assert (✓ ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y)) as Valid_II.
+      { assert (([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y) = 
+                  ([^op set] y ∈ dom I0 ∖ {[n]}, FI I0 y) ⋅ In') as ->.
+        { admit. } Check outflow_map_set.
+        assert (∀ (I1 I2 I2': multiset_flowint_ur K) f n S, I2' = outflow_map_set f I2 n S → n ∉ I1 → ✓ (I1 ⋅ I2) → ✓ (I1 ⋅ I2')).
+        { admit. }
+        pose proof H0 (([^op set] y ∈ ((dom I0) ∖ ({[n]})), (FI I0 y))) (I0 !!! n) (.           
+        admit. }
+      assert (✓ ([^op set] y ∈ dom I0, FI I0 y)) as Valid_I0.
+      { apply leibniz_equiv_iff in Heq. rewrite <-Heq. try done. }
+      assert (∀ x, domm (FI I x) = {[x]}) as Domm_I.
       { admit. }
-      assert (∀ x, domm (FI (<[n:=In']> I0) x) = {[x]}) as domm_II.
+      assert (∀ x, domm (FI I0 x) = {[x]}) as Domm_I0.
+      { admit. }
+      assert (∀ x, domm (FI (<[n:=In']> I0) x) = {[x]}) as Domm_II.
       { admit. }
 
-      (*
-      assert (∀ (k : K) (x y : nat),
-        x ≤ y → (λ (_ : K) (x1 : nat), x1 + 1) k x ≤ (λ (_ : K) (x1 : nat), x1 + 1) k y) as H'.
-      { intros; simpl. unfold ccmop, nat_op. lia. }
-      *)
       pose proof (flowint_insert_eq
                     ([^op set] y ∈ dom I0, I !!! y)
                     ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y)
@@ -205,27 +181,31 @@ Section list_flow_upd.
                     In1' 
                     n1 
                     {[k]}) as Hpose. 
-      (* 
-      simpl in Hpose. unfold ccmop, nat_op in Hpose.
-      assert (∀ k : K,
-           k ∈ Xk
-           → ((inf (FI I n1) n1) !!! k - 
-                ((out ([^op set] y ∈ dom I0, FI I y) n1) !!! k))%nat =
-             (((inf (FI I n1) n1 !!! k) + 1) - 
-              (((out ([^op set] y ∈ dom I0, FI I y) n1) !!! k) + 1))%nat)
-        as H''.
-      { intros k Hk. lia. }
-      *)
       assert (n1 ∈ domm (FI I n1)) as n1_in_In1.
-      { admit. }
-      assert (domm ([^op set] y ∈ dom I0, I !!! y) ≠ ∅) as H'''.
-      { admit. }
+      { rewrite Domm_I. clear; set_solver. }
+      assert (domm ([^op set] y ∈ dom I0, I !!! y) ≠ ∅) as Domm_I0_notEmpty.
+      { assert (n ∈ (domm ([^op set] y ∈ dom I0, (I !!! y)))) as H'.
+        { rewrite flow_big_op_dom; try done. exists n; split; try done.
+          rewrite Domm_I; clear; set_solver. }
+        clear -H'; set_solver. }
+      assert (domm ([^op set] y ∈ dom I0, (FI (<[n:=In']> I0) y)) = 
+                domm ([^op set] y ∈ dom I0, (I !!! y))) as Domm_II_eq_I.
+      { assert ((domm ([^op set] y ∈ dom I0, (FI (<[n:=In']> I0) y))) ⊆ 
+                    (domm ([^op set] y ∈ dom I0, (I !!! y)))) as H'.
+        { intros n'. rewrite !flow_big_op_dom; try done.
+          intros [x [Hx1 Hx2]]. exists x. split; try done.
+          rewrite Domm_II in Hx2. by rewrite Domm_I. }
+        assert ((domm ([^op set] y ∈ dom I0, (I !!! y))) ⊆ 
+                  (domm ([^op set] y ∈ dom I0, (FI (<[n:=In']> I0) y)))) as H''.
+        { intros n'. rewrite !flow_big_op_dom; try done.
+          intros [x [Hx1 Hx2]]. exists x. split; try done.
+          rewrite Domm_II. by rewrite Domm_I in Hx2. }
+        clear -H' H''; set_solver. }
       assert (([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y) =
         outflow_insert_set ([^op set] y ∈ dom I0, I !!! y) n1 {[k]}) 
         as H0'.
-      { apply intEq. 
-        - rewrite flowint_outflow_map_set_domm. admit.
-        - admit. 
+      { apply intEq; try done. 
+        - rewrite Domm_II_eq_I. try done. 
         - intros n'. unfold inf. rewrite outflow_map_set_inf.
           assert (inf ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y) n'
             ≡ default 0 (inf_map ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y) !! n'))
@@ -233,13 +213,14 @@ Section list_flow_upd.
           assert (inf ([^op set] y ∈ dom I0, FI I y) n'
             ≡ default 0 (inf_map ([^op set] y ∈ dom I0, I !!! y) !! n')) as HR by try done.
           rewrite <-HL. rewrite <-HR.
+          rewrite Heq.
           assert (inf ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y) n' = 
                     inf ([^op set] y ∈ dom I0, FI I0 y) n') as HI0.
           { destruct (decide (n' ∈ domm ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y))) 
               as [Hn' | Hn'].
             - rewrite flow_big_op_dom in Hn'.
               destruct Hn' as [n'' [n''_in_I0 n'_in_n'']].
-              rewrite domm_II in n'_in_n''.
+              rewrite Domm_II in n'_in_n''.
               assert (n' = n'') as <- by (clear -n'_in_n''; set_solver).
               rewrite (flow_big_op_inf _ _ n'); try done.
               + rewrite (flow_big_op_inf _ _ n'); try done.
@@ -248,60 +229,74 @@ Section list_flow_upd.
                     = ([^+ set] x ∈ (dom I0 ∖ {[n']}), out (FI I0 x) n')) as Hout.
                   { destruct (decide (n' = n)) as [-> | Hn'].
                     - (* forall x ∈ dom I0 ∖ {[n]}, FI (<[n:=In']> I0) x = FI I0 x *)
+                      (* syntactic rewriting *)
                       admit.
-                    - admit. }
+                    - assert (out (FI (<[n := In']> I0) n) n' = out (FI I0 n) n') as H'.
+                      { rewrite /FI. rewrite lookup_total_insert.
+                        rewrite /In' /In.
+                        assert (n' ≠ n1). { clear -n''_in_I0 n1_notin_I0. set_solver. }
+                        unfold out. rewrite outflow_map_set_out_map_ne; try done. }
+                      (* break the big sum *)
+                      (* syntactic rewriting + above assert *)
+                      admit. }
                   assert (inf (FI (<[n:=In']> I0) n') n' = inf (FI I0 n') n') as Hin.
                   { destruct (decide (n' = n)) as [-> | Hn'].
                     - rewrite /FI. rewrite lookup_total_insert. subst In'.
                       unfold inf. rewrite outflow_map_set_inf. by subst In.
                     - rewrite /FI. rewrite lookup_total_insert_ne; try done. }
                   by rewrite Hin Hout.
-                * admit. 
-                * admit.
-              + rewrite domm_II; clear; set_solver.
+                * rewrite Domm_I0. clear; set_solver.
+              + rewrite Domm_II; clear; set_solver.
               + apply Valid_II. 
-            - admit.
+            - (* syntactic rewriting + flow_inf lemma *) admit.
           }
-          by rewrite HI0 Heq.
+          by rewrite HI0.
         - rewrite Heq.
-          assert (∀ x n', x ∈ dom I0 ∖ {[n]} → out (FI I0 x) n' = 0).
-          { admit. }
-          intros n'.  
-          destruct (decide (n' = n1)) as [-> | Hn'].
-          + rewrite /outflow_insert_set. unfold out at 2. unfold outflow_map_set.
-            simpl. rewrite nzmap_lookup_total_insert.
-            rewrite flow_big_op_out.
-            * rewrite nzmap_eq. intros k'.
-              assert (([^+ set] x ∈ dom I0, out (FI (<[n:=In']> I0) x) n1) !!! k'  
-                         = (out In' n1) !!! k') as H1'.
-              { admit. }
-              rewrite H1'.
-              destruct (decide (k' = k)) as [-> | ?].
-              ** rewrite nzmap_lookup_total_map_set; last first. 
-                 clear; set_solver.
-                 assert ((out ([^op set] x ∈ dom I0, FI I0 x) n1) !!! k
-                            = (out (FI I0 n) n1) !!! k) as H1''.
-                 { admit. }
-                 rewrite H1''.
-                 rewrite /In'.
-                 rewrite outflow_lookup_total_map_set; try done.
-                 clear; set_solver.
-              ** assert (out ([^op set] x ∈ dom I0, FI I0 x) n1
-                            = out (FI I0 n) n1) as H1''.
-                 { admit. }
-                 rewrite H1''.
-                 rewrite nzmap_lookup_total_map_set_ne; try (clear -n0; set_solver).
-                 rewrite /In'.
-                 rewrite outflow_lookup_total_map_set_ne; try (clear -n0; set_solver).
-            * admit.
-            * admit.
-          + unfold out at 2. rewrite outflow_map_set_out_map_ne; try done.
-            simpl. fold (out (([^op set] x ∈ dom I0, FI I0 x)) n'). 
-            admit. }
+          intros n'.
+          destruct (decide (n' ∈ domm ([^op set] y ∈ dom I0, FI (<[n:=In']> I0) y))) 
+              as [Hn' | Hn'].
+          + (* syntactic rewriting + flow_outf lemma *) admit.     
+          + destruct (decide (n' = n1)) as [-> | Hn1'].
+            * apply nzmap_eq. intros k'. destruct (decide (k' ∈ ({[k]}: gset K))) as [Hk' | Hk'].
+              ** rewrite outflow_lookup_total_map_set; try done.
+                 rewrite !flow_big_op_out.
+                 (* break the big sum + lookup_total_lifting *)
+                 admit.
+                 { apply leibniz_equiv_iff in Heq. rewrite <-Heq. try done. }
+                 { intros Hn1. rewrite flow_big_op_dom in Hn1; try done.
+                   destruct Hn1 as [x [Hx1 Hx2]].
+                   rewrite Domm_I0 in Hx2.
+                   assert (n1 = x) as -> by set_solver.
+                   clear -Hx1 n1_notin_I0. try done. }
+                 { try done. }
+                 { intros Hn1. rewrite flow_big_op_dom in Hn1; try done.
+                   destruct Hn1 as [x [Hx1 Hx2]].
+                   rewrite Domm_II in Hx2.
+                   assert (n1 = x) as -> by set_solver.
+                   clear -Hx1 n1_notin_I0. try done. }
+              ** rewrite outflow_lookup_total_map_set_ne; try done.
+                 rewrite !flow_big_op_out.
+                 (* break the big sum + lookup_total_lifting *)
+                 admit.
+                 { try done. }
+                 { intros Hn1. rewrite flow_big_op_dom in Hn1; try done.
+                   destruct Hn1 as [x [Hx1 Hx2]].
+                   rewrite Domm_I0 in Hx2.
+                   assert (n1 = x) as -> by set_solver.
+                   clear -Hx1 n1_notin_I0. try done. }
+                 { try done. }
+                 { intros Hn1. rewrite flow_big_op_dom in Hn1; try done.
+                   destruct Hn1 as [x [Hx1 Hx2]].
+                   rewrite Domm_II in Hx2.
+                   assert (n1 = x) as -> by set_solver.
+                   clear -Hx1 n1_notin_I0. try done. }
+            * unfold out. rewrite outflow_map_set_out_map_ne; try done.
+              (* syntactic rewriting *)
+              admit. }                           
       assert (In1' = inflow_insert_set (I !!! n1) n1 {[k]}) as H0''.
       { rewrite /In1' /In1. try done. }
       assert (✓ (([^op set] y ∈ dom I0, FI I y) ⋅ (FI I n1))) as H0'''.
       { admit. }
-      by pose proof Hpose n1_in_In1 H''' H0' H0'' H0''' as Hpose.
+      by pose proof Hpose n1_in_In1 Domm_I0_notEmpty H0' H0'' H0''' as Hpose.
   Admitted.      
     

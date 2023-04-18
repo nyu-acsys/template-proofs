@@ -106,7 +106,7 @@ Proof.
   rewrite I1D.
   rewrite Dom.
   rewrite nzmap_elem_of_dom_total.
-  rewrite lookup_op.
+  rewrite lookup_total_lifting. 
   unfold nzmap_lookup_total.
   unfold inf, is_Some, inf_map in Inset.
   destruct Inset as [x Inset].
@@ -147,7 +147,7 @@ Proof.
   assert (out (I1 ⋅ I2) n = (out (I1) n) + (out I2 n))%CCM.
   { apply intComp_unfold_out; try done. }
   assert (out (I1 ⋅ I2) n !!! k = (out (I1) n) !!! k + (out I2 n) !!! k)%CCM.
-  { rewrite H0. by rewrite lookup_op. }
+  { rewrite H0. by rewrite lookup_total_lifting. }
   rewrite Hout in H1. rewrite nzmap_lookup_empty in H1.
   unfold ccmunit,ccm_unit in H1. simpl in H1.
   unfold nat_unit in H1. unfold ccmop, nat_op in H1.
@@ -195,7 +195,7 @@ Proof.
   assert (out I n !!! k = out (I1 ⋅ I2) n !!! k).
   rewrite dI. reflexivity.
   rewrite n1 in H1.
-  rewrite lookup_op in H1.
+  rewrite lookup_total_lifting in H1.
   unfold ccmop, ccm_op in H1.
   unfold K_multiset_ccm,ccmunit,ccm_unit,nat_ccm,nat_unit,nat_op in kOut, not_k_out, H1.
   (*
@@ -1069,6 +1069,23 @@ Proof.
       auto. auto. auto.
       set_solver.
 Qed.
+
+Lemma outflow_map_set_valid2 I1 I2 I2' f n S : 
+  I2' = outflow_map_set f I2 n S → n ∉ domm (I1 ⋅ I2) → domm I2 ≠ ∅ → ✓ (I1 ⋅ I2) → ✓ (I1 ⋅ I2').
+Proof.
+  intros Def_I2' n_notin_I12 I2_notEmpty Valid_12.
+  assert (VValid_12 := Valid_12). 
+  apply intValid_composable.
+  apply intComposable_valid in Valid_12.
+  destruct Valid_12 as [Valid1 [Valid2 [Domm_disj [Map_Forall1 Map_Forall2]]]].
+  repeat split; try done.
+  - rewrite Def_I2'. apply outflow_map_set_valid; try done.
+    rewrite intComp_dom in n_notin_I12; try done.
+    set_solver.
+  - rewrite Def_I2'. by rewrite flowint_outflow_map_set_domm.
+  -   
+     
+Admitted.  
 
 End multiset_flows.
 

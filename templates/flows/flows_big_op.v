@@ -9,6 +9,21 @@ Section flow_big_op.
   Implicit Types I : A → flowintUR M.
   Open Scope ccm_scope.
   
+(*  
+  Definition intComposable_big_op I S := 
+    ∀ S', S' ⊂ S → intComposable ([^op set] x ∈ S', I x) ([^op set] x ∈ S ∖ S', I x).
+    
+  Global Instance intComposable_big_op_dec I S : Decision (intComposable_big_op I S).
+  Proof.
+    unfold intComposable_big_op.
+  Admitted.
+            
+  Lemma intValid_composable_big_op_valid I S :
+    intComposable_big_op I S → ✓ ([^op set] x ∈ S, I x).
+  Proof.
+  Admitted.  
+*)    
+  
   Lemma flow_big_op_dom I S n :
     ✓ ([^op set] x ∈ S, I x) → 
         (n ∈ domm ([^op set] x ∈ S, I x) ↔ ∃ x0, x0 ∈ S ∧ n ∈ domm (I x0)). 
@@ -101,5 +116,59 @@ Section flow_big_op.
         exists x0; split; try done.
   Qed.
 
+  Lemma intValid_big_op I S :
+    ∀ S', S' ⊆ S → ✓ ([^op set] x ∈ S, I x) → ✓ ([^op set] x ∈ S', I x).
+  Proof.
+    induction S as [| s S ? IH] using set_ind_L.
+    - intros. assert (S' = ∅) as -> by set_solver.
+      rewrite big_opS_empty. unfold monoid_unit.
+      simpl. try done.
+    - intros S' HS' Valid.
+      destruct (decide (s ∈ S')) as [Hs | Hs].
+      + rewrite big_opS_insert in Valid; try done.
+        rewrite (big_opS_delete _ _ s); try done.
+        apply intValid_composable. repeat split; try done.
+        * admit.
+        * admit.
+        * admit.
+        * apply map_Forall_lookup.
+          intros n x Hx. unfold inf. rewrite Hx. simpl.
+          set S'' := S' ∖ {[s]}.
+          assert (✓ ([^op set] y ∈ S'', (I y))) as Valid_S''.
+          { admit. }
+          assert (n ∉ (domm ([^op set] x ∈ S'', (I x)))) as n_notin_S''.
+          { admit. }
+          pose proof (flow_big_op_out I S'' n Valid_S'' n_notin_S'') as ->.
+          apply intComposable_valid in Valid.
+          destruct Valid as [_ [_ [_ [H' _]]]].
+          rewrite map_Forall_lookup in H'.
+          pose proof H' n x Hx as H'.
+          unfold inf in H'. rewrite Hx in H'. simpl in H'.
+          assert (✓ ([^op set] x ∈ S, (I x))) as Valid_S.
+          { admit. }
+          assert (n ∉ (domm ([^op set] x ∈ S, (I x)))) as n_notin_S.
+          { admit. }
+          pose proof (flow_big_op_out I S n Valid_S n_notin_S) as H''.
+          rewrite H'' in H'.
+          assert (([^+ set] x ∈ S, (out (I x) n)) = 
+                    ([^+ set] x ∈ S'', (out (I x) n)) + ([^+ set] x ∈ S∖S'', (out (I x) n))) as H'''.
+          { admit. }          
+          rewrite H''' in H'.
+          by apply (ccm_misc5 x ([^+ set] x0 ∈ S'', (out (I x0) n)) 
+                    ([^+ set] x ∈ (S ∖ S''), (out (I x) n))).
+        * apply map_Forall_lookup.
+          set S'' := S' ∖ {[s]}.
+          intros n x Hx. unfold inf. rewrite Hx. simpl.
+          assert (✓ ((I s) ⋅ ([^op set] y ∈ S'', (I y)))) as Valid'.
+          { admit. }
+          apply intComposable_valid in Valid'.
+          destruct Valid' as [_ [_ [_ [_ H']]]].
+          pose proof H' n x Hx as H'.
+          unfold inf in H'. rewrite Hx in H'. by simpl in H'.
+      + assert (S' ⊆ S) as S'_sub_S by set_solver.
+        apply IH; try done.
+        rewrite big_opS_insert in Valid; try done.
+        by apply (cmra_valid_op_r (I s)).
+  Admitted.
 
 End flow_big_op.
