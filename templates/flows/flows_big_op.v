@@ -116,7 +116,7 @@ Section flow_big_op.
         exists x0; split; try done.
   Qed.
 
-  Lemma intValid_big_op I S :
+  Lemma flow_big_op_valid I S :
     ∀ S', S' ⊆ S → ✓ ([^op set] x ∈ S, I x) → ✓ ([^op set] x ∈ S', I x).
   Proof.
     induction S as [| s S ? IH] using set_ind_L.

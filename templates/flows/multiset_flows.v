@@ -1071,20 +1071,38 @@ Proof.
 Qed.
 
 Lemma outflow_map_set_valid2 I1 I2 I2' f n S : 
-  I2' = outflow_map_set f I2 n S → n ∉ domm (I1 ⋅ I2) → domm I2 ≠ ∅ → ✓ (I1 ⋅ I2) → ✓ (I1 ⋅ I2').
+  I2' = outflow_map_set f I2 n S → 
+    n ∉ domm I1 → n ∉ domm I2 → 
+      domm I2 ≠ ∅ → 
+        ✓ (I1 ⋅ I2) → 
+          ✓ (I1 ⋅ I2').
 Proof.
-  intros Def_I2' n_notin_I12 I2_notEmpty Valid_12.
+  intros Def_I2' n_notin_I1 n_notin_I2 I2_notEmpty Valid_12.
   assert (VValid_12 := Valid_12). 
   apply intValid_composable.
   apply intComposable_valid in Valid_12.
-  destruct Valid_12 as [Valid1 [Valid2 [Domm_disj [Map_Forall1 Map_Forall2]]]].
+  destruct Valid_12 as [Valid1 [Valid2 [Domm_disj [MF1 MF2]]]].
   repeat split; try done.
   - rewrite Def_I2'. apply outflow_map_set_valid; try done.
-    rewrite intComp_dom in n_notin_I12; try done.
-    set_solver.
   - rewrite Def_I2'. by rewrite flowint_outflow_map_set_domm.
-  -   
-     
+  - rewrite map_Forall_lookup. intros n' x Hx.
+    unfold inf. rewrite Hx; simpl.
+    assert (n' ≠ n). { admit. }
+    rewrite Def_I2'. unfold out. 
+    rewrite outflow_map_set_out_map_ne; try done.
+    fold (out I2 n').
+    rewrite map_Forall_lookup in MF1.
+    pose proof MF1 n' x Hx as MF1.
+    unfold inf in MF1. rewrite Hx in MF1; 
+    by simpl in MF1.
+  - rewrite map_Forall_lookup. intros n' x Hx.
+    unfold inf. rewrite Hx; simpl.
+    rewrite map_Forall_lookup in MF2.
+    assert (inf_map I2 !! n' = Some x) as H'.
+    { subst I2'. by rewrite outflow_map_set_inf in Hx. }
+    pose proof MF2 n' x H' as MF2.
+    unfold inf in MF2. rewrite H' in MF2.
+    by simpl in MF2. 
 Admitted.  
 
 End multiset_flows.
