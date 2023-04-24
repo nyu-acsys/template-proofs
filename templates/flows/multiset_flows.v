@@ -961,6 +961,17 @@ Proof.
     contradiction.
 Qed.
 
+Lemma inflow_insert_set_insets I n S: 
+           insets (inflow_insert_set I n S) = insets I ∪ S.
+Proof.
+Admitted.
+
+Lemma inflow_insert_set_outsets I n S: 
+           outsets (inflow_insert_set I n S) = outsets I.
+Proof.
+Admitted.
+
+
 Lemma inflow_delete_set_inset I n S :
       (∀ k, k ∈ S → inf I n !!! k ≤ 1) →
            inset (inflow_delete_set I n S) n = inset I n ∖ S.

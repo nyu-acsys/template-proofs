@@ -26,12 +26,12 @@ Section list_flow_upd.
   Function prepare_upd_rec 
     (S: gset Node) (es: gmap Node (gmap Node (gset K)))
     (n: Node) (k: K) (R: gset Node) (res: list Node) 
-    {measure size R} : list Node :=
+    {measure size R} : option (list Node) :=
     match (bool_decide (n ∈ R)) with
-    | false => []
+    | false => None
     | true =>
       match find_next (es !!! n) k with
-      | None => res
+      | None => Some res
       | Some n' => prepare_upd_rec S es n' k (R ∖ {[n]}) (res ++ [n]) end end.
   intros S es n k R res Hbool n' Hn'.
   rewrite bool_decide_eq_true in Hbool.
@@ -41,20 +41,19 @@ Section list_flow_upd.
 
   Definition prepare_upd 
     (S: gset Node) (es: gmap Node (gmap Node (gset K)))
-    (n: Node) (k: K) : list Node := 
+    (n: Node) (k: K) : option (list Node) := 
     prepare_upd_rec S es n k S [].
     
   Lemma prepare_upd_rec_edge S es n k R res l:
     (match (last res) with None => res = [] | Some ln => k ∈ edgeset es ln n end) → 
     (∀ i, 0 ≤ i < ((length res) - 1)%nat → k ∈ edgeset es (res !!! i) (res !!! (i+1)%nat)) →
-      prepare_upd_rec S es n k R res = l → 
+      prepare_upd_rec S es n k R res = Some l → 
         (∀ i, 0 ≤ i < ((length l) - 1)%nat → k ∈ edgeset es (l !!! i) (l !!! (i+1)%nat)).
   Proof.
     apply prepare_upd_rec_ind.
-    - clear n k R res. intros n k R res n_in_R Hlast HInd <-.
-      rewrite /length. intros i Hi. lia.
+    - clear n k R res. intros n k R res n_in_R Hlast HInd ?. try done.
     - clear n k R res. intros n k R ? n_in_R Fnext_n. 
-      intros Hlast HInd <-; try done.
+      intros Hlast HInd [= <-]; try done.
     - clear n k R res. intros n k R res n_in_R n1 Fnext_n. 
       intros HInd Hlast HInd_res. apply HInd; try done.
       + assert (last (res ++ [n]) = Some n) as H'.
@@ -82,8 +81,8 @@ Section list_flow_upd.
     
   Fixpoint flow_upd_rec k (I I': gmap Node (multiset_flowint_ur K)) l :=
     match l with
-    | [] => I'
-    | [n] => I'
+    | [] => None
+    | [n] => Some (I', n)
     | n :: (n1 :: ns) as nss =>
       (* Have to pick from I' because its inflow is already updated *)
       let In := I' !!! n in
@@ -99,33 +98,42 @@ Section list_flow_upd.
         
   Functional Scheme flow_upd_rec_ind := Induction for flow_upd_rec Sort Prop.
     
-  Definition flow_upd S es n0 (k: K) I : gmap Node (multiset_flowint_ur K) :=
+  Definition flow_upd S es n0 (k: K) I : option (gmap Node (multiset_flowint_ur K) * Node) :=
     match find_next (es !!! n0) k with
-    | None => I
+    | None => None
     | Some n1 =>
       let In0 := I !!! n0 in
       let In0' := outflow_insert_set In0 n1 {[k]} in
       let In1 := I !!! n1 in
       let In1' := inflow_insert_set In1 n1 {[k]} in
       let I' := <[n1 := In1']> {[n0 := In0']} in
-      let l := prepare_upd S es n1 k in
-      flow_upd_rec k I I' l end.  
+      match prepare_upd S es n1 k with
+      | None => None
+      | Some l => 
+        flow_upd_rec k I I' l end end.  
 
-  Lemma flow_upd_intfEq k I I' l II' :
+  Lemma flow_upd_intfEq k I I' l II' nl:
     let FI := λ I x, I !!! x in 
       (NoDup l) →
-      (match l with [] => True | n :: ns => n ∈ dom I' ∧ (list_to_set ns ## dom I') end) →
+      (match l with 
+        | [] => True 
+        | n :: ns => 
+            n ∈ dom I'
+          ∧ FI I' n = inflow_insert_set (FI I n) n {[k]}
+          ∧ (list_to_set ns ## dom I') end) →
       (✓ ([^op set] x ∈ dom I, FI I x)) →
       (dom I' ⊆ dom I) → (list_to_set l ⊆ dom I) →
       (∀ x, x ∈ dom I → domm (FI I x) = {[x]}) →
       (∀ x, x ∈ dom I' → domm (FI I' x) = {[x]}) →
       ([^op set] x ∈ dom I', FI I x) = ([^op set] x ∈ dom I', FI I' x) →
-        flow_upd_rec k I I' l = II' → 
-          ([^op set] x ∈ dom II', FI I x) = ([^op set] x ∈ dom II', FI II' x).
+        flow_upd_rec k I I' l = Some (II', nl) → 
+          (([^op set] x ∈ dom II', FI I x) = ([^op set] x ∈ dom II', FI II' x)
+          ∧ keyset (FI II' nl) = keyset (FI I nl) ∪ {[k]}).
   Proof.
     intros FI. apply flow_upd_rec_ind.
-    - intros ? ? -> _ _ _ _ _ _ _ ? ->. done.
-    - intros I0 ? n ? -> -> _ HdomI _ _ _ _ _ Heq ->. done.
+    - intros; try done.
+    - intros I0 ? n ? -> -> _ HdomI _ _ _ _ _ Heq [= ->]. split; try done.
+      Search inflow_insert_set.
     - intros I0 ? n ? -> n1 ns ->. 
       intros In In' In1 In1' II I0' HInd NoDup [n_in_I0 HdomI_disj] 
         VI Dom_I0_in_I l_in_I Domm_I Domm_I0 Heq Hflow.
