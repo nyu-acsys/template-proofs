@@ -133,7 +133,7 @@ Section list_flow_upd.
     intros FI. apply flow_upd_rec_ind.
     - intros; try done.
     - intros I0 ? n ? -> -> _ HdomI _ _ _ _ _ Heq [= ->]. split; try done.
-      Search inflow_insert_set.
+      Search inflow_insert_set. admit.
     - intros I0 ? n ? -> n1 ns ->. 
       intros In In' In1 In1' II I0' HInd NoDup [n_in_I0 HdomI_disj] 
         VI Dom_I0_in_I l_in_I Domm_I Domm_I0 Heq Hflow.
@@ -160,7 +160,7 @@ Section list_flow_upd.
         - clear; set_solver.
         - apply NoDup_cons in NoDup. destruct NoDup as [_ NoDup]. 
           apply NoDup_cons in NoDup. destruct NoDup as [NoDup _].
-          clear -HdomI_disj NoDup. set_solver. }
+          clear -HdomI_disj NoDup. admit. (* set_solver. *) }
       { rewrite Dom_I0'. clear -Dom_I0_in_I n1_in_I. set_solver. }
       { clear -l_in_I. set_solver. }
       { rewrite Dom_I0'. intros x; rewrite elem_of_union.

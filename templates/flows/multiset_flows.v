@@ -971,6 +971,16 @@ Lemma inflow_insert_set_outsets I n S:
 Proof.
 Admitted.
 
+Lemma outflow_insert_set_insets I n S: 
+           insets (outflow_insert_set I n S) = insets I.
+Proof.
+Admitted.
+
+Lemma outflow_insert_set_outsets I n S: 
+           outsets (outflow_insert_set I n S) = outsets I ∪ S.
+Proof.
+Admitted.
+
 
 Lemma inflow_delete_set_inset I n S :
       (∀ k, k ∈ S → inf I n !!! k ≤ 1) →
