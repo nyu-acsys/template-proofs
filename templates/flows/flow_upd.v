@@ -84,7 +84,7 @@ Section list_flow_upd.
       | None => None end end.
 
     
-  Lemma flow_upd_defined rank es I k n R I':
+  Lemma flow_updk_rec_defined rank es I k n R I':
     (edge_rank_rel es rank) →
     (∀ n1 n2, edgeset es n1 n2 ≠ ∅ → n2 ∈ dom I) →
     (n ∈ dom I') →
@@ -93,7 +93,6 @@ Section list_flow_upd.
     (∀ x, x ∈ dom I' → rank x ≤ rank n) →
       flow_updk_rec es I k n R I' ≠ None.
   Proof.
-  (*
     apply flow_updk_rec_ind; try done.
     - clear n R. intros n R I0 n_notin_R.
       rewrite bool_decide_eq_false in n_notin_R.
@@ -140,7 +139,6 @@ Section list_flow_upd.
         * apply Rank_I0 in Hx. clear -Hx H'. lia.
         * assert (x = n1) as -> by (clear -Hx; set_solver).
           clear; lia.
-  *)
   Admitted.
       
       
@@ -176,7 +174,7 @@ Section list_flow_upd.
           ∧ (nk ∈ dom II')
           ∧ (∀ x, x ∈ dom II' → domm (FI II' x) = {[x]})).
   Proof.
-  (*
+    (*
     intros FI. apply flow_updk_rec_ind.
     - intros; try done.
     - clear n R. intros n R I0 n_in_R FN_n EdgeRank VI Domm_I ES_I 
@@ -637,18 +635,22 @@ Section list_flow_upd.
     (∀ x, x ∈ dom II → outflow_edge_rel x (es !!! x) (FI II x)) →
     I' = flow_updk_post I II →
           ((dom I' = dom I)
+        ∧ (n0 ∈ dom I')
+        ∧ (nk ∈ dom I')  
         ∧ (∀ x, x ∈ dom I' → domm (FI I' x) = {[x]})  
         ∧ (([^op set] x ∈ dom I, FI I x) = ([^op set] x ∈ dom I, FI I' x))
         ∧ (keyset (FI I' nk) = keyset (FI I nk) ∪ {[k]})
         ∧ (keyset (FI I' n0) = keyset (FI I n0) ∖ {[k]})
-        ∧ (∀ x, x ∈ dom I ∖ {[n0; nk]} → keyset (FI I' x) = keyset (FI I x))
-        ∧ (∀ x, x ∈ dom I → outflow_edge_rel x (es !!! x) (FI I' x))).
+        ∧ (∀ x, x ∈ dom I' ∖ {[n0; nk]} → keyset (FI I' x) = keyset (FI I x))
+        ∧ (∀ x, x ∈ dom I' → outflow_edge_rel x (es !!! x) (FI I' x))).
   Proof.
     intros FI Dom_II_in_I n0_in_II nk_in_II Domm_I Domm_II Heq 
       KS_nk KS_n0 KS_II Outflow_I Outflow_II Hflow.
     pose proof flow_updk_post_dom I II I' Dom_II_in_I Hflow as Dom_I'_eq_I.
     pose proof flow_updk_post_intfEq I II I' Dom_II_in_I Heq Hflow as Heq'.
     repeat split; try done.
+    - rewrite Dom_I'_eq_I. by apply Dom_II_in_I.
+    - rewrite Dom_I'_eq_I. by apply Dom_II_in_I.
     - intros x Hx.  
       destruct (decide (x ∈ dom II)) as [Hx1 | Hx1].
       + unfold FI.
@@ -674,7 +676,7 @@ Section list_flow_upd.
         apply KS_II. clear -Hx3 Hx2; set_solver.
       + unfold FI.
         rewrite (flow_updk_post_lookup_total_ne _ _ _ _ Hflow); try done.
-        clear -Hx1 Hx3; set_solver.
+        rewrite Dom_I'_eq_I in Hx1. clear -Hx1 Hx3; set_solver.
     - intros x Hx.  
       destruct (decide (x ∈ dom II)) as [Hx1 | Hx1].
       + unfold FI.
@@ -683,8 +685,64 @@ Section list_flow_upd.
       + unfold FI.
         rewrite (flow_updk_post_lookup_total_ne _ _ _ _ Hflow); try done.
         apply Outflow_I; try done.
-        clear -Hx1 Hx; set_solver.
+        by rewrite <-Dom_I'_eq_I.
+        rewrite Dom_I'_eq_I in Hx. clear -Hx1 Hx; set_solver.
   Qed.
+
+  Lemma flow_updk_defined rank es I k n0:
+(*     let FI := λ I x, I !!! x in  *)
+    (edge_rank_rel es rank) →
+    (∀ n1 n2, edgeset es n1 n2 ≠ ∅ → n2 ∈ dom I) →
+    (n0 ∈ dom I) →    
+    (find_next (es !!! n0) k ≠ None) →
+    flow_updk es I k n0 ≠ None.
+  Proof.
+    intros EdgeRank ES_I n0_in_I FN_n0.
+    unfold flow_updk.
+    destruct (find_next (es !!! n0) k) as [n1 |]; try done.
+    set In1 := inflow_insert_set (I !!! n1) n1 {[k]}.
+    set In0 := outflow_insert_set (I !!! n0) n1 {[k]}.
+    set I': gmap Node (multiset_flowint_ur K) := {[n1 := In1; n0 := In0]}.
+    assert (In1 = inflow_insert_set (I !!! n1) n1 {[k]}) as Def_In1.
+    { try done. }
+    assert (In0 = outflow_insert_set (I !!! n0) n1 {[k]}) as Def_In0.
+    { try done. }
+    assert (I' = {[n1 := In1; n0 := In0]}) as Def_I'.
+    { try done. }
+    assert (dom I' = {[n0; n1]}) as Dom_I' by set_solver.
+    assert (n1 ∈ dom I') as n1_in_I' by set_solver.
+    assert (n1 ∈ dom I) as n1_in_I.
+    { apply (ES_I n0). admit. }
+    assert (n0 ≠ n1) as n0_neq_n1.
+    { admit. }
+    assert (dom I = (dom I ∖ {[n0]}) ∪ dom I') as H'.
+    { rewrite Dom_I'.
+      assert ((dom I ∖ {[n0]}) ∪ {[n0; n1]} ⊆ dom I) as H'.
+      { set_solver. }
+      assert (dom I ⊆ (dom I ∖ {[n0]}) ∪ {[n0; n1]}) as H''.
+      { clear -n0_in_I n1_in_I n0_neq_n1. intros x Hx. 
+        destruct (decide (x = n0)); first by set_solver.
+        destruct (decide (x = n1)); first by set_solver.
+        by set_solver. }
+      set_solver. }  
+    assert ((dom I ∖ {[n0]}) ∩ dom I' = {[n1]}) as H''.
+    { rewrite Dom_I'. set_solver. }
+    assert (rank n0 < rank n1) as Rank_n0_n1.
+    { assert (edgeset es n0 n1 ≠ ∅) as Hes.
+      { admit. } 
+      by pose proof EdgeRank n0 n1 Hes. }
+    assert (∀ x : Node, x ∈ dom I' → rank x ≤ rank n1) as Rank_I0.
+    { rewrite Dom_I'. intros x; rewrite elem_of_union.
+      intros [Hx | Hx].
+      - assert (x = n0) as -> by set_solver.
+        lia.
+      - assert (x = n1) as -> by set_solver.
+        lia. }
+    pose proof flow_updk_rec_defined rank es I k n1 (dom I ∖ {[n0]}) I'
+      EdgeRank ES_I n1_in_I' H' H'' Rank_I0 as Hdef.
+    destruct (flow_updk_rec es I k n1 (dom I ∖ {[n0]}) I') 
+      as [(II,nk)|]; try done.
+  Admitted.  
 
   Lemma flow_updk_summary rank es I k n0 res:
     let FI := λ I x, I !!! x in 
@@ -700,12 +758,14 @@ Section list_flow_upd.
         res = Some (II', nk)
       ∧ (dom II' = dom I)
       ∧ (n0 ≠ nk)
+      ∧ (n0 ∈ dom II')
+      ∧ (nk ∈ dom II')
       ∧ (∀ x, x ∈ dom II' → domm (FI II' x) = {[x]})
       ∧ (([^op set] x ∈ dom I, FI I x) = ([^op set] x ∈ dom I, FI II' x))
       ∧ (keyset (FI II' nk) = keyset (FI I nk) ∪ {[k]})
       ∧ (keyset (FI II' n0) = keyset (FI I n0) ∖ {[k]})
-      ∧ (∀ x, x ∈ dom I ∖ {[n0; nk]} → keyset (FI II' x) = keyset (FI I x))
-      ∧ (∀ x, x ∈ dom I → outflow_edge_rel x (es !!! x) (FI II' x)).
+      ∧ (∀ x, x ∈ dom II' ∖ {[n0; nk]} → keyset (FI II' x) = keyset (FI I x))
+      ∧ (∀ x, x ∈ dom II' → outflow_edge_rel x (es !!! x) (FI II' x)).
   Proof.
     intros FI EdgeRank ES_I VI Domm_I Outflow_I n0_in_I FN_n0 Hflow_upd.
     unfold flow_updk in Hflow_upd.
@@ -751,7 +811,7 @@ Section list_flow_upd.
         lia.
       - assert (x = n1) as -> by set_solver.
         lia. }
-    pose proof flow_upd_defined rank es I k n1 (dom I ∖ {[n0]}) I'
+    pose proof flow_updk_rec_defined rank es I k n1 (dom I ∖ {[n0]}) I'
       EdgeRank ES_I n1_in_I' H' H'' Rank_I0 as Hdef.
     clear H' H''.
     destruct (flow_updk_rec es I k n1 (dom I ∖ {[n0]}) I') 
@@ -807,14 +867,52 @@ Section list_flow_upd.
     pose proof flow_updk_post_summary es k I II' III n0 nk 
       Dom_II'_in_I HInv8 HInv9 Domm_I HInv10 HInv1 HInv2 HInv3 HInv4 Outflow_I 
       HInv5 Def_III 
-      as [HInv1' [HInv2' [HInv3' [HInv4' [HInv5' [HInv6' HInv7']]]]]].
-    exists III, nk. repeat split; try done.
+      as [HInv1' [HInv2' [HInv3' [HInv4' [HInv5' [HInv6' 
+      [HInv7' [HInv8' HInv9']]]]]]]].
+    exists III, nk. rewrite <-HInv1'. repeat split; try done.
+    by rewrite HInv1'.
   Admitted.
 
   Definition add_k (KM: gmap Node (gset K)) (n: Node) (k: K) :=
     let f := λ s, match s with None => Some {[k]} 
                             | Some s => Some (s ∪ {[k]}) end in
     partial_alter f n KM.
+  
+  Lemma dom_add_k KM n k:
+    dom (add_k KM n k) = dom KM ∪ {[n]}.
+  Proof.
+    apply set_eq_subseteq.
+    unfold add_k. split.
+    - intros x. rewrite elem_of_dom.
+      destruct (decide (x = n)) as [-> | Hxn].
+      + set_solver.
+      + rewrite lookup_partial_alter_ne; try done.
+        rewrite <-elem_of_dom. set_solver.
+    - intros x. destruct (decide (x = n)) as [-> | Hxn].
+      + intros _. rewrite elem_of_dom. 
+        rewrite lookup_partial_alter. 
+        destruct (KM !! n); try done. 
+      + rewrite elem_of_dom. rewrite lookup_partial_alter_ne; try done.
+        rewrite <-elem_of_dom. set_solver.
+  Qed.
+
+  Lemma lookup_add_k KM n k:
+    add_k KM n k !!! n = KM !!! n ∪ {[k]}.
+  Proof.
+    unfold add_k.
+    rewrite !lookup_total_alt.
+    rewrite lookup_partial_alter; try done.
+    destruct (KM !! n); try done.
+    set_solver.
+  Qed.  
+
+  Lemma lookup_add_k_ne KM n k:
+    ∀ x, x ≠ n → add_k KM n k !!! x = KM !!! x.
+  Proof.
+    intros x Hxn. unfold add_k.
+    rewrite lookup_total_alt.
+    rewrite lookup_partial_alter_ne; try done.
+  Qed.
 
   Function flow_upd_rec es n0 I (KM: gmap Node (gset K)) 
     (A R: gset K) {measure size R} :=
@@ -835,29 +933,82 @@ Section list_flow_upd.
   Definition flow_upd es n0 I0 (S: gset K) :=
     flow_upd_rec es n0 I0 ∅ ∅ S.
 
-  Lemma flow_upd_invariants rank es n0 I KM A R I' KM' I0:
-    let FI := λ I x, I !!! x in
+  Lemma flow_upd_rec_defined rank es n0 I KM A R :
+    let FI := λ I x, I !!! x in 
     (edge_rank_rel es rank) →
     (∀ n1 n2, edgeset es n1 n2 ≠ ∅ → n2 ∈ dom I) →
     (✓ ([^op set] x ∈ dom I, FI I x)) →
     (∀ x, x ∈ dom I → domm (FI I x) = {[x]}) →
-    (∀ x, x ∈ dom I → outflow_edge_rel x (es !!! x) (FI I x)) →
+    (∀ x, x ∈ dom I → outflow_edge_rel x (es !!! x) (FI I x)) →    
     (n0 ∈ dom I) →
+    (∀ k, k ∈ R → find_next (es !!! n0) k ≠ None) →  
+    flow_upd_rec es n0 I KM A R ≠ None.
+  Proof.
+    apply flow_upd_rec_ind; try done.
+    - clear I KM A R. intros I KM A R k ks HR I' nk Hflow KM' HInd.
+      intros FI EdgeRank ES_I VI Domm_I Outflow_I n0_in_I FN_n0.
+      assert (k ∈ R) as k_in_R. 
+      { clear -HR. rewrite <-elem_of_elements. rewrite HR; set_solver. }
+      pose proof flow_updk_summary rank es I k n0 (Some (I', nk)) 
+        EdgeRank ES_I VI Domm_I Outflow_I n0_in_I (FN_n0 k k_in_R)
+        Hflow as [II' [nk' Hsum]].
+      destruct Hsum as [[= <- <-] Hsum].
+      destruct Hsum as [HInv1 [HInv2 [HInv3 [HInv4 [HInv5 
+        [HInv6 [HInv7 [HInv8 [HInv9 HInv10]]]]]]]]].
+      apply HInd; try done; clear HInd.
+      + rewrite HInv1. try done.
+      + rewrite HInv1. by rewrite <-HInv6. 
+      + intros k' Hk'; apply FN_n0.
+        clear -Hk'; set_solver.
+    - clear I KM A R. intros I KM A R k ks HR Hflow.
+      intros FI EdgeRank ES_I VI Domm_I Outflow_I n0_in_I FN_n0.
+      assert (k ∈ R) as k_in_R.
+      { clear -HR. rewrite <-elem_of_elements. rewrite HR; set_solver. }
+      pose proof flow_updk_summary rank es I k n0 (None) 
+        EdgeRank ES_I VI Domm_I Outflow_I n0_in_I (FN_n0 k k_in_R)
+        Hflow as [II' [nk' Hsum]]. 
+      destruct Hsum as [? Hsum].
+      exfalso; try done.
+  Qed.
+
+  Lemma flow_upd_invariants rank es n0 I KM A R I' KM' I0:
+    let FI := λ I x, I !!! x in
+    (edge_rank_rel es rank) →
+    (∀ n1 n2, edgeset es n1 n2 ≠ ∅ → n2 ∈ dom I) →
+    (A ## R) →
+    (✓ ([^op set] x ∈ dom I, FI I x)) →
+    (∀ x, x ∈ dom I → domm (FI I x) = {[x]}) →
+    (∀ x, x ∈ dom I → outflow_edge_rel x (es !!! x) (FI I x)) →
+    (n0 ∈ dom I) → (dom I = dom I0) →
+    (dom KM ⊆ dom I) → (n0 ∉ dom KM) →
     (∀ k, k ∈ R → find_next (es !!! n0) k ≠ None) →
     (([^op set] x ∈ dom I, FI I0 x) = ([^op set] x ∈ dom I, FI I x)) →
     (keyset (FI I n0) = keyset (FI I0 n0) ∖ A) →
+    (∀ x, x ∈ dom KM → keyset (FI I x) = keyset (FI I0 x) ∪ (KM !!! x)) →
+    (∀ x, x ∈ dom I ∖ dom KM → x ≠ n0 → keyset (FI I x) = keyset (FI I0 x)) → 
     flow_upd_rec es n0 I KM A R = Some (I', KM') →
-        (([^op set] x ∈ dom I, FI I0 x) = ([^op set] x ∈ dom I, FI I' x)
-      ∧ (keyset (FI I' n0) = keyset (FI I0 n0) ∖ (A ∪ R))).
+        ((dom I' = dom I0)
+      ∧ (dom KM' ⊆ dom I')
+      ∧ (n0 ∉ dom KM')  
+      ∧ ([^op set] x ∈ dom I', FI I0 x) = ([^op set] x ∈ dom I', FI I' x)
+      ∧ (keyset (FI I' n0) = keyset (FI I0 n0) ∖ (A ∪ R))
+      ∧ (∀ x, x ∈ dom KM' → keyset (FI I' x) = keyset (FI I0 x) ∪ (KM' !!! x))
+      ∧ (∀ x, x ∈ dom I' ∖ dom KM' → x ≠ n0 → 
+                          keyset (FI I' x) = keyset (FI I0 x))
+      ∧ (∀ x, x ∈ dom I' → outflow_edge_rel x (es !!! x) (FI I' x))).
   Proof.
+  (*
     intros FI. apply flow_upd_rec_ind; try done.
-    - clear I KM A R. intros I KM A R HR EdgeRank ES_I VI Domm_I Outflow_I 
-        n0_in_I FN_n0 Heq KS_n0 [= -> ->]. split; try done.
+    - clear I KM A R. intros I KM A R HR EdgeRank ES_I A_disj_R VI Domm_I 
+        Outflow_I n0_in_I Dom_I_eq_I0 Dom_KM_in_I n0_notin_KM FN_n0 Heq 
+        KS_n0 KS_I0 KS_KM [= -> ->]. 
+        repeat split; try done.
         assert (R = ∅) as ->.
         { apply leibniz_equiv. by apply elements_empty_inv. }
         by rewrite union_empty_r_L. 
     - clear I KM A R. intros I KM A R k ks HR II nk Hflowk KMM HInd. 
-      intros EdgeRank ES_I VI Domm_I Outflow_I n0_in_I FN_n0 Heq KS_n0 Hflow.
+      intros EdgeRank ES_I A_disj_R VI Domm_I Outflow_I n0_in_I Dom_I_eq_I0 
+        Dom_KM_in_I n0_notin_KM FN_n0 Heq KS_n0 KS_I0 KS_KM Hflow.
       assert (k ∈ R) as k_in_R.
       { apply elem_of_elements. rewrite HR. clear; set_solver. }
       assert (find_next (es !!! n0) k ≠ None) as FN_n0_k.
@@ -865,27 +1016,132 @@ Section list_flow_upd.
       pose proof flow_updk_summary rank es I k n0 (Some (II, nk))
         EdgeRank ES_I VI Domm_I Outflow_I n0_in_I FN_n0_k Hflowk 
         as [? [? [[= <- <-] Hsum]]].
-      destruct Hsum as [HInv1 [HInv2 [HInv3 [HInv4 
-              [HInv5 [HInv6 [HInv7 HInv8]]]]]]].
+      destruct Hsum as [Dom_II_eq_I [n0_neq_nk [n0_in_II [nk_in_II 
+        [Domm_II [Heq' [KS_nk [KS_II_n0 [KS_II Outflow_II]]]]]]]]].
       assert (([^op set] x ∈ dom I, FI I0 x) =
-                ([^op set] x ∈ dom I, FI II x)) as Heq'.
+                ([^op set] x ∈ dom I, FI II x)) as Heq''.
       { rewrite Heq. by unfold FI. }          
-      rewrite HInv1 in HInd.
-      assert (A ∪ {[k]} ∪ R ∖ {[k]} = A ∪ R) as H'.
-      { admit. }
-      rewrite H' in HInd.
+      rewrite Dom_II_eq_I in HInd.
+      assert (A ∪ {[k]} ∪ (R ∖ {[k]}) = A ∪ R) as H'.
+      { assert (k ∉ A) as H'.
+        { clear -A_disj_R k_in_R. set_solver. }
+        apply set_eq_subseteq. split.
+        - clear -H' k_in_R. set_solver.
+        - clear -H' k_in_R. intros x Hx.
+          destruct (decide (x = k)) as [-> |Hxk].
+          + set_solver.
+          + set_solver. }
+      rewrite H' in HInd; clear H'.
+      assert (dom KMM = dom KM ∪ {[nk]}) as Dom_KMM.
+      { rewrite /KMM. apply dom_add_k. }
+      assert (∀ x, x ≠ nk → KMM !!! x = KM !!! x) as KMM_x.
+      { rewrite /KMM. apply lookup_add_k_ne. }
+      assert (KMM !!! nk = KM !!! nk ∪ {[k]}) as KMM_nk.
+      { rewrite /KMM. apply lookup_add_k. }
       apply HInd; try done; clear HInd.
-      + by rewrite <-Heq'; rewrite Heq.
-      + by rewrite <-HInv1.
+      + clear -A_disj_R k_in_R. set_solver.
+      + by rewrite <-Heq''; rewrite Heq.
+      + by rewrite <-Dom_II_eq_I.
+      + by rewrite <-Dom_II_eq_I.
+      + rewrite Dom_KMM. rewrite Dom_II_eq_I in nk_in_II. 
+        clear -Dom_KM_in_I nk_in_II. set_solver.
+      + rewrite Dom_KMM. clear -n0_notin_KM n0_neq_nk.
+        set_solver.  
       + intros k' Hk'. apply FN_n0.
         clear -Hk'; set_solver.
-      + unfold FI. rewrite HInv6.
+      + unfold FI. rewrite KS_II_n0.
         rewrite KS_n0. unfold FI.
-        clear; set_solver.      
-
-
-  Admitted.    
+        clear; set_solver.
+      + intros x. destruct (decide (x = nk)) as [-> | Hx].
+        * intros Hnk. rewrite KMM_nk.
+          unfold FI. rewrite KS_nk. 
+          unfold FI in KS_I0.
+          destruct (decide (nk ∈ dom KM)) as [Hnk1 | Hnk1].
+          ** rewrite KS_I0; try done. clear; set_solver.
+          ** assert (KM !!! nk = ∅) as H'.
+             { rewrite lookup_total_alt. rewrite not_elem_of_dom in Hnk1.
+               rewrite Hnk1. try done. }
+             rewrite H'. unfold FI in KS_KM.
+             rewrite KS_KM; try done. clear; set_solver.
+             clear -Hnk1 nk_in_II Dom_II_eq_I.
+             set_solver.
+        * rewrite Dom_KMM. rewrite elem_of_union.
+          intros [Hx1 | Hx1].
+          ** rewrite KMM_x; try done.
+             assert (x ∈ dom II ∖ {[n0; nk]}) as H'.
+             { rewrite Dom_II_eq_I. clear -Hx Hx1 Dom_KM_in_I n0_notin_KM.
+               set_solver. }
+             rewrite KS_II; try done.
+             apply KS_I0; try done.
+          ** clear -Hx Hx1; set_solver.
+      + rewrite Dom_KMM. intros x Hx1 Hx2.
+        assert (x ∈ dom II ∖ {[n0; nk]}) as H'.
+        { rewrite Dom_II_eq_I. clear -Hx2 Hx1 Dom_KM_in_I n0_notin_KM.
+          set_solver. }
+        rewrite KS_II; try done.
+        apply KS_KM; try done. clear -Hx1; set_solver.
+  Qed.
+  *)
+  Admitted.
+  
       
+  Lemma flow_upd_summary rank es n0 I0 S res:
+    let FI := λ I x, I !!! x in
+    (edge_rank_rel es rank) →
+    (∀ n1 n2, edgeset es n1 n2 ≠ ∅ → n2 ∈ dom I0) →
+    (✓ ([^op set] x ∈ dom I0, FI I0 x)) →
+    (∀ x, x ∈ dom I0 → domm (FI I0 x) = {[x]}) →
+    (∀ x, x ∈ dom I0 → outflow_edge_rel x (es !!! x) (FI I0 x)) →
+    (n0 ∈ dom I0) →
+    (∀ (k: K), k ∈ S → find_next (es !!! n0) k ≠ None) →
+    flow_upd es n0 I0 S = res →
+    ∃ I' (KM': gmap Node (gset K)),
+        ((res = Some (I', KM'))
+      ∧ (dom I' = dom I0)
+      ∧ (dom KM' ⊆ dom I')
+      ∧ (n0 ∉ dom KM')  
+      ∧ ([^op set] x ∈ dom I', FI I0 x) = ([^op set] x ∈ dom I', FI I' x)
+      ∧ (keyset (FI I' n0) = keyset (FI I0 n0) ∖ S)
+      ∧ (∀ x, x ∈ dom KM' → keyset (FI I' x) = keyset (FI I0 x) ∪ (KM' !!! x))
+      ∧ (∀ x, x ∈ dom I' ∖ dom KM' → x ≠ n0 → 
+                          keyset (FI I' x) = keyset (FI I0 x))
+      ∧ (∀ x, x ∈ dom I' → outflow_edge_rel x (es !!! x) (FI I' x))).
+  Proof.
+    intros FI EdgeRank ES_I0 VI0 Domm_I0 Outflow_I0 n0_in_I0
+      FN_n0 Hflow.
+    unfold flow_upd in Hflow.
+    pose proof flow_upd_rec_defined rank es n0 I0 ∅ ∅ S EdgeRank 
+      ES_I0 VI0 Domm_I0 Outflow_I0 n0_in_I0 FN_n0 as Hflow'.
+    destruct (flow_upd_rec es n0 I0 ∅ ∅ S) as [ (I', KM') | ] eqn:Hflow''; 
+    try done. 
+    assert (∅ ## S) as H1'. { clear; set_solver. }
+    assert (dom I0 = dom I0) as H1''. { try done. }
+    assert (dom (∅: gmap Node (gset K)) ⊆ dom I0) as H2'. 
+    { clear; set_solver. }
+    assert (n0 ∉ dom (∅: gmap Node (gset K))) as H2''. 
+    { clear; set_solver. }
+    assert (([^op set] x ∈ dom I0, FI I0 x) = 
+      ([^op set] x ∈ dom I0, FI I0 x)) as H3'.
+    { try done. }
+    assert (keyset (FI I0 n0) = keyset (FI I0 n0) ∖ ∅) as H3''.
+    { clear; set_solver. }
+    assert (∀ x, x ∈ dom (∅: gmap Node (gset K)) → 
+                keyset (FI I0 x) = keyset (FI I0 x) ∪ 
+                  ((∅: gmap Node (gset K)) !!! x)) as H4'.
+    { clear; set_solver. }              
+    assert (∀ x, x ∈ dom I0 ∖ dom (∅: gmap Node (gset K)) → 
+                  x ≠ n0 → 
+                    keyset (FI I0 x) = keyset (FI I0 x)) as H4''.
+    { clear; set_solver. }                
+    pose proof flow_upd_invariants rank es n0 I0 ∅ ∅ S I' KM' I0 
+      EdgeRank ES_I0 H1' VI0 Domm_I0 Outflow_I0 n0_in_I0 
+      H1'' H2' H2'' FN_n0 H3' H3'' H4' H4'' Hflow'' 
+      as [HInv1 [HInv2 [HInv3 [HInv4 [HInv5 [HInv6 [HInv7 HInv8]]]]]]].
+    exists I', KM'. repeat split; try done.
+    assert (∅ ∪ S = S) as H5'. { clear; set_solver. }
+    rewrite H5' in HInv5.
+    done.
+  Qed.  
     
 
 End list_flow_upd.    
