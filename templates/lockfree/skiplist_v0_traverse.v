@@ -13,6 +13,31 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 Require Export skiplist_v0.
 
+Module SKIPLIST0_SPEC_TRAVERSE.
+  Module DEFS := HINDSIGHT_DEFS SKIPLIST0.
+  Import SKIPLIST0.
+  
+  Lemma traverse_spec N γ_t γ_s γ_m γ_td γ_ght r γ_sy t_id t0 
+    (k: nat) :
+    ⌜k ∈ KS⌝ -∗
+      DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+       DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+        {{{ True }}}
+           traverse r #k
+        {{{ (p c: Node) s, RET (#p, #c); 
+              DEFS.past_state γ_m t0 s
+            ∗ ⌜p ∈ FP s⌝ ∗ ⌜c ∈ FP s⌝   
+            ∗ ⌜¬ Mark s p⌝
+            ∗ ⌜k ∈ inset nat (FI s p) p⌝
+            ∗ ⌜k ∈ outset nat (FI s p) c⌝
+            ∗ ⌜¬ Mark s c⌝
+            ∗ ⌜k ∈ keyset (FI s c)⌝ }}}.
+  Proof.
+  Admitted.
+
+End SKIPLIST0_SPEC_TRAVERSE.
+
+(*
 Section skiplist_v0_traverse.
 
   Context {Σ} `{!heapGS Σ, !dsG Σ, !skG Σ}.
@@ -257,3 +282,4 @@ Section skiplist_v0_traverse.
   Admitted.
 
 End skiplist_v0_traverse.
+*)

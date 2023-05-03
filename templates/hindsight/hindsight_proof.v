@@ -7,27 +7,25 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
-From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
-Require Export hindsight_mod.
+Require Export hindsight.
 
-Module Type HINDSIGHT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT).
-  Module DEFS := HINDSIGHT_DEFS ADT DS.
-  Import ADT DS DEFS.
+Module Type HINDSIGHT_SPEC (DS : DATA_STRUCTURE).
+  Module DEFS := HINDSIGHT_DEFS DS.
+  Import DS.
 
-  Parameter dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght op (r: Node) γ_sy t_id t0,
-          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
-            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
-              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+  Parameter dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght op (r: Node) 
+                          γ_sy t_id t0,
+          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+            □ DEFS.update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗
                 {{{ True }}} 
                      dsOp (Op_to_val op) #r
-                {{{ res, RET #res; past_lin_witness γ_m op res t0  }}}.
+                {{{ res, RET #res; DEFS.past_lin_witness γ_m op res t0 }}}.
 
 End HINDSIGHT_SPEC.
 
-Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT) 
-  (HS: HINDSIGHT_SPEC ADT DS).
-  (* Module DEFS := HINDSIGHT_DEFS ADT DS. *)
-  Import ADT DS HS DEFS.
+Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
+  Import DS HS.DEFS HS.
 
   Definition dsOp' : val :=
     λ: "OP" "r",     
@@ -40,10 +38,11 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
   (** Proofs *)
 
   Lemma dsOp'_spec N γ_s γ_t γ_m γ_td γ_ght op (r: Node) :
-          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
               <<< ∀∀ a, dsRep γ_s a >>> 
                      dsOp' (Op_to_val op) #r @ ↑(cntrN N)
-              <<< ∃∃ a' res, dsRep γ_s a' ∗ ⌜seq_spec op a a' res⌝, RET #res >>>.
+              <<< ∃∃ a' res, dsRep γ_s a' ∗ ⌜seq_spec op a a' res⌝, 
+                  RET #res >>>.
   Proof.
     iIntros "#HInv" (Φ) "AU". wp_lam. 
     wp_pure credit:"Hc". wp_pures.
@@ -51,7 +50,7 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
     iIntros (tid vtid)"Htid". wp_pures.
     wp_apply (typed_proph_wp_new_proph1 resTTypedProph); first done.
     iIntros (vp p)"Hproph". wp_pures.
-    iApply fupd_wp.
+    iApply fupd_wp. Locate main_inv.
     iInv "HInv" as (M0 T0 s0) "(>HCntr & >%Habs0 & >Hist & Help & Templ)". 
     iDestruct "Help" as (R hγt)"(>HR & >Hγt 
                                 & >Domm_hγt & Hstar_reg)".
@@ -102,7 +101,8 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
     iAssert (own γ_t (◯ (MaxNat T0))) as "HfragT0".
     { admit. }
     
-    assert (∀ op c c' res, Decision (¬ seq_spec op c c' res)) as neg_seq_spec_dec.
+    assert (∀ op c c' res, Decision (¬ seq_spec op c c' res)) 
+      as neg_seq_spec_dec.
     { intros; apply not_dec. apply seq_spec_dec. }
     assert (∀ op c res, Decision (updater_thread op res = true 
               ∨ (updater_thread op res = false 
@@ -148,8 +148,7 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
       iAssert (update_helping_protocol N γ_t γ_s γ_td γ_ght)%I as "Upd_help".
       { admit. }
       iAssert (thread_vars γ_t γ_ght γ_sy tid T0)%I as "#Thr_vars".
-      { iFrame "#". }
-      Check dsOp_spec.
+      { iFrame "#". } 
       wp_apply dsOp_spec; try done.
       iIntros (res)"HpastW".
       wp_pures.
@@ -246,7 +245,8 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
         - exfalso; apply Hcase2. left; try done.
         - exfalso; apply Hcase2. left; try done. 
         - done. 
-        - assert (Decision (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp)) as H'.
+        - assert (Decision (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp))
+            as H'.
           { apply seq_spec_dec. }
           destruct (decide (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp));
             try done. 
@@ -295,7 +295,7 @@ Module CLIENT_SPEC (ADT: ABSTRACT_DATA_TYPE) (DS : DATA_STRUCTURE ADT)
       wp_apply ((typed_proph_wp_resolve1 resTTypedProph 
                   _ _ _ _ _ _ _ (res))
         with "Hproph"); try done.
-      { unfold typed_proph_from_val; simpl. by rewrite resT_proph_resolve. }    
+      { unfold typed_proph_from_val; simpl. by rewrite resT_proph_resolve. }
       wp_pures. iModIntro. iIntros "->".
       wp_pures. iModIntro. done. 
   Admitted.

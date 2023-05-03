@@ -11,154 +11,245 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From diaframe.heap_lang Require Import proof_automation atomic_specs wp_auto_lob.
-Require Export one_shot_proph typed_proph.
-Require Export multiset_flows search_structures keyset_ra.
+Require Export hindsight.
 
-(** Assumed functions to retrieve next pointer from a node *)
-Parameter nextLoc : Node → loc.
-Parameter getNextLoc : val.
+Module SKIPLIST0 <: DATA_STRUCTURE.
 
-Parameter inContents : val.
-Parameter findNext : val.
-Parameter try_constraint : val.
-Parameter maintenance : val.
-Parameter createNode: val.
+  Parameter inContents : val.
+  Parameter findNext : val.
+  Parameter try_constraint : val.
+  Parameter maintenance : val.
+  Parameter createNode: val.
 
-(** Template algorithms *)
+  (** Template algorithms *)
 
-Definition traverse_rec (r: Node) : val :=
-  rec: "tr" "p" "c" "k" :=
-    let: "fn_ck" := findNext "c" "k" in
-    if: Fst "fn_ck" then
-      match: Snd "fn_ck" with
+  Definition traverse_rec : val :=
+    λ: "r",
+    rec: "tr" "p" "c" "k" :=
+      let: "fn_ck" := findNext "c" "k" in
+      if: Fst "fn_ck" then
+        match: Snd "fn_ck" with
+          NONE => ""
+        | SOME "s" =>
+            match: try_constraint "p" "c" "s" with
+              NONE =>
+                let: "fn_hk" := findNext "r" "k" in
+                match: Snd "fn_hk" with
+                  NONE => ""
+                | SOME "n" => 
+                    "tr" "r" "n" "k" end
+            | SOME "_" => "tr" "p" "s" "k" end end  
+      else
+        match: Snd "fn_ck" with
+          NONE => ("p", "c")
+        | SOME "s" => "tr" "c" "s" "k" end.
+
+  Definition traverse : val := 
+    λ: "r" "k", 
+      let: "fn_hk" := findNext "r" "k" in
+      match: Snd "fn_hk" with
         NONE => ""
-      | SOME "s" =>
-          match: try_constraint "p" "c" "s" with
-            NONE =>
-              let: "fn_hk" := findNext #r "k" in
-              match: Snd "fn_hk" with
-                NONE => ""
-              | SOME "n" => 
-                  "tr" #r "n" "k" end
-          | SOME "_" => "tr" "p" "s" "k" end end  
-    else
-      match: Snd "fn_ck" with
-        NONE => ("p", "c")
-      | SOME "s" => "tr" "c" "s" "k" end.
+      | SOME "n" => 
+          traverse_rec "r" "r" "n" "k" end.
 
-Definition traverse (r: Node) : val := 
-  λ: "k", 
-    let: "fn_hk" := findNext #r "k" in
-    match: Snd "fn_hk" with
-      NONE => ""
-    | SOME "n" => 
-        traverse_rec r #r "n" "k" end.
-
-Definition search (r: Node) : val :=
-  λ: "k",
-    let: "pc" := traverse r "k" in
-    let: "c" := Snd "pc" in
-    inContents "c" "k".
-    
-Definition delete (r: Node) : val :=
-  λ: "k",
-    let: "pc" := traverse r "k" in
-    let: "c" := Snd "pc" in
-    if: ~ (inContents "c" "k") then
-      #false
-    else
-      match: try_constraint "c" with
-        NONE => #false
-      | SOME "_" => maintenance "k";; #true end.
+  Definition search : val :=
+    λ: "r" "k",
+      let: "pc" := traverse "r" "k" in
+      let: "c" := Snd "pc" in
+      inContents "c" "k".
       
-Definition insert (r: Node) : val :=
-  rec: "ins" "k" :=
-    let: "pc" := traverse r "k" in
-    let: "p" := Fst "pc" in
-    let: "c" := Snd "pc" in
-    if: inContents "c" "k" then
-      #false
-    else
-      let: "e" := createNode "k" "c" in
-      match: try_constraint "p" "c" "e" with
-        NONE => "ins" "k"
-      | SOME "_" => #true end.
+  Definition delete : val :=
+    λ: "r" "k",
+      let: "pc" := traverse "r" "k" in
+      let: "c" := Snd "pc" in
+      if: ~ (inContents "c" "k") then
+        #false
+      else
+        match: try_constraint "c" with
+          NONE => #false
+        | SOME "_" => maintenance "k";; #true end.
+        
+  Definition insert : val :=
+    λ: "r",
+    rec: "ins" "k" :=
+      let: "pc" := traverse "r" "k" in
+      let: "p" := Fst "pc" in
+      let: "c" := Snd "pc" in
+      if: inContents "c" "k" then
+        #false
+      else
+        let: "e" := createNode "k" "c" in
+        match: try_constraint "p" "c" "e" with
+          NONE => "ins" "k"
+        | SOME "_" => #true end.
+
+  Definition dsOp : val :=
+    λ: "OP" "r",
+      let: "op" := Fst "OP" in
+      let: "k" := Snd "OP" in     
+      if: "op" = #0 
+      then search "r" "k"
+      else if: "op" = #1 
+      then insert "r" "k"
+      else delete "r" "k".
+
+  (* Definition K := Z. *)
+  Inductive Opp := searchOp : nat → Opp | insertOp : nat → Opp | deleteOp : nat → Opp.
+  Definition Op := Opp.
+
+  Definition Op_to_val (op: Op) : val :=
+    match op with
+    | searchOp k => (#0, #k)
+    | insertOp k => (#1, #k)
+    | deleteOp k => (#2, #k) 
+    end.
     
-(*
-The snapshot stores:
-0) set of nodes
-1) ghost location for interface
-2) global interface
-3) ghost location for keyset
-4) global contents
-5) map from nodes to node-local info
+  Definition absTUR := gsetUR nat.
+  Definition absT := ucmra_car absTUR.
 
-Node local info:
-1) singleton interface
-2) keyset
-3) physical contents
-4) Marking
-*)
-
-Definition K := Z.
-
-Definition esT : Type := gmap Node (gset K).
-
-Definition flowUR := authR (multiset_flowint_ur K).
-Definition auth_keysetUR := authUR $ (keysetUR K).
-Definition auth_setnodeUR := authUR $ (gsetUR Node).
-
-Class skG Σ := SK {
-                  sk_flowG :> inG Σ flowUR;
-                  sk_auth_keysetG :> inG Σ auth_keysetUR;
-                  sk_auth_setnodeG :> inG Σ auth_setnodeUR;
-                 }.
-                 
-Definition skΣ : gFunctors :=
-  #[ GFunctor flowUR;  GFunctor auth_keysetUR;
-     GFunctor auth_setnodeUR ].
+  Definition resT := bool.
+  Definition resT_to_base_lit (b: resT) : base_lit := LitBool b.
+  Coercion resT_to_base_lit : resT >-> base_lit.
+  Definition resT_from_val (v : val) : option bool :=
+    match v with
+    | LitV(LitBool b) => Some b
+    | _               => None
+    end.
+  Definition resT_to_val (b : bool) : val := LitV(LitBool b).
   
-Instance subG_skΣ {Σ} : subG skΣ Σ → skG Σ.
-Proof. solve_inG. Qed.
+  Lemma resT_inj_prop : ∀ (b : bool), bool_from_val (bool_to_val b) = Some b.
+  Proof. done. Qed.
 
-Section skiplist_v0.
-  Context {Σ} `{!heapGS Σ, !skG Σ}.
-  Notation iProp := (iProp Σ).
+  Definition resTProph : TypedProphSpec :=
+    mkTypedProphSpec resT resT_from_val resT_to_val resT_inj_prop.
+  Definition resTTypedProph `{!heapGS Σ} := make_TypedProph resTProph.
+
+  Lemma resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
+  Proof. try done. Qed.
+
+  Definition seq_spec (op: Op) (C: absT) (C': absT) (res: bool) : Prop :=
+    match op with
+    | searchOp k => C' = C ∧ (if res then k ∈ C else k ∉ C)
+    | insertOp k => C' = C ∪ {[k]} ∧ (if res then k ∉ C else k ∈ C)
+    | deleteOp k => C' = C ∖ {[k]} ∧ (if res then k ∈ C else k ∉ C)
+    end.
+
+  Global Instance seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
+  Proof.
+    intros op c c' res. unfold seq_spec. 
+    destruct op; try apply and_dec; try destruct res; try apply _.
+  Qed.
+
+  Definition updater_thread (op: Op) (res: resT) : bool := 
+    match op, res with
+    | searchOp _, _ => false
+    | _, false => false
+    | _, _ => true
+    end.
+
+  Global Instance updater_thread_dec: ∀ op res b, 
+    Decision (updater_thread op res = b).
+  Proof.
+    intros op res b. unfold updater_thread.
+    destruct op; destruct res; try apply _.
+  Qed.  
+
+  Global Instance Op_inhabited : Inhabited Op := populate (searchOp 0).
+  Global Instance absTUR_discrete : CmraDiscrete absTUR.
+  Proof. try apply _. Qed.
+  Global Instance resT_inhabited : Inhabited resT.
+  Proof. try apply _. Qed.
+
   
-  Parameter node : Node → bool → esT → (gset K) → iProp.
-  Parameter node_timeless_proof : ∀ r n es V, Timeless (node r n es V).
-  Global Instance node_timeless r n es V: Timeless (node r n es V).
-  Proof. apply node_timeless_proof. Qed.  
+  (*
+    The snapshot stores:
+    0) set of nodes
+    1) ghost location for interface
+    2) global interface
+    3) ghost location for keyset
+    4) global contents
+    5) map from nodes to node-local info
 
-  Parameter Mark : snapshot → Node → bool.
-  Parameter ES : snapshot → Node → esT.
-  Parameter PC : snapshot → Node → gset K.
-  Parameter GFI : snapshot → (multiset_flowint_ur K).
-  Parameter FI : snapshot → Node → (multiset_flowint_ur K).
-  Parameter FP : snapshot → gsetUR Node.
+    Node local info:
+    1) singleton interface
+    2) keyset
+    3) physical contents
+    4) Marking
+  *)
 
-  Definition Cont (s: snapshot) (n: Node) : gset K :=
-    if decide (Mark s n) then ∅ else PC s n.
+  
+  Definition snapshotUR := natUR.
+  Definition snapshot := ucmra_car snapshotUR.
+  
+  Definition abs (s: snapshot) : absT := ∅.
 
-  Parameter out_set : multiset_flowint_ur K → gset K.
-  (* out_es es := ⋃_n es !!! n *)
-  Parameter out_es : esT → gset K.
-  Parameter keyset : multiset_flowint_ur K → gset K. 
+  Global Instance snapshotUR_discrete : CmraDiscrete snapshotUR.
+  Proof. try apply _. Qed.
+
+  Global Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
+  Proof. try apply _. Qed.
+  
+  Global Instance snapshot_inhabited : Inhabited snapshot := populate 0.
+  
+  
+  Definition esT : Type := gmap Node (gset nat).
+
+  Definition flowUR := authR (multiset_flowint_ur nat).
+  Definition auth_keysetUR := authUR $ (keysetUR nat).
+  Definition auth_setnodeUR := authUR $ (gsetUR Node).
+
+  Class dsGG Σ := ds {
+                    ds_flowG :> inG Σ flowUR;
+                    ds_auth_keysetG :> inG Σ auth_keysetUR;
+                    ds_auth_setnodeG :> inG Σ auth_setnodeUR;
+                   }.
+  
+  Definition dsG := dsGG.
+                
+                     
+  Definition dsΣ : gFunctors :=
+    #[ GFunctor flowUR;  GFunctor auth_keysetUR;
+       GFunctor auth_setnodeUR ].
+  
+  Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsGG Σ.
+  Proof. solve_inG. Qed.
+
+    Context `{!heapGS Σ, !dsGG Σ}.
+    Context (γ_I γ_fp γ_ks: gname) (r: Node).
+    Notation iProp := (iProp Σ).
+  
+    Parameter node : Node → bool → esT → (gset nat) → iProp.
+    Parameter node_timeless_proof : ∀ r n es V, Timeless (node r n es V).
+    Global Instance node_timeless r n es V: Timeless (node r n es V).
+    Proof. apply node_timeless_proof. Qed.  
+
+    Parameter Mark : snapshot → Node → bool.
+    Parameter ES : snapshot → Node → esT.
+    Parameter PC : snapshot → Node → gset nat.
+    Parameter GFI : snapshot → (multiset_flowint_ur nat).
+    Parameter FI : snapshot → Node → (multiset_flowint_ur nat).
+    Parameter FP : snapshot → gset Node.
+  
+    Definition Cont (s: snapshot) (n: Node) : gset nat :=
+      if decide (Mark s n) then ∅ else PC s n.
+
+    Parameter out_set : multiset_flowint_ur nat → gset nat.
+    (* out_es es := ⋃_n es !!! n *)
+    Parameter out_es : esT → gset nat.
+    Parameter keyset : multiset_flowint_ur nat → gset nat. 
     
-  (** data structure specific inv *)
+    (** data structure specific inv *)
 
   Definition globalRes γ_I γ_fp γ_ks s : iProp :=
       own γ_I (● (GFI s)) 
     ∗ own γ_fp (● FP s) 
     ∗ own γ_ks (● prod (KS, abs s)).
-    
-(*   Lemma test γ (s: snapshot) (n: Node) : own γ (● FP s) ==∗ own γ (● (FP s ∪ {[n]})).   *)
-  
-  Definition outflow_constraint (In: multiset_flowint_ur K) (esn: esT) : Prop := True.
+      
+  Definition outflow_constraint (In: multiset_flowint_ur nat) (esn: esT) : Prop := 
+    True.
 
   Definition node_inv_pure s n : Prop :=
-      (¬ (Mark s n) → out_set (FI s n) ⊆ inset K (FI s n) n)
+      (¬ (Mark s n) → out_set (FI s n) ⊆ inset nat (FI s n) n)
     ∧ (Cont s n ⊆ keyset (FI s n))
     ∧ (Mark s n → out_set (FI s n) ≠ ∅)
     ∧ (outflow_constraint (FI s n) (ES s n)).
@@ -175,7 +266,7 @@ Section skiplist_v0.
     ∗ node_local_pure s n.
 *)
   Definition per_tick_inv r s : Prop := 
-      inset K (FI s r) r = KS 
+      inset nat (FI s r) r = KS 
     ∧ out_es (ES s r) = KS
     ∧ ¬ Mark s r
     ∧ (∀ n, n ∈ (FP s) → node_inv_pure s n).
@@ -187,29 +278,29 @@ Section skiplist_v0.
     ∧ (∀ n, n ∈ FP s → PC s n = PC s' n)
     ∧ (FP s ⊆ FP s').
 
-  Definition skiplist_inv γ_I γ_fp γ_ks r (M: gmap nat snapshot) 
+  Definition ds_inv (M: gmap nat snapshot) 
     (T: nat) (s: snapshot) : iProp :=
       globalRes γ_I γ_fp γ_ks s
     ∗ ([∗ set] n ∈ FP s, node_inv γ_I γ_ks s n)
     ∗ ⌜∀ t, t ∈ dom M → per_tick_inv r (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
     
-  Instance skiplist_inv_timeless γ_I γ_fp γ_ks r M T s : 
-    Timeless (skiplist_inv γ_I γ_fp γ_ks r M T s).
+  Instance ds_inv_timeless M T s : 
+    Timeless (ds_inv M T s).
   Proof.
     try apply _.
-  Qed.     
+  Qed.
+
+    (** Helper functions specs *)
     
-  (** Helper functions specs *)
-    
-  Parameter inContents_spec : ∀ (k: K) (n: Node),
+  Parameter inContents_spec : ∀ (k: nat) (n: Node),
      ⊢ (<<< ∀∀ m es pc, node n m es pc >>>
            inContents #n #k @ ⊤
        <<< ∃∃ (v: bool),
               node n m es pc ∗ ⌜v ↔ k ∈ pc⌝,
               RET #v >>>)%I.
 
-  Parameter findNext_spec : ∀ (k: K) (n: Node),
+  Parameter findNext_spec : ∀ (k: nat) (n: Node),
      ⊢ (<<< ∀∀ m es pc, node n m es pc >>>
            findNext #n #k @ ⊤
        <<< ∃∃ (success: bool) (n': Node),
@@ -223,7 +314,7 @@ Section skiplist_v0.
    <[ succ := (es !!! succ) ∪ {[k]} ]>
     (<[ curr := (es !!! curr) ∖ {[k]} ]> es).
 
-  Parameter try_constraint_trav_spec : ∀ (k: K) (pred curr succ: Node),
+  Parameter try_constraint_trav_spec : ∀ (k: nat) (pred curr succ: Node),
      ⊢ (<<< ∀∀ m es pc, node pred m es pc >>>
            try_constraint #pred #curr #succ @ ⊤
        <<< ∃∃ (success: bool) es',
@@ -235,14 +326,14 @@ Section skiplist_v0.
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>)%I.
 
-  Parameter createNode_spec : ∀ (k: K) (n: Node),
+  Parameter createNode_spec : ∀ (k: nat) (n: Node),
      ⊢ ({{{ True }}}
            createNode #k #n
        {{{ e esn, RET #e;
               node e false {[n := esn]} {[k]}
             ∗ ⌜k ∈ esn⌝ }}})%I.
 
-  Parameter try_constraint_insert_spec : ∀ (k: K) (pred curr entry: Node),
+  Parameter try_constraint_insert_spec : ∀ (k: nat) (pred curr entry: Node),
      ⊢ (<<< ∀∀ m es pc, node pred m es pc >>>
            try_constraint #pred #curr #entry @ ⊤
        <<< ∃∃ (success: bool) es',
@@ -254,23 +345,8 @@ Section skiplist_v0.
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>)%I.
 
-
-
-End skiplist_v0.
+  Definition dsG0 : dsG Σ.
+    try done.
+    Admitted.
     
-
-          
-            
-      
-         
-      
-      
-          
-        
-    
-  
-  
-  
-  
-  
-  
+End SKIPLIST0.
