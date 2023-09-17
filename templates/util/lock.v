@@ -8,7 +8,7 @@ Require Export flows.
 
 Section Lock_module.
 
-  Context `{!heapG Σ}.
+  Context `{!heapGS Σ}.
 
   (** Assumed functions to retrieve lock bit from a node *)
   Parameter lockLoc : Node → loc.
@@ -39,7 +39,7 @@ Section Lock_module.
     ((lockLoc n) ↦ #b ∗ (if b then True else R))%I.
   
   Lemma lockNode_spec (n: Node):
-    ⊢ <<< ∀ b R, lockR b n R >>>
+    ⊢ <<< ∀∀ b R, lockR b n R >>>
       lockNode #n    @ ⊤
     <<< lockR true n R ∗ R, RET #() >>>.
   Proof.
@@ -64,7 +64,7 @@ Section Lock_module.
   Qed.
 
   Lemma unlockNode_spec (n: Node) :
-    ⊢ <<< ∀ R, lockR true n R ∗ R >>>
+    ⊢ <<< ∀∀ R, lockR true n R ∗ R >>>
       unlockNode #n    @ ⊤
     <<< lockR false n R, RET #() >>>.
   Proof.

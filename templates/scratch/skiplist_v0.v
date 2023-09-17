@@ -177,11 +177,40 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
     4) Marking
   *)
 
+  Definition flowUR := multiset_flowint_ur nat.
+  Definition auth_flowUR := authR flowUR.
+  Definition auth_keysetUR := authUR $ (keysetUR nat).
+  Definition auth_setnodeUR := authUR $ (gsetUR Node).
+
+  Definition prod3R A B C :=
+    prodR (prodR A B) C.
+
+  Definition prod7UR A B C D E F G:=
+    prodUR (prodUR (prodUR (prodUR (prodUR (prodUR A B) C) D) E) F) G.
   
-  Definition snapshotUR := natUR.
+  Definition esT : Type := gmap Node (gset nat).
+  Definition esTUR := gmapUR Node $ gsetUR nat.
+  
+  Definition MarkUR := gmapUR Node $ natUR.
+  Definition ESUR := gmapUR Node $ esTUR.
+  Definition PCUR := gmapUR Node $ gsetUR nat.
+  Definition FIUR := gmapUR Node $ multiset_flowint_ur nat.
+
+  Definition snapshotUR :=
+    prod7UR
+      (gsetUR Node)
+      (flowUR)
+      (gsetUR nat)
+      (MarkUR)
+      (ESUR)
+      (PCUR)
+      (FIUR).
+      
   Definition snapshot := ucmra_car snapshotUR.
   
-  Definition abs (s: snapshot) : absT := ∅.
+  Definition abs (s: snapshot) : absT :=
+    match s with
+    | (_,_, C, _,_,_,_) => C end.
 
   Global Instance snapshotUR_discrete : CmraDiscrete snapshotUR.
   Proof. try apply _. Qed.
@@ -189,17 +218,15 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
   Global Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   Proof. try apply _. Qed.
   
-  Global Instance snapshot_inhabited : Inhabited snapshot := populate 0.
+  Global Instance snapshot_inhabited : Inhabited snapshot.
+  Proof. try apply _. Qed.
   
-  
-  Definition esT : Type := gmap Node (gset nat).
-
-  Definition flowUR := authR (multiset_flowint_ur nat).
-  Definition auth_keysetUR := authUR $ (keysetUR nat).
-  Definition auth_setnodeUR := authUR $ (gsetUR Node).
-
+  (*
+  Global Instance NodeLocalUR_inhabited : Inhabited (nat * esT * gset nat) := 
+    populate (0, ∅, ∅).  
+  *)
   Class dsGG Σ := ds {
-                    ds_flowG :> inG Σ flowUR;
+                    ds_flowG :> inG Σ auth_flowUR;
                     ds_auth_keysetG :> inG Σ auth_keysetUR;
                     ds_auth_setnodeG :> inG Σ auth_setnodeUR;
                    }.
@@ -208,13 +235,13 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
                 
                      
   Definition dsΣ : gFunctors :=
-    #[ GFunctor flowUR;  GFunctor auth_keysetUR;
+    #[ GFunctor auth_flowUR;  GFunctor auth_keysetUR;
        GFunctor auth_setnodeUR ].
   
   Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsGG Σ.
   Proof. solve_inG. Qed.
 
-    Context `{!heapGS Σ, !dsGG Σ}.
+    Context `{!heapGS Σ, !dsGG Σ}. 
     Context (γ_I γ_fp γ_ks: gname) (r: Node).
     Notation iProp := (iProp Σ).
   
@@ -223,26 +250,62 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
     Global Instance node_timeless r n es V: Timeless (node r n es V).
     Proof. apply node_timeless_proof. Qed.  
 
+    (*
     Parameter Mark : snapshot → Node → bool.
     Parameter ES : snapshot → Node → esT.
     Parameter PC : snapshot → Node → gset nat.
     Parameter GFI : snapshot → (multiset_flowint_ur nat).
     Parameter FI : snapshot → Node → (multiset_flowint_ur nat).
     Parameter FP : snapshot → gset Node.
-  
+
+    Definition node_local (s: snapshot) (n: Node) 
+      : (nat * esT * gset nat * multiset_flowint_ur nat) :=
+      match s with
+      | (_,_,_,m) => default (0, ∅, ∅, ∅) (m !! n) end.
+    *)
+    
+    Definition Mark (s: snapshot) (n: Node) : bool :=
+      match s with
+      | (_,_,_,m,_,_,_) => 
+        match (m !! n) with
+        | Some (S _) => true
+        | _ => false end end.
+
+    Definition ES (s: snapshot) (n: Node) : esT :=
+      match s with
+      | (_,_,_,_,m,_,_) => default ∅ (m !! n) end.
+
+    Definition PC (s: snapshot) (n: Node) : gset nat :=
+      match s with
+      | (_,_,_,_,_,m,_) => default ∅ (m !! n) end.
+    
+    Definition FI (s: snapshot) (n: Node) : multiset_flowint_ur nat :=
+      match s with
+      | (_,_,_,_,_,_,m) => default ∅ (m !! n) end.
+    
+    Definition GFI (s: snapshot) : multiset_flowint_ur nat :=
+      match s with
+      | (_,x,_,_,_,_,_) => x end.
+      
+    Definition FP (s: snapshot) : gset Node :=
+      match s with
+      | (x,_,_,_,_,_,_) => x end.
+          
     Definition Cont (s: snapshot) (n: Node) : gset nat :=
       if decide (Mark s n) then ∅ else PC s n.
-
+    
     Parameter out_set : multiset_flowint_ur nat → gset nat.
     (* out_es es := ⋃_n es !!! n *)
     Parameter out_es : esT → gset nat.
+    (*
     Parameter keyset : multiset_flowint_ur nat → gset nat. 
+    *)
     
     (** data structure specific inv *)
 
-  Definition globalRes γ_I γ_fp γ_ks s : iProp :=
-      own γ_I (● (GFI s)) 
-    ∗ own γ_fp (● FP s) 
+  Definition globalRes γ_fp γ_I γ_ks s : iProp :=
+      own γ_I (● (GFI s))
+    ∗ own γ_fp (● (FP s)) 
     ∗ own γ_ks (● prod (KS, abs s)).
       
   Definition outflow_constraint (In: multiset_flowint_ur nat) (esn: esT) : Prop := 
@@ -285,7 +348,7 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
     ∗ ⌜∀ t, t ∈ dom M → per_tick_inv r (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
     
-  Instance ds_inv_timeless M T s : 
+  Global Instance ds_inv_timeless M T s : 
     Timeless (ds_inv M T s).
   Proof.
     try apply _.
@@ -344,6 +407,17 @@ Module SKIPLIST0 <: DATA_STRUCTURE.
                                            ∗ ⌜es' = es⌝ end),
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>)%I.
+
+  Parameter try_constraint_delete_spec : ∀ (k: nat) (curr: Node),
+     ⊢ (<<< ∀∀ m es pc, node curr m es pc >>>
+           try_constraint #curr @ ⊤
+       <<< ∃∃ (success: bool) m',
+              node curr m' es pc
+            ∗ (match success with true => ⌜m = false⌝ ∗ ⌜m' = true⌝ 
+                                | false => ⌜m' = m⌝ end),
+              RET (match success with true => SOMEV #() 
+                                    | false => NONEV end)  >>>)%I.
+
 
   Definition dsG0 : dsG Σ.
     try done.

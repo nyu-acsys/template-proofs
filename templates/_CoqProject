@@ -7,36 +7,24 @@
 
 -R . flows
 
-flows/ccm.v
 flows/gmap_more.v
+flows/ccm.v
+flows/ccm_big_op.v
 flows/flows.v
+flows/flows_big_op.v
 flows/multiset_flows.v
+flows/list_flow_upd.v
+flows/list_flow_upd_marking.v
+flows/list_flow_upd_insert.v
+flows/keyset_ra2.v
+flows/bool_ra.v
 
-util/auth_ext.v
-util/lock.v
 util/one_shot_proph.v
 util/typed_proph.v
 
-single_copy/search_str.v
-single_copy/keyset_ra.v
-single_copy/inset_flows.v
-single_copy/single_node.v
-single_copy/two_node.v
-single_copy/give_up.v
-single_copy/link.v
-single_copy/coupling.v
+hindsight/hindsight.v
 
-multicopy/multicopy.v
-multicopy/multicopy_util.v
-multicopy/multicopy_client_level.v
-multicopy/multicopy_df.v
-multicopy/multicopy_df_upsert.v
-multicopy/multicopy_df_search.v
-multicopy/multicopy_lsm.v
-multicopy/multicopy_lsm_util.v
-multicopy/multicopy_lsm_search.v
-multicopy/multicopy_lsm_upsert.v
-multicopy/multicopy_lsm_compact.v
+lockfree/skiplist_v1.v
+lockfree/skiplist_v1_util.v
+#lockfree/skiplist_v1_traverse.v
 
-lockfree/skiplist_v0.v
-lockfree/skiplist_v0_search.v

@@ -13,7 +13,7 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 Require Export skiplist_v0.
 
-Module SKIPLIST0_SPEC_SEARCH.
+Module SKIPLIST0_SEARCH.
   Module DEFS := HINDSIGHT_DEFS SKIPLIST0.
   Import DEFS SKIPLIST0.
 
@@ -53,6 +53,7 @@ Module SKIPLIST0_SPEC_SEARCH.
                 {{{ res, RET #res; 
                       past_lin_witness γ_m (searchOp k) res t0 }}}.
   Proof.
+  (*
     iIntros (N γ_s γ_t γ_m γ_td γ_ght r γ_sy t_id t0 k)"#HInv #HUpd #Thd". 
     iIntros (Φ) "!# _ Hpost".
     assert (k ∈ KS) as k_in_KS.
@@ -125,6 +126,7 @@ Module SKIPLIST0_SPEC_SEARCH.
       iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iFrame "Res_rest". iFrame. }
+  *)    
   Admitted.
 
-End SKIPLIST0_SPEC_SEARCH.
+End SKIPLIST0_SEARCH.

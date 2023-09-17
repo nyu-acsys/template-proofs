@@ -322,17 +322,3 @@ Proof.
 Qed.
 
 End ccm_big_op.
-
-
-  
-
-
-
-
-
-  
-  
-
-  
-
-

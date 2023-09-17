@@ -22,13 +22,13 @@ Class PartialInv {A} (R: relation A) (f : A → A → A) (g : A → A → A) : P
 
 Class CcmOp (A : Type) := ccmop : A → A → A.
 Hint Mode CcmOp ! : typeclass_instances.
-Instance: Params (@ccmop) 2 := {}.
+Global Instance: Params (@ccmop) 2 := {}.
 Infix "+" := ccmop (at level 50, left associativity) : ccm_scope.
 Notation "(+)" := ccmop (only parsing) : ccm_scope.
 
 Class CcmOpInv (A : Type) := ccmop_inv : A → A → A.
 Hint Mode CcmOpInv ! : typeclass_instances.
-Instance: Params (@ccmop_inv) 2 := {}.
+Global Instance: Params (@ccmop_inv) 2 := {}.
 Infix "-" := ccmop_inv (at level 50, left associativity) : ccm_scope.
 Notation "(-)" := ccmop_inv (only parsing) : ccm_scope.
 
@@ -67,32 +67,33 @@ Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
 Global Instance ccm_inhabited `{CCM A} : Inhabited A := populate 0.
 
-Instance ccm_eq_proper `{CCM A} : Proper (eq ==> eq ==> eq) ccm_op.
+Global Instance ccm_eq_proper `{CCM A} : Proper (eq ==> eq ==> eq) ccm_op.
 Proof.
   unfold Proper. intros x y Hxy a b Hab.
   by rewrite Hxy Hab.
 Qed.
 
-Instance ccm_assoc1 `{CCM A} : Assoc (=) (ccm_op).
+Global Instance ccm_assoc1 `{CCM A} : Assoc (=) (ccm_op).
 Proof.
   apply ccm_assoc.
 Qed.  
 
-Instance ccm_comm1 `{CCM A} : Comm (=) (ccm_op).
+Global Instance ccm_comm1 `{CCM A} : Comm (=) (ccm_op).
 Proof.
   apply ccm_comm.
 Qed.
 
-Instance ccm_eq_eq `{CCM A}: EqDecision A.
+Global Instance ccm_left_id1 `{CCM A}: LeftId (=) 0 (ccm_op).
+Proof.
+  apply ccm_left_id.
+Defined. 
+
+Global Instance ccm_eq_eq `{CCM A}: EqDecision A.
 Proof.
   apply ccm_eq.
 Defined.
 
-Instance ccm_left_id1 `{CCM A}: LeftId (=) 0 (ccm_op).
-Proof.
-  apply ccm_left_id.
-Defined. 
-  
+
 Lemma ccm_right_id `{CCM M} : RightId (=) 0 (+).
 Proof. intros x. etrans; [apply ccm_comm|apply ccm_left_id]. Qed.
 
@@ -102,42 +103,54 @@ Proof.
   apply ccm_pinv.
 Qed.
 
-Lemma ccm_misc `{CCM M} (x y z: M) : x + z - (y + z) = x - y.
+Lemma ccm_pinv_op `{CCM M} (x y z: M) : 
+  x = (y + z) + (x - (y + z)) →
+    x - (y + z) = x - y - z.
 Proof.
-Admitted.
+  intros H'. 
+  rewrite {2}H'.
+  rewrite (ccm_comm (y + z) _).
+  set a := x - (y + z).
+  rewrite (ccm_comm y z).
+  rewrite ccm_assoc.
+  by rewrite !ccm_pinv.
+Qed.
 
-Lemma ccm_misc2 `{CCM M} (x y z: M) : x - (y + z) = x - y - z.
+Lemma ccm_pinv_inv `{CCM M} (x: M) : x - x = 0.
 Proof.
-Admitted.
+  assert (x + 0 - x = x - x) as <-. 
+  by (rewrite ccm_right_id).
+  rewrite ccm_comm.
+  apply ccm_pinv.
+Qed.
 
-Lemma ccm_misc3 `{CCM M} (x y z: M) : x - y - z = x - z - y.
+Lemma ccm_op_incl `{CCM M} (x y z: M) : 
+  x = (y + z) + (x - (y + z)) → 
+    x = y + (x - y).
 Proof.
-Admitted.
-
-Lemma ccm_misc4 `{CCM M} (x: M) : x - x = 0.
-Proof.
-Admitted.
-
-Lemma ccm_misc5 `{CCM M} (x y z: M) : x = (y + z) + (x - (y + z)) → x = y + (x - y).
-Proof.
-Admitted.
-
-Lemma ccm_misc6 `{CCM M} (x: M) : x = x + x → x = 0.
-Proof.
-Admitted.
-
+  intros H'.
+  rewrite {2}H'.
+  rewrite (ccm_comm (y + z) _).
+  set a := x - (y + z).
+  rewrite (ccm_comm y z).
+  rewrite ccm_assoc.
+  rewrite !ccm_pinv.
+  rewrite (ccm_comm a z).
+  rewrite ccm_assoc.
+  try done.
+Qed.
 
 Close Scope ccm_scope.
 
 (** The CCM of natural numbers with addition. *)
 
-Instance nat_op : CcmOp nat := plus.
+Global Instance nat_op : CcmOp nat := plus.
 
-Instance nat_opinv : CcmOpInv nat := λ x y, (x - y)%nat.
+Global Instance nat_opinv : CcmOpInv nat := λ x y, (x - y)%nat.
 
-Instance nat_unit : CcmUnit nat := 0.
+Global Instance nat_unit : CcmUnit nat := 0.
 
-Instance nat_assoc: Assoc (=) nat_op.
+Global Instance nat_assoc: Assoc (=) nat_op.
 Proof.
   unfold Assoc.
   intros.
@@ -145,7 +158,7 @@ Proof.
   lia.
 Qed.
 
-Instance nat_comm: Comm (=) nat_op.
+Global Instance nat_comm: Comm (=) nat_op.
 Proof.
   unfold Comm.
   intros.
@@ -153,7 +166,7 @@ Proof.
   lia.
 Qed.
 
-Instance nat_leftid: LeftId (=) 0 nat_op.
+Global Instance nat_leftid: LeftId (=) 0 nat_op.
 Proof.
   unfold LeftId.
   intros.
@@ -162,7 +175,7 @@ Proof.
   lia.
 Qed.
 
-Instance nat_cancel: Cancelative (=) nat_op.
+Global Instance nat_cancel: Cancelative (=) nat_op.
 Proof.
   unfold Cancelative.
   intros.
@@ -170,7 +183,7 @@ Proof.
   lia.
 Qed.
 
-Instance nat_pinv: PartialInv (=) nat_op nat_opinv.
+Global Instance nat_pinv: PartialInv (=) nat_op nat_opinv.
 Proof.
   unfold PartialInv.
   intros.
@@ -178,17 +191,17 @@ Proof.
   lia.
 Qed.
 
-Instance nat_ccm : CCM nat := { }.
+Global Instance nat_ccm : CCM nat := { }.
 
 (** The CCM of integers with addition. *)
 
-Instance Z_op : CcmOp Z := Z.add.
+Global Instance Z_op : CcmOp Z := Z.add.
 
-Instance Z_opinv : CcmOpInv Z := Z.sub.
+Global Instance Z_opinv : CcmOpInv Z := Z.sub.
 
-Instance Z_unit : CcmUnit Z := 0.
+Global Instance Z_unit : CcmUnit Z := 0.
 
-Instance Z_assoc: Assoc (=) Z_op.
+Global Instance Z_assoc: Assoc (=) Z_op.
 Proof.
   unfold Assoc.
   intros.
@@ -196,7 +209,7 @@ Proof.
   lia.
 Qed.
 
-Instance Z_comm: Comm (=) Z_op.
+Global Instance Z_comm: Comm (=) Z_op.
 Proof.
   unfold Comm.
   intros.
@@ -204,7 +217,7 @@ Proof.
   lia.
 Qed.
 
-Instance Z_leftid: LeftId (=) 0%Z Z_op.
+Global Instance Z_leftid: LeftId (=) 0%Z Z_op.
 Proof.
   unfold LeftId.
   intros.
@@ -213,7 +226,7 @@ Proof.
   lia.
 Qed.
 
-Instance Z_cancel: Cancelative (=) Z_op.
+Global Instance Z_cancel: Cancelative (=) Z_op.
 Proof.
   unfold Cancelative.
   intros.
@@ -221,7 +234,7 @@ Proof.
   lia.
 Qed.
 
-Instance Z_pinv: PartialInv (=) Z_op Z_opinv.
+Global Instance Z_pinv: PartialInv (=) Z_op Z_opinv.
 Proof.
   unfold PartialInv.
   intros.
@@ -229,49 +242,49 @@ Proof.
   lia.
 Qed.
 
-Instance Z_ccm : CCM Z := { }.
+Global Instance Z_ccm : CCM Z := { }.
 
 (** The CCM of rational numbers with addition. *)
 
-Instance Qc_op : CcmOp Qc := Qcplus.
+Global Instance Qc_op : CcmOp Qc := Qcplus.
 
-Instance Qc_opinv : CcmOpInv Qc := Qcminus.
+Global Instance Qc_opinv : CcmOpInv Qc := Qcminus.
 
-Instance Qc_unit : CcmUnit Qc := 0%Qc.
+Global Instance Qc_unit : CcmUnit Qc := 0%Qc.
 
-Instance Qc_assoc: Assoc (=) Qc_op.
+Global Instance Qc_assoc: Assoc (=) Qc_op.
 Proof.
   unfold Assoc. intros.
   unfold Qc_op. ring. 
 Qed.
 
-Instance Qc_comm: Comm (=) Qc_op.
+Global Instance Qc_comm: Comm (=) Qc_op.
 Proof.
   unfold Comm. intros.
   unfold Qc_op. ring.
 Qed.
 
-Instance Qc_leftid: LeftId (=) 0%Qc Qc_op.
+Global Instance Qc_leftid: LeftId (=) 0%Qc Qc_op.
 Proof.
   unfold LeftId. intros.
   unfold Qc_op. ring.
 Qed.
 
-Instance Qc_cancel: Cancelative (=) Qc_op.
+Global Instance Qc_cancel: Cancelative (=) Qc_op.
 Proof.
   unfold Cancelative.
   intros x y z. unfold Qc_op.
   apply Qcplus_inj_r.
 Qed.
 
-Instance Qc_pinv: PartialInv (=) Qc_op Qc_opinv.
+Global Instance Qc_pinv: PartialInv (=) Qc_op Qc_opinv.
 Proof.
   unfold PartialInv. intros.
   unfold Qc_op, Qc_opinv.
   ring.
 Qed.
 
-Instance Qc_ccm : CCM Qc := { }.
+Global Instance Qc_ccm : CCM Qc := { }.
 
 (** Products of CCMs are CCMs *)
 
@@ -280,18 +293,18 @@ Section product.
 
   Open Scope ccm_scope.
     
-  Instance prod_eq: EqDecision (A1 * A2).
+  Global Instance prod_eq: EqDecision (A1 * A2).
   Proof.
     apply prod_eq_dec.
-  Defined.
+  Qed.
 
-  Instance prod_op : CcmOp (A1 * A2) := λ x y, (x.1 + y.1, x.2 + y.2).
+  Global Instance prod_op : CcmOp (A1 * A2) := λ x y, (x.1 + y.1, x.2 + y.2).
 
-  Instance prod_op_inv : CcmOpInv (A1 * A2) := λ x y, (x.1 - y.1, x.2 - y.2).
+  Global Instance prod_op_inv : CcmOpInv (A1 * A2) := λ x y, (x.1 - y.1, x.2 - y.2).
 
-  Instance prod_unit: CcmUnit (A1 * A2) := (0, 0).
+  Global Instance prod_unit: CcmUnit (A1 * A2) := (0, 0).
 
-  Instance prod_comm: Comm (=) prod_op.
+  Global Instance prod_comm: Comm (=) prod_op.
   Proof.
     unfold Comm, prod_op.
     intros.
@@ -301,7 +314,7 @@ Section product.
     all: apply ccm_comm.
   Defined.
 
-  Instance prod_assoc: Assoc (=) prod_op.
+  Global Instance prod_assoc: Assoc (=) prod_op.
   Proof.
     unfold Assoc, prod_op.
     intros.
@@ -312,7 +325,7 @@ Section product.
     all: apply ccm_assoc.
   Defined.
 
-  Instance prod_leftid: LeftId (=) 0 prod_op.
+  Global Instance prod_leftid: LeftId (=) 0 prod_op.
   Proof.
     unfold LeftId, prod_op, prod_unit.
     intros.
@@ -321,7 +334,7 @@ Section product.
     all: apply ccm_left_id.
   Defined.
   
-  Instance prod_cancel: Cancelative (=) prod_op.
+  Global Instance prod_cancel: Cancelative (=) prod_op.
   Proof.
     unfold Cancelative, prod_op.
     intros.
@@ -336,7 +349,7 @@ Section product.
       apply ccm_cancel.    
   Defined.
   
-  Instance prod_pinv: PartialInv (=) prod_op prod_op_inv.
+  Global Instance prod_pinv: PartialInv (=) prod_op prod_op_inv.
   Proof.
     unfold PartialInv, prod_op, prod_op_inv.
     intros.
@@ -357,7 +370,8 @@ Open Scope ccm_scope.
 Definition nzmap_wf `{Countable K} `{CCM A} : gmap K A → Prop :=
   map_Forall (λ _ x, ¬ (x = 0)).
   
-Instance nzmap_wf_decision K `{Countable K} `{CCM A} (m: gmap K A) : Decision (nzmap_wf m).
+Global Instance nzmap_wf_decision K `{Countable K} `{CCM A} (m: gmap K A) : 
+  Decision (nzmap_wf m).
 Proof.
   solve_decision.
 Qed.
@@ -382,12 +396,11 @@ Arguments nzmap_car {_ _ _ _ _} _ : assert.
 
 (* Lift some common operations from gmaps to nzmaps. *)
 
-Instance nzmap_lookup `{Countable K} `{CCM A} : Lookup K A (nzmap K A) :=
+Global Instance nzmap_lookup `{Countable K} `{CCM A} : Lookup K A (nzmap K A) :=
   λ i m, let (m, _) := m in m !! i.
 
-(* Definition nzmap_lookup_total `{Countable K} `{CCM A} i (m : nzmap K A) := default 0 (m !! i). *)
 
-Instance nzmap_lookup_total `{Countable K} `{CCM A} : LookupTotal K A (nzmap K A) :=
+Global Instance nzmap_lookup_total `{Countable K} `{CCM A} : LookupTotal K A (nzmap K A) :=
   λ i m, let (m, _) := m in m !!! i.
 
 Lemma nzmap_lookup_total_alt `{Countable K} `{CCM A} i (m : nzmap K A) :
@@ -400,12 +413,13 @@ Qed.
   
 (* Notation "m ! i" := (nzmap_lookup_total i m) (at level 20). *)
 
-Instance nzmap_dom K `{Countable K} A `{CCM A} : Dom (nzmap K A) (gset K) :=
+Global Instance nzmap_dom K `{Countable K} A `{CCM A} : Dom (nzmap K A) (gset K) :=
   λ m, dom (nzmap_car m).
 
-Definition nzmap_unit `{Countable K} `{CCM A} := NZMap (∅ : gmap K A) (bool_decide_pack _ empty_nzmap_wf).
+Definition nzmap_unit `{Countable K} `{CCM A} := 
+  NZMap (∅ : gmap K A) (bool_decide_pack _ empty_nzmap_wf).
   
-Instance nzmap_empty `{Countable K} `{CCM A} : Empty (nzmap K A) := nzmap_unit.
+Global Instance nzmap_empty `{Countable K} `{CCM A} : Empty (nzmap K A) := nzmap_unit.
 
 Lemma nzmap_is_wf `{Countable K} `{CCM A} (m : nzmap K A) : nzmap_wf (nzmap_car m).
 Proof.
@@ -451,7 +465,7 @@ Proof.
   f_equal. apply proof_irrel.
 Qed.
 
-Instance nzmap_eq_eq `{Countable K} `{CCM A} : EqDecision (nzmap K A).
+Global Instance nzmap_eq_eq `{Countable K} `{CCM A} : EqDecision (nzmap K A).
 Proof.
   refine (λ m1 m2, cast_if (decide (nzmap_car m1 = nzmap_car m2)));
   try abstract (by rewrite nzmap_gmap_eq). 
@@ -467,7 +481,8 @@ Definition nzmap_merge_op `{CCM A} (f : A → A → A) :=
   end.
 
 (*
-Instance nzmap_diag_merge_op `{CCM A} (f : A → A → A) : DiagNone (nzmap_merge_op f).
+Global Instance nzmap_diag_merge_op `{CCM A} (f : A → A → A) : 
+  DiagNone (nzmap_merge_op f).
 Proof.
   unfold DiagNone.
   auto.
@@ -503,13 +518,6 @@ Definition nzmap_imerge_op `{Countable K} `{CCM A} (f : K → A → A → A) :=
     if (decide (0 = r)) then None else Some r
   end.
 
-(*
-Instance nzmap_diag_imerge_op `{Countable K} `{CCM A} (k: K) (f : K → A → A → A) : DiagNone (nzmap_imerge_op f k).
-Proof.
-  unfold DiagNone.
-  auto.
-Defined.
-*)
 
 Lemma nzmap_imerge_wf `{Countable K} `{CCM A}
       (f : K → A → A → A) (m1 m2 : gmap K A) :
@@ -583,7 +591,8 @@ Definition nzmap_insert_map `{Countable K} `{CCM A}
     let f := λ k a m', <<[k := a]>> m' in
     map_fold f m s.
 
-Lemma nzmap_lookup_wf `{Countable K} `{CCM A} (m : gmap K A) i : nzmap_wf m → m !! i <> Some 0.
+Lemma nzmap_lookup_wf `{Countable K} `{CCM A} (m : gmap K A) i : 
+  nzmap_wf m → m !! i <> Some 0.
 Proof.
   intros.
   unfold nzmap_wf, map_Forall in H0.
@@ -591,7 +600,8 @@ Proof.
 Qed.
 
 
-Lemma nzmap_elem_of_dom `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom m ↔ is_Some (m !! i).
+Lemma nzmap_elem_of_dom `{Countable K} `{CCM A} (m : nzmap K A) i : 
+  i ∈ dom m ↔ is_Some (m !! i).
 Proof.
   unfold dom, nzmap_dom.
   rewrite elem_of_dom.
@@ -645,7 +655,8 @@ Proof.
   - rewrite lookup_total_insert_ne; try done.
 Qed.
 
-Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : i ∈ dom m ↔ m !!! i <> 0.
+Lemma nzmap_elem_of_dom_total `{Countable K} `{CCM A} (m : nzmap K A) i : 
+  i ∈ dom m ↔ m !!! i <> 0.
 Proof.
   pose proof (nzmap_is_wf m) as m_wf.
   unfold lookup_total, nzmap_lookup_total, default.
@@ -671,7 +682,8 @@ Proof.
     contradiction.
 Qed.
 
-Lemma nzmap_elem_of_dom_total2 `{Countable K} `{CCM A} (m : nzmap K A) i : i ∉ dom m ↔ m !!! i = 0.
+Lemma nzmap_elem_of_dom_total2 `{Countable K} `{CCM A} (m : nzmap K A) i : 
+  i ∉ dom m ↔ m !!! i = 0.
 Proof.
   rewrite nzmap_elem_of_dom_total. split; try done. apply dec_stable.
   intros H'. rewrite H'. intros ?; exfalso; try done.
@@ -731,7 +743,8 @@ Proof.
 Qed.
 
 
-Lemma nzmap_empty_lookup `{Countable K} `{CCM A} (m: nzmap K A) : m <> ∅ ↔ ∃ i, m !!! i <> 0.
+Lemma nzmap_empty_lookup `{Countable K} `{CCM A} (m: nzmap K A) : 
+  m <> ∅ ↔ ∃ i, m !!! i <> 0.
 Proof.
   pose proof (nzmap_is_wf m).
   split.
@@ -765,13 +778,13 @@ Qed.
 Class UnitId A `(CCM A) (f : A → A → A) : Prop :=
   unit_id : f 0 0 = 0.
 
-Instance ccm_op_unit_id `{CCM A} : UnitId A _ (+).
+Global Instance ccm_op_unit_id `{CCM A} : UnitId A _ (+).
 Proof.
   unfold UnitId.
     by rewrite ccm_left_id.
 Defined.
 
-Instance lift_opinv_unit_id `{CCM A} : UnitId A _ (-).
+Global Instance lift_opinv_unit_id `{CCM A} : UnitId A _ (-).
 Proof.
   unfold UnitId.
   rewrite <- (ccm_right_id 0) at 1.
@@ -800,7 +813,8 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma nzmap_lookup_imerge `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)} (m1 m2 : nzmap K A) (k : K) :
+Lemma nzmap_lookup_imerge `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)} 
+  (m1 m2 : nzmap K A) (k : K) :
   nzmap_imerge f m1 m2 !!! k = f k (m1 !!! k) (m2 !!! k).
 Proof.
   unfold nzmap_imerge, nzmap_lookup_total, lookup, nzmap_lookup.
@@ -988,7 +1002,8 @@ Qed.
 *)
 Close Scope ccm_scope.
 
-(** Lifting any CCM A to functions f: K → A yields a CCM. Here, we assume that f k ≠ 0 for finitely many k. Moreover, K must be countable. *)
+(** Lifting any CCM A to functions f: K → A yields a CCM. 
+  Here, we assume that f k ≠ 0 for finitely many k. Moreover, K must be countable. *)
 
 Section lifting.
   Context K `{Countable K} A `{CCM A}.
@@ -1002,15 +1017,15 @@ Section lifting.
     
   (* Lift CCM operations on A to (nzmap K A) *)
     
-  Instance lift_op : CcmOp (nzmap K A) := λ m1 m2,
+  Global Instance lift_op : CcmOp (nzmap K A) := λ m1 m2,
     nzmap_merge (+) m1 m2.
 
-  Instance lift_opinv : CcmOpInv (nzmap K A) := λ m1 m2,
+  Global Instance lift_opinv : CcmOpInv (nzmap K A) := λ m1 m2,
     nzmap_merge (-) m1 m2.
 
   (* Prove that this yields again a CCM *)
 
-  Instance lift_comm: Comm (=) lift_op.
+  Global Instance lift_comm: Comm (=) lift_op.
   Proof.
     unfold Comm, lift_op.
     intros.
@@ -1020,7 +1035,7 @@ Section lifting.
     apply ccm_comm.
   Qed.
 
-  Instance lift_assoc: Assoc (=) lift_op.
+  Global Instance lift_assoc: Assoc (=) lift_op.
   Proof.
     unfold Assoc, lift_op.
     intros.
@@ -1030,7 +1045,7 @@ Section lifting.
     apply ccm_assoc.
   Defined.
   
-  Instance lift_leftid: LeftId (=) 0 lift_op.
+  Global Instance lift_leftid: LeftId (=) 0 lift_op.
   Proof.
     unfold LeftId, lift_op.
     intros.
@@ -1040,7 +1055,7 @@ Section lifting.
     apply ccm_left_id.
   Defined.
 
-  Instance lift_cancel: Cancelative (=) lift_op.
+  Global Instance lift_cancel: Cancelative (=) lift_op.
   Proof.
     unfold Cancelative, lift_op.
     intros.
@@ -1054,7 +1069,7 @@ Section lifting.
     trivial.
   Defined.
 
-  Instance lift_pinv: PartialInv (=) lift_op lift_opinv.
+  Global Instance lift_pinv: PartialInv (=) lift_op lift_opinv.
   Proof.
     unfold PartialInv.
     intros.

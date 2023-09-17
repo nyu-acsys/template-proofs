@@ -7,8 +7,7 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
-Require Export one_shot_proph typed_proph.
-Require Export multiset_flows keyset_ra.
+From flows Require Export one_shot_proph typed_proph.
 
 
 Module Type DATA_STRUCTURE.
@@ -38,19 +37,19 @@ Module Type DATA_STRUCTURE.
   Parameter updater_thread_dec: 
     ∀ op res b, Decision (updater_thread op res = b).
 
-  Parameter Op_inhabited : Inhabited Op.
-  Parameter absTUR_discrete : CmraDiscrete absTUR.
-  Parameter resT_inhabited : Inhabited resT.
 
   Parameter snapshotUR : ucmra.
   Definition snapshot := ucmra_car snapshotUR.
   
   Parameter abs : snapshot -> absT.
   
-  Parameter snapshotUR_discrete : CmraDiscrete snapshotUR.
-  
-  Parameter snapshot_leibnizequiv : LeibnizEquiv (snapshot).
-  Parameter snapshot_inhabited : Inhabited snapshot.
+  Declare Instance Op_inhabited : Inhabited Op.
+  Declare Instance absTUR_discrete : CmraDiscrete absTUR.
+  Declare Instance absT_leibnizequiv : LeibnizEquiv (absT).
+  Declare Instance resT_inhabited : Inhabited resT.
+  Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
+  Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
+  Declare Instance snapshot_inhabited : Inhabited snapshot.
   
 (*   Parameter dsG : gFunctors -> Set. *)
   (* Parameter dsΣ : gFunctors. *)
@@ -66,38 +65,7 @@ End DATA_STRUCTURE.
 
 Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   Import DS.
-  
-  Global Instance snapshotUR_discrete' : CmraDiscrete snapshotUR.
-  Proof.
-    apply snapshotUR_discrete.
-  Qed.
-  
-  Global Instance absTUR_discrete' : CmraDiscrete absTUR.
-  Proof.
-    apply absTUR_discrete.
-  Qed.
-
-  Global Instance snapshot_leibnizequiv' : LeibnizEquiv (snapshot).
-  Proof.
-    apply snapshot_leibnizequiv.
-  Qed.  
-
-  Global Instance snapshot_inhabited' : Inhabited snapshot.
-  Proof.
-    apply snapshot_inhabited.
-  Qed.
-
-  Global Instance resT_inhabited' : Inhabited resT.
-  Proof.
-    apply resT_inhabited.
-  Qed.
-
-  Global Instance Op_inhabited' : Inhabited Op.
-  Proof.
-    apply Op_inhabited.
-  Qed.
-
-  
+    
   (* RAs used in proof *)
 
   Definition auth_natUR := authUR $ max_natUR.
@@ -111,6 +79,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   Definition thread_viewR := authUR $ 
                               gmapUR proph_id $ 
                                 agreeR $ prodO natO gnameO.
+  Definition upd_fracR := fracR. 
 
   Class hsG Σ := HS {
                   hsG_auth_natG :> inG Σ auth_natUR;
@@ -121,7 +90,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
                   hsG_tokenG :> inG Σ tokenUR;
                   hsG_frac_historyG :> inG Σ frac_historyR;
                   hsG_set_tidG :> inG Σ set_tidR;
-                  hsG_thread_viewG :> inG Σ thread_viewR
+                  hsG_thread_viewG :> inG Σ thread_viewR;
+                  hsG_upd_fracG :> inG Σ upd_fracR
                  }.
                  
   Definition hsΣ : gFunctors :=
@@ -129,7 +99,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
        GFunctor frac_absTR; GFunctor historyR;
        GFunctor auth_historyR; GFunctor tokenUR; 
        GFunctor frac_historyR; GFunctor set_tidR;
-       GFunctor thread_viewR ].
+       GFunctor thread_viewR; GFunctor upd_fracR].
   
   Global Instance subG_hsΣ {Σ} : subG hsΣ Σ → hsG Σ.
   Proof. solve_inG. Qed.
@@ -145,19 +115,27 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
 
   Definition map_max (M: gmap nat snapshot) : nat := 
     max_list (elements (dom M)).
-
+    
+  Lemma map_max_dom (M: gmap nat snapshot) t :
+    t ∈ dom M → t ≤ map_max M.
+  Proof.
+    intros Ht. unfold map_max.
+    apply max_list_elem_of_le.
+    set_solver.
+  Qed.
+  
   Definition hist γ_t γ_m M T : iProp :=
     ∃ (M': gmap nat (agreeR (_))),
       own γ_t (● MaxNat T) ∗ own γ_m (● M')
-    ∗ ⌜T = map_max M⌝
-    ∗ ⌜map_Forall (λ k a, a = to_agree (M !!! k)) M'⌝
-    ∗ ⌜∀ t, t < T → M !!! t ≠ M !!! (t+1)%nat⌝.
+    ∗ ⌜T = map_max M⌝ ∗ ⌜T ∈ dom M⌝
+    ∗ ⌜∀ t s, M' !! t ≡ Some (to_agree s) ↔ M !! t = Some s⌝
+    ∗ ⌜∀ t, t < T → abs (M !!! t) ≠ abs (M !!! (t+1)%nat)⌝.
 
-  Definition dsRep γ_s (a: absTUR) : iProp := 
-    own γ_s (to_frac_agree (1/2) a).
+  Definition dsRep γ_r (a: absTUR) : iProp := 
+    own γ_r (to_frac_agree (1/2) a).
 
-  Definition dsRepI γ_s (a: absTUR) : iProp := 
-    own γ_s (to_frac_agree (1/2) a).
+  Definition dsRepI γ_r (a: absTUR) : iProp := 
+    own γ_r (to_frac_agree (1/2) a).
     
   (** Helping Inv **)
   
@@ -165,28 +143,27 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     (AU << ∃∃ a, dsRep γ_r a >> 
           @ ⊤ ∖ ↑(cntrN N), ∅
         << ∀∀ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
-        
+  (*
+  Definition au_nupd N γ_r op (Q : val → iProp) := 
+    (AU << ∃∃ a, dsRep γ_r a >> 
+          @ ⊤ ∖ ↑(cntrN N), ∅
+        << ∀∀ res, dsRep γ_r a ∗ ⌜seq_spec op a a res⌝, COMM Q #res >>)%I.
+  *)
   Definition past_lin M T op res t0 : iProp :=
-    ⌜match updater_thread op res with
-    | true =>
-      ∃ t, t0 ≤ t < T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! (t+1)%nat)) res
-    | false =>  
-      ∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res end⌝.
+    ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
 
   Definition past_state γ_m (t0: nat) (s: snapshot) : iProp :=
     ∃ t, ⌜t0 ≤ t⌝ ∗ own γ_m (◯ {[t := to_agree s]}).
   
+  (*
   Definition past_two_states γ_m (t0: nat) (s s': snapshot) : iProp :=
     ∃ t, ⌜t0 ≤ t⌝ 
     ∗ own γ_m (◯ {[t := to_agree s]}) 
     ∗ own γ_m (◯ {[t+1 := to_agree s']}).
-
+  *)
+  
   Definition past_lin_witness γ_m op res t0 : iProp :=
-    match updater_thread op res with
-    | true =>
-      ∃ s s', past_two_states γ_m t0 s s' ∗ ⌜seq_spec op (abs s) (abs s') res⌝
-    | false =>  
-      ∃ s, past_state γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝ end.
+    ∃ s, past_state γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝.
 
   Definition Pending (P: iProp) M T op vp t0 : iProp := 
     P ∗ £1 ∗ ¬ past_lin M T op vp t0.
@@ -202,33 +179,42 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   Definition thread_vars γ_t γ_ght γ_sy t_id t0 : iProp := 
     own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition Reg N γ_t γ_s γ_ght t_id M : iProp :=
+  Definition Reg_nupd N γ_t γ_r γ_ght t_id M : iProp :=
     ∃ γ_tk γ_sy Q op vp t0 (vtid: val), 
         proph1 t_id vtid
       ∗ thread_vars γ_t γ_ght γ_sy t_id t0
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
-      ∗ inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_s op Q) Q M T op vp t0).
+      ∗ ⌜updater_thread op vp = false⌝ 
+      ∗ inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
 
-  Definition helping_inv (N: namespace) γ_t γ_s γ_td γ_ght M : iProp :=
-    ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR _)),
-        own γ_td (● R)
-      ∗ own γ_ght (● hγt) ∗ ⌜dom hγt = R⌝  
-      ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id M).
+  Definition Reg_upd N γ_t γ_r γ_ght t_id : iProp :=
+    ∃ γ_fr Q op vp t0 (vtid: val), 
+        proph1 t_id vtid
+      ∗ thread_vars γ_t γ_ght γ_fr t_id t0
+      ∗ ⌜updater_thread op vp = true⌝ 
+      ∗ ((au N γ_r op Q) ∗ own (γ_fr) (1/2)%Qp ∨ own (γ_fr) (1%Qp)).
+
+  Definition helping_inv (N: namespace) γ_t γ_r γ_td1 γ_td2 γ_ght M : iProp :=
+    ∃ (R1 R2: gset proph_id) (hγt: gmap proph_id (agreeR _)),
+        own γ_td1 (● R1) ∗ own γ_td2 (● R2)
+      ∗ own γ_ght (● hγt) ∗ ⌜dom hγt = R1 ∪ R2⌝
+      ∗ ([∗ set] t_id ∈ R1, Reg_upd N γ_t γ_r γ_ght t_id)
+      ∗ ([∗ set] t_id ∈ R2, Reg_nupd N γ_t γ_r γ_ght t_id M).
   
-  Definition main_inv N γ_t γ_s γ_m γ_td γ_ght : iProp :=
+  Definition main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
-      dsRepI γ_s (abs s) ∗ ⌜M !!! T ≡ s⌝
+      dsRepI γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
     ∗ hist γ_t γ_m M T
-    ∗ helping_inv N γ_t γ_s γ_td γ_ght M
+    ∗ helping_inv N γ_t γ_r γ_td1 γ_td2 γ_ght M
     ∗ ds_inv M T s).
 
-  Definition update_helping_protocol N γ_t γ_s γ_td γ_ght : iProp :=
+  Definition update_helping_protocol N γ_t γ_s γ_td1 γ_td2 γ_ght : iProp :=
         ∀ M T n s, 
           ⌜map_max M = T⌝ -∗   
             dsRep γ_s n -∗ own γ_t (● MaxNat T) -∗ 
-              helping_inv N γ_t γ_s γ_td γ_ght M ={⊤ ∖ ↑cntrN N}=∗
-                helping_inv N γ_t γ_s γ_td γ_ght (<[T := s]> M) 
+              helping_inv N γ_t γ_s γ_td1 γ_td2 γ_ght M ={⊤ ∖ ↑cntrN N}=∗
+                helping_inv N γ_t γ_s γ_td1 γ_td2 γ_ght (<[T := s]> M) 
                 ∗ dsRep γ_s n ∗ own γ_t (● MaxNat T).
     
 End HINDSIGHT_DEFS.

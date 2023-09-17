@@ -14,58 +14,61 @@ Require Export skiplist_v0 hindsight_proof.
 
 Module SKIPLIST_SPEC : HINDSIGHT_SPEC SKIPLIST0.
   Module DEFS := HINDSIGHT_DEFS SKIPLIST0.
-  Import SKIPLIST0.
+  Import SKIPLIST0 DEFS.
   
   Lemma searchOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght (r: Node) 
                       γ_sy t_id t0 (k: nat),
-          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
-            □ DEFS.update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
-              DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
                 {{{ True }}} 
                      search #r #k
                 {{{ res, RET #res; 
-                    DEFS.past_lin_witness γ_m (searchOp k) res t0 }}}.
+                    past_lin_witness γ_m (searchOp k) res t0 }}}.
   Proof.
   Admitted.
 
   Lemma insertOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght (r: Node) 
                       γ_sy t_id t0 (k: nat),
-          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
-            □ DEFS.update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
-              DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
                 {{{ True }}} 
                      insert #r #k
                 {{{ res, RET #res; 
-                    DEFS.past_lin_witness γ_m (insertOp k) res t0 }}}.
+                    past_lin_witness γ_m (insertOp k) res t0 }}}.
   Proof.
   Admitted.
 
   Lemma deleteOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght (r: Node) 
                       γ_sy t_id t0 (k: nat),
-          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
-            □ DEFS.update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
-              DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
                 {{{ True }}} 
                      delete #r #k
                 {{{ res, RET #res; 
-                    DEFS.past_lin_witness γ_m (deleteOp k) res t0 }}}.
+                    past_lin_witness γ_m (deleteOp k) res t0 }}}.
   Proof.
   Admitted.
 
   
   Lemma dsOp_spec: ∀ N γ_s γ_t γ_m γ_td γ_ght op (r: Node) 
                       γ_sy t_id t0,
-          DEFS.main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
-            □ DEFS.update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
-              DEFS.thread_vars γ_t γ_ght γ_sy t_id t0 -∗
+          main_inv N γ_t γ_s γ_m γ_td γ_ght -∗
+            □ update_helping_protocol N γ_t γ_s γ_td γ_ght -∗
+              thread_vars γ_t γ_ght γ_sy t_id t0 -∗
                 {{{ True }}} 
                      dsOp (Op_to_val op) #r
-                {{{ res, RET #res; DEFS.past_lin_witness γ_m op res t0 }}}.
+                {{{ res, RET #res; past_lin_witness γ_m op res t0 }}}.
   Proof.
     iIntros (N γ_s γ_t γ_m γ_td γ_ght op r γ_sy t_id t0) "#HInv #HUpd #Thd_vars".
     unfold dsOp. iIntros (Φ) "!# _ Hpost". wp_lam. wp_pure.
     unfold Op_to_val; destruct op as [k|k|k].
-    - wp_pures. wp_apply searchOp_spec; try done.
+    - wp_pures. Locate searchOp_spec.
+      Check searchOp_spec.
+      (* Check SKIPLIST0_SEARCH.searchOp_spec. *)
+      wp_apply searchOp_spec; try done.
     - wp_pures. wp_apply insertOp_spec; try done.
     - wp_pures. wp_apply deleteOp_spec; try done.
   Qed.
