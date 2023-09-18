@@ -300,6 +300,72 @@ Section list_flow_upd.
         * clear -Hx1 Hx2; set_solver.
   Qed.
 
+  Lemma list_flow_upd_Mk f n R Nx Mk S I I' II' nk n0:
+    (n0 ∈ dom I') → (n ∈ dom I') →
+    (∀ x, x ∈ dom I' ∖ {[n0;n]} → Mk !! x = Some true) →
+    list_flow_upd_rec f n R Nx Mk S I I' = Some (II', nk) →
+          (∀ x, x ∈ dom II' ∖ {[n0;nk]} → Mk !! x = Some true).
+  Proof.
+    apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros n0_in_I0 n_in_I0 Mk_x [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd n0_in_I0 n_in_I0 Mk_x Hflow.
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0. set_solver. }
+      apply HInd; try done; clear HInd.
+      + rewrite Dom_I0'. set_solver.
+      + rewrite Dom_I0'. set_solver.
+      + intros x. rewrite Dom_I0'. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * destruct (decide (x = n)) as [-> | Hxn].
+          -- by rewrite Hmk_n.
+          -- apply Mk_x. clear -Hx1 Hx2 Hxn; set_solver.
+        * clear -Hx1 Hx2; set_solver.
+  Qed.
+
+  Lemma list_flow_upd_Key_n0 Key f n R Nx Mk S I I' II' nk n0:
+    (nx_key_rel Nx Key) →
+    (n0 ∈ dom I') → (n ∈ dom I') →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → Key !!! n0 < Key !!! x) →
+    list_flow_upd_rec f n R Nx Mk S I I' = Some (II', nk) →
+          (∀ x, x ∈ dom II' ∖ {[n0]} → Key !!! n0 < Key !!! x).
+  Proof.
+    apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key n0_in_I0 n_in_I0 Key_I0 Key_n0 [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key n0_in_I0 n_in_I0 Key_I0 Key_n0 Hflow.
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0. set_solver. }
+      apply HInd; try done; clear HInd.
+      + rewrite Dom_I0'. set_solver.
+      + rewrite Dom_I0'. set_solver.
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + rewrite Dom_I0'. intros x. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * apply Key_n0. clear -Hx1 Hx2; set_solver.
+        * assert (x = n1) as -> by (clear -Hx1; set_solver). 
+          pose proof Nx_key n n1 Hnx_n as H'.
+          assert (Key !!! n0 ≤ Key !!! n) as H''.
+          { by apply Key_I0. }
+          clear -H' H''. lia.
+  Qed.
+
   Lemma list_flow_upd_domm Key f n R Nx Mk S I I' II' nk:
     let FI := λ I x, I !!! x in 
     (nx_key_rel Nx Key) →
@@ -466,7 +532,7 @@ Section list_flow_upd.
              apply I0_x. clear -Hx1 Hx2 Hxn; set_solver.
         * clear -Hx1 Hx2; set_solver.
   Qed.
-
+(*
   Lemma list_flow_upd_intfEq Key f n R Nx Mk S I I' II' nk n0:
     let FI := λ I x, I !!! x in 
     (∀ k x y : nat, x ≤ y → f k x ≤ f k y) →
@@ -808,7 +874,7 @@ Section list_flow_upd.
           clear -n1_notin_I0. set_solver. }
         apply Hpose; try done. intros k. apply Hf2.
   Qed.
-  
+*)
 End list_flow_upd.
   
   

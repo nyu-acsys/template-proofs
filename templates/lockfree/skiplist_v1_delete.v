@@ -11,10 +11,10 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_v1_util skiplist_v1_traverse list_flow_upd_marking.
+Require Export skiplist_v1_util list_flow_upd_marking.
 
 Module SKIPLIST1_SPEC_DELETE.
-  Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL SKIPLIST1_SPEC_TRAVERSE.
+  Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL.
 
 
   Parameter try_constraint_delete_spec : ∀ (curr: Node) (i: nat),
@@ -36,6 +36,31 @@ Module SKIPLIST1_SPEC_DELETE.
               perm ↦∗ vs
             ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
             ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}.
+
+  Definition traversal_inv s i k p c : Prop :=
+      p ∈ FP s 
+    ∧ c ∈ FP s 
+    ∧ Key s p < k 
+    ∧ Marki s p i = false 
+    ∧ Nexti s p i = Some c.
+
+  Lemma traverse_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght (h t: Node) γ_sy t_id t0 k:
+      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
+        thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+        {{{ True }}}
+           traverse #h #t #k
+        {{{ (preds succs: loc) (ps ss: list Node) (p c: Node) (res: bool), 
+              RET (#preds, #succs, #res);
+              is_array preds ps ∗ is_array succs ss
+            ∗ (∀ i, ⌜1 ≤ i < L⌝ → 
+                      ∃ s, past_state γ_m t0 s 
+                           ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝)
+            ∗ (⌜ps !!! 0 = p⌝) ∗ (⌜ss !!! 0 = c⌝)
+            ∗ (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s⌝ ∗ ⌜c ∈ FP s⌝
+                    ∗ if res then ⌜k ∈ keyset (FI s c)⌝ ∗ ⌜k = Key s c⌝
+                      else ⌜k ∉ abs s⌝) }}}.
+  Proof.  
+  Admitted.
 
   Lemma maintenanceOp_delete_rec_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght t0 c
     perm vs xs i:
