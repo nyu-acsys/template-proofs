@@ -11,10 +11,10 @@ From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export skiplist_v1_util skiplist_v1_traverse list_flow_upd_insert.
+From flows Require Export skiplist_v1_util list_flow_upd_insert.
 
 Module SKIPLIST1_SPEC_INSERT.
-  Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL SKIPLIST1_SPEC_TRAVERSE.
+  Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL.
 
   Lemma createNode_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght γ_sy t_id t0 succs ss k:
       main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
@@ -43,6 +43,32 @@ Module SKIPLIST1_SPEC_INSERT.
                                             ∧ next' = next⌝ end),
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>)%I.
+
+  Definition traversal_inv s i k p c : Prop :=
+      p ∈ FP s 
+    ∧ c ∈ FP s 
+    ∧ Key s p < k 
+    ∧ Marki s p i = false 
+    ∧ Nexti s p i = Some c.
+
+  Lemma traverse_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght (h t: Node) γ_sy t_id t0 k:
+      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
+        thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+        {{{ True }}}
+           traverse #h #t #k
+        {{{ (preds succs: loc) (ps ss: list Node) (p c: Node) (res: bool), 
+              RET (#preds, #succs, #res);
+              is_array preds ps ∗ is_array succs ss
+            ∗ (∀ i, ⌜1 ≤ i < L⌝ → 
+                      ∃ s, past_state γ_m t0 s 
+                           ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝)
+            ∗ (⌜ps !!! 0 = p⌝) ∗ (⌜ss !!! 0 = c⌝)
+            ∗ (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s⌝ ∗ ⌜c ∈ FP s⌝
+                    ∗ if res then ⌜k ∈ keyset (FI s c)⌝ ∗ ⌜k = Key s c⌝
+                      else ⌜k ∉ abs s⌝) }}}.
+  Proof.  
+  Admitted.
+
 
   
   Lemma insertOp_spec N γ_s γ_t γ_m γ_td1 γ_td2 γ_ght (h t: Node) γ_sy t_id t0 k:
