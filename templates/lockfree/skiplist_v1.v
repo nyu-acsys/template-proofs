@@ -423,7 +423,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     rewrite elem_of_list_to_set elem_of_seq; 
     lia.
   Qed.
-  
+  (*
   Definition mset_set (S: gset nat) : nzmap nat nat :=
     let f := λ i res, <<[i := 1]>> res in
       set_fold f (∅) (S).
@@ -444,7 +444,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       rewrite /0%CCM /ccmunit /ccm_unit. simpl.
       rewrite /nat_unit. lia.
   Qed.
-
+  *)
   Definition snapshot_constraints (s: snapshot) : Prop :=
     ∃ (N: gset Node) (C: gset nat) 
       (Mk: gmap Node (gmap nat bool)) (Nx: gmap Node (gmap nat Node)) 
@@ -458,7 +458,9 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (m = true → keyset In = ∅)
     ∧ (dom (out_map In) = match on with Some n' => {[n']} | None => ∅ end)
     ∧ (if m then gset_seq (k+1) W ⊆ outsets In else gset_seq (k+1) W = outsets In)
-    ∧ (∀ k, k ∈ insets In → k < W).
+    ∧ (∀ k, k ∈ insets In → k ≤ W)
+    ∧ (∀ k, inf In n !!! k ≤ 1)
+    ∧ (∀ n' k, out In n' !!! k ≤ 1).
 
 (*
   Definition globalRes γ_ks s : iProp := 
@@ -498,6 +500,10 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ ✓ GFI s
     ∧ (∀ n, n ∈ (FP s) → node_inv_pure s n)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → Key s n1 < Key s n2)
+    ∧ (∀ n1 n2 k, Key s n1 < Key s n2 → Marki s n1 0 = false → 
+        k ∈ insets (FI s n2) → Key s n1 < k)
+    ∧ (∀ n1 n2 k, Key s n1 < Key s n2 → Marki s n1 0 = false → 
+        k ∈ outsets (FI s n2) → Key s n1 < k)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s)
     ∧ (∀ n, n ∈ (FP s) → 0 < Key s n < W).
     

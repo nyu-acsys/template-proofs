@@ -361,9 +361,10 @@ Section list_flow_upd_marking.
     let FI := λ I x, I !!! x in 
     (nx_key_rel Nx Key) →
     (nx_mk_closed Nx Mk (dom I)) →
-    (∀ x, x ∈ dom I ∖ {[n0]} → S ## keyset (FI I x)) →
-    (n ∈ dom I') → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → insets (FI I x) ## S) →
+    (n0 ∈ dom I') → (n ∈ dom I') → (dom I' ⊆ dom I) → (n0 ≠ n) →
     (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → Key !!! n0 < Key !!! x) →
     (FI I' n = inflow_map_set f_incr (FI I n) n S) →
     (∀ x, x ∈ dom I' ∖ {[n0; n]} → keyset (FI I' x) = keyset (FI I x)) →
     list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
@@ -372,13 +373,13 @@ Section list_flow_upd_marking.
     intros FI. apply list_flow_upd_rec_ind; try done; last first.
     - clear n R Nx Mk S I I'.
       intros n R Nx Mk S I I0 n_in_R Hmk_n.
-      intros Nx_key Hcl Disj_KS n_in_I0 Dom_I0_in_I Key_I0 Def_I0_n 
-        KS_x [= -> ->].
+      intros Nx_key Hcl Disj_insets n0_in_I0 n_in_I0 Dom_I0_in_I n0_neq_n 
+        Key_I0 Key_n0 Def_I0_n KS_x [= -> ->].
       done.
     - clear n R Nx Mk S I I'.
       intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
-      intros HInd Nx_key Hcl Disj_KS n_in_I0 Dom_I0_in_I Key_I0 Def_I0_n 
-        KS_x Hflow.
+      intros HInd Nx_key Hcl Disj_insets n0_in_I0 n_in_I0 Dom_I0_in_I n0_neq_n 
+        Key_I0 Key_n0 Def_I0_n KS_x Hflow.
       assert (n1 ∉ dom I0) as n1_notin_I0.
       { pose proof Nx_key n n1 Hnx_n as H'.
         intros n1_in_I0. apply Key_I0 in n1_in_I0.
@@ -391,15 +392,29 @@ Section list_flow_upd_marking.
       assert (n1 ∈ dom I) as n1_in_I.
       { destruct Hcl as [_ [_ Hcl]].
         by pose proof Hcl n n1 Hnx_n as H'. }  
+      assert (n ≠ n1) as n_neq_n1.
+      { clear -n1_notin_I0 n_in_I0; set_solver. }
+      assert (Key !!! n < Key !!! n1) as Hkey.
+      { by pose proof Nx_key n n1 Hnx_n as H'. }
+      assert (Key !!! n0 < Key !!! n1) as Hkey_n0.
+      { assert (n ∈ dom I0 ∖ {[n0]}) as Hn.
+        { clear -n_in_I0 n0_neq_n. set_solver. }
+        pose proof Key_n0 n Hn as H'. clear -Hkey H'; lia. }
       apply HInd; try done.
+      + rewrite Dom_I0'. clear -n0_in_I0; set_solver.
       + rewrite Dom_I0'. clear; set_solver.
       + rewrite Dom_I0'. clear -Dom_I0_in_I n1_in_I. set_solver.
+      + clear -n0_in_I0 n1_notin_I0. set_solver.
       + pose proof Nx_key n n1 Hnx_n as H'. 
         rewrite Dom_I0'. intros x; rewrite elem_of_union.
         intros [Hx | Hx].
         * apply Key_I0 in Hx. clear -Hx H'. lia.
         * assert (x = n1) as -> by (clear -Hx; set_solver).
           clear; try done.
+      + rewrite Dom_I0'. intros x. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * apply Key_n0. clear -Hx1 Hx2; set_solver.
+        * assert (x = n1) as -> by (clear -Hx1; set_solver). done.
       + by rewrite /I0' /FI lookup_total_insert /In1' /In1.
       + intros x Hx; rewrite Dom_I0' elem_of_difference in Hx.
         destruct Hx as [Hx1 Hx2]. rewrite elem_of_union in Hx1.
@@ -414,29 +429,415 @@ Section list_flow_upd_marking.
         rewrite /keyset. rewrite outflow_insert_set_insets.
         rewrite outflow_insert_set_outsets. rewrite /FI in Def_I0_n.
         rewrite Def_I0_n. rewrite inflow_insert_set_outsets.
-        rewrite inflow_insert_set_insets.
-        assert (n ∈ dom I ∖ {[n0]}) as H'.
-        { clear -Hx1 Hx2 Dom_I0_in_I. set_solver. }
-        apply Disj_KS in H'. rewrite /keyset /FI in H'.
-        clear -H'. set_solver.
+        rewrite inflow_insert_set_insets. 
+        assert (S ## keyset (FI I n)) as H'.
+        { assert (S ## insets (FI I n)) as H'.
+          { apply Dom_I0_in_I in n_in_I0. 
+            assert (Key !!! n0 < Key !!! n) as H''. 
+            { apply Key_n0. clear -Hx1 Hx2; set_solver. }
+            by pose proof Disj_insets n n_in_I0 H''. }
+          rewrite /keyset; clear -H'. set_solver. }
+        rewrite /keyset /FI in H'. clear -H'. set_solver.
   Qed.
-  
+
+  Lemma list_flow_upd_marking_KS_nk Key n R Nx Mk S I I' II' nk n0:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → outsets (FI I x) ## S) →
+    (∀ x, x ∈ dom I → dom (FI I x) = {[x]}) →
+    (n0 ∈ dom I') → (n ∈ dom I') → (n0 ≠ n) → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → Key !!! n0 < Key !!! x) →
+    (FI I' n = inflow_map_set f_incr (FI I n) n S) →
+    list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
+      (keyset (FI II' nk) = keyset (FI I nk) ∪ S).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl Disj_outsets Domm_I n0_in_I0 n_in_I0 n0_neq_n 
+        Dom_I0_in_I Key_I0 Key_n0 Def_I0_n [= -> ->].
+      rewrite Def_I0_n /keyset. rewrite inflow_insert_set_outsets.
+      assert (nk ∈ dom I) as nk_in_I. { by apply Dom_I0_in_I. }
+      assert (insets (inflow_map_set f_incr (FI I nk) nk S)
+        = insets (FI I nk) ∪ S) as ->.
+      { rewrite /insets Domm_I; try done. 
+        rewrite flowint_inflow_map_set_dom Domm_I; try done.
+        assert ({[nk;nk]} = {[nk]}) as -> by (clear; set_solver).
+        apply leibniz_equiv. rewrite !big_opS_singleton.
+        rewrite inflow_insert_set_inset. done. }
+      assert (S ## outsets (FI I nk)) as H'.
+      { symmetry. apply Disj_outsets; try done.
+        apply Key_n0. clear -n_in_I0 n0_neq_n; set_solver. }
+      clear -H'; set_solver.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl Disj_outsets Domm_I n0_in_I0 n_in_I0 n0_neq_n 
+        Dom_I0_in_I Key_I0 Key_n0 Def_I0_n Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0. set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as [_ [_ Hcl]].
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      assert (n ≠ n1) as n_neq_n1.
+      { clear -n1_notin_I0 n_in_I0; set_solver. }
+      assert (Key !!! n < Key !!! n1) as Hkey.
+      { by pose proof Nx_key n n1 Hnx_n as H'. }
+      assert (Key !!! n0 < Key !!! n1) as Hkey_n0.
+      { assert (n ∈ dom I0 ∖ {[n0]}) as Hn.
+        { clear -n_in_I0 n0_neq_n. set_solver. }
+        pose proof Key_n0 n Hn as H'. clear -Hkey H'; lia. }
+      apply HInd; try done; clear HInd.
+      + rewrite Dom_I0'. clear -n0_in_I0; set_solver.
+      + rewrite Dom_I0'; clear; set_solver.
+      + clear -n0_in_I0 n1_notin_I0. set_solver.
+      + rewrite Dom_I0'; clear -Dom_I0_in_I n1_in_I; set_solver. 
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + rewrite Dom_I0'. intros x. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * apply Key_n0. clear -Hx1 Hx2; set_solver.
+        * assert (x = n1) as -> by (clear -Hx1; set_solver). done.
+      + by rewrite /I0' /FI lookup_total_insert /In1' /In1.
+  Qed.
+
+  Lemma list_flow_upd_marking_Inf Key n R Nx Mk S I I' II' nk n0:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → insets (FI I x) ## S) →
+    (∀ x, x ∈ dom I → dom (FI I x) = {[x]}) →
+    (∀ x k, x ∈ dom I → inf (FI I x) x !!! k ≤ 1) →
+    (n0 ∈ dom I') → (n ∈ dom I') → (n0 ≠ n) → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → Key !!! n0 < Key !!! x) →
+    (∀ x k, x ∈ dom I' → inf (FI I' x) x !!! k ≤ 1) →
+    list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
+      (∀ x k, x ∈ dom II' → inf (FI II' x) x !!! k ≤ 1).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl Disj_insets Domm_I Inf_x n0_in_I0 n_in_I0 n0_neq_n
+        Dom_I0_in_I Key_I0 Key_n0 Inf_x' [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl Disj_insets Domm_I Inf_x n0_in_I0 n_in_I0 n0_neq_n
+        Dom_I0_in_I Key_I0 Key_n0 Inf_x' Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0. set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as [_ [_ Hcl]].
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      assert (n ≠ n1) as n_neq_n1.
+      { clear -n1_notin_I0 n_in_I0; set_solver. }
+      assert (Key !!! n < Key !!! n1) as Hkey.
+      { by pose proof Nx_key n n1 Hnx_n as H'. }
+      assert (Key !!! n0 < Key !!! n1) as Hkey_n0.
+      { assert (n ∈ dom I0 ∖ {[n0]}) as Hn.
+        { clear -n_in_I0 n0_neq_n. set_solver. }
+        pose proof Key_n0 n Hn as H'. clear -Hkey H'; lia. }
+      apply HInd; try done; clear HInd.
+      + rewrite Dom_I0'. clear -n0_in_I0; set_solver.
+      + rewrite Dom_I0'; clear; set_solver.
+      + clear -n0_in_I0 n1_notin_I0. set_solver.
+      + rewrite Dom_I0'; clear -Dom_I0_in_I n1_in_I; set_solver. 
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + rewrite Dom_I0'. intros x. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * apply Key_n0. clear -Hx1 Hx2; set_solver.
+        * assert (x = n1) as -> by (clear -Hx1; set_solver). done.
+      + intros x k. rewrite Dom_I0' elem_of_union. intros [Hx | Hx].
+        * destruct (decide (x = n)) as [-> | Hxn].
+          -- rewrite /I0' /FI lookup_total_insert_ne /II; try done.
+             rewrite lookup_total_insert /In'.
+             rewrite /outflow_map_set /inf /= /In. by apply Inf_x'. 
+          -- rewrite /I0' /FI !lookup_total_insert_ne; try done.
+             by apply Inf_x'. clear -Hx n1_notin_I0. set_solver.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          rewrite /I0' /FI lookup_total_insert /In1'.
+          pose proof Inf_x n1 k n1_in_I as H'. rewrite /FI in H'.
+          destruct (decide (k ∈ S)) as [Hk | Hk].
+          -- rewrite inflow_lookup_total_map_set; try done.
+             assert (k ∉ inset _ (FI I n1) n1) as H''.
+             { pose proof Disj_insets n1 n1_in_I Hkey_n0 as H''.
+               rewrite /insets Domm_I in H''; try done.
+               rewrite big_opS_singleton in H''.
+               clear -Hk H''. set_solver. }
+             rewrite /inset nzmap_elem_of_dom_total2 /FI in H''.
+             rewrite H'' /f_incr /ccmop /nat_op /ccmunit /=. clear; lia.
+          -- rewrite inflow_lookup_total_map_set_ne; try done.
+  Qed.
+
+  Lemma list_flow_upd_marking_Out Key n R Nx Mk S I I' II' nk n0:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → outsets (FI I x) ## S) →
+    (∀ n1 n2, Nx !! n1 = Some n2 → dom (out_map (FI I n1)) = {[n2]}) →
+    (∀ x x' k, x ∈ dom I → out (FI I x) x' !!! k ≤ 1) →
+    (n0 ∈ dom I') → (n ∈ dom I') → (n0 ≠ n) → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → Key !!! n0 < Key !!! x) →
+    (FI I' n = inflow_map_set f_incr (FI I n) n S) →
+    (∀ x x' k, x ∈ dom I' → out (FI I' x) x' !!! k ≤ 1) →
+    list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
+      (∀ x x' k, x ∈ dom II' → out (FI II' x) x' !!! k ≤ 1).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl Disj_outsets Nx_dom Out_x n0_in_I0 n_in_I0 n0_neq_n
+        Dom_I0_in_I Key_I0 Key_n0 Def_I0_n Out_x' [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl Disj_outsets Nx_dom Out_x n0_in_I0 n_in_I0 n0_neq_n
+        Dom_I0_in_I Key_I0 Key_n0 Def_I0_n Out_x' Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0. set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as [_ [_ Hcl]].
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      assert (n ≠ n1) as n_neq_n1.
+      { clear -n1_notin_I0 n_in_I0; set_solver. }
+      assert (Key !!! n < Key !!! n1) as Hkey.
+      { by pose proof Nx_key n n1 Hnx_n as H'. }
+      assert (Key !!! n0 < Key !!! n) as Hkey_n0.
+      { apply Key_n0. clear -n_in_I0 n0_neq_n. set_solver. }
+      apply HInd; try done; clear HInd.
+      + rewrite Dom_I0'. clear -n0_in_I0; set_solver.
+      + rewrite Dom_I0'; clear; set_solver.
+      + clear -n0_in_I0 n1_notin_I0. set_solver.
+      + rewrite Dom_I0'; clear -Dom_I0_in_I n1_in_I; set_solver. 
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + rewrite Dom_I0'. intros x. rewrite elem_of_difference.
+        rewrite elem_of_union. intros [[Hx1 | Hx1] Hx2].
+        * apply Key_n0. clear -Hx1 Hx2; set_solver.
+        * assert (x = n1) as -> by (clear -Hx1; set_solver).
+          assert (n ∈ dom I0 ∖ {[n0]}) as Hn.
+          { clear -n_in_I0 n0_neq_n. set_solver. }
+          pose proof Key_n0 n Hn as H'. clear -Hkey H'; lia.
+      + by rewrite /I0' /FI lookup_total_insert /In1' /In1.
+      + intros x x' k. rewrite Dom_I0' elem_of_union. intros [Hx | Hx].
+        * destruct (decide (x = n)) as [-> | Hxn].
+          -- rewrite /I0' /FI lookup_total_insert_ne /II; try done.
+             rewrite lookup_total_insert /In'.
+             rewrite /outflow_map_set /out /= /In. 
+             destruct (decide (x' = n1)) as [-> | Hx'n1].
+             ++ rewrite nzmap_lookup_total_insert.
+                destruct (decide (k ∈ S)) as [Hk | Hk].
+                ** rewrite nzmap_lookup_total_map_set; try done.
+                   assert (outset _ (FI I0 n) n1 = outset _ (FI I n) n1) as Hout.
+                   { by rewrite Def_I0_n /outset /inflow_map_set /out /=. } 
+                   assert (k ∉ outset _ (FI I n) n1) as H''.
+                   { apply Dom_I0_in_I in n_in_I0.
+                     pose proof Disj_outsets n n_in_I0 Hkey_n0 as H''. 
+                     rewrite /outsets (Nx_dom n n1 Hnx_n) big_opS_singleton in H''.
+                     clear -Hk H''. set_solver. }
+                   rewrite -Hout in H''.
+                   rewrite /outset nzmap_elem_of_dom_total2 /FI /out in H''.
+                   rewrite H'' /f_incr /ccmop /nat_op /ccmunit /=. clear; lia.
+                ** rewrite nzmap_lookup_total_map_set_ne; try done.
+                   apply Out_x'; try done.
+             ++ rewrite nzmap_lookup_total_insert_ne; try done.
+                apply Out_x'; try done.
+          -- rewrite /I0' /FI lookup_total_insert_ne; try done.
+             rewrite /II lookup_total_insert_ne; try done.
+             apply Out_x'; try done. clear -Hx n1_notin_I0; set_solver.
+        * rewrite elem_of_singleton in Hx; subst x.
+          rewrite /FI /I0' lookup_total_insert /In1' /In1.
+          rewrite /inflow_map_set /out /=.
+          apply Out_x; try done. 
+  Qed.
+
+  Lemma list_flow_upd_marking_Dom_out Key n R Nx Mk S I I' II' nk:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (∀ n1 n2, Nx !! n1 = Some n2 → dom (out_map (FI I n1)) = {[n2]}) →
+    (n ∈ dom I') → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (FI I' n = inflow_map_set f_incr (FI I n) n S) →
+    (∀ x, x ∈ dom I' → dom (out_map (FI I' x)) = dom (out_map (FI I x))) →
+    list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
+      (∀ x, x ∈ dom II' → dom (out_map (FI II' x)) = dom (out_map (FI I x))).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl Nx_dom n_in_I0 Dom_I0_in_I Key_I0 Def_I0_n 
+        Dom_out [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl Nx_dom n_in_I0 Dom_I0_in_I Key_I0 Def_I0_n 
+        Dom_out Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0. set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as [_ [_ Hcl]].
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      assert (n ≠ n1) as n_neq_n1.
+      { clear -n1_notin_I0 n_in_I0; set_solver. }
+      apply HInd; clear HInd; try done.
+      + rewrite Dom_I0'; clear; set_solver.
+      + rewrite Dom_I0'; clear -Dom_I0_in_I n1_in_I; set_solver. 
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + by rewrite /I0' /FI lookup_total_insert /In1' /In1.
+      + intros x; rewrite Dom_I0' elem_of_union. 
+        intros [Hx | Hx].
+        * destruct (decide (x = n)) as [-> | Hxn]; last first.
+          { rewrite /FI /I0' lookup_total_insert_ne; try done.
+            rewrite /II lookup_total_insert_ne; try done.
+            apply Dom_out; try done. clear -Hx n1_notin_I0. set_solver. }
+          rewrite /FI /I0' lookup_total_insert_ne; try done.
+          rewrite /II lookup_total_insert /In'.
+          rewrite (Nx_dom n n1 Hnx_n). apply set_eq_subseteq.
+          split; intros n' Hn'. Search outflow_map_set dom.
+          apply flowint_outflow_map_set_dom in Hn'.
+          rewrite /In Dom_out in Hn'. rewrite (Nx_dom n n1 Hnx_n) in Hn'.
+          clear -Hn'; set_solver. done.
+          rewrite elem_of_singleton in Hn'. subst n'.
+          rewrite nzmap_elem_of_dom_total /In. intros H'.
+          assert (n1 ∈ dom (out_map (FI I0 n))) as H''.
+          { rewrite Def_I0_n. rewrite /inflow_map_set /= (Nx_dom n n1 Hnx_n).
+            clear; set_solver. }
+          rewrite nzmap_elem_of_dom_total /FI nzmap_empty_lookup in H''.
+          destruct H'' as [k H'']. rewrite nzmap_eq in H'.
+          pose proof H' k as H'. rewrite nzmap_lookup_empty in H'.
+          rewrite /outflow_map_set /= nzmap_lookup_total_insert in H'.
+          destruct (decide (k ∈ S)) as [Hk | Hk].
+          rewrite nzmap_lookup_total_map_set /f_incr /ccmop /ccmunit in H'.
+          rewrite /nat_op /nat_unit in H'. clear -H'; lia. done.
+          rewrite nzmap_lookup_total_map_set_ne /f_incr /ccmunit /nat_unit in H'.
+          clear -H' H''; done. done.
+        * rewrite elem_of_singleton in Hx; subst x. 
+          rewrite /FI /I0' lookup_total_insert /In1'.
+          by rewrite /inflow_map_set /= /In1.  
+  Qed.
+
+  Lemma list_flow_upd_marking_Outsets_n0 Key n R Nx Mk S I I' II' nk OS:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (✓ ([^op set] x ∈ dom I, FI I x)) →
+    (∀ x, x ∈ dom I → Mk !!! x = true → keyset (FI I x) = ∅) →
+    (∀ n1 n2, Nx !! n1 = Some n2 → dom (out_map (FI I n1)) = {[n2]}) →
+    (∀ x, x ∈ dom I → dom (FI I x) = {[x]}) →
+    (n ∈ dom I') → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (OS ⊆ insets (FI I n)) →
+    list_flow_upd_rec f_incr n R Nx Mk S I I' = Some (II', nk) →
+        (OS ⊆ insets (FI I nk)).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl VI KS_mk Nx_dom Domm_I n_in_I0
+        Dom_I0_in_I Key_I0 OS_insets [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl VI KS_mk Nx_dom Domm_I n_in_I0
+        Dom_I0_in_I Key_I0 OS_insets Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II. repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0. set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as [_ [_ Hcl]].
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      assert (OS ⊆ outsets (FI I n)) as OS_outsets.
+      { apply lookup_total_correct in Hmk_n. apply KS_mk in Hmk_n.
+        rewrite /keyset in Hmk_n. clear -Hmk_n OS_insets.
+        assert (insets (FI I n) ⊆ outsets (FI I n)). set_solver. set_solver.
+        by apply Dom_I0_in_I in n_in_I0. } 
+      assert (OS ⊆ insets (FI I n1)) as OS_insets'.
+      { intros k Hk. rewrite /insets Domm_I. rewrite big_opS_singleton.
+        apply OS_outsets in Hk. rewrite /outsets in Hk.
+        rewrite (Nx_dom n n1 Hnx_n) big_opS_singleton in Hk.
+        apply (flowint_inset_step (FI I n)); try done.
+        assert ({[n;n1]} ⊆ dom I) as H'.
+        { clear -n1_in_I n_in_I0 Dom_I0_in_I; set_solver. }
+        pose proof flow_big_op_valid _ _ _ H' VI  as H''.
+        rewrite (big_opS_delete _ _ n) in H''.
+        assert ({[n;n1]} ∖ {[n]} = ({[n1]}: gset Node)) as H1'.
+        { clear -n1_notin_I0 n_in_I0; set_solver. }
+        by rewrite H1' big_opS_singleton in H''.
+        clear; set_solver.
+        rewrite Domm_I. clear; set_solver.
+        done. done. }
+      apply HInd; clear HInd; try done.
+      + rewrite Dom_I0'; clear; set_solver.
+      + rewrite Dom_I0'; set_solver. 
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+  Qed.
+
   Lemma marking_flow_upd_summary Key n0 Nx Mk S I res n1:
     let FI := λ I x, I !!! x in 
     (nx_key_rel Nx Key) →
     (nx_mk_closed Nx Mk (dom I)) →
     (∀ x, x ∈ dom I → Mk !!! x = true → keyset (FI I x) = ∅) →
     (∀ n1 n2, Nx !! n1 = Some n2 → dom (out_map (FI I n1)) = {[n2]}) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → insets (FI I x) ## S) →
+    (∀ x, x ∈ dom I → Key !!! n0 < Key !!! x → outsets (FI I x) ## S) →
+    (∀ x k, x ∈ dom I → inf (FI I x) x !!! k ≤ 1) →
+    (∀ x x' k, x ∈ dom I → out (FI I x) x' !!! k ≤ 1) →
     (Nx !! n0 = Some n1) →
     (✓ ([^op set] x ∈ dom I, FI I x)) →
     (∀ x, x ∈ dom I → dom (FI I x) = {[x]}) →
     (n0 ∈ dom I) →
-    (S ≠ ∅) →
-    (∀ x, x ∈ dom I ∖ {[n0]} → S ## keyset (FI I x)) →
-    (*
-    (S ⊆ insets (FI I n0)) →
     (S ## outsets (FI I n0)) →
-    *)
     list_flow_upd_marking n0 Nx Mk S I = res →
       ∃ II nk, 
         res = Some (II, nk)
@@ -454,11 +855,16 @@ Section list_flow_upd_marking.
       ∧ (FI II nk = inflow_insert_set (FI I nk) nk S)
       ∧ (∀ x, x ∈ dom II ∖ {[ n0; nk ]} → FI II x = 
               outflow_insert_set (inflow_insert_set (FI I x) x S) (Nx !!! x) S)
-      (* ∧ (keyset (FI II n0) = keyset (FI I n0) ∖ S) *)
-      ∧ (∀ x, x ∈ dom II ∖ {[ n0; nk ]} → keyset (FI II x) = keyset (FI I x)).
+      ∧ (∀ x k, x ∈ dom II → inf (FI II x) x !!! k ≤ 1)
+      ∧ (∀ x x' k, x ∈ dom II → out (FI II x) x' !!! k ≤ 1)
+      ∧ (∀ x, x ∈ dom II → dom (out_map (FI II x)) = dom (out_map (FI I x)))
+      ∧ (keyset (FI II n0) = keyset (FI I n0) ∖ S)
+      ∧ (keyset (FI II nk) = keyset (FI I nk) ∪ S)
+      ∧ (∀ x, x ∈ dom II ∖ {[ n0; nk ]} → keyset (FI II x) = keyset (FI I x))
+      ∧ (outsets (FI I n0) ⊆ insets (FI I nk)).
   Proof.
-    intros FI Nx_key Hcl KS_mk Nx_dom Hnx_n0 VI Domm_I n0_in_I S_nonempty
-      Disj_KS Hflow.
+    intros FI Nx_key Hcl KS_mk Nx_dom Disj_insets Disj_outsets Inf_x Out_x 
+      Hnx_n0 VI Domm_I n0_in_I Outsets_S Hflow.
     unfold list_flow_upd_marking, list_flow_upd in Hflow.
     rewrite Hnx_n0 in Hflow. 
     set In1 := inflow_map_set f_incr (I !!! n1) n1 S.
@@ -552,13 +958,18 @@ Section list_flow_upd_marking.
       - rewrite Domm_I; clear -n0_in_I' Dom_I'_in_I; set_solver. }
     
     assert (nzmap_map_set f_incr S (out (I !!! n0) n1) ≠ 0) as HS'.
-    { apply set_choose_L in S_nonempty.
-      destruct S_nonempty as [xs HS].
-      intros H'. rewrite nzmap_eq in H'.
-      pose proof H' xs as H'. rewrite nzmap_lookup_empty in H'.
-      rewrite nzmap_lookup_total_map_set /f_incr in H'; try done.
-      rewrite /ccmop /nat_op /ccmunit /= /nat_unit in H'. 
-      clear -H'. lia. }
+    { pose proof Nx_dom n0 n1 Hnx_n0 as H'.
+      assert (n1 ∈ dom (out_map (FI I n0))) as H''.
+      { clear -H'; set_solver. }
+      rewrite nzmap_elem_of_dom_total in H''.
+      rewrite nzmap_empty_lookup in H''.
+      destruct H'' as [k H'']. clear H'.
+      intros H'. rewrite nzmap_eq in H'. pose proof H' k as H'.
+      rewrite /ccmunit /= /lift_unit nzmap_lookup_empty /ccmunit /= /nat_unit in H'.
+      destruct (decide (k ∈ S)) as [Hk | Hk].
+      - rewrite nzmap_lookup_total_map_set /f_incr in H'; try done.
+        rewrite /ccmop /nat_op /ccmunit in H'. clear -H'; lia.
+      - rewrite nzmap_lookup_total_map_set_ne /f_incr in H'; try done. }
     assert (dom (out_map In0) = dom (out_map (FI I n0))) as Domout_map.
     { rewrite /In0 /outflow_insert_set /outflow_map_set.
       simpl. apply leibniz_equiv. rewrite nzmap_dom_insert_nonzero; try done.
@@ -568,7 +979,6 @@ Section list_flow_upd_marking.
       keyset (I' !!! x) = keyset (I !!! x)) as KS_I'.
     { rewrite Dom_I'. intros x Hx. clear -Hx; set_solver. }  
 
-    (*
     assert (insets In0 = insets (I !!! n0)) as Insets_In0.
     { by rewrite outflow_insert_set_insets. }
     assert (outsets In0 = outsets (I !!! n0) ∪ S) as Outsets_In0.
@@ -579,16 +989,13 @@ Section list_flow_upd_marking.
       rewrite /In0. rewrite outflow_insert_set_outset; try done. }
     assert (keyset In0 = keyset (I !!! n0) ∖ S) as KS_n0.
     { unfold keyset. rewrite Insets_In0 Outsets_In0.
-      apply set_eq_subseteq.
-      split. 
-      split; clear -Insets_S Outsets_S; set_solver. }
-    *)
+      clear -Outsets_S; set_solver. }
     assert (∀ n1 n2, n1 ∈ dom I' → Nx !! n1 = Some n2 → 
-      dom (out_map ((I' !!! n1: multiset_flowint_ur nat))) = {[n2]}) as Nx_dom'.
+      dom (out_map (FI I' n1)) = {[n2]}) as Nx_dom'.
     { intros n2 n3. rewrite Dom_I'. rewrite elem_of_union.
       intros [Hn2 | Hn2].
       - assert (n2 = n0) as -> by (clear -Hn2; set_solver).
-        rewrite Hnx_n0. intros [=<-]. rewrite /I'.
+        rewrite Hnx_n0. intros [=<-]. rewrite /I' /FI.
         rewrite lookup_total_insert_ne; try done.
         rewrite lookup_total_insert /In0. 
         apply set_eq_subseteq. split.
@@ -605,12 +1012,70 @@ Section list_flow_upd_marking.
           rewrite nzmap_elem_of_dom_total. rewrite /outflow_map_set /=.
           rewrite nzmap_lookup_total_insert; try done.
       - assert (n2 = n1) as -> by (clear -Hn2; set_solver).
-        rewrite /I'. rewrite lookup_total_insert /In1 /=.
+        rewrite /I' /FI lookup_total_insert /In1 /=.
         apply Nx_dom. }
     assert (∀ x, x ∈ dom I' ∖ {[n0; n1]} → Mk !! x = Some true) as Mk_x.
     { intros x Hx; rewrite Dom_I' in Hx. clear -Hx; set_solver. }
+    assert (∀ x k, x ∈ dom I' → inf (FI I' x) x !!! k ≤ 1) as Inf_x'.
+    { intros x k. rewrite Dom_I' elem_of_union. 
+      intros [Hx | Hx]; rewrite elem_of_singleton in Hx; subst x.
+      - rewrite /I' /FI lookup_total_insert_ne; try done.
+        rewrite lookup_total_insert /In0 /outflow_map_set /inf /=.
+        apply Inf_x; try done.
+      - rewrite /I' /FI lookup_total_insert /In1 /inflow_map_set /inf /=.
+        rewrite lookup_insert /=. destruct (decide (k ∈ S)) as [Hk | Hk].
+        + rewrite nzmap_lookup_total_map_set; try done. 
+          assert (k ∉ inset _ (I !!! n1) n1) as Inset_k.
+          { pose proof Disj_insets n1 n1_in_I Key_n0_n1 as H'.
+            rewrite /insets Domm_I in H'; try done.
+            rewrite big_opS_singleton /FI in H'.
+            clear -H' Hk; set_solver. }
+          rewrite /inset nzmap_elem_of_dom_total2 in Inset_k.
+          rewrite /ccmunit /= /nat_unit in Inset_k.
+          rewrite Inset_k /f_incr /ccmop /nat_op. clear; lia.
+        + rewrite nzmap_lookup_total_map_set_ne; try done.
+          apply Inf_x; try done. }
+    assert (∀ x x' k, x ∈ dom I' → out (FI I' x) x' !!! k ≤ 1) as Out_x'.
+    { intros x x' k. rewrite Dom_I' elem_of_union. 
+      intros [Hx | Hx]; rewrite elem_of_singleton in Hx; subst x.
+      - rewrite /I' /FI lookup_total_insert_ne; try done.
+        rewrite lookup_total_insert /In0 /outflow_map_set /out /=.
+        destruct (decide (x' = n1)) as [-> | Hx'n1].
+        + rewrite nzmap_lookup_total_insert. 
+          destruct (decide (k ∈ S)) as [Hk | Hk].
+          * rewrite nzmap_lookup_total_map_set; try done.
+            assert (k ∉ outset _ (FI I n0) n1) as Outset_k.
+            { rewrite /outsets (Nx_dom n0 n1 Hnx_n0) in Outsets_S; try done.
+              rewrite big_opS_singleton in Outsets_S.
+              clear -Hk Outsets_S; set_solver. }
+            rewrite /outset /FI nzmap_elem_of_dom_total2 in Outset_k.
+            rewrite Outset_k /f_incr /ccmop /nat_op /ccmunit /=. clear; lia.
+          * rewrite nzmap_lookup_total_map_set_ne; try done.
+            apply Out_x; try done.
+        + rewrite nzmap_lookup_total_insert_ne; try done.
+          apply Out_x; try done.
+      - rewrite /FI /I' lookup_total_insert /In1 /inflow_map_set /out /=.
+        apply Out_x; try done. }
+    assert (∀ x, x ∈ dom I' → dom (out_map (FI I' x)) = dom (out_map (FI I x)))
+      as Dom_out.
+    { intros x. rewrite Dom_I' elem_of_union. 
+      intros [Hx | Hx]; rewrite elem_of_singleton in Hx; subst x.
+      - rewrite /I' /FI lookup_total_insert_ne; try done.
+        rewrite lookup_total_insert /In0. done.
+      - by rewrite /I' /FI lookup_total_insert /In1 /inflow_map_set /=. }
+    assert (outsets (FI I n0) ⊆ insets (FI I n1)) as OS_insets.
+    { intros k Hk. unfold insets. 
+      rewrite (Domm_I n1 n1_in_I).
+      rewrite big_opS_singleton.
+      apply (flowint_inset_step (I !!! n0) (I !!! n1)); try done.
+      - unfold FI in Domm_I. rewrite (Domm_I n1 n1_in_I).
+        clear; set_solver.
+      - unfold outset. rewrite nzmap_elem_of_dom_total; try done.
+        rewrite /outsets (Nx_dom n0 n1 Hnx_n0) big_opS_singleton in Hk.
+        by rewrite nzmap_elem_of_dom_total /FI in Hk. }
     
     set R := dom I ∖ {[n0]}.
+    set OS := outsets (FI I n0).
     
     exists II, nk. repeat split; try done.
     - by apply (list_flow_upd_dom Key f_incr n1 R Nx Mk S I I' II nk).
@@ -626,7 +1091,15 @@ Section list_flow_upd_marking.
     - by apply (list_flow_upd_II'_n0 Key f_incr n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_II'_nk f_incr n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_II' f_incr n1 R Nx Mk S I I' II nk n0).
+    - by apply (list_flow_upd_marking_Inf Key n1 R Nx Mk S I I' II nk n0).
+    - by apply (list_flow_upd_marking_Out Key n1 R Nx Mk S I I' II nk n0).
+    - by apply (list_flow_upd_marking_Dom_out Key n1 R Nx Mk S I I' II nk).
+    - rewrite /FI 
+        (list_flow_upd_II'_n0 Key f_incr n1 R Nx Mk S I I' II nk n0 In0); 
+        try done.
+    - by apply (list_flow_upd_marking_KS_nk Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_marking_KS Key n1 R Nx Mk S I I' II nk n0).
+    - by apply (list_flow_upd_marking_Outsets_n0 Key n1 R Nx Mk S I I' II nk OS).
   Qed.
   
 End list_flow_upd_marking.

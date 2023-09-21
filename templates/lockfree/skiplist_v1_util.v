@@ -9,7 +9,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export skiplist_v1 list_flow_upd_marking.
+From flows Require Export skiplist_v1.
 
 Module SKIPLIST1_UTIL.
   Module DEFS := HINDSIGHT_DEFS SKIPLIST1.
