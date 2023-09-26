@@ -9,22 +9,22 @@
 
 flows/gmap_more.v
 flows/ccm.v
-flows/ccm_big_op.v
-flows/flows.v
-flows/flows_big_op.v
-flows/multiset_flows.v
-flows/list_flow_upd.v
-flows/list_flow_upd_marking.v
-flows/list_flow_upd_insert.v
-flows/keyset_ra2.v
-flows/bool_ra.v
+#flows/ccm_big_op.v
+#flows/flows.v
+#flows/flows_big_op.v
+#flows/multiset_flows.v
+#flows/list_flow_upd.v
+#flows/list_flow_upd_marking.v
+#flows/list_flow_upd_insert.v
+#flows/keyset_ra2.v
+#flows/bool_ra.v
 
-util/one_shot_proph.v
-util/typed_proph.v
+#util/one_shot_proph.v
+#util/typed_proph.v
 
-hindsight/hindsight.v
+#hindsight/hindsight.v
 
-lockfree/skiplist_v1.v
-lockfree/skiplist_v1_util.v
+#lockfree/skiplist_v1.v
+#lockfree/skiplist_v1_util.v
 #lockfree/skiplist_v1_traverse.v
 

@@ -43,13 +43,13 @@ Module Type DATA_STRUCTURE.
   
   Parameter abs : snapshot -> absT.
   
-  Declare Instance Op_inhabited : Inhabited Op.
-  Declare Instance absTUR_discrete : CmraDiscrete absTUR.
-  Declare Instance absT_leibnizequiv : LeibnizEquiv (absT).
-  Declare Instance resT_inhabited : Inhabited resT.
-  Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
-  Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
-  Declare Instance snapshot_inhabited : Inhabited snapshot.
+  #[global] Declare Instance Op_inhabited : Inhabited Op.
+  #[global] Declare Instance absTUR_discrete : CmraDiscrete absTUR.
+  #[global] Declare Instance absT_leibnizequiv : LeibnizEquiv (absT).
+  #[global] Declare Instance resT_inhabited : Inhabited resT.
+  #[global] Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
+  #[global] Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
+  #[global] Declare Instance snapshot_inhabited : Inhabited snapshot.
   
 (*   Parameter dsG : gFunctors -> Set. *)
   (* Parameter dsΣ : gFunctors. *)

@@ -368,11 +368,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Parameter node_timeless_proof : ∀ n mark next k, Timeless (node n mark next k).
   Global Instance node_timeless n mark next k: Timeless (node n mark next k).
   Proof. apply node_timeless_proof. Qed.
-  
-  (*
-  Parameter FJ : snapshot → Node → multiset_flowint_ur nat.
-  Parameter GFJ : snapshot → multiset_flowint_ur nat.
-  *)
+  Parameter node_sep_star: ∀ n mark next k mark' next' k',
+    node n mark next k -∗ node n mark' next' k' -∗ False.
   
   Definition FP (s: snapshot) : gset Node :=
     match s with (N, _, _, _, _, _) => N end.
@@ -414,37 +411,14 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ([^op set] x ∈ FP s, FI s x). 
   
   Definition gset_seq i j : gset nat :=
-    list_to_set (seq i (j - i + 1)).
-    
+    list_to_set (seq i (j + 1 - i)).
+
   Lemma elem_of_gset_seq i j k :
-    i ≤ j → (k ∈ gset_seq i j ↔ i ≤ k ≤ j).
+    k ∈ gset_seq i j ↔ i ≤ k ≤ j.
   Proof.
-    intros; 
-    rewrite elem_of_list_to_set elem_of_seq; 
-    lia.
+    intros; rewrite elem_of_list_to_set elem_of_seq; lia.
   Qed.
-  (*
-  Definition mset_set (S: gset nat) : nzmap nat nat :=
-    let f := λ i res, <<[i := 1]>> res in
-      set_fold f (∅) (S).
-  
-  Lemma mset_set_dom S :
-    dom (mset_set S) = S.
-  Proof.
-    set (P := λ (m: nzmap nat nat) (X: gset nat),
-                    dom m = X).
-    apply (set_fold_ind_L P); try done.
-    - unfold P. apply set_eq_subseteq. 
-      split; try set_solver. 
-      intros x Hx. set_solver. 
-    - intros x X res Hx HP. unfold P.
-      apply leibniz_equiv.
-      rewrite nzmap_dom_insert_nonzero.
-      unfold P in HP. by rewrite HP.
-      rewrite /0%CCM /ccmunit /ccm_unit. simpl.
-      rewrite /nat_unit. lia.
-  Qed.
-  *)
+
   Definition snapshot_constraints (s: snapshot) : Prop :=
     ∃ (N: gset Node) (C: gset nat) 
       (Mk: gmap Node (gmap nat bool)) (Nx: gmap Node (gmap nat Node)) 
@@ -452,26 +426,15 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       s = (N, C, Mk, Nx, Ky, I) ∧ dom Mk = N ∧ dom Nx = N 
       ∧ dom Ky = N ∧ dom I = N.
         
-  Definition flow_constraints_I n In m (on: option Node) (k: nat) : Prop := 
+  Definition flow_constraints_I n In (m: bool) (on: option Node) (k: nat) : Prop := 
       (dom In = {[n]})
-    ∧ (m = false → gset_seq k W ⊆ insets In)
-    ∧ (m = true → keyset In = ∅)
     ∧ (dom (out_map In) = match on with Some n' => {[n']} | None => ∅ end)
-    ∧ (if m then gset_seq (k+1) W ⊆ outsets In else gset_seq (k+1) W = outsets In)
+    ∧ (outsets In ⊆ insets In)
+    ∧ (if m then keyset In = ∅ 
+        else gset_seq k W ⊆ insets In ∧ gset_seq (k+1) W = outsets In)
     ∧ (∀ k, k ∈ insets In → k ≤ W)
     ∧ (∀ k, inf In n !!! k ≤ 1)
     ∧ (∀ n' k, out In n' !!! k ≤ 1).
-
-(*
-  Definition globalRes γ_ks s : iProp := 
-    own γ_ks (● prod (KS, abs s)).
-
-
-  Definition flow_constraints_J (on: option Node) (k: nat) Jn : Prop :=       
-      (∃ k', dom (inf_map Jn) = {[k']} ∧ k' < k)
-    ∧ (match on with Some n' => k ∈ outset _ Jn n' 
-        | None => outsets Jn = ∅ end).
-*)
 
   Definition node_inv_pure s n : Prop :=
       (∀ i, Marki s n i = true → Nexti s n i ≠ None)
@@ -479,17 +442,11 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (Marki s n 0 = false → Nexti s n 0 = None → n = tl)
     ∧ (0 ∈ dom (Next s n)) 
     ∧ (0 ∈ dom (Mark s n))
+    ∧ (0 ≤ Key s n ≤ W)
     ∧ (flow_constraints_I n (FI s n) (Marki s n 0) (Nexti s n 0) (Key s n)).
-
-  Definition node_inv γ_ks s n : iProp :=
-      node n (Mark s n) (Next s n) (Key s n)
-    ∗ own γ_ks (◯ prodKS (keyset (FI s n), {[ Key s n ]}))
-    ∗ ⌜node_inv_pure s n⌝.
     
   Definition hd_tl_inv s : Prop :=
-      insets (FI s hd) = KS 
-    ∧ outsets (FI s hd) = KS
-    ∧ (∀ i, Marki s hd i = false)
+      (∀ i, Marki s hd i = false)
     ∧ (Key s hd = 0)
     ∧ (Key s tl = W)
     ∧ (hd ∈ FP s)
@@ -500,19 +457,28 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ ✓ GFI s
     ∧ (∀ n, n ∈ (FP s) → node_inv_pure s n)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → Key s n1 < Key s n2)
-    ∧ (∀ n1 n2 k, Key s n1 < Key s n2 → Marki s n1 0 = false → 
-        k ∈ insets (FI s n2) → Key s n1 < k)
-    ∧ (∀ n1 n2 k, Key s n1 < Key s n2 → Marki s n1 0 = false → 
-        k ∈ outsets (FI s n2) → Key s n1 < k)
-    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s)
-    ∧ (∀ n, n ∈ (FP s) → 0 < Key s n < W).
+    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s).
     
   Definition transition_inv s s' : Prop :=
-      (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s')
-    ∧ (∀ n i, n ∈ FP s → Marki s' n i = true → Nexti s' n i = Nexti s n i)
-    ∧ (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
+      (* (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s') *)
+      (* (∀ n i, n ∈ FP s → Marki s' n i = true → Nexti s' n i = Nexti s n i) *)
+      (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
+  
+  Lemma transition_inv_trans s0 s1 s2 :
+    transition_inv s0 s1 → transition_inv s1 s2 → transition_inv s0 s2.
+  Proof.
+    intros (T01&T02&T03) (T11&T12&T13).
+    repeat split.
+    - intros n i Hfp Hm. 
+      destruct (decide (Marki s1 n i = true)) as [H' | H'].
+      + apply T11; try (done || set_solver).
+      + apply not_true_is_false in H'. apply T01 in Hm; try done.
+        rewrite H' in Hm; done.
+    - intros n Hfp. rewrite T12; last by set_solver. by apply T02.
+    - set_solver.
+  Qed.
   
   Definition resources γ_ks s : iProp :=
       own γ_ks (● prodKS (KS, abs s))

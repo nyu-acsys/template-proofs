@@ -8,7 +8,7 @@ From stdpp Require Import mapset.
 From stdpp Require Import finite numbers.
 From iris Require Export base.
 From iris.algebra Require Export big_op.
-From flows Require Import gmap_more.
+From flows Require Import gmap_more. 
 
 Delimit Scope ccm_scope with CCM.
 
@@ -21,13 +21,13 @@ Class PartialInv {A} (R: relation A) (f : A → A → A) (g : A → A → A) : P
   pinv x y : R (g (f x y) y) x.
 
 Class CcmOp (A : Type) := ccmop : A → A → A.
-Hint Mode CcmOp ! : typeclass_instances.
+Global Hint Mode CcmOp ! : typeclass_instances.
 Global Instance: Params (@ccmop) 2 := {}.
 Infix "+" := ccmop (at level 50, left associativity) : ccm_scope.
 Notation "(+)" := ccmop (only parsing) : ccm_scope.
 
 Class CcmOpInv (A : Type) := ccmop_inv : A → A → A.
-Hint Mode CcmOpInv ! : typeclass_instances.
+Global Hint Mode CcmOpInv ! : typeclass_instances.
 Global Instance: Params (@ccmop_inv) 2 := {}.
 Infix "-" := ccmop_inv (at level 50, left associativity) : ccm_scope.
 Notation "(-)" := ccmop_inv (only parsing) : ccm_scope.
@@ -59,9 +59,9 @@ Class CCM (M: Type) :=
 Arguments ccm_op : simpl never.
 Arguments ccm_opinv : simpl never.
 (*Arguments ccm_unit : simpl never.*)
-Hint Extern 0 (CcmOp _) => eapply (@ccm_op _) : typeclass_instances.
-Hint Extern 0 (CcmOpInv _) => eapply (@ccm_opinv _) : typeclass_instances.
-Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
+Global Hint Extern 0 (CcmOp _) => eapply (@ccm_op _) : typeclass_instances.
+Global Hint Extern 0 (CcmOpInv _) => eapply (@ccm_opinv _) : typeclass_instances.
+Global Hint Extern 0 (CcmUnit _) => eapply (@ccm_unit _) : typeclass_instances.
 
 (** Auxiliary lemmas and type classes. *)
 

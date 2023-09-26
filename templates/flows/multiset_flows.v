@@ -342,6 +342,12 @@ Proof.
   trivial.
 Qed.
 
+Lemma outflow_map_set_inset f I n S n': 
+           inset (outflow_map_set f I n S) n' = inset I n'.
+Proof.
+  by rewrite /inset /outflow_map_set /inf {1}/inf_map /=.
+Qed.
+
 Lemma inflow_map_set_ne f I n S n' :
       n' ≠ n → 
            inf_map (inflow_map_set f I n S) !! n' = inf_map I !! n'.
@@ -1272,6 +1278,8 @@ Proof.
   apply big_opS_ext. intros x Hx.
   try done.
 Qed.
+
+
 
 Lemma outflow_delete_set_insets I n S: 
            insets (outflow_delete_set I n S) = insets I.
