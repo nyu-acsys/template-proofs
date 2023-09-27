@@ -8,11 +8,29 @@ From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_v1.
+From flows Require Import skiplist_v1 bool_ra.
 
 Section node_impl.
 
   Parameter L : nat. (* Maxlevels *)
+  
+  Definition createNode_rec : val :=
+    rec: "cN" "i" "h" "arr" "succs" :=
+      if: "h" ≤ "i" then
+        #()
+      else
+        let: "si" := !("arr" +ₗ "i") in
+        let: "li" := ref (#false, InjR "si") in 
+        ("arr" +ₗ "i") <- "li";;
+        "cN" ("i" + #1) "h" "arr" "succs".
+
+  Definition createNode : val :=
+    λ: "k" "h" "succs",
+      let: "n" := AllocN #2%nat "k" in
+      let: "arr" := AllocN "h" "n" in
+      ("n" +ₗ #1) <- "arr";;
+      createNode_rec #0%nat "h" "arr" "succs";;
+      "n".
 
   Definition compareKey : val :=
     λ: "n" "k",
@@ -65,31 +83,127 @@ Section node_impl.
   Context `{!heapGS Σ}.
   Notation iProp := (iProp Σ).
 
-  (*
-  Definition next_array_def (v: val) (mi: bool) (nxi: Node) : Prop :=
-      match v with
-        InjLV (#(LitLoc n')) => mi = false ∧ nxi = n'
-      | InjRV (#(LitLoc n')) => mi = true ∧ nxi = n'
-      | _ => False end.
-  *)
-  
-  Definition node (n: Node) (mark: gmap nat bool) (next: gmap nat Node) 
+  Definition node (n: Node) (h: nat) (mark: gmap nat bool) (next: gmap nat Node) 
     (k: nat) : iProp :=
     ∃ (arr: loc) (ls: list loc),
        n ↦□ #k
     ∗ (n +ₗ 1) ↦□ #arr
     ∗ arr ↦∗ ((fun l => # (LitLoc l)) <$> ls)
-    ∗ ⌜length ls = L⌝
+    ∗ ⌜length ls = h⌝
     ∗ ∀ (l: loc) (i: nat), ⌜ls !! i = Some l⌝ -∗
         l ↦□ (#((mark !!! i): bool), match ((next !! i): option Node) with 
                                         None => NONEV 
                                       | Some ni => SOMEV #ni end).
 
+  Definition is_array (array : loc) (xs : list Node) : iProp :=
+    let vs := (fun n => # (LitLoc n)) <$> xs
+    in array ↦∗ vs.
+
+  Lemma array_store E (i : nat) (v : Node) arr (xs : list Node) :
+    {{{ ⌜i < length xs⌝ ∗ ▷ is_array arr xs }}}
+      #(arr +ₗ i) <- #v
+    @ E {{{ RET #(); is_array arr (<[i:=v]>xs) }}}.
+  Proof.
+  Admitted.
+
+  Lemma array_repeat (b : loc) (n : nat) :
+    {{{ ⌜0 < n⌝ }}} AllocN #n #b 
+    {{{ arr, RET #arr; is_array arr (replicate n b) }}}.
+  Proof.
+    iIntros (ϕ ?%inj_lt) "Post".
+    iApply wp_allocN; try done.
+    iNext. iIntros (l) "[lPts _]".
+    iApply "Post".
+    unfold is_array.
+    rewrite Nat2Z.id.
+    rewrite -> fmap_replicate.
+    (* iAssumption. *)
+  Admitted.
+
+  Lemma createNode_rec_spec (arr succs: loc) (ls ss: list Node) (h i: nat) :
+  ⊢  {{{ is_array succs ss 
+         ∗ arr ↦∗ ((fun l => # (LitLoc l)) <$> ls)
+         ∗ ⌜length ls = h⌝
+         ∗ ∀ (l: loc) (j: nat), 
+           ⌜ls !! j = Some l⌝ -∗ ⌜j < i⌝ -∗
+             l ↦□ (#false, match ((ss !! j): option Node) with 
+                              None => NONEV | Some s => SOMEV #s end) }}}
+           createNode_rec #i #h #arr #succs
+      {{{ (ls': list Node),
+          RET #();
+              is_array succs ss
+            ∗ arr ↦∗ ((fun l => # (LitLoc l)) <$> ls')
+            ∗ ⌜length ls' = h⌝
+            ∗ ∀ (l: loc) (j: nat), 
+              ⌜ls' !! j = Some l⌝ -∗ ⌜j < h⌝ -∗
+                l ↦□ (#false, match ((ss !! j): option Node) with 
+                                  None => NONEV | Some s => SOMEV #s end) }}}.
+  Proof.
+  Admitted.
+
+  Lemma createNode_spec (succs: loc) ss (h k: nat) :
+  ⊢  {{{ is_array succs ss ∗ ⌜0 < h ≤ L⌝ }}}
+           createNode #k #h #succs
+        {{{ (n: Node) mark next,
+            RET #n;
+              is_array succs ss
+            ∗ node n h mark next k  
+            ∗ (⌜∀ i, i < h → mark !! i = Some false⌝)
+            ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.
+  Proof.
+    iIntros (Φ) "!> (Hsuccs&%Hh) Hpost". wp_lam. wp_pures.
+    wp_bind (AllocN _ _)%E. iApply wp_allocN; try done.
+    iModIntro. iIntros (n)"(Hn&_)". wp_pures.
+    wp_bind (AllocN _ _)%E. iApply wp_allocN; try done. lia.
+    iModIntro. iIntros (arr)"(Harr&_)". wp_pures.
+    assert (Z.to_nat h = h) as -> by lia.
+    assert (Z.to_nat 2%nat = 2) as -> by lia.
+    wp_bind (_ <- _)%E.
+    iApply (wp_store_offset _ _ n 1 with "Hn").
+    { apply lookup_lt_is_Some_2. rewrite replicate_length. lia. }
+    iIntros "!> Hn". wp_pures.
+    wp_apply (createNode_rec_spec _ _ _ _ h _ with "[Hsuccs Harr]").
+    { assert (replicate h #n = (λ l : loc, #l) <$> (replicate h n)) as ->.
+      { admit. }
+      iFrame "Hsuccs Harr".
+      iSplit. { iPureIntro. by rewrite replicate_length. }
+      iIntros (l j)"%Hlj %Hj". exfalso; lia. }
+    iIntros (ls) "(Hsuccs & Harr & %Length_ls & Hls)".
+    assert (∃ (m: gmap nat bool), ∀ i, i < h → m !! i = Some false) as 
+      [mark Def_mark].
+    { admit. }
+    assert (∃ (nx: gmap nat Node), ∀ i, i < h → nx !! i = Some (ss !!! i)) as 
+      [next Def_next].
+    { admit. }
+    wp_pures. iApply ("Hpost" $! n mark next).
+    iFrame "Hsuccs". iSplitL; last first.
+    { iPureIntro; try done. }  
+    iExists arr, ls.
+    assert (<[1:=#arr]> (replicate 2 #k) = #k :: #arr :: []) as ->.
+    { admit. }
+    iAssert (n ↦ #k ∗ (n +ₗ 1) ↦ #arr)%I with "[Hn]" as "(Hk & Hn)".
+    { admit. }
+    iDestruct (mapsto_persist with "Hk") as ">Hk".
+    iDestruct (mapsto_persist with "Hn") as ">Hn".
+    iFrame "Hn Hk Harr". iSplitR. by iPureIntro.
+    iModIntro. iIntros (l j)"%Hlj".
+    assert (j < h) as j_lt_h. { admit. }
+    rewrite lookup_total_alt Def_mark /=; try done. 
+    rewrite Def_next; try done. iSpecialize ("Hls" $! l j).
+    iDestruct ("Hls" with "[%] [%]") as "H'"; try done.
+    assert (∃ sj, ss !! j = Some sj) as [sj Def_sj].
+    { admit. }
+    rewrite Def_sj. apply lookup_total_correct in Def_sj.
+    rewrite -Def_sj. admit.
+  Admitted.
+
+
+
   Lemma compareKey_spec (n: Node) (k': nat) :
-    ⊢ <<< ∀∀ mark next k, node n mark next k >>>
+    ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
            compareKey #n #k' @ ⊤
      <<< ∃∃ (res: nat),
-            node n mark next k 
+            node n h mark next k 
           ∗ ⌜if decide (res = 0) then k < k'
              else if decide (res = 1) then k = k'
              else k > k'⌝,
@@ -97,7 +211,7 @@ Section node_impl.
   Proof.
     iIntros (Φ) "AU".
     wp_lam. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m0 nx0 k0) "[Node [_ Hclose]]".
+    iMod "AU" as (h0 m0 nx0 k0) "[Node [_ Hclose]]".
     iDestruct "Node" as (arr0 ls0) "(#Hk0 & #Hn0 & Harr & %Len_vs0 & #Hls0)".
     wp_load. 
     destruct (decide (k0 < k')).
@@ -139,43 +253,43 @@ Section node_impl.
   Qed.
 
   Lemma findNext_spec (n: Node) (i: nat) :
-    ⊢ <<< ∀∀ mark next k, node n mark next k >>>
-        findNext #n #i @⊤
-     <<< ∃∃ (m: bool) (opt_n': option Node),
-              node n mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
+    ⊢ <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+          findNext #n #i @⊤
+      <<< ∃∃ (m: bool) (opt_n': option Node),
+              node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
               RET (match opt_n' with None => (#m, NONEV) 
                                     | Some n' => (#m, SOMEV #n') end) >>>.
   Proof.
     iIntros (Φ) "AU".
     wp_lam. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m0 nx0 k0) "[Node [Hclose _]]".
+    iMod "AU" as (h0 m0 nx0 k0) "[(Node&%Hi0) [Hclose _]]".
     iDestruct "Node" as (arr0 ls0) "(#Hk0 & #Hn0 & Harr & %Len_vs0 & #Hls0)".
     wp_load. 
     iMod ("Hclose" with "[Harr]") as "AU".
-    { iExists arr0, ls0. iFrame "∗#%". }
+    { iFrame "%". iExists arr0, ls0. iFrame "∗#%". }
     iModIntro. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m1 nx1 k1) "[Node [_ Hclose]]".
+    iMod "AU" as (h1 m1 nx1 k1) "[(Node&%Hi1) [_ Hclose]]".
     iDestruct "Node" as (arr1 ls1) "(#Hk1 & #Hn1 & Harr & %Len_vs1 & #Hls1)".
     iDestruct (mapsto_agree with "[$Hn0] [$Hn1]") as "%H'". 
     inversion H'; subst arr1; clear H'.
     assert (∃ li, ls1 !! i = Some li) as [li Def_li].
-    { admit. }  
+    { apply lookup_lt_is_Some. by rewrite Len_vs1. }  
     wp_apply (wp_load_offset _ _ _ (DfracOwn (pos_to_Qp 1)) _ 
         _ #li with "[Harr]"); try done.
-    { admit. }
+    { by rewrite list_lookup_fmap Def_li /=. }
     iIntros "Harr".
     iDestruct ("Hls1" with "[%]") as "H'". apply Def_li.
     iSpecialize ("Hclose" $! (m1 !!! i) (nx1 !! i)).
     iMod ("Hclose" with "[Harr]") as "HΦ".
     { iSplitL. iExists arr0, ls1. iFrame "∗#%". by iPureIntro. }
     iModIntro. wp_pures. wp_load. wp_pures; destruct (nx1 !! i); try done.
-  Admitted.
+  Qed.
   
   Lemma markNode_spec (n: Node) (i: nat) :
-    ⊢  <<< ∀∀ mark next k, node n mark next k >>>
+    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
             markNode #n #i @⊤
       <<< ∃∃ (success: bool) mark',
-              node n mark' next k
+              node n h mark' next k
             ∗ (match success with true => ⌜mark !!! i = false
                                             ∧ mark' = <[i := true]> mark⌝
                                 | false => ⌜mark !!! i = true
@@ -185,21 +299,21 @@ Section node_impl.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m0 nx0 k0) "[Node [Hclose _]]".
+    iMod "AU" as (h0 m0 nx0 k0) "[(Node&%Hi0) [Hclose _]]".
     iDestruct "Node" as (arr0 ls0) "(#Hk0 & #Hn0 & Harr & %Len_vs0 & #Hls0)".
     wp_load. 
     iMod ("Hclose" with "[Harr]") as "AU".
-    { iExists arr0, ls0. iFrame "∗#%". }
+    { iFrame "%". iExists arr0, ls0. iFrame "∗#%". }
     iModIntro. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m1 nx1 k1) "[Node HAU]".
+    iMod "AU" as (h1 m1 nx1 k1) "[(Node&%Hi1) HAU]".
     iDestruct "Node" as (arr1 ls1) "(#Hk1 & #Hn1 & Harr & %Len_vs1 & #Hls1)".
     iDestruct (mapsto_agree with "[$Hn0] [$Hn1]") as "%H'". 
     inversion H'; subst arr1; clear H'.
     assert (∃ li, ls1 !! i = Some li) as [li Def_li].
-    { admit. }  
+    { apply lookup_lt_is_Some. by rewrite Len_vs1. }  
     wp_apply (wp_load_offset _ _ _ (DfracOwn (pos_to_Qp 1)) _ 
         _ #li with "[Harr]"); try done.
-    { admit. }
+    { by rewrite list_lookup_fmap Def_li /=. }
     iIntros "Harr".
     iDestruct ("Hls1" with "[%]") as "H'". apply Def_li.
     destruct (decide (m1 !!! i = true)) as [Hmi | Hmi].
@@ -213,21 +327,21 @@ Section node_impl.
     - apply not_true_is_false in Hmi.
       iDestruct "HAU" as "[Hclose _]".
       iMod ("Hclose" with "[Harr]") as "AU".
-      { iExists arr0, ls1. iFrame "∗#%". }
+      { iFrame "%". iExists arr0, ls1. iFrame "∗#%". }
       iModIntro. wp_pures. wp_load. wp_pures.
       rewrite Hmi. wp_pures.
       wp_alloc li_new as "Hnew". wp_pures.
       wp_bind (CmpXchg _ _ _)%E.
-      iMod "AU" as (m2 nx2 k2) "[Node HAU]".
+      iMod "AU" as (h2 m2 nx2 k2) "[(Node&%Hi2) HAU]".
       iDestruct "Node" as (arr2 ls2) "(#Hk2 & #Hn2 & Harr & %Len_vs2 & #Hls2)".
       iDestruct (mapsto_agree with "[$Hn0] [$Hn2]") as "%H'". 
       inversion H'; subst arr2; clear H'.
       assert (∃ li', ls2 !! i = Some li') as [li' Def_li'].
-      { admit. }
+      { apply lookup_lt_is_Some. by rewrite Len_vs2.  }
       destruct (decide (li' = li)) as [-> | Des_li].
       + wp_apply (wp_cmpxchg_suc_offset _ _ _ _ _ _ with "[Harr]"); 
           try done.
-        { admit. }
+        { by rewrite list_lookup_fmap Def_li' /=. }
         { left; try done. }
         iIntros "Harr".
         iDestruct "HAU" as "[_ Hclose]".
@@ -237,12 +351,20 @@ Section node_impl.
         iDestruct (mapsto_agree with "H' H''") as "%H'". inversion H'.
         iMod ("Hclose" with "[Harr]") as "HΦ".
         { iSplitL. iExists arr0, (<[i:= li_new]> ls2). iFrame "#".
-          iSplitL "Harr". admit. iSplitR. iPureIntro. admit.
+          iSplitL "Harr". 
+          assert (((λ l : loc, #l) <$> <[i:=li_new]> ls2) = 
+            <[i:=#li_new]> ((λ l : loc, #l) <$> ls2)) as ->.
+          { apply list_eq. intros i'. destruct (decide (i' = i)) as [-> | Hi'].
+            rewrite list_lookup_fmap !list_lookup_insert /=. done.
+            by rewrite fmap_length Len_vs2. by rewrite Len_vs2. 
+            rewrite list_lookup_fmap !list_lookup_insert_ne /=; try done.
+            by rewrite list_lookup_fmap. }
+          iFrame "Harr". iSplitR. { iPureIntro. by rewrite insert_length. }
           iIntros (l j)"%Hlj". destruct (decide (j = i)) as [-> | Hj].
           assert (<[i:=true]> m2 !!! i = true) as ->.
           by rewrite lookup_total_insert.
           rewrite list_lookup_insert in Hlj. inversion Hlj.
-          rewrite H1; try done. admit.
+          rewrite H1; try done. by rewrite Len_vs2.
           assert (<[i:=true]> m2 !!! j = m2 !!! j) as ->.
           by rewrite lookup_total_insert_ne.
           rewrite list_lookup_insert_ne in Hlj; try done.
@@ -253,20 +375,20 @@ Section node_impl.
         iModIntro. wp_pures. done.
       + wp_apply (wp_cmpxchg_fail_offset _ _ _ _ _ _ #li' with "[Harr]"); 
           try done.
-        { admit. }
+        { by rewrite list_lookup_fmap Def_li' /=. }
         { by intros [=->]. }
         { left; try done. }
         iIntros "Harr". iDestruct "HAU" as "[Hclose _]".
         iMod ("Hclose" with "[Harr]") as "AU".
-        { iExists arr0, ls2. iFrame "∗#%". }
+        { iSplitL; last by iPureIntro. iExists arr0, ls2. iFrame "∗#%". }
         iModIntro. wp_pures. by iApply "IH".
-  Admitted.  
+  Qed.  
   
   Lemma changeNext_spec (n m m': Node) (i: nat) :
-    ⊢  <<< ∀∀ mark next k, node n mark next k >>>
+    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
             changeNext #n #m #m' #i @⊤
       <<< ∃∃ (success: bool) next',
-              node n mark next' k
+              node n h mark next' k
             ∗ (match success with true => ⌜next !! i = Some m 
                                             ∧ mark !!! i = false
                                             ∧ next' = <[i := m']> next⌝
@@ -278,21 +400,21 @@ Section node_impl.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m0 nx0 k0) "[Node [Hclose _]]".
+    iMod "AU" as (h0 m0 nx0 k0) "[(Node&%Hi0) [Hclose _]]".
     iDestruct "Node" as (arr0 ls0) "(#Hk0 & #Hn0 & Harr & %Len_vs0 & #Hls0)".
     wp_load. 
     iMod ("Hclose" with "[Harr]") as "AU".
-    { iExists arr0, ls0. iFrame "∗#%". }
+    { iSplitL; last by iPureIntro. iExists arr0, ls0. iFrame "∗#%". }
     iModIntro. wp_pures. wp_bind (! _)%E.
-    iMod "AU" as (m1 nx1 k1) "[Node HAU]".
+    iMod "AU" as (h1 m1 nx1 k1) "[(Node&%Hi1) HAU]".
     iDestruct "Node" as (arr1 ls1) "(#Hk1 & #Hn1 & Harr & %Len_vs1 & #Hls1)".
     iDestruct (mapsto_agree with "[$Hn0] [$Hn1]") as "%H'". 
     inversion H'; subst arr1; clear H'.
     assert (∃ li, ls1 !! i = Some li) as [li Def_li].
-    { admit. }  
+    { apply lookup_lt_is_Some. by rewrite Len_vs1. }  
     wp_apply (wp_load_offset _ _ _ (DfracOwn (pos_to_Qp 1)) _ 
         _ #li with "[Harr]"); try done.
-    { admit. }
+    { by rewrite list_lookup_fmap Def_li /=. }
     iIntros "Harr".
     iDestruct ("Hls1" with "[%]") as "H'". apply Def_li.
     destruct (decide (m1 !!! i = true)) as [Hmi | Hmi].
@@ -326,7 +448,7 @@ Section node_impl.
           wp_pures. try done.
         * iDestruct "HAU" as "[Hclose _]".
           iMod ("Hclose" with "[Harr]") as "AU".
-          { iExists arr0, ls1. iFrame "∗#%". }
+          { iSplitL; last by iPureIntro. iExists arr0, ls1. iFrame "∗#%". }
           iModIntro. wp_pures. wp_load. wp_pures.
           rewrite Hmi. wp_pures.
           destruct (bool_decide (InjRV #m = InjRV #m)) eqn: H'; last first.
@@ -334,16 +456,16 @@ Section node_impl.
           clear H'. wp_pures.
           wp_alloc li_new as "Hnew". wp_pures.
           wp_bind (CmpXchg _ _ _)%E.
-          iMod "AU" as (m2 nx2 k2) "[Node HAU]".
+          iMod "AU" as (h2 m2 nx2 k2) "[(Node&%Hi2) HAU]".
           iDestruct "Node" as (arr2 ls2) "(#Hk2 & #Hn2 & Harr & %Len_vs2 & #Hls2)".
           iDestruct (mapsto_agree with "[$Hn0] [$Hn2]") as "%H'". 
           inversion H'; subst arr2; clear H'.
           assert (∃ li', ls2 !! i = Some li') as [li' Def_li'].
-          { admit. }
+          { apply lookup_lt_is_Some. by rewrite Len_vs2. }
           destruct (decide (li' = li)) as [-> | Des_li].
           -- wp_apply (wp_cmpxchg_suc_offset _ _ _ _ _ _ with "[Harr]"); 
                try done.
-             { admit. }
+             { by rewrite list_lookup_fmap Def_li' /=. }
              { left; try done. }
              iIntros "Harr". iDestruct "HAU" as "[_ Hclose]".
              iSpecialize ("Hclose" $! true (<[i:=m']> nx2)).
@@ -352,11 +474,20 @@ Section node_impl.
              iDestruct (mapsto_agree with "H' H''") as "%H'". inversion H'.
              iMod ("Hclose" with "[Harr]") as "HΦ".
              { iSplitL. iExists arr0, (<[i:= li_new]> ls2). iFrame "#".
-               iSplitL. admit. iSplit. iPureIntro. admit.
+               iSplitL. 
+               assert (((λ l : loc, #l) <$> <[i:=li_new]> ls2) = 
+                          <[i:=#li_new]> ((λ l : loc, #l) <$> ls2)) as ->.
+               { apply list_eq. intros i'. 
+                 destruct (decide (i' = i)) as [-> | Hi'].
+                 rewrite list_lookup_fmap !list_lookup_insert /=. done.
+                 by rewrite fmap_length Len_vs2. by rewrite Len_vs2. 
+                 rewrite list_lookup_fmap !list_lookup_insert_ne /=; try done.
+                 by rewrite list_lookup_fmap. }
+               iFrame "Harr". iSplitR. { iPureIntro. by rewrite insert_length. }
                iIntros (l j)"%Hlj". destruct (decide (j = i)) as [-> | Hj].
                rewrite list_lookup_insert in Hlj. inversion Hlj.
                assert (<[i:=m']> nx2 !! i = Some m') as ->. 
-               by rewrite lookup_insert. by rewrite -H0. admit.
+               by rewrite lookup_insert. by rewrite -H0. by rewrite Len_vs2. 
                rewrite list_lookup_insert_ne in Hlj; try done.
                assert (<[i:=m']> nx2 !! j = nx2 !! j) as ->.
                by rewrite lookup_insert_ne. 
@@ -368,13 +499,13 @@ Section node_impl.
              iModIntro. wp_pures. done.
           -- wp_apply (wp_cmpxchg_fail_offset _ _ _ _ _ _ #li' with "[Harr]"); 
                try done.
-             { admit. }
+             {  by rewrite list_lookup_fmap Def_li' /=. }
              { by intros [=->]. }
              { left; try done. }
              iIntros "Harr". iDestruct "HAU" as "[Hclose _]".
              iMod ("Hclose" with "[Harr]") as "AU".
-             { iExists arr0, ls2. iFrame "∗#%". }
+             { iSplitL; last by iPureIntro. iExists arr0, ls2. iFrame "∗#%". }
              iModIntro. wp_pures. by iApply "IH".
-  Admitted.
+  Qed.
 
 End node_impl.
