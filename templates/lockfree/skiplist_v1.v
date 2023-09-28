@@ -130,10 +130,10 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
 
   Definition traverse_rec : val :=
     rec: "trec" "k" "preds" "succs" "i" :=
+      let: "res" := traverse_pop "k" "preds" "succs" "i" in
       if: "i" = #0 then
-        traverse_pop "k" "preds" "succs" #0%nat
+        "res"
       else
-        traverse_pop "k" "preds" "succs" "i";;
         "trec" "k" "preds" "succs" ("i" - #1).
 
   Definition traverse : val :=
@@ -152,7 +152,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   
   Definition maintenanceOp_delete_rec : val :=
     rec: "mOp" "i" "perm" "curr" :=
-      if: "i" ≤ #(L-2)%nat then
+      if: "i" < #(L-1)%nat then
         let: "idx" := ! ("perm" +ₗ "i") in
         try_constraint "curr" "idx";;
         "mOp" ("i" + #1) "perm" "curr"
@@ -181,11 +181,11 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
 
   Definition maintenanceOp_insert_rec : val :=
     rec: "mOp" "k" "i" "perm" "preds" "succs" "new_node" :=
-      if: "i" ≤ #(L-2)%nat then
+      if: "i" < #(L-1)%nat then
         let: "idx" := ! ("perm" +ₗ "i") in
         let: "pred" := ! ("preds" +ₗ "idx") in
         let: "succ" := ! ("succs" +ₗ "idx") in
-        match: try_constraint "idx" "pred" "succ" "new_node" with
+        match: try_constraint "pred" "succ" "new_node" "idx" with
           NONE =>
           traverse_rec "k" "preds" "succs" #(L-2)%nat;;
           "mOp" "k" "i" "perm" "preds" "succs" "new_node"
@@ -211,10 +211,10 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         let: "new_node" := createNode "k" "succs" in
         let: "pred" := ! ("preds" +ₗ #0%nat) in
         let: "curr" := ! ("succs" +ₗ #0%nat) in
-        match: try_constraint "pred" "curr" "new_node" with
+        match: try_constraint "pred" "curr" "new_node" #0%nat with
           NONE => "ins" "h" "t" "k"
         | SOME "_" => 
-          maintenanceOp_insert "new_node" "preds" "succs";;
+          maintenanceOp_insert "k" "preds" "succs" "new_node";;
           #true end.
          
 
@@ -436,14 +436,13 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (∀ k, inf In n !!! k ≤ 1)
     ∧ (∀ n' k, out In n' !!! k ≤ 1).
 
-  Definition node_inv_pure s n : Prop :=
-      (∀ i, Marki s n i = true → Nexti s n i ≠ None)
-    ∧ ((∃ i, Marki s n i = false) → Marki s n 0 = false)
-    ∧ (Marki s n 0 = false → Nexti s n 0 = None → n = tl)
-    ∧ (0 ∈ dom (Next s n)) 
-    ∧ (0 ∈ dom (Mark s n))
-    ∧ (0 ≤ Key s n ≤ W)
-    ∧ (flow_constraints_I n (FI s n) (Marki s n 0) (Nexti s n 0) (Key s n)).
+  Definition node_inv_pure n (mark: gmap nat bool) (next: gmap nat Node) k In : Prop :=
+      ((∃ i, mark !!! i = false) → mark !!! 0 = false)
+    ∧ (∀ i, next !! i = None ↔ n = tl)
+    ∧ (0 ∈ dom next) 
+    ∧ (0 ∈ dom mark)
+    ∧ (0 ≤ k ≤ W)
+    ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
   Definition hd_tl_inv s : Prop :=
       (∀ i, Marki s hd i = false)
@@ -455,17 +454,19 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition per_tick_inv s : Prop := 
       hd_tl_inv s
     ∧ ✓ GFI s
-    ∧ (∀ n, n ∈ (FP s) → node_inv_pure s n)
+    ∧ (∀ n, n ∈ (FP s) → node_inv_pure n (Mark s n) (Next s n) (Key s n) (FI s n))
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → Key s n1 < Key s n2)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s).
-    
+  
+  
   Definition transition_inv s s' : Prop :=
-      (* (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s') *)
-      (* (∀ n i, n ∈ FP s → Marki s' n i = true → Nexti s' n i = Nexti s n i) *)
-      (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
+      (* (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true → 
+        Nexti s' n i = Nexti s n i) *)
+      (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s')
+    ∧ (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
-  
+  (*
   Lemma transition_inv_trans s0 s1 s2 :
     transition_inv s0 s1 → transition_inv s1 s2 → transition_inv s0 s2.
   Proof.
@@ -479,7 +480,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     - intros n Hfp. rewrite T12; last by set_solver. by apply T02.
     - set_solver.
   Qed.
-  
+  *)
   Definition resources γ_ks s : iProp :=
       own γ_ks (● prodKS (KS, abs s))
     ∗ ([∗ set] n ∈ FP s, node n (Mark s n) (Next s n) (Key s n))

@@ -129,7 +129,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
       own γ_t (● MaxNat T) ∗ own γ_m (● M')
     ∗ ⌜T = map_max M⌝ ∗ ⌜T ∈ dom M⌝
     ∗ ⌜∀ t s, M' !! t ≡ Some (to_agree s) ↔ M !! t = Some s⌝
-    ∗ ⌜∀ t, t < T → abs (M !!! t) ≠ abs (M !!! (t+1)%nat)⌝.
+    ∗ ⌜∀ t, t < T → (M !!! t) ≠ (M !!! (t+1)%nat)⌝.
 
   Definition dsRep γ_r (a: absTUR) : iProp := 
     own γ_r (to_frac_agree (1/2) a).

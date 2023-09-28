@@ -19,7 +19,7 @@ Section node_impl.
       if: "h" ≤ "i" then
         #()
       else
-        let: "si" := !("arr" +ₗ "i") in
+        let: "si" := !("succs" +ₗ "i") in
         let: "li" := ref (#false, InjR "si") in 
         ("arr" +ₗ "i") <- "li";;
         "cN" ("i" + #1) "h" "arr" "succs".
@@ -124,6 +124,7 @@ Section node_impl.
   ⊢  {{{ is_array succs ss 
          ∗ arr ↦∗ ((fun l => # (LitLoc l)) <$> ls)
          ∗ ⌜length ls = h⌝
+         ∗ ⌜h <= length ss⌝
          ∗ ∀ (l: loc) (j: nat), 
            ⌜ls !! j = Some l⌝ -∗ ⌜j < i⌝ -∗
              l ↦□ (#false, match ((ss !! j): option Node) with 
@@ -139,10 +140,48 @@ Section node_impl.
                 l ↦□ (#false, match ((ss !! j): option Node) with 
                                   None => NONEV | Some s => SOMEV #s end) }}}.
   Proof.
-  Admitted.
+    iIntros (Φ) "!> Hpre Hpost". iLöb as "IH" forall (i ls).
+    iDestruct "Hpre" as "(Hsuccs & Harr & %Len_ls & %Hss & Hls)".
+    wp_lam. wp_pures. destruct (bool_decide (h ≤ i)%Z) eqn: Hi; wp_pures.
+    - iApply ("Hpost" $! ls). iFrame. iSplitR; first by iPureIntro.
+      iModIntro. iIntros (l j)"%Hlj %j_le_h".
+      rewrite bool_decide_eq_true in Hi. iApply "Hls"; try done.
+      iPureIntro; lia.
+    - rewrite bool_decide_eq_false in Hi. 
+      assert (∃ si, ss !! i = Some si) as [si Def_si].
+      { apply lookup_lt_is_Some. lia. }  
+      wp_apply (wp_load_offset _ _ _ _ _ _ #si with "[Hsuccs]"); try done.
+      { by rewrite list_lookup_fmap Def_si /=. }
+      iIntros "Hsuccs". wp_pures. wp_apply wp_alloc; try done.
+      iIntros (l)"(Hl&_)". wp_pures. wp_bind (_ <- _)%E.
+      iApply fupd_wp.
+      iDestruct (mapsto_persist with "Hl") as ">Hl".
+      iModIntro.
+      iApply (wp_store_offset _ _ arr i with "Harr").
+      { apply lookup_lt_is_Some_2. rewrite fmap_length Len_ls. lia. }
+      iIntros "!> Harr". wp_pures.
+      assert (Z.add i 1 = (i+1)%nat) as -> by lia. 
+      iSpecialize ("IH" $! (i+1) (<[i:=l]>ls)).
+      iApply ("IH" with "[Hsuccs Harr Hl Hls]"); try done.
+      assert ((λ l0 : loc, #l0) <$> <[i:=l]> ls = 
+                  <[i:=#l]> ((λ l0 : loc, #l0) <$> ls)) as ->.
+      { apply list_eq. intros i'. 
+        destruct (decide (i' = i)) as [-> | Hi'].
+        rewrite list_lookup_fmap !list_lookup_insert /=. done.
+        rewrite Len_ls; lia. rewrite fmap_length Len_ls. lia.
+        rewrite list_lookup_fmap !list_lookup_insert_ne /=; try done.
+        by rewrite list_lookup_fmap. }
+      iFrame "Hsuccs Harr". iSplitR. { iPureIntro. by rewrite insert_length. }
+      iSplitR. by iPureIntro.
+      iIntros (l' j)"%Hlj %Hj". destruct (decide (j = i)) as [-> | Hij].
+      { rewrite list_lookup_insert in Hlj. inversion Hlj. subst l'.
+        rewrite Def_si. iFrame. rewrite Len_ls; lia. }
+      iApply "Hls". iPureIntro. rewrite list_lookup_insert_ne in Hlj; try done.
+      iPureIntro; lia.
+  Qed.
 
   Lemma createNode_spec (succs: loc) ss (h k: nat) :
-  ⊢  {{{ is_array succs ss ∗ ⌜0 < h ≤ L⌝ }}}
+  ⊢  {{{ is_array succs ss ∗ ⌜0 < h ≤ length ss⌝ }}}
            createNode #k #h #succs
         {{{ (n: Node) mark next,
             RET #n;
@@ -164,40 +203,82 @@ Section node_impl.
     iIntros "!> Hn". wp_pures.
     wp_apply (createNode_rec_spec _ _ _ _ h _ with "[Hsuccs Harr]").
     { assert (replicate h #n = (λ l : loc, #l) <$> (replicate h n)) as ->.
-      { admit. }
+      { apply list_eq. intros i'. rewrite list_lookup_fmap. 
+        destruct (decide (i' < h)) as [Hi | Hi].
+        - rewrite !lookup_replicate_2; try done.
+        - apply not_lt in Hi. Search replicate lookup. 
+          assert (h ≤ i') as H' by lia. Search replicate lookup.
+          assert (H'' := H').
+          apply (lookup_replicate_None h #n i') in H'.
+          apply (lookup_replicate_None h n i') in H''.
+          rewrite H' H'' /=. done. }
       iFrame "Hsuccs Harr".
       iSplit. { iPureIntro. by rewrite replicate_length. }
+      iSplitR. iPureIntro; lia.
       iIntros (l j)"%Hlj %Hj". exfalso; lia. }
     iIntros (ls) "(Hsuccs & Harr & %Length_ls & Hls)".
     assert (∃ (m: gmap nat bool), ∀ i, i < h → m !! i = Some false) as 
       [mark Def_mark].
-    { admit. }
+    { Fixpoint f n (res: gmap nat bool) := 
+        match n with S n' => f n' (<[n' := false]> res) | 0 => res end.
+      set m := f h ∅.
+      assert (∀ n res i, (i < n → f n res !! i = Some false) ∧ 
+                    (¬ i < n → f n res !! i = res !! i)) as H'.
+      { clear. induction n.
+        - intros res i; split; first by lia. intros H'; by simpl.
+        - intros res i. pose proof IHn (<[n:=false]> res) i as H''.
+          split; intros Hi; simpl.
+          + destruct (decide (i = n)) as [-> | Hin].
+            { assert (¬ n < n) as H' by lia. 
+              destruct H'' as [_ H'']. pose proof H'' H' as H''.
+              rewrite H'' lookup_insert. done. }
+            assert (i < n) as H'%H'' by lia. by rewrite H'.
+          + assert (¬ i < n) as H'%H'' by lia. rewrite H'.
+            rewrite lookup_insert_ne; try (done || lia). }
+      exists m. apply  H'. }
     assert (∃ (nx: gmap nat Node), ∀ i, i < h → nx !! i = Some (ss !!! i)) as 
       [next Def_next].
-    { admit. }
+    { Fixpoint f' (l: list Node) n (res: gmap nat Node) := 
+        match n with S n' => f' l n' (<[n':= l !!! n']> res) | 0 => res end.
+      set nx := f' ss h ∅.
+      assert (∀ n res i, (i < n → f' ss n res !! i = Some (ss !!! i)) ∧ 
+                    (¬ i < n → f' ss n res !! i = res !! i)) as H'.
+      { clear. induction n.
+        - intros res i; split; first by lia. intros H'; by simpl.
+        - intros res i. pose proof IHn (<[n:=(ss !!! n)]> res) i as H''.
+          split; intros Hi; simpl.
+          + destruct (decide (i = n)) as [-> | Hin].
+            { assert (¬ n < n) as H' by lia. 
+              destruct H'' as [_ H'']. pose proof H'' H' as H''.
+              rewrite H'' lookup_insert. done. }
+            assert (i < n) as H'%H'' by lia. by rewrite H'.
+          + assert (¬ i < n) as H'%H'' by lia. rewrite H'.
+            rewrite lookup_insert_ne; try (done || lia). }
+      exists nx. apply H'. }
     wp_pures. iApply ("Hpost" $! n mark next).
     iFrame "Hsuccs". iSplitL; last first.
     { iPureIntro; try done. }  
     iExists arr, ls.
     assert (<[1:=#arr]> (replicate 2 #k) = #k :: #arr :: []) as ->.
-    { admit. }
+    { rewrite /replicate /=. done. }
     iAssert (n ↦ #k ∗ (n +ₗ 1) ↦ #arr)%I with "[Hn]" as "(Hk & Hn)".
-    { admit. }
+    { rewrite /array /big_opL. iDestruct "Hn" as "(Hn1 & Hn2 & _)".
+      assert (n +ₗ 0%nat = n) as ->.
+      { rewrite /loc_add /=. assert (Z.add (loc_car n) 0%nat = loc_car n) as ->.
+        lia. destruct n; try done. } iFrame. }
     iDestruct (mapsto_persist with "Hk") as ">Hk".
     iDestruct (mapsto_persist with "Hn") as ">Hn".
     iFrame "Hn Hk Harr". iSplitR. by iPureIntro.
     iModIntro. iIntros (l j)"%Hlj".
-    assert (j < h) as j_lt_h. { admit. }
+    assert (j < h) as j_lt_h. { by rewrite -Length_ls -lookup_lt_is_Some Hlj /=. }
     rewrite lookup_total_alt Def_mark /=; try done. 
     rewrite Def_next; try done. iSpecialize ("Hls" $! l j).
     iDestruct ("Hls" with "[%] [%]") as "H'"; try done.
-    assert (∃ sj, ss !! j = Some sj) as [sj Def_sj].
-    { admit. }
+    assert (is_Some(ss !! j)) as [sj Def_sj].
+    { rewrite lookup_lt_is_Some. lia. }
     rewrite Def_sj. apply lookup_total_correct in Def_sj.
     rewrite -Def_sj. admit.
   Admitted.
-
-
 
   Lemma compareKey_spec (n: Node) (k': nat) :
     ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
