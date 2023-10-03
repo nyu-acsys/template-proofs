@@ -8,7 +8,7 @@ From stdpp Require Import mapset.
 From stdpp Require Import finite numbers.
 From iris Require Export base.
 From iris.algebra Require Export big_op.
-From flows Require Import gmap_more. 
+From flows Require Import gmap_more.
 
 Delimit Scope ccm_scope with CCM.
 

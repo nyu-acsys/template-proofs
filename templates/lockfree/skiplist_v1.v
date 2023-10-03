@@ -26,92 +26,30 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Parameter L : nat. (* Maxlevels *)
   Parameter W : nat. (* Keyspace *)
 
-  (** Template algorithms *)
+  (* Template Algorithms *)
 
-  (* Restart case calls traverse_loop, but that requires mutual recursion *)
-  (*
   Definition traverse_i : val :=
-    rec: "tr" "i" "k" "pred" "curr" :=
+    rec: "tri" "i" "pred" "curr" "k" :=
       let: "fn_curr" := findNext "curr" "i" in
       if: Fst "fn_curr" then
         match: Snd "fn_curr" with
           NONE => ""
         | SOME "succ" =>
-            match: try_constraint "i" "pred" "curr" "succ" with
-              NONE => "" (* RESTART case *)
-            | SOME "_" => "tr" "i" "k" "pred" "succ" end end  
-      else
-        match: Snd "fn_curr" with
-          NONE => ("pred", "curr", #false)
-        | SOME "succ" => 
-          let: "res" := compareKey "curr" "k" in
-          if: "res" = #0 then 
-            "tr" "i" "k" "curr" "succ"
-          else if: "res" = #1 then
-            ("pred", "curr", #true)
-          else
-            ("pred", "curr", #false) end.
-
-  Definition traverse_pop : val :=
-    λ: "k" "preds" "succs" "i",
-      let: "pred" := ! ("preds" +ₗ ("i" + #1)) in
-      let: "fn_pred" := findNext "pred" "i" in
-      match: Snd "fn_pred" with
-        NONE => ""
-      | SOME "curr" =>
-        let: "pred_succ_res" := traverse_i "i" "k" "pred" "curr" in
-        let: "pred" := Fst (Fst "pred_succ_res") in
-        let: "succ" := Snd (Fst "pred_succ_res") in
-        let: "res" := Snd "pred_succ_res" in
-        "preds" +ₗ "i" <- "pred";;
-        "succs" +ₗ "i" <- "succ";;
-        ("preds", "succs", "res") end.
-        
-  Definition traverse_loop_rec : val :=
-    rec: "trl" "k" "preds" "succs" "i" :=
-      if: #1%nat ≤ "i" then
-          traverse_pop "k" "preds" "succs" "i";;
-          "trl" "k" "preds" "succs" ("i" - #1)
-      else
-        #().
-
-  Definition traverse_loop : val :=
-    λ: "k" "preds" "succs",
-      traverse_loop_rec "k" "preds" "succs" #(L - 2)%nat.
-
-  Definition traverse : val := 
-    λ: "h" "t" "k",
-      let: "preds" := AllocN #L "h" in
-      let: "succs" := AllocN #L "t" in
-      ("preds" +ₗ #(L-1)%nat) <- "h";;
-      ("succs" +ₗ #(L-1)%nat) <- "t";;
-      traverse_loop "k" "preds" "succs";;
-      traverse_pop "k" "preds" "succs" #0%nat.
-  *)
-  (* Fresh attempt *)
-
-  Definition traverse_i : val :=
-    rec: "tri" "trec" "k" "preds" "succs" "i" "k" "pred" "curr" :=
-      let: "fn_curr" := findNext "curr" "i" in
-      if: Fst "fn_curr" then
-        match: Snd "fn_curr" with
-          NONE => ""
-        | SOME "succ" =>
-            match: try_constraint "i" "pred" "curr" "succ" with
-              NONE => "trec" "k" "preds" "succs" #(L-2)%nat
+            match: try_constraint "pred" "curr" "succ" "i" with
+              NONE => NONE
             | SOME "_" => 
-              "tri" "trec" "k" "preds" "succs" "i" "k" "pred" "succ" end end  
+              "tri" "i" "pred" "succ" "k" end end  
       else
         match: Snd "fn_curr" with
-          NONE => ("pred", "curr", #false)
+          NONE => SOME ("pred", "curr", #false)
         | SOME "succ" => 
           let: "res" := compareKey "curr" "k" in
           if: "res" = #0 then 
-            "tri" "trec" "k" "preds" "succs" "i" "k" "curr" "succ"
+            "tri" "i" "curr" "succ" "k"
           else if: "res" = #1 then
-            ("pred", "curr", #true)
+            SOME ("pred", "curr", #true)
           else
-            ("pred", "curr", #false) end.
+            SOME ("pred", "curr", #false) end.
 
   Definition traverse_pop : val :=
     λ: "trec" "k" "preds" "succs" "i",
@@ -120,29 +58,33 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       match: Snd "fn_pred" with
         NONE => ""
       | SOME "curr" =>
-        let: "pred_succ_res" := traverse_i "i" "k" "pred" "curr" in
-        let: "pred" := Fst (Fst "pred_succ_res") in
-        let: "succ" := Snd (Fst "pred_succ_res") in
-        let: "res" := Snd "pred_succ_res" in
-        "preds" +ₗ "i" <- "pred";;
-        "succs" +ₗ "i" <- "succ";;
-        ("preds", "succs", "res") end.
+        let: "ores" := traverse_i "i" "pred" "curr" "k" in
+        match: "ores" with
+          NONE => NONE
+        | SOME "pred_succ_res" =>
+          let: "pred" := Fst (Fst "pred_succ_res") in
+          let: "succ" := Snd (Fst "pred_succ_res") in
+          let: "res" := Snd "pred_succ_res" in
+          "preds" +ₗ "i" <- "pred";;
+          "succs" +ₗ "i" <- "succ";;
+          SOME ("preds", "succs", "res") end end.
 
   Definition traverse_rec : val :=
     rec: "trec" "k" "preds" "succs" "i" :=
-      let: "res" := traverse_pop "k" "preds" "succs" "i" in
-      if: "i" = #0 then
-        "res"
-      else
-        "trec" "k" "preds" "succs" ("i" - #1).
-
+      let: "ores" := traverse_pop "trec" "k" "preds" "succs" "i" in
+      match: "ores" with 
+        NONE => "trec" "k" "preds" "succs" #(L-2)%nat
+      | SOME "res" => 
+        if: "i" = #0 then
+          "res"
+        else
+          "trec" "k" "preds" "succs" ("i" - #1) end.
+  
   Definition traverse : val :=
     λ: "h" "t" "k",
       let: "preds" := AllocN #L "h" in
       let: "succs" := AllocN #L "t" in
-      traverse_rec "k" "preds" "succs" #(L-2)%nat.
-  
-  (* *)
+      traverse_rec "k" "preds" "succs" #(L-2)%nat.     
 
   Definition search : val :=
     λ: "h" "t" "k",
