@@ -1091,6 +1091,13 @@ Section lifting.
     apply nzmap_lookup_merge.
   Qed.
 
+  Lemma lookup_total_lifting_inv m1 m2 i : (m1 - m2) !!! i = m1 !!! i - m2 !!! i.
+  Proof.
+    unfold ccm_opinv,ccmop_inv at 1.
+    unfold lift_opinv.
+    apply nzmap_lookup_merge.
+  Qed.
+
   Global Opaque nzmap_empty.
 End lifting.
 

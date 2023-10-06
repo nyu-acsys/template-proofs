@@ -370,7 +370,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         
   Definition flow_constraints_I n In (m: bool) (on: option Node) (k: nat) : Prop := 
       (dom In = {[n]})
-    ∧ (dom (out_map In) = match on with Some n' => {[n']} | None => ∅ end)
+    ∧ (insets In ≠ ∅ → 
+        dom (out_map In) = match on with Some n' => {[n']} | None => ∅ end)
     ∧ (outsets In ⊆ insets In)
     ∧ (if m then keyset In = ∅ 
         else gset_seq k W ⊆ insets In ∧ gset_seq (k+1) W = outsets In)
@@ -402,27 +403,12 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   
   
   Definition transition_inv s s' : Prop :=
-      (* (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true → 
-        Nexti s' n i = Nexti s n i) *)
-      (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s')
+      (∀ n i, n ∈ FP s → Marki s' n i = true → Nexti s' n i = Nexti s n i)
+    ∧ (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s')
     ∧ (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
-  (*
-  Lemma transition_inv_trans s0 s1 s2 :
-    transition_inv s0 s1 → transition_inv s1 s2 → transition_inv s0 s2.
-  Proof.
-    intros (T01&T02&T03) (T11&T12&T13).
-    repeat split.
-    - intros n i Hfp Hm. 
-      destruct (decide (Marki s1 n i = true)) as [H' | H'].
-      + apply T11; try (done || set_solver).
-      + apply not_true_is_false in H'. apply T01 in Hm; try done.
-        rewrite H' in Hm; done.
-    - intros n Hfp. rewrite T12; last by set_solver. by apply T02.
-    - set_solver.
-  Qed.
-  *)
+
   Definition resources γ_ks s : iProp :=
       own γ_ks (● prodKS (KS, abs s))
     ∗ ([∗ set] n ∈ FP s, node n (Mark s n) (Next s n) (Key s n))

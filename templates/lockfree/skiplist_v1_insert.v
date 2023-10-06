@@ -279,6 +279,8 @@ Module SKIPLIST1_SPEC_INSERT.
           { admit. }
           assert (k < Key s0 c) as Key_nc.
           { admit. }
+          assert (insets (FI s0 p) ≠ ∅) as Insets_p_ne.
+          { admit. }
           assert (out_pc ≠ 0%CCM) as Out_pc_nz.
           { apply Hflow in FP_p0. rewrite /Marki Mark_p0 /Nexti Next_p0 in FP_p0.
             destruct FP_p0 as (_&H'&_&(_&H'')&_). rewrite /outsets H' in H''. 
@@ -287,7 +289,8 @@ Module SKIPLIST1_SPEC_INSERT.
             clear H'; intros H'. rewrite nzmap_eq in H'. pose proof H' W as H'.
             rewrite nzmap_lookup_empty /ccmunit /= /nat_unit in H'.
             rewrite /outset in H''. rewrite -nzmap_elem_of_dom_total2 -H'' in H'.
-            apply H'. rewrite elem_of_gset_seq. clear -Key_p0; split; lia. }
+            apply H'. rewrite elem_of_gset_seq. clear -Key_p0; split; lia.
+            done. }
           assert (p ≠ c) as p_neq_c.
           { intros ->. clear -Key_pc; lia. }
           assert (n ≠ c) as n_neq_c.
@@ -340,7 +343,7 @@ Module SKIPLIST1_SPEC_INSERT.
             rewrite /Nexti Next_p0 in p_in_I0.
             destruct p_in_I0 as (_&Hx&_). unfold out.
             rewrite -nzmap_elem_of_dom_total2. rewrite /Ip0 I0_eq_s0 Hx.
-            clear -n_neq_c; set_solver. }
+            clear -n_neq_c; set_solver. done. }
           assert (out Ip0' n = out Ip0 c) as Out_Ip0'_n.
           { rewrite {1}/out /out_map /Ip0' /=.
             rewrite nzmap_lookup_total_insert. done. }
@@ -354,7 +357,7 @@ Module SKIPLIST1_SPEC_INSERT.
             rewrite nzmap_lookup_total_insert_ne; try done.
             rewrite nzmap_lookup_empty. symmetry. 
             rewrite -nzmap_elem_of_dom_total2. rewrite Hx. 
-            clear -Hn''; set_solver. }
+            clear -Hn''; set_solver. done. }
           assert (∀ n, inf Ip0' n = inf Ip0 n) as Inf_Ip0'.
           { intros ?; try done. }
           pose proof contextualLeq_insert_node _ Ip0 Ic0 Ip0' n c Vp0 Vp0'
@@ -408,12 +411,19 @@ Module SKIPLIST1_SPEC_INSERT.
               ([^+ set] x ∈ dom I0, (∅ : nzmap nat nat))) as H'.
             { apply ccm_big_opS_ext. intros x Hx. rewrite /out.
               rewrite -nzmap_elem_of_dom_total2. intros Hn.
-              apply Hflow in Hx. destruct Hx as (_&Hx&_). rewrite I0_eq_s0 Hx in Hn.
+              apply Hflow in Hx. destruct Hx as (_&Hx&Hx1&_).
+              destruct (decide (insets (FI s0 x) = ∅)).
+              { assert (outsets (FI s0 x) = ∅) by (clear -Hx1 e; set_solver).
+                rewrite /outsets in H. apply leibniz_equiv_iff in H.
+                rewrite (big_opS_delete _ (dom (out_map (FI s0 x))) n) in H.
+                assert (outset nat (FI s0 x) n = ∅). admit.
+                rewrite /outset /out in H0. admit.  }
+              rewrite I0_eq_s0 Hx in Hn.
               destruct (Next s0 x !! 0) as [n'|] eqn: Hn'.
               rewrite elem_of_singleton in Hn; subst n'.
               destruct PT_s0 as (_&_&_&_&PT).
               pose proof PT x n 0 Hn' as PT. clear -PT n_notin_s0; try done.
-              clear -Hn; set_solver. }
+              clear -Hn; set_solver. done. }
             rewrite H' ccm_big_opS_unit /ccm_unit /= /lift_unit in Ha.
             clear -Ha; done. by rewrite Dom_I0_FP. }
           assert (∀ n, n ∈ dom (Ip0' ⋅ In0') ∖ dom Ip0 → out_map Io !!! n = 0%CCM)
@@ -577,6 +587,7 @@ Module SKIPLIST1_SPEC_INSERT.
           { rewrite /out_pc /Ip0. apply Hflow in p_in_I0.
             rewrite /Marki Mark_p0 /Nexti Next_p0 in p_in_I0.
             destruct p_in_I0 as (_&H'&_&(_&->)&_).
+            pose proof H' Insets_p_ne as H'.
             rewrite I0_eq_s0 /outsets H' -leibniz_equiv_iff big_opS_singleton.
             by rewrite /outset. }
           assert (S ⊂ dom out_pc) as S_sub_outpc.
@@ -640,30 +651,31 @@ Module SKIPLIST1_SPEC_INSERT.
           assert (✓ ([^op set] x ∈ dom I0', (I0' !!! x: multiset_flowint_ur nat))) 
             as VI0'.
           { rewrite Def_I0'. by destruct ContLeq0' as (_&?&_). }
-          assert (∀ n1 n2, Nx !! n1 = Some n2 → 
+          assert (∀ n1 n2, insets (I0' !!! n1) ≠ ∅ → Nx !! n1 = Some n2 → 
             dom (out_map (I0' !!! n1: multiset_flowint_ur nat)) = {[n2]}) 
             as Nx_dom.
           { intros n1 n2. destruct (decide (n1 = n)) as [-> | Hn1n].
-            { rewrite Nx_n; intros [=<-]. rewrite /I0'. 
+            { rewrite Nx_n; intros Hin [=<-]. rewrite /I0'. 
               rewrite lookup_total_insert. rewrite /In0'.
               simpl. apply leibniz_equiv. 
               rewrite nzmap_dom_insert_nonzero; try done. 
               clear. unfold dom, nzmap_dom. set_solver. }
             destruct (decide (n1 = p)) as [-> | Hn1p].
-            { rewrite Nx_p; intros [=<-]. rewrite /I0'.
+            { rewrite Nx_p; intros Hin [=<-]. rewrite /I0'.
               rewrite lookup_total_insert_ne; try done.
               rewrite lookup_total_insert. rewrite /Ip0'.
               simpl. apply leibniz_equiv. 
               rewrite nzmap_dom_insert_nonzero; try done. 
               clear. unfold dom, nzmap_dom. set_solver. }
-            intros Hn1. assert (Hn1' := Hn1). apply elem_of_dom_2 in Hn1.
+            intros Hin Hn1. assert (Hn1' := Hn1). apply elem_of_dom_2 in Hn1.
             rewrite Dom_Nx elem_of_union in Hn1.
             destruct Hn1 as [Hn1 | Hn1]; last first.
             { clear -Hn1 Hn1n; set_solver. } rewrite Dom_Nx0 -Dom_I0 in Hn1.
             apply Hflow in Hn1. rewrite Def_Nx in Hn1'. rewrite Hn1' in Hn1.
             destruct Hn1 as (_&H'&_). 
-            rewrite /I0' !lookup_total_insert_ne; try done. 
-            by rewrite I0_eq_s0. done. done. }
+            rewrite /I0' !lookup_total_insert_ne; try done.
+            rewrite /I0' in Hin. rewrite !lookup_total_insert_ne in Hin; try done.
+            rewrite -I0_eq_s0 in H'. apply H'. all: done. }
           assert (n ∈ dom I0') as n_in_I0'.
           { rewrite Dom_I0'; clear; set_solver. }
           assert (∀ x, x ∈ dom I0' → Mk !!! x = true → 
@@ -774,6 +786,10 @@ Module SKIPLIST1_SPEC_INSERT.
             clear -Hkey Key_pn Hk1' Hk2'; lia.
             clear -Hx1 n_notin_I0; set_solver.
             clear -Hx n_notin_I0; set_solver. }
+          assert (insets (I0' !!! p) ≠ ∅) as Insets_p_ne'.
+          { admit. }
+          assert (insets (I0' !!! n) ≠ ∅) as Insets_n_ne'.
+          { admit. }
           assert (∀ x, x ∈ dom I0' → outsets (I0' !!! x) ⊆ insets (I0' !!! x))
             as Out_In.
           { intros x Hx. rewrite Dom_I0' elem_of_union in Hx.
@@ -783,19 +799,20 @@ Module SKIPLIST1_SPEC_INSERT.
               destruct (decide (x = p)) as [-> | Hxp].
               + rewrite /insets /outsets Domm_I0'; try done; last first.
                 { rewrite Dom_I0' elem_of_union; by left. }
-                rewrite (Nx_dom p n Nx_p) !big_opS_singleton.
+                rewrite (Nx_dom p n Insets_p_ne' Nx_p) !big_opS_singleton.
                 rewrite /I0' lookup_total_insert_ne; last done.
                 rewrite lookup_total_insert /Ip0'.
                 rewrite /outset /out /inset /inf /= /Ip0.
                 rewrite nzmap_lookup_total_insert.
                 rewrite /Nexti Next_p0 in Hx1.
-                rewrite /outsets /insets Hx0 Hx1 !big_opS_singleton in Hx2.
-                rewrite -I0_eq_s0 /outset /inset in Hx2. apply Hx2.
+                rewrite /outsets /insets Hx0 Hx1 in Hx2. 
+                rewrite !big_opS_singleton in Hx2.
+                rewrite -I0_eq_s0 /outset /inset in Hx2. apply Hx2. done.
               + rewrite /I0' !lookup_total_insert_ne; try done.
                 by rewrite I0_eq_s0. clear -Hx' n_notin_I0; set_solver.
             - rewrite elem_of_singleton in Hx; subst x.
               rewrite /outsets /insets Domm_I0'; try done.
-              rewrite (Nx_dom n c Nx_n) !big_opS_singleton.
+              rewrite (Nx_dom n c Insets_n_ne' Nx_n) !big_opS_singleton.
               rewrite /I0' lookup_total_insert /In0' /outset /inset /out /inf 
                 nzmap_lookup_total_insert lookup_insert /=. done. }
           assert (list_flow_upd_insert n Nx Mk S I0' = res) as Hflow'.
@@ -834,7 +851,7 @@ Module SKIPLIST1_SPEC_INSERT.
             clear -p_notin_II nk_in_II; set_solver. }
           assert (keyset (I0' !!! n) = ∅) as KS_n'.
           { rewrite /keyset /insets /outsets Domm_I0'; try done.
-            rewrite (Nx_dom n c Nx_n) -leibniz_equiv_iff !big_opS_singleton.
+            rewrite (Nx_dom n c Insets_n_ne' Nx_n) -leibniz_equiv_iff !big_opS_singleton.
             rewrite /inset /outset /I0' lookup_total_insert /In0' /inf /out /=.
             rewrite lookup_insert nzmap_lookup_total_insert /=.
             clear; set_solver. }
@@ -847,12 +864,12 @@ Module SKIPLIST1_SPEC_INSERT.
             assert (outsets Ip0' = outsets (I0 !!! p)) as ->.
             rewrite /outsets. apply Hflow in p_in_I0.
             rewrite /Nexti Next_p0 -I0_eq_s0 in p_in_I0. 
-            destruct p_in_I0 as (_&->&_). pose proof Nx_dom p n Nx_p as H'.
+            destruct p_in_I0 as (_&->&_). pose proof Nx_dom p n Insets_p_ne' Nx_p as H'.
             rewrite /I0' lookup_total_insert_ne in H'; try done.
             rewrite lookup_total_insert in H'. rewrite H'.
             rewrite -leibniz_equiv_iff !big_opS_singleton.
             rewrite /outset /Ip0' {1}/out /= nzmap_lookup_total_insert.
-            clear; done. done. }
+            clear; done. rewrite I0_eq_s0; done. done. }
           assert (k < Key s0 nk) as k_lt_nk.
           { assert (nk ∈ dom II ∖ {[n]}) as H'.
             clear -nk_in_II n_neq_nk. set_solver.
@@ -962,7 +979,7 @@ Module SKIPLIST1_SPEC_INSERT.
                 split; last split; last split; last split; last split; last split.
                 { apply Domm_II; try done. }
                 { rewrite Dom_out; try done. rewrite HI I0_eq_s0 H2'.
-                  rewrite Def_Nx; try done. }
+                  rewrite Def_Nx; try done. admit. }
                 { apply Out_In'; try done. }
                 { rewrite -Def_Mk in H4'; try done. rewrite Mk_nk in H4'.
                   destruct H4' as [H4' H4'']. split.
@@ -984,7 +1001,8 @@ Module SKIPLIST1_SPEC_INSERT.
                 destruct Hx'' as (H1'&H2'&H3'&H4'&H5'&H6'&H7').
                 split; last split; last split; last split; last split; last split.
                 { apply Domm_II; try done. }
-                { rewrite Dom_out; try done. by rewrite HI I0_eq_s0 H2'. }
+                { rewrite Dom_out; try done. intros Hin. rewrite HI I0_eq_s0.
+                  apply H2'. admit. }
                 { apply Out_In'; try done. }
                 { rewrite KS_x. by rewrite HI I0_eq_s0.
                   clear -Hx' Hxn Hxnk; set_solver. }
@@ -1006,7 +1024,7 @@ Module SKIPLIST1_SPEC_INSERT.
             rewrite /Marki Mark_p0 /Nexti Next_p0 in p_in_I0.
             destruct p_in_I0 as (H1'&H2'&H3'&H4'&H5'&H6'&H7').
             repeat split; try done.
-            { rewrite /Ip0' /out_map /=. apply leibniz_equiv.
+            { intros _. rewrite /Ip0' /out_map /=. apply leibniz_equiv.
               rewrite nzmap_dom_insert_nonzero; try done.
               rewrite /dom /nzmap_dom. clear; set_solver. }
             { apply Out_In in p_in_I0'. rewrite /I0' in p_in_I0'.
@@ -1018,7 +1036,8 @@ Module SKIPLIST1_SPEC_INSERT.
               rewrite /insets H1' in H4'. rewrite big_opS_singleton in H4'.
               rewrite /inset in H4'. apply H4'. }
             { assert (outsets Ip0' = outsets (I0 !!! p)) as ->.
-              rewrite /outsets H2' {2}/Ip0' /out_map /=.
+              rewrite -I0_eq_s0 in Insets_p_ne.
+              rewrite /outsets (H2' Insets_p_ne) {2}/Ip0' /out_map /=.
               assert (dom <<[ n := out_pc ]>> ∅ = {[n]}) as ->.
               rewrite -leibniz_equiv_iff. rewrite nzmap_dom_insert_nonzero; try done.
               clear; rewrite /dom. set_solver.
@@ -1035,7 +1054,7 @@ Module SKIPLIST1_SPEC_INSERT.
             assert (dom (out_map (outflow_delete_set In0' c S)) = {[c]}) as Hdom.
             { apply Dom_out in n_in_II. rewrite II_n {1}/I0' in n_in_II.
               rewrite lookup_total_insert in n_in_II.
-              rewrite n_in_II. pose proof Nx_dom n c Nx_n as H'.
+              rewrite n_in_II. pose proof Nx_dom n c Insets_n_ne' Nx_n as H'.
               by rewrite /I0' lookup_total_insert in H'. }
             assert (insets In0' = dom out_pc) as Hinset.
             { rewrite /insets Dom_In0' -leibniz_equiv_iff big_opS_singleton.

@@ -144,12 +144,198 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           set Ip1 := I1 !!! p. set Ic1 := I1 !!! c. set out_pc := out Ip1 c.
           set Ip1' := int {| infR := inf_map Ip1; outR :=  <<[cn := out_pc]>> ∅ |}.
           set Ic1': multiset_flowint_ur nat := 
-            int {| infR := {[c := ∅]}; outR := ∅ |}.
+            int {| infR := {[c := (inf Ic1 c - out_pc)%CCM]}; 
+                  outR := <<[cn := (out Ic1 cn - out_pc)%CCM]>> ∅ |}.
           set I1' := <[c := Ic1']> (<[p := Ip1']> I1).
           set s1' := (FP1, C1, Mk1, Nx1', Ky1, I1'): snapshot.
           set M1' := <[T1 + 1 := s1']> M1.
-          
-
+          iAssert (⌜per_tick_inv s1⌝)%I as %PT_s1.
+          { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
+            apply leibniz_equiv in Habs1. rewrite <-Habs1.
+            by apply PT1. }
+          assert (c ∈ FP s1) as FP_c1.
+          { admit. }
+          assert (Mark s1 c !!! 0 = true) as Mark_c1.
+          { admit. }
+          assert (Next s1 c !! 0 = Some cn) as Next_c1.
+          { admit. }
+          assert (Key s1 p < Key s1 c) as Key_pc.
+          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
+            by pose proof PT p c 0 Next_p1. }
+          assert (Key s1 p < W) as Key_p1.
+          { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
+            destruct FP_c1 as (_&_&_&_&H'&_). clear -H' Key_pc. lia. }
+          assert (∀ x, x ∈ FP s1 → flow_constraints_I x (FI s1 x) 
+                  (Mark s1 x !!! 0) (Next s1 x !! 0) (Key s1 x)) as Hflow.
+          { destruct PT_s1 as (_&_&H'&_).
+            intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
+          assert (∀ x, I1 !!! x = FI s1 x) as I1_eq_s1.
+          { intros x. rewrite Hs1; unfold FI. try done. }
+          assert (flow_constraints_I p Ip1 false (Some c) (Key s1 p)) as Hp.
+          { apply Hflow in FP_p1. by rewrite -I1_eq_s1 Next_p1 Mark_p1 in FP_p1. }
+          assert (flow_constraints_I c Ic1 true (Some cn) (Key s1 c)) as Hc.
+          { apply Hflow in FP_c1. by rewrite -I1_eq_s1 Next_c1 Mark_c1 in FP_c1. }
+          assert (insets Ip1 ≠ ∅) as Inset_p1_ne.
+          { admit. }
+          assert (out_pc ≠ 0%CCM) as Out_pc.
+          { destruct Hp as (_&H'&_&(_&H'')&_). rewrite /outsets H' in H''. 
+            rewrite -leibniz_equiv_iff big_opS_singleton in H''.
+            rewrite /out_pc /Ip1 I1_eq_s1. rewrite /ccmunit /lift_unit.
+            clear H'; intros H'. rewrite nzmap_eq in H'. pose proof H' W as H'.
+            rewrite nzmap_lookup_empty /ccmunit /= /nat_unit in H'.
+            rewrite /outset in H''. rewrite -nzmap_elem_of_dom_total2 in H'.
+            rewrite -I1_eq_s1 -H'' in H'. apply H'. 
+            rewrite elem_of_gset_seq. clear -Key_p1; split; lia. done. }
+          (*
+          assert (inf Ic1 c = out_pc) as Inf_Ic1.
+          { admit. }
+          *)
+          assert (out Ic1 cn = inf Ic1 c) as Out_Ic1.
+          { admit. }
+          assert (p ≠ c) as p_neq_c.
+          { admit. }
+          assert (p ≠ cn) as p_neq_cn.
+          { admit. }
+          assert (c ≠ cn) as c_neq_cn.
+          { admit. }
+          assert (dom Ip1 = {[p]}) as Dom_Ip1.
+          { admit. }
+          assert (dom Ic1 = {[c]}) as Dom_Ic1.
+          { admit. }
+          assert (dom Ip1' = {[p]}) as Dom_Ip1'.
+          { admit. }
+          assert (dom Ic1' = {[c]}) as Dom_Ic1'.
+          { admit. }
+          assert (✓ (Ip1 ⋅ Ic1)) as Vpc1.
+          { admit. }
+          assert (✓ (Ip1' ⋅ Ic1')) as Vpc1'.
+          { apply intValid_composable. assert (Hcomp := Vpc1). 
+            apply intComposable_valid in Hcomp. 
+            destruct Hcomp as (H1'&H2'&H3'&H4'&H5'). repeat split; simpl.
+            - rewrite /dom /flowint_dom in Dom_Ip1. rewrite Dom_Ip1.
+              rewrite nzmap_dom_insert_nonzero. clear -p_neq_cn; set_solver.
+              done.
+            - intros H'. admit.
+            - clear -c_neq_cn. rewrite dom_insert dom_empty.
+              destruct (decide ((out Ic1 cn - out_pc)%CCM = 0%CCM)).
+              rewrite nzmap_dom_insert_zero; try done. 
+              rewrite /dom /nzmap_dom. set_solver.
+              rewrite nzmap_dom_insert_nonzero; try done. 
+              rewrite /dom /nzmap_dom. set_solver.
+            - intros H'. pose proof f_equal dom H' as H''.
+              rewrite dom_singleton_L in H''. clear -H''; set_solver.
+            - rewrite /flowint_dom /= dom_singleton_L. 
+              rewrite /dom /flowint_dom in Dom_Ip1. rewrite Dom_Ip1.
+              clear -p_neq_c; set_solver.
+            - apply map_Forall_lookup. intros i x Hix. assert (Hix' := Hix).
+              apply elem_of_dom_2 in Hix. rewrite /dom /flowint_dom in Dom_Ip1. 
+              rewrite Dom_Ip1 elem_of_singleton in Hix. subst i.
+              assert (inf Ip1' p = x) as ->. { by rewrite /inf /Ip1' Hix' /=. } 
+              assert (out Ic1' p = 0%CCM) as ->. 
+              { rewrite /out /Ic1' /out_map /= nzmap_lookup_total_insert_ne.
+                rewrite nzmap_lookup_empty. all: done. }
+              admit.
+            - apply map_Forall_lookup. intros i m. 
+              destruct (decide (i = c)) as [-> | Hic].
+              + rewrite lookup_insert. intros [=<-].
+                assert (out Ip1' c = 0%CCM) as ->.
+                { rewrite /out /Ip1' /out_map /= nzmap_lookup_total_insert_ne.
+                  by rewrite nzmap_lookup_empty. done. }
+                assert ((inf Ic1 c - out_pc)%CCM = inf Ic1' c) as ->.
+                { by rewrite /Ic1' {2}/inf /inf_map /= lookup_insert /=. }
+                rewrite /inf /Ic1' /inf_map /= lookup_insert /=.
+                admit.
+              + rewrite lookup_insert_ne; try done. }
+          assert (dom (Ip1 ⋅ Ic1) = {[p;c]}) as Dom_pc.
+          { rewrite intComp_dom; try done. rewrite Dom_Ip1 Dom_Ic1; done. } 
+          assert (dom (Ip1' ⋅ Ic1') = {[p;c]}) as Dom_pc'.
+          { rewrite intComp_dom; try done. rewrite Dom_Ip1' Dom_Ic1'; done. } 
+          assert (Ip1' ⋅ Ic1' = Ip1 ⋅ Ic1) as Heq.
+          { apply intEq.
+            - by rewrite Dom_pc Dom_pc'.
+            - rewrite Dom_pc'; clear; set_solver. 
+            - intros n. destruct (decide (n = p)) as [-> | Hnp].
+              + rewrite !intComp_inf_1; try done.
+                assert (inf Ip1' p = inf Ip1 p) as ->. 
+                { by rewrite /inf /Ip1' /=. }
+                assert (out Ic1' p = 0%CCM) as ->. 
+                { rewrite /out /Ic1' /out_map /= nzmap_lookup_total_insert_ne.
+                  rewrite nzmap_lookup_empty. all: done. }
+                assert (out Ic1 p = 0%CCM) as ->.
+                { admit. }
+                done. rewrite Dom_Ip1; clear; set_solver.
+                rewrite Dom_Ip1'; clear; set_solver.
+              + destruct (decide (n = c)) as [-> | Hnc]; last first.
+                { assert (n ∉ dom (Ip1' ⋅ Ic1')) as H'.
+                  rewrite Dom_pc'. clear -Hnp Hnc; set_solver.
+                  rewrite /dom /flowint_dom not_elem_of_dom in H'.
+                  assert (n ∉ dom (Ip1 ⋅ Ic1)) as H''.
+                  rewrite Dom_pc. clear -Hnp Hnc; set_solver.
+                  rewrite /dom /flowint_dom not_elem_of_dom in H''.
+                  by rewrite /inf H' H''. }
+                rewrite !intComp_inf_2; try done.
+                assert (out Ip1' c = 0%CCM) as ->. 
+                { rewrite /out /Ip1' /out_map /=.
+                  rewrite nzmap_lookup_total_insert_ne; try done. }
+                rewrite {1}/inf /Ic1' /inf_map /= lookup_insert /= /out_pc.
+                admit. rewrite Dom_Ic1. clear; set_solver. rewrite Dom_Ic1'.
+                clear; set_solver.
+            - intros n. destruct (decide (n ∈ ({[p;c]}: gset Node))) as [Hn | Hn].
+              { rewrite !intValid_in_dom_not_out; try done.
+                by rewrite Dom_pc. by rewrite Dom_pc'. }
+              rewrite !intComp_unfold_out; try done.
+              destruct (decide (n = cn)) as [-> | Hncn].
+              + assert (out Ip1' cn = out_pc) as ->.
+                { by rewrite /out /Ip1' /= nzmap_lookup_total_insert. }
+                assert (out Ic1' cn = (out Ic1 cn - out_pc)%CCM) as ->.
+                { by rewrite /Ic1' /out /= nzmap_lookup_total_insert. }
+                assert (out Ip1 cn = 0%CCM) as ->.
+                { admit. }
+                rewrite Out_Ic1 /out_pc. admit.
+              + assert (out Ip1' n = 0%CCM) as ->. 
+                { rewrite /out /Ip1' /= nzmap_lookup_total_insert_ne; try done. }
+                assert (out Ic1' n = 0%CCM) as ->.
+                { rewrite /out /Ic1' /= nzmap_lookup_total_insert_ne; try done. }
+                assert (out Ip1 n = 0%CCM) as ->.
+                { admit. }
+                assert (out Ic1 n = 0%CCM) as ->.
+                { admit. }
+                done.
+              + by rewrite Dom_pc.
+              + by rewrite Dom_pc'. }
+          assert (flow_constraints_I p Ip1' false (Some cn) (Key s1 p)) as Hp'.
+          { destruct Hp as (Hp1&Hp2&Hp3&Hp4&Hp5&Hp6&Hp7). 
+            split; last split; last split; last split; last split; 
+              last split; try done.
+            - intros _. rewrite /Ip1' /=. apply leibniz_equiv. 
+              rewrite nzmap_dom_insert_nonzero; try done.
+              rewrite /dom. clear; set_solver.
+            - admit.
+            - admit.
+            - admit. }
+          set S := dom out_pc.
+          assert (S ⊆ insets Ic1) as S_sub_c1.
+          { admit. }
+          assert (insets Ic1' = insets Ic1 ∖ S) as Insets_Ic1'.
+          { admit. }
+          assert (outsets Ic1' = outsets Ic1 ∖ S) as Outsets_Ic1'.
+          { admit. }
+          assert (flow_constraints_I c Ic1' true (Some cn) (Key s1 c)) as Hc'.
+          { destruct Hc as (Hc1&Hc2&Hc3&Hc4&Hc5&Hc6&Hc7). 
+            split; last split; last split; last split; last split; 
+              last split; try done.
+            - intros H'. rewrite /Ic1' /=. apply leibniz_equiv. 
+              rewrite nzmap_dom_insert_nonzero; try done.
+              rewrite /dom. clear; set_solver. rewrite Out_Ic1.
+              rewrite /insets Dom_Ic1' -leibniz_equiv_iff in H'. 
+              rewrite big_opS_singleton /inset /Ic1' {1}/inf /= lookup_insert /= in H'.
+              intros H''. rewrite H'' in H'. apply H'.
+              rewrite /ccmunit /=. clear; set_solver.
+            - rewrite Insets_Ic1' Outsets_Ic1'. clear -Hc3 S_sub_c1; set_solver.
+            - rewrite /keyset Insets_Ic1' Outsets_Ic1'.
+              clear -Hc4 S_sub_c1; set_solver.
+            - admit.
+            - admit. }
 
         * iDestruct "SShot1" as %[FP1 [C1 [Mk1 [Nx1 [Ky1 [I1 
             [Hs1 [Dom_Mk1 [Dom_Nx1 [Dom_Ky1 Dom_I1]]]]]]]]]].
