@@ -17,11 +17,12 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
 
   Parameter inContents : val.
   Parameter findNext : val.
-  Parameter try_constraint : val.
-  Parameter compareKey: val.
-  Parameter createNode: val.
-  Parameter permute_levels: val.
-  
+  Parameter changeNext : val.
+  Parameter markNode : val.
+  Parameter compareKey : val.
+  Parameter createNode : val.
+  Parameter getHeight : val.
+  Parameter permute_levels : val.
   
   Parameter L : nat. (* Maxlevels *)
   Parameter W : nat. (* Keyspace *)
@@ -35,7 +36,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         match: Snd "fn_curr" with
           NONE => ""
         | SOME "succ" =>
-            match: try_constraint "pred" "curr" "succ" "i" with
+            match: changeNext "pred" "curr" "succ" "i" with
               NONE => NONE
             | SOME "_" => 
               "tri" "i" "pred" "succ" "k" end end  
@@ -93,18 +94,19 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       "res".
   
   Definition maintenanceOp_delete_rec : val :=
-    rec: "mOp" "i" "perm" "curr" :=
-      if: "i" < #(L-1)%nat then
+    rec: "mOp" "i" "h" "perm" "curr" :=
+      if: "i" < ("h" - #1) then
         let: "idx" := ! ("perm" +ₗ "i") in
-        try_constraint "curr" "idx";;
-        "mOp" ("i" + #1) "perm" "curr"
+        markNode "curr" "idx";;
+        "mOp" ("i" + #1) "h" "perm" "curr"
       else
         #().
   
   Definition maintenanceOp_delete : val :=
     λ: "curr",
-      let: "perm" := permute_levels #L in
-      maintenanceOp_delete_rec #0%nat "perm" "curr".
+      let: "h" := getHeight "curr" in
+      let: "perm" := permute_levels "h" in
+      maintenanceOp_delete_rec #0%nat "h" "perm" "curr".
   
   Definition delete : val :=
     λ: "h" "t" "k",
@@ -117,29 +119,30 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       else 
         let: "curr" := ! ("succs" +ₗ #0%nat) in 
         maintenanceOp_delete "curr";;
-        match: try_constraint "curr" #0%nat  with
+        match: markNode "curr" #0%nat  with
           NONE => #false
         | SOME "_" => traverse_rec "k" "preds" "succs" #(L-2)%nat;; #true end.
 
   Definition maintenanceOp_insert_rec : val :=
-    rec: "mOp" "k" "i" "perm" "preds" "succs" "new_node" :=
-      if: "i" < #(L-1)%nat then
+    rec: "mOp" "i" "k" "h" "perm" "preds" "succs" "new_node" :=
+      if: "i" < ("h" - #1) then
         let: "idx" := ! ("perm" +ₗ "i") in
         let: "pred" := ! ("preds" +ₗ "idx") in
         let: "succ" := ! ("succs" +ₗ "idx") in
-        match: try_constraint "pred" "succ" "new_node" "idx" with
+        match: changeNext "pred" "succ" "new_node" "idx" with
           NONE =>
           traverse_rec "k" "preds" "succs" #(L-2)%nat;;
-          "mOp" "k" "i" "perm" "preds" "succs" "new_node"
+          "mOp" "i" "k" "h" "perm" "preds" "succs" "new_node"
         | SOME "_" => 
-          "mOp" "k" ("i" + #1) "perm" "preds" "succs" "new_node" end
+          "mOp" ("i" + #1) "k" "h" "perm" "preds" "succs" "new_node" end
       else
         #().
 
   Definition maintenanceOp_insert : val :=
     λ: "k" "preds" "succs" "new_node",
-      let: "perm" := permute_levels #L in
-      maintenanceOp_insert_rec "k" #0%nat "perm" "preds" "succs" "new_node".
+      let: "h" := getHeight "new_node" in
+      let: "perm" := permute_levels "h" in
+      maintenanceOp_insert_rec #0%nat "k" "h" "perm" "preds" "succs" "new_node".
   
   Definition insert : val :=
     rec: "ins" "h" "t" "k" :=
@@ -153,7 +156,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         let: "new_node" := createNode "k" "succs" in
         let: "pred" := ! ("preds" +ₗ #0%nat) in
         let: "curr" := ! ("succs" +ₗ #0%nat) in
-        match: try_constraint "pred" "curr" "new_node" #0%nat with
+        match: changeNext "pred" "curr" "new_node" #0%nat with
           NONE => "ins" "h" "t" "k"
         | SOME "_" => 
           maintenanceOp_insert "k" "preds" "succs" "new_node";;
@@ -264,17 +267,18 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition MarkUR := gmapUR Node $ gmapUR nat $ boolUR.
   Definition NextUR := gmapUR Node $ gmapUR nat $ locUR. 
   Definition KeyUR := gmapUR Node $ natUR.
+  Definition HeightUR := gmapUR Node $ natUR.
   Definition FlowUR := gmapUR Node $ ms_flowUR.
   
-  Definition prod6UR A B C D E F :=
-    prodUR (prodUR (prodUR (prodUR (prodUR A B) C) D) E) F.
+  Definition prod7UR A B C D E F G :=
+    prodUR (prodUR (prodUR (prodUR (prodUR (prodUR A B) C) D) E) F) G.
 
   Definition snapshotUR := 
-    prod6UR set_NodesUR contentsUR MarkUR NextUR KeyUR FlowUR.
+    prod7UR set_NodesUR contentsUR HeightUR MarkUR NextUR KeyUR FlowUR.
   Definition snapshot := ucmra_car snapshotUR.
   
   Definition abs (s: snapshot) : absT :=
-    match s with (_, c, _, _, _, _) => c end.
+    match s with (_, c, _, _, _, _, _) => c end.
 
   Global Instance snapshotUR_discrete : CmraDiscrete snapshotUR.
   Proof. try apply _. Qed.
@@ -306,18 +310,19 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Parameter (hd tl: Node).
   Notation iProp := (iProp Σ).
 
-  Parameter node : Node → MarkT → NextT → nat → iProp.
-  Parameter node_timeless_proof : ∀ n mark next k, Timeless (node n mark next k).
-  Global Instance node_timeless n mark next k: Timeless (node n mark next k).
+  Parameter node : Node → nat → MarkT → NextT → nat → iProp.
+  Parameter node_timeless_proof : ∀ n h mark next k, 
+    Timeless (node n h mark next k).
+  Global Instance node_timeless n h mark next k: Timeless (node n h mark next k).
   Proof. apply node_timeless_proof. Qed.
-  Parameter node_sep_star: ∀ n mark next k mark' next' k',
-    node n mark next k -∗ node n mark' next' k' -∗ False.
+  Parameter node_sep_star: ∀ n h mark next k h' mark' next' k',
+    node n h mark next k -∗ node n h' mark' next' k' -∗ False.
   
   Definition FP (s: snapshot) : gset Node :=
-    match s with (N, _, _, _, _, _) => N end.
+    match s with (N, _, _, _, _, _, _) => N end.
   
   Definition Mark (s: snapshot) (n: Node) : MarkT :=
-    match s with (_, _, m, _, _, _) =>
+    match s with (_, _, _, m, _, _, _) =>
       match (m !! n) with 
       | Some mn => mn
       | None => ∅ end end.
@@ -326,7 +331,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     Mark s n !!! i.
 
   Definition Next (s: snapshot) (n: Node) : NextT :=
-    match s with (_, _, _, m, _, _) =>
+    match s with (_, _, _, _, m, _, _) =>
       match (m !! n) with 
       | Some mn => mn
       | None => ∅ end end.
@@ -335,16 +340,22 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     Next s n !! i.
 
   Definition Key (s: snapshot) (n: Node) : nat :=
-    match s with (_, _, _, _, m, _) =>
+    match s with (_, _, _, _, _, m, _) =>
       match (m !! n) with 
       | Some k => k
       | None => 0 end end.
   
+  Definition Height (s: snapshot) (n: Node) : nat :=
+    match s with (_, _, m, _, _, _, _) =>
+      match (m !! n) with 
+      | Some h => h
+      | None => 0 end end.
+
   Definition Content (s: snapshot) (n: Node) : gset nat :=
     if Marki s n 0 then ∅ else {[ Key s n ]}.
 
   Definition FI (s: snapshot) (n: Node) : multiset_flowint_ur nat :=
-    match s with (_, _, _, _, _, m) => 
+    match s with (_, _, _, _, _, _, m) => 
       match (m !! n) with 
       | Some In => In
       | None => ∅ end end.
@@ -362,10 +373,10 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Qed.
 
   Definition snapshot_constraints (s: snapshot) : Prop :=
-    ∃ (N: gset Node) (C: gset nat) 
+    ∃ (N: gset Node) (C: gset nat) (H: gmap Node nat)
       (Mk: gmap Node (gmap nat bool)) (Nx: gmap Node (gmap nat Node)) 
       (Ky: gmap Node nat) (I: gmap Node (multiset_flowint_ur nat)),
-      s = (N, C, Mk, Nx, Ky, I) ∧ dom Mk = N ∧ dom Nx = N 
+      s = (N, C, H, Mk, Nx, Ky, I) ∧ dom H = N ∧ dom Mk = N ∧ dom Nx = N 
       ∧ dom Ky = N ∧ dom I = N.
         
   Definition flow_constraints_I n In (m: bool) (on: option Node) (k: nat) : Prop := 
@@ -379,11 +390,13 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (∀ k, inf In n !!! k ≤ 1)
     ∧ (∀ n' k, out In n' !!! k ≤ 1).
 
-  Definition node_inv_pure n (mark: gmap nat bool) (next: gmap nat Node) k In : Prop :=
+  Definition node_inv_pure n h (mark: gmap nat bool) (next: gmap nat Node) 
+    k In : Prop :=
       ((∃ i, mark !!! i = false) → mark !!! 0 = false)
     ∧ (∀ i, next !! i = None ↔ n = tl)
-    ∧ (0 ∈ dom next) 
-    ∧ (0 ∈ dom mark)
+    ∧ (dom next = gset_seq 0 (h-1)) 
+    ∧ (dom mark = gset_seq 0 (h-1))
+    ∧ (0 < h ≤ L)
     ∧ (0 ≤ k ≤ W)
     ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
@@ -397,21 +410,23 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition per_tick_inv s : Prop := 
       hd_tl_inv s
     ∧ ✓ GFI s
-    ∧ (∀ n, n ∈ (FP s) → node_inv_pure n (Mark s n) (Next s n) (Key s n) (FI s n))
+    ∧ (∀ n, n ∈ (FP s) → 
+        node_inv_pure n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → Key s n1 < Key s n2)
-    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s).
-  
+    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s)
+    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → i < Height s n2).
   
   Definition transition_inv s s' : Prop :=
       (∀ n i, n ∈ FP s → Marki s' n i = true → Nexti s' n i = Nexti s n i)
     ∧ (∀ n, Marki s n 0 = false → Marki s' n 0 = true → Key s n ∉ abs s')
     ∧ (∀ n i, n ∈ FP s → Marki s n i = true → Marki s' n i = true)
+    ∧ (∀ n, n ∈ FP s → Height s' n = Height s n)
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
 
   Definition resources γ_ks s : iProp :=
       own γ_ks (● prodKS (KS, abs s))
-    ∗ ([∗ set] n ∈ FP s, node n (Mark s n) (Next s n) (Key s n))
+    ∗ ([∗ set] n ∈ FP s, node n (Height s n) (Mark s n) (Next s n) (Key s n))
     ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
 
   Definition ds_inv (M: gmap nat snapshot) 
@@ -459,7 +474,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     rewrite -> fmap_replicate.
     iAssumption.
   Qed.
-  *)
 
   Parameter findNext_spec : ∀ (n: Node) (i: nat),
      ⊢ (<<< ∀∀ mark next k, node n mark next k >>>
@@ -503,11 +517,12 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
                                             ∧ mark' = mark⌝ end),
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>)%I.
-  
+  *)
+
   Definition dsG0 : dsG Σ.
     unfold dsG.
     try apply _.
-    Qed.
+  Qed.
     
     
 End SKIPLIST1.

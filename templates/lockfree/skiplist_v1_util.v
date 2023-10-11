@@ -192,7 +192,7 @@ Module SKIPLIST1_UTIL.
     iIntros "%Trans Hist #Past_s %n_in_s %Ht".
     assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as H'.
     { intros t' Ht'. apply Trans in Ht'. 
-      by destruct Ht' as (_&_&_&H'). }
+    by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ H' as H''.
     iDestruct "Hist" as (M') "(H'&H''&H''')".
     iDestruct (history_sync with "[$H''] [$Past_s]") as "%M_ts".
@@ -221,12 +221,12 @@ Module SKIPLIST1_UTIL.
     apply lookup_total_correct in M_ts.
     assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as FP_t.
     { intros t' Ht'. apply Trans in Ht'. 
-      by destruct Ht' as (_&_&_&H'). }
+      by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ FP_t as FP_t'.
     assert (∀ t, ts ≤ t < T → Key (M !!! t) n = Key (M !!! (t+1)%nat) n) as Hk.
     { intros t' Ht'. 
       assert (0 <= t' < T) as H'%Trans by lia. 
-      destruct H' as (_&_&H'&_).
+      destruct H' as (_&_&_&_&H'&_).
       rewrite -M_ts in n_in_s. symmetry.
       apply H'. apply (FP_t' ts); try (done || lia). }
     pose proof temporal_interpolation_keys _ _ _ _ Hk as Hk'.
@@ -253,14 +253,14 @@ Module SKIPLIST1_UTIL.
     apply lookup_total_correct in M_ts.
     assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as FP_t.
     { intros t' Ht'. apply Trans in Ht'. 
-      by destruct Ht' as (_&_&_&H'). }
+    by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ FP_t as FP_t'.
     set F := λ (x: bool), match x with false => 0 | true => 1 end.
     assert (∀ t, ts ≤ t < T → 
       F (Marki (M !!! t) n i) ≤ F (Marki (M !!! (t+1)%nat) n i)) as Hm.
     { intros t' Ht'. 
       assert (0 <= t' < T) as H'%Trans by lia. 
-      destruct H' as (_&H'&_).
+      destruct H' as (_&_&H'&_).
       assert (n ∈ FP (M !!! t')) as n_in_t'.
       { assert (0 ≤ ts ≤ t' ≤ T) as H''%FP_t' by lia. apply H''.
         by rewrite -M_ts in n_in_s. }
@@ -353,13 +353,13 @@ Module SKIPLIST1_UTIL.
     apply lookup_total_correct in M_ts.
     assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as FP_t.
     { intros t' Ht'. apply Trans in Ht'. 
-      by destruct Ht' as (_&_&_&H'). }
+      by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ FP_t as FP_t'.
     assert (∀ t, t_s ≤ t < T → Marki (M !!! t) n i = true → 
                                 Marki (M !!! S t) n i = true) as H'.
     { intros t' Ht'. 
       assert (0 <= t' < T) as H'%Trans by lia. 
-      destruct H' as (_&H'&_).
+      destruct H' as (_&_&H'&_).
       assert (n ∈ FP (M !!! t')) as n_in_t'.
       { assert (0 ≤ t_s ≤ t' ≤ T) as H''%FP_t' by lia. apply H''.
         by rewrite -M_ts in n_in_s. }

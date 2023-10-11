@@ -13,6 +13,7 @@ From flows Require Import skiplist_v1 bool_ra.
 Section node_impl.
 
   Parameter L : nat. (* Maxlevels *)
+  Parameter randomNum : val.
   
   Definition createNode_rec : val :=
     rec: "cN" "i" "h" "arr" "succs" :=
@@ -25,8 +26,9 @@ Section node_impl.
         "cN" ("i" + #1) "h" "arr" "succs".
 
   Definition createNode : val :=
-    λ: "k" "h" "succs",
-      let: "n" := AllocN #2%nat "k" in
+    λ: "k" "succs",
+      let: "h" := randomNum #L%nat in
+      let: "n" := AllocN #2%nat ("k", "h") in
       let: "arr" := AllocN "h" "n" in
       ("n" +ₗ #1) <- "arr";;
       createNode_rec #0%nat "h" "arr" "succs";;
@@ -34,13 +36,17 @@ Section node_impl.
 
   Definition compareKey : val :=
     λ: "n" "k",
-      let: "nk" := ! "n" in
+      let: "nk" := Fst (! "n") in
       if: "nk" < "k" then
         #0
       else if: "nk" = "k" then
         #1
       else
         #2.
+  
+  Definition getHeight : val :=
+    λ: "n",
+      Snd (! "n").
   
   Definition findNext : val :=
     λ: "n" "i",
@@ -86,7 +92,7 @@ Section node_impl.
   Definition node (n: Node) (h: nat) (mark: gmap nat bool) (next: gmap nat Node) 
     (k: nat) : iProp :=
     ∃ (arr: loc) (ls: list loc),
-       n ↦□ #k
+       n ↦□ (#k, #h)
     ∗ (n +ₗ 1) ↦□ #arr
     ∗ arr ↦∗ ((fun l => # (LitLoc l)) <$> ls)
     ∗ ⌜length ls = h⌝
@@ -98,6 +104,9 @@ Section node_impl.
   Definition is_array (array : loc) (xs : list Node) : iProp :=
     let vs := (fun n => # (LitLoc n)) <$> xs
     in array ↦∗ vs.
+
+  Parameter randomNum_spec : ∀ (n: nat),
+  ⊢  {{{ True }}} randomNum #n {{{ (n': nat), RET #n'; ⌜0 < n' < n⌝ }}}.
 
   Lemma array_store E (i : nat) (v : Node) arr (xs : list Node) :
     {{{ ⌜i < length xs⌝ ∗ ▷ is_array arr xs }}}
@@ -180,21 +189,23 @@ Section node_impl.
       iPureIntro; lia.
   Qed.
 
-  Lemma createNode_spec (succs: loc) ss (h k: nat) :
-  ⊢  {{{ is_array succs ss ∗ ⌜0 < h ≤ length ss⌝ }}}
-           createNode #k #h #succs
-        {{{ (n: Node) mark next,
+  Lemma createNode_spec (succs: loc) ss (k: nat) :
+  ⊢  {{{ is_array succs ss ∗ ⌜length ss = L⌝ }}}
+           createNode #k #succs
+        {{{ (n: Node) (h: nat) mark next,
             RET #n;
               is_array succs ss
             ∗ node n h mark next k  
             ∗ (⌜∀ i, i < h → mark !! i = Some false⌝)
             ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.
   Proof.
-    iIntros (Φ) "!> (Hsuccs&%Hh) Hpost". wp_lam. wp_pures.
+    iIntros (Φ) "!> (Hsuccs&%Len_ss) Hpost". wp_lam. wp_pures.
+    wp_apply randomNum_spec; try done.
+    iIntros (h) "%Hn'". wp_pures.  
     wp_bind (AllocN _ _)%E. iApply wp_allocN; try done.
     iModIntro. iIntros (n)"(Hn&_)". wp_pures.
-    wp_bind (AllocN _ _)%E. iApply wp_allocN; try done. lia.
-    iModIntro. iIntros (arr)"(Harr&_)". wp_pures.
+    wp_bind (AllocN _ _)%E. iApply wp_allocN; try (done || lia).
+    iNext. iIntros (arr)"(Harr&_)". wp_pures.
     assert (Z.to_nat h = h) as -> by lia.
     assert (Z.to_nat 2%nat = 2) as -> by lia.
     wp_bind (_ <- _)%E.
@@ -207,8 +218,7 @@ Section node_impl.
         destruct (decide (i' < h)) as [Hi | Hi].
         - rewrite !lookup_replicate_2; try done.
         - apply not_lt in Hi. Search replicate lookup. 
-          assert (h ≤ i') as H' by lia. Search replicate lookup.
-          assert (H'' := H').
+          assert (h ≤ i') as H' by lia. assert (H'' := H').
           apply (lookup_replicate_None h #n i') in H'.
           apply (lookup_replicate_None h n i') in H''.
           rewrite H' H'' /=. done. }
@@ -255,13 +265,13 @@ Section node_impl.
           + assert (¬ i < n) as H'%H'' by lia. rewrite H'.
             rewrite lookup_insert_ne; try (done || lia). }
       exists nx. apply H'. }
-    wp_pures. iApply ("Hpost" $! n mark next).
+    wp_pures. iApply ("Hpost" $! n h mark next).
     iFrame "Hsuccs". iSplitL; last first.
     { iPureIntro; try done. }  
     iExists arr, ls.
-    assert (<[1:=#arr]> (replicate 2 #k) = #k :: #arr :: []) as ->.
+    assert (<[1:=#arr]> (replicate 2 (#k, #h)%V) = (#k, #h)%V :: #arr :: []) as ->.
     { rewrite /replicate /=. done. }
-    iAssert (n ↦ #k ∗ (n +ₗ 1) ↦ #arr)%I with "[Hn]" as "(Hk & Hn)".
+    iAssert (n ↦ (#k, #h)%V ∗ (n +ₗ 1) ↦ #arr)%I with "[Hn]" as "(Hk & Hn)".
     { rewrite /array /big_opL. iDestruct "Hn" as "(Hn1 & Hn2 & _)".
       assert (n +ₗ 0%nat = n) as ->.
       { rewrite /loc_add /=. assert (Z.add (loc_car n) 0%nat = loc_car n) as ->.
@@ -331,6 +341,21 @@ Section node_impl.
         destruct (bool_decide (#(LitInt (Z.of_nat k0)) = 
           #(LitInt (Z.of_nat k')))) eqn: H''; wp_pures; try done.
         rewrite bool_decide_eq_true in H''. inversion H''. lia.
+  Qed.
+
+  Lemma getHeight_spec (n: Node) (i: nat) :
+    ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
+          getHeight #n @⊤
+      <<< node n h mark next k, RET #h >>>.
+  Proof.
+    iIntros (Φ) "AU".
+    wp_lam. wp_pures. wp_bind (! _)%E.
+    iMod "AU" as (h0 m0 nx0 k0) "[Node [_ Hclose]]".
+    iDestruct "Node" as (arr0 ls0) "(#Hk0 & #Hn0 & Harr & %Len_vs0 & #Hls0)".
+    wp_load. 
+    iMod ("Hclose" with "[Harr]") as "AU".
+    { iFrame "%". iExists arr0, ls0. iFrame "∗#%". }
+    iModIntro. wp_pures. done.
   Qed.
 
   Lemma findNext_spec (n: Node) (i: nat) :

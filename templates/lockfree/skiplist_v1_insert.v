@@ -16,151 +16,57 @@ From flows Require Export skiplist_v1_util list_flow_upd_insert.
 Module SKIPLIST1_SPEC_INSERT.
   Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL.
 
-  Parameter permute_levels_spec : ∀ (L: nat),
-        {{{ True }}}
-           permute_levels #L
-        {{{ (perm: loc) (vs: list val) (xs: list nat), RET #perm;
-              perm ↦∗ vs
-            ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
-            ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}.
-
-
-  Lemma createNode_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght γ_sy t_id t0 succs ss k:
-      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
-        thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
-        {{{ is_array succs ss }}}
+  Parameter createNode_spec : ∀ (succs: loc) ss (k: nat),
+  ⊢  {{{ is_array succs ss ∗ ⌜length ss = L⌝ }}}
            createNode #k #succs
-        {{{ (n: Node) mark next,
+        {{{ (n: Node) (h: nat) mark next,
             RET #n;
               is_array succs ss
-            ∗ node n mark next k  
-            ∗ (⌜∀ i, mark !! i = Some false⌝)
-            ∗ (⌜∀ i, i < L → next !! i = Some (ss !!! i)⌝) }}}.
-  Proof.
-  Admitted.
+            ∗ node n h mark next k  
+            ∗ (⌜∀ i, i < h → mark !! i = Some false⌝)
+            ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.
 
-  Parameter try_constraint_insert_spec : ∀ (pred curr new_node: Node) (i: nat),
-     ⊢ (<<< ∀∀ mark next k, node pred mark next k >>>
-           try_constraint #pred #curr #new_node #i @ ⊤
-       <<< ∃∃ (success: bool) next',
-              node pred mark next' k
-            ∗ (match success with true => ⌜next !! i = Some curr 
+  Parameter changeNext_spec : ∀ (n m m': Node) (i: nat),
+    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+            changeNext #n #m #m' #i @⊤
+      <<< ∃∃ (success: bool) next',
+              node n h mark next' k
+            ∗ (match success with true => ⌜next !! i = Some m 
                                             ∧ mark !!! i = false
-                                            ∧ next' = <[i := new_node]> next⌝
-                                | false => ⌜(next !! i ≠ Some curr ∨ 
+                                            ∧ next' = <[i := m']> next⌝
+                                | false => ⌜(next !! i ≠ Some m ∨ 
                                               mark !!! i = true)
                                             ∧ next' = next⌝ end),
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>)%I.
+                                    | false => NONEV end)  >>>.
+
 
   Definition traversal_inv s i k p c : Prop :=
-      p ∈ FP s 
-    ∧ c ∈ FP s 
-    ∧ Key s p < k 
-    ∧ Marki s p i = false 
-    ∧ Nexti s p i = Some c.
+    p ∈ FP s 
+  ∧ c ∈ FP s 
+  ∧ Key s p < k 
+  ∧ Marki s p i = false 
+  ∧ Nexti s p i = Some c
+  ∧ i < Height s p
+  ∧ i < Height s c.
 
-  Lemma traverse_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght (h t: Node) γ_sy t_id t0 k:
-      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
-        thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
-        {{{ True }}}
-           traverse #h #t #k
-        {{{ (preds succs: loc) (ps ss: list Node) (p c: Node) (res: bool), 
-              RET (#preds, #succs, #res);
-              is_array preds ps ∗ is_array succs ss
-            ∗ (∀ i, ⌜1 ≤ i < L⌝ → 
-                      ∃ s, past_state γ_m t0 s 
-                           ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝)
-            ∗ (⌜ps !!! 0 = p⌝) ∗ (⌜ss !!! 0 = c⌝)
-            ∗ (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s⌝ ∗ ⌜c ∈ FP s⌝
-                    ∗ if res then ⌜k ∈ keyset (FI s c)⌝ ∗ ⌜k = Key s c⌝
-                      else ⌜k ∉ abs s⌝) }}}.
+  Lemma traverse_spec N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght γ_sy t_id t0 k:
+    main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
+      thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+      {{{ True }}}
+          traverse #hd #tl #k
+      {{{ (preds succs: loc) (ps ss: list Node) (res: bool), 
+            RET (#preds, #succs, #res);
+            is_array preds ps ∗ is_array succs ss
+          ∗ (∀ i, ⌜i < L⌝ → ∃ s, past_state γ_m t0 s 
+                          ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝
+                          ∗ ⌜i = 0 → let c := ss !!! 0 in
+                                      if res then 
+                                        k ∈ keyset (FI s c) ∧ k = Key s c
+                                      else 
+                                        k ∉ abs s⌝ ) }}}.
   Proof.  
-  Admitted.  
-
-  Lemma maintenanceOp_insert_rec_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght k (n: Node) 
-    preds succs (ps ss: list Node) perm vs xs (i: nat):
-      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
-        {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
-            ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
-            ∗ perm ↦∗ vs
-            ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
-            ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}
-           maintenanceOp_insert_rec #k #i #perm #preds #succs #n
-        {{{ (ps' ss': list Node),
-            RET #();
-              preds ↦∗ ((λ n0 : loc, #n0) <$> ps')
-            ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss')
-            ∗ perm ↦∗ vs }}}.
-  Proof.
-    iIntros "#HInv". iIntros (Φ) "!# Hpre Hpost".
-    iDestruct "Hpre" as "(Hpreds & Hsuccs & Hperm & %Def_vs & %Perm_xs)".
-    wp_lam. wp_pures. 
-    destruct (bool_decide (Z.lt i (L - 1)%nat)) eqn: Hbool; wp_pures.
-    - rewrite bool_decide_eq_true in Hbool.
-      assert (is_Some (xs !! i)) as [idx Hidx].
-      { assert (i < length xs) as H'. rewrite Perm_xs seq_length. lia.
-        by rewrite lookup_lt_is_Some. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn 1) (i) (vs) #idx
-        with "[Hperm]"); try done.
-      { rewrite Def_vs. rewrite list_lookup_fmap. rewrite Hidx.
-        by simpl. }
-      iIntros "Hperm". wp_pures.
-      assert (is_Some (ps !! idx)) as [p Hp].
-      { admit. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn 1) (idx) _ #p
-        with "[Hpreds]"); try done.
-      { by rewrite list_lookup_fmap Hp /=. }
-      iIntros "Hpreds". wp_pures.
-      assert (is_Some (ss !! idx)) as [c Hc].
-      { admit. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn 1) (idx) _ #c
-        with "[Hsuccs]"); try done.
-      { by rewrite list_lookup_fmap Hc /=. }
-      iIntros "Hsuccs". wp_pures.
-      awp_apply try_constraint_insert_spec; try done.
-      iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      { admit. }
-      iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
-      iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
-      iAssert (⌜p ∈ FP s0⌝)%I as %FP_p0.
-      { (* interpolation *) admit. }
-      rewrite (big_sepS_delete _ (FP s0) p); last by eauto.
-      iDestruct "Nodes" as "(Node_p & Nodes_rest)".
-      iAaccIntro with "Node_p".
-      { iIntros "Node". iModIntro. iFrame "Hpost Hperm Hpreds Hsuccs".
-        iNext; iExists M0, T0, s0. iFrame "∗%#". 
-        rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
-      iIntros (success next')"(Node_p & Hif)".
-      destruct success; last first.
-      + iDestruct "Hif" as %[H' ->]. 
-        iModIntro. iSplitR "Hpost Hperm Hpreds Hsuccs".
-        { iNext. iExists M0, T0, s0. iFrame "∗%".
-          rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
-        wp_pures. admit.
-      + admit.
   Admitted.
-
-
-  Lemma maintenanceOp_insert_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght k (n:Node) preds succs 
-    ps ss:
-      main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
-        {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
-            ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss) }}}
-           maintenanceOp_insert #k #preds #succs #n
-        {{{ (ps' ss': list Node),
-            RET #();
-              preds ↦∗ ((λ n0 : loc, #n0) <$> ps')
-            ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss') }}}.
-  Proof.
-    iIntros "#HInv". iIntros (Φ) "!# (Hpreds & Hsuccs) Hpost".
-    wp_lam. wp_pures. wp_apply permute_levels_spec; try done.
-    iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
-    wp_apply (maintenanceOp_insert_rec_spec with "[] [$Hperm $Hpreds $Hsuccs]"); 
-      try done.
-    iIntros (ps' ss')"(Hpreds & Hsuccs & Hperm)". 
-    iApply "Hpost". iFrame.
-  Qed.
 
   Lemma insertOp_spec N γ_r γ_t γ_m γ_td1 γ_td2 γ_ght γ_sy t_id t0 k:
           main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
@@ -174,32 +80,36 @@ Module SKIPLIST1_SPEC_INSERT.
     iIntros "#HInv #HUpd #Thd". iLöb as "IH". iIntros (Φ) "!# _ Hpost".
     assert (0 < k < W) as Range_k. { admit. }
     wp_lam. wp_pures. wp_apply traverse_spec; try done.
-    iIntros (preds succs ps ss p c res) 
-      "(Hpreds & Hsuccs & #HtrInv & %Hps0 & %Hss0 & Hif)".  
+    iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & #HtrInv)".  
     wp_pures. destruct res; wp_pures.
     - iModIntro. iApply "Hpost".
+      (*
       unfold past_lin_witness. simpl.
       iDestruct "Hif" as (s) "(Hpast_s & %H')".
       assert (k ∈ abs s). admit.
-      iExists s; iFrame. iPureIntro; set_solver.
-    - iDestruct "Hif" as "#Htr_false".
-      wp_apply (createNode_spec with "[] [] [Hsuccs]"); try done.
-      iIntros (n mark next) "(Hsuccs & Node_n & %Def_mark & %Def_next)".
+      iExists s; iFrame. iPureIntro; set_solver. *) admit.
+    - wp_apply (createNode_spec _ ss with "[Hsuccs]"); try done.
+      { admit. }
+      iIntros (n h mark next) "(Hsuccs & Node_n & %Def_mark & %Def_next)".
       wp_pures. wp_bind (! _)%E.
       iEval (rewrite /is_array) in "Hpreds".
+      assert (is_Some(ps !! 0)) as [p Hps0].
+      { admit. }
       wp_apply (wp_load_offset _ _ _ (DfracOwn 1) _ ((λ n : loc, #n) <$> ps) #p
         with "[Hpreds]"); try done.
-      { admit. }
+      { by rewrite list_lookup_fmap Hps0 /=. }
       { iNext. admit. }
       iIntros "Hpreds". wp_pures.
       wp_bind (! _)%E.
       iEval (rewrite /is_array) in "Hsuccs".
+      assert (is_Some(ss !! 0)) as [c Hss0].
+      { admit. }
       wp_apply (wp_load_offset _ _ _ (DfracOwn 1) _ ((λ n : loc, #n) <$> ss) #c
         with "[Hsuccs]"); try done.
-      { admit. }
+      { by rewrite list_lookup_fmap Hss0 /=. }
       { iNext. admit. }
       iIntros "Hsuccs". wp_pures.
-      awp_apply try_constraint_insert_spec; try done.
+      awp_apply changeNext_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       { admit. }
       iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
@@ -214,8 +124,11 @@ Module SKIPLIST1_SPEC_INSERT.
       { clear -FP_p0 n_notin_s0. set_solver. }
       rewrite (big_sepS_delete _ (FP s0) p); last by eauto.
       iDestruct "Nodes" as "(Node_p & Nodes_rest)".
-      iAaccIntro with "Node_p".
-      { iIntros "Node". iModIntro. iFrame "Hpost Node_n Hpreds Hsuccs".
+      iAssert ((node p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
+        ∗ ⌜0 < Height s0 p⌝)%I with "[Node_p]" as "Hpre".
+      { admit. }
+      iAaccIntro with "Hpre".
+      { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost Node_n Hpreds Hsuccs".
         iNext; iExists M0, T0, s0. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
       iIntros (success next')"(Node_p & Hif)".
@@ -226,9 +139,8 @@ Module SKIPLIST1_SPEC_INSERT.
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. iApply "IH"; try done.
       + iDestruct "Hif" as %[Next_p0 [Mark_p0 Def_next']].
-
-        iDestruct "SShot0" as %[FP0 [C0 [Mk0 [Nx0 [Ky0 [I0 
-          [Hs0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]].
+        iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
+          [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
         iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
         { iDestruct "Hist" as (M0')"(_&_&_&%&_)". iPureIntro.
           apply leibniz_equiv in Habs0. rewrite <-Habs0.
@@ -236,10 +148,11 @@ Module SKIPLIST1_SPEC_INSERT.
         assert (∀ x, x ∈ FP s0 → flow_constraints_I x (FI s0 x) 
                   (Mark s0 x !!! 0) (Next s0 x !! 0) (Key s0 x)) as Hflow.
         { destruct PT_s0 as (_&_&H'&_).
-          intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
+          intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&_&?). }
         set Mk0' := <[n := mark]> Mk0.
         set Nx0' := <[n := next]> (<[p := next']> Nx0).
         set Ky0' := <[n := k]> Ky0.
+        set Ht0' := <[n := h]> Ht0.
         iAssert (⌜∃ (I: gmap Node (multiset_flowint_ur nat)) (nk: Node),
             dom I = FP s0 ∪ {[n]}
           ∧ nk ∈ FP s0
@@ -274,7 +187,7 @@ Module SKIPLIST1_SPEC_INSERT.
           { (* interpolation *) admit. }
           assert (Key s0 p < W) as Key_p0.
           { destruct PT_s0 as (_&_&PT&_). apply PT in FP_c0.
-            destruct FP_c0 as (_&_&_&_&H'&_). clear -H' Key_pc; lia. }
+            destruct FP_c0 as (_&_&_&_&_&H'&_). clear -H' Key_pc; lia. }
           assert (Key s0 p < k) as Key_pn.
           { admit. }
           assert (k < Key s0 c) as Key_nc.
@@ -417,11 +330,11 @@ Module SKIPLIST1_SPEC_INSERT.
                 rewrite /outsets in H. apply leibniz_equiv_iff in H.
                 rewrite (big_opS_delete _ (dom (out_map (FI s0 x))) n) in H.
                 assert (outset nat (FI s0 x) n = ∅). admit.
-                rewrite /outset /out in H0. admit.  }
+                rewrite /outset /out in H0. admit. by rewrite -I0_eq_s0. }
               rewrite I0_eq_s0 Hx in Hn.
               destruct (Next s0 x !! 0) as [n'|] eqn: Hn'.
               rewrite elem_of_singleton in Hn; subst n'.
-              destruct PT_s0 as (_&_&_&_&PT).
+              destruct PT_s0 as (_&_&_&_&PT&_).
               pose proof PT x n 0 Hn' as PT. clear -PT n_notin_s0; try done.
               clear -Hn; set_solver. done. }
             rewrite H' ccm_big_opS_unit /ccm_unit /= /lift_unit in Ha.
@@ -432,7 +345,7 @@ Module SKIPLIST1_SPEC_INSERT.
             { by destruct ContLeq0 as (_&?&_). }  
             rewrite Dom_In0' -Dom_Ip0' (Domm_I0 p p_in_I0).
             intros Hn'. assert (n' = n) as ->.
-            { clear -Hn'; set_solver. } Search intComp out.
+            { clear -Hn'; set_solver. }
             rewrite (big_opS_delete _ _ p) in Out_s0_n. 
             rewrite intComp_unfold_out in Out_s0_n.
             rewrite /ccmunit /lift_unit /=. rewrite nzmap_eq.
@@ -480,8 +393,9 @@ Module SKIPLIST1_SPEC_INSERT.
             rewrite lookup_total_insert. rewrite Def_next'.
             by rewrite lookup_insert. }
           assert (Nx !! n = Some c) as Nx_n.
-          { rewrite Def_Nx' /Nx0'. rewrite lookup_total_insert Def_next.
-            by rewrite Hss0. admit. }
+          { rewrite Def_Nx' /Nx0'. rewrite lookup_total_insert (Def_next 0).
+            apply f_equal. rewrite list_lookup_total_alt Hss0 /=. done.
+            admit. }
           assert (∀ x, x ≠ p → x ≠ n → Nx !! x = Next s0 x !! 0) as Def_Nx.
           { intros x Hxp Hxn. rewrite Def_Nx' /Nx0'. 
             rewrite lookup_total_insert_ne; try done.
@@ -509,7 +423,8 @@ Module SKIPLIST1_SPEC_INSERT.
               + rewrite !lookup_insert_ne; try done. 
               + rewrite (HP n''). by rewrite lookup_insert_ne. }
           assert (Mk !! n = Some false) as Mk_n.
-          { rewrite Def_Mk' /Mk0'. by rewrite lookup_total_insert Def_mark. }
+          { rewrite Def_Mk' /Mk0'. rewrite lookup_total_insert Def_mark; try done.
+            admit. }
           assert (∀ x, x ≠ n → Mk !!! x = Mark s0 x !!! 0) as Def_Mk.
           { intros n' Hn'. rewrite lookup_total_alt. rewrite Def_Mk' /Mk0'.
             rewrite lookup_total_insert_ne; try done.
@@ -546,8 +461,8 @@ Module SKIPLIST1_SPEC_INSERT.
                 destruct PT_s0 as (_&_&PT&_).
                 rewrite {1}Hs0 in PT. unfold FP in PT.
                 apply PT in H'. destruct H' as (_&_&H'&_).
-                rewrite Hs0 in H'. unfold Next in H'.
-                rewrite H1' in H'. by rewrite elem_of_dom in H'.
+                rewrite Hs0 /Next H1' in H'. rewrite -elem_of_dom H'.
+                rewrite elem_of_gset_seq; clear; lia.
               + rewrite -not_elem_of_dom in H'. clear -Hn' H'; set_solver. }
           assert (dom Mk = dom Mk0 ∪ {[n]}) as Dom_Mk.
           { apply set_eq_subseteq; split.
@@ -578,7 +493,8 @@ Module SKIPLIST1_SPEC_INSERT.
               destruct PT_s0 as (_&_&PT&_).
               rewrite {1}Hs0 /FP in PT.
               apply PT in Hn'. destruct Hn' as (_&_&_&Hn'&_).
-              rewrite Hs0 /Mark in Hn'. done. }
+              rewrite Hs0 /Mark in Hn'. exfalso; apply H'.
+              rewrite Hn' elem_of_gset_seq; clear; lia. }
           assert (∀ x, Ky0 !!! x = Key s0 x) as Def_Ky0.
           { rewrite Hs0. unfold Key. try done. }
           set S := gset_seq (Key s0 p + 1) k.
@@ -596,7 +512,7 @@ Module SKIPLIST1_SPEC_INSERT.
             - intros H'. pose proof H' W as H'.
               rewrite !elem_of_gset_seq in H'. clear -H' Key_p0 Range_k. lia. }
           assert (nx_key_rel Nx Ky0') as Nx_key_rel.
-          { destruct PT_s0 as (_&_&_&H'&H''). intros n1 n2.
+          { destruct PT_s0 as (_&_&_&H'&H''&_). intros n1 n2.
             destruct (decide (n1 = p)) as [-> | Hn1p].
             { rewrite Nx_p. intros [=<-]. rewrite /Ky0'.
               rewrite lookup_total_insert_ne; try done.
@@ -619,7 +535,7 @@ Module SKIPLIST1_SPEC_INSERT.
           { split; last split. 
             - by rewrite Dom_Nx Dom_I0' Dom_Nx0 Dom_I0.
             - by rewrite Dom_Mk Dom_I0' Dom_Mk0 Dom_I0.
-            - destruct PT_s0 as (_&_&_&_&H'). intros n1 n2.
+            - destruct PT_s0 as (_&_&_&_&H'&_). intros n1 n2.
               destruct (decide (n1 = n)) as [-> | Hn1n].
               + rewrite Nx_n. intros [=<-]. rewrite Dom_I0'.
                 clear -c_in_I0; set_solver.
@@ -779,7 +695,7 @@ Module SKIPLIST1_SPEC_INSERT.
             destruct Hx as (_&_&_&_&_&Hx &Hx'). 
             assert (Mark s0 x !!! 0 = false) as Hm.
             { rewrite -Def_Mk; try done. clear -Hx1 n_notin_I0; set_solver. } 
-            rewrite Hm in Hx'. destruct Hx' as (_&_&(_&H'')&_).
+            rewrite Hm in Hx'. destruct Hx' as (_&_&_&(_&H'')&_).
             rewrite /I0' !lookup_total_insert_ne in Hk2'; try done.
             rewrite I0_eq_s0 -H'' in Hk2'. rewrite elem_of_gset_seq in Hk2'.
             rewrite /S elem_of_gset_seq in Hk1'. 
@@ -911,7 +827,7 @@ Module SKIPLIST1_SPEC_INSERT.
                 clear -Hx; set_solver.
               * rewrite Dom_I in Hx. clear -Hx Hx'; set_solver.
           - by rewrite Def_I. 
-          - intros n1 n2 i. destruct PT_s0 as (_&_&_&PT&PT'). 
+          - intros n1 n2 i. destruct PT_s0 as (_&_&_&PT&PT'&_). 
             rewrite /Nexti /Next Hs0 /Key in PT. rewrite /Nx0'. 
             destruct (decide (n1 = n)) as [-> | Hn1n].
             { rewrite lookup_total_insert Def_next. rewrite /Ky0'.
@@ -926,7 +842,8 @@ Module SKIPLIST1_SPEC_INSERT.
               rewrite lookup_total_insert_ne; try done.
               rewrite lookup_insert_ne; try done.
               destruct (decide (n2 = n)) as [-> | Hn2n].
-              { rewrite /Nexti in PT'. intros H'%PT'. clear -H' n_notin_s0; done. }
+              { rewrite /Nexti in PT'. intros H'%PT'. 
+                clear -H' n_notin_s0; done. }
               rewrite lookup_total_insert_ne; try done.
               rewrite /Next Hs0. apply PT. }
             rewrite lookup_total_insert_ne; try done.
@@ -934,7 +851,7 @@ Module SKIPLIST1_SPEC_INSERT.
             { rewrite /Nexti /Next {1}Hs0 in PT'. intros H'%PT'. 
               clear -H' n_notin_s0; done. }
             rewrite !lookup_total_insert_ne; try done. apply PT.
-          - intros n1 n2 i. destruct PT_s0 as (_&_&_&_&PT).
+          - intros n1 n2 i. destruct PT_s0 as (_&_&_&_&PT&_).
             rewrite /Nexti /Next {1}Hs0 FP_s0_I0 in PT. rewrite /Nx0' Dom_I Dom_I0'. 
             destruct (decide (n1 = n)) as [-> | Hn1n].
             { rewrite lookup_total_insert Def_next. admit. }
@@ -1082,12 +999,14 @@ Module SKIPLIST1_SPEC_INSERT.
               by rewrite II_n /I0' lookup_total_insert in n_in_II. }
             { intros x' k'. apply (Out_x' _ x' k') in n_in_II.
               by rewrite II_n /I0' lookup_total_insert in n_in_II. } }
-        set s0' := (FP0 ∪ {[n]}, C0 ∪ {[k]}, Mk0', Nx0', Ky0', I): snapshot.
+        set s0' := (FP0 ∪ {[n]}, C0 ∪ {[k]}, Ht0', Mk0', Nx0', Ky0', I): snapshot.
         assert (abs s0 = C0) as Habs0'.
         { rewrite Hs0. by unfold abs. }
         iAssert (⌜snapshot_constraints s0'⌝)%I as "SShot0'".
-        { iPureIntro. exists (FP0 ∪ {[n]}), (C0 ∪ {[k]}), Mk0', Nx0', Ky0', I.
-          repeat split; try done.
+        { iPureIntro. exists (FP0 ∪ {[n]}), (C0 ∪ {[k]}), Ht0', Mk0', 
+            Nx0', Ky0', I. repeat split; try done.
+          rewrite /Ht0'. rewrite dom_insert_L. 
+          rewrite Dom_Ht0. clear; set_solver.
           rewrite /Mk0'. rewrite dom_insert_L. 
           rewrite Dom_Mk0. clear; set_solver.
           rewrite /Nx0'. rewrite !dom_insert_L.
@@ -1112,7 +1031,11 @@ Module SKIPLIST1_SPEC_INSERT.
           rewrite lookup_insert_ne; try done. }
         assert (Key s0' n = k) as HKn.
         { rewrite /Key /s0' /= /Ky0' lookup_insert; try done. }
-
+        assert (∀ n', n' ≠ n → Height s0' n' = Height s0 n') as HT.
+        { intros n' Hn. rewrite /Height /s0' Hs0 /= /Ky0'. 
+          rewrite lookup_insert_ne; try done. }
+        assert (Height s0' n = h) as HTn.
+        { rewrite /Key /s0' /= /Ht0' lookup_insert; try done. }
         assert (∀ n', FI s0' n' = I !!! n') as HI.
         { by rewrite /FI /s0' /=. }
         assert (∀ n', n' ≠ n → Mark s0' n' = Mark s0 n') as HM.
@@ -1129,8 +1052,8 @@ Module SKIPLIST1_SPEC_INSERT.
           clear -H' n_notin_s0. done. }
 
         assert (per_tick_inv s0') as PT_s0'.
-        { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5).
-          split; last split; last split; last split.
+        { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6).
+          split; last split; last split; last split; last split.
           - destruct PT1 as (PT11&PT12&PT13&PT14&PT15).
             split; last split; last split; last split.
             + intros ?; rewrite /Marki HM; try done. apply PT11.
@@ -1144,48 +1067,57 @@ Module SKIPLIST1_SPEC_INSERT.
             apply Hflupd.
           - rewrite FP_s0'. intros n' Hn'.
             destruct (decide (n' = n)) as [-> | Hn'n].
-            + rewrite HMn HNn HKn HI. 
-              split; last split; last split; last split; last split.
-              * intros ?; by rewrite lookup_total_alt Def_mark /=.
+            + rewrite HMn HNn HKn HI HTn. 
+              split; last split; last split; last split; last split; last split.
+              * intros ?; rewrite lookup_total_alt Def_mark /=. done. admit.
               * intros i; rewrite Def_next. split; try done. admit.
-              * rewrite elem_of_dom Def_next; try done. admit.
-              * rewrite elem_of_dom Def_mark. done.
+              * admit.
+              * admit.
+              * admit.
               * clear -Range_k; lia.
-              * rewrite (lookup_total_alt mark) Def_mark /= Def_next.
-                rewrite Hss0. apply Hflupd. admit.
+              * rewrite (lookup_total_alt mark) Def_mark /=.
+                rewrite (Def_next 0). rewrite list_lookup_total_alt Hss0 /=.
+                apply Hflupd. all: admit.
             + assert (n' ∈ FP s0) as H'. clear -Hn' Hn'n; set_solver.
               apply PT3 in H'.
-              destruct H' as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+              destruct H' as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7).
               destruct (decide (n' = p)) as [-> | Hn'p]; last first.
-              * rewrite HM. rewrite HK. rewrite HN. rewrite HI.
+              * rewrite HM. rewrite HK. rewrite HN. rewrite HI. rewrite HT.
                 all: try done. 
-                split; last split; last split; last split; last split; try done.
+                split; last split; last split; last split; last split; 
+                  last split; try done.
                 apply Hflupd. assert (dom I = FP s0 ∪ {[n]}) as ->.
                 apply Hflupd. clear -Hn' Hn'n; set_solver. all: done.
-              * rewrite HM. rewrite HNp. rewrite HK. rewrite HI.
+              * rewrite HM. rewrite HNp. rewrite HK. rewrite HI. rewrite HT.
                 all: try done.
-                split; last split; last split; last split; last split; try done.
+                split; last split; last split; last split; last split; 
+                  last split; try done.
                 { intros i. destruct (decide (i = 0)) as [-> | Hi]. 
                   rewrite lookup_insert. split; try done. admit. }
-                { rewrite dom_insert. clear; set_solver. }
+                { rewrite dom_insert_L. admit. }
                 { rewrite lookup_insert Mark_p0. apply Hflupd. }
           - intros n1 n2 i. rewrite /Nexti /Next /s0' /Key. apply Hflupd.
           - intros n1 n2 i. rewrite /Nexti /Next /s0' /FP.
             destruct Hflupd as [H' H'']. rewrite Hs0 /FP in H'.
-            rewrite -H'. apply H''. }
+            rewrite -H'. apply H''.
+          - admit. }
         assert (transition_inv s0 s0') as Trans_s0.
         { repeat split.
+          - admit.
           - intros n'. destruct (decide (n' = n)) as [-> | Hn'].
             + intros _ H'. rewrite /Marki /Mark /s0' /Mk0' in H'.
               rewrite lookup_insert in H'. 
               rewrite lookup_total_alt Def_mark /= in H'.
-              clear -H'; done.
+              clear -H'; done. admit.
             + rewrite /Marki /Mark Hs0 /s0' /Mk0'. 
               rewrite lookup_insert_ne; try done.
               intros H' H''. rewrite H' in H''. clear -H''; done.
           - intros n' i FP_n'.
             assert (n' ≠ n) by (clear -FP_n' n_notin_s0; set_solver).
             rewrite /Marki HM; try done.
+          - intros n' FP_n'. 
+            assert (n' ≠ n) by (clear -FP_n' n_notin_s0; set_solver).
+            rewrite HT; try done.
           - intros n' FP_n'. 
             assert (n' ≠ n) by (clear -FP_n' n_notin_s0; set_solver).
             rewrite HK; try done.
@@ -1215,7 +1147,7 @@ Module SKIPLIST1_SPEC_INSERT.
             apply Hflupd. }
           assert (Marki s0' n 0 = false) as Mark_n'.
           { rewrite /Marki /Mark /s0' /Mk0' lookup_insert lookup_total_alt.
-            by rewrite Def_mark. }
+            rewrite Def_mark; try done. admit. }
           assert (keyset (I !!! n) ## keyset (I !!! nk)) as Disj_ks.
           { apply Hflupd. }
           iMod (own_update_2 γ_ks
@@ -1257,17 +1189,13 @@ Module SKIPLIST1_SPEC_INSERT.
           iSplitL "Node_p Node_n Nodes_rest". rewrite FP_s0'.
           rewrite big_sepS_union; try done. iSplitL "Node_p Nodes_rest".
           rewrite (big_opS_delete _ (FP s0) p); try done. iSplitL "Node_p".
-          { rewrite Hs0 /s0' /Mark /Next /Key /Mk0' /Nx0' /Ky0'. 
-            rewrite lookup_insert_ne. rewrite lookup_insert_ne.
-            rewrite lookup_insert. rewrite lookup_insert_ne.
-            all : done. }
+          { rewrite /Marki /Nexti HT. rewrite HM. rewrite HK. rewrite HNp.
+            all: try done. rewrite Def_next'. done. }
           iApply (big_sepS_mono with "Nodes_rest"); try done.
-          { intros x Hx. rewrite Hs0 /s0' /Mark /Next /Key /Mk0' /Nx0' /Ky0'. 
-            rewrite !lookup_insert_ne; try done.
+          { intros x Hx. iIntros "Node_x". 
+            rewrite /Marki /Nexti HT. rewrite HM. rewrite HK. rewrite HN. done.
             all : clear -Hx n_notin_s0; set_solver. }
-          { rewrite big_opS_singleton. 
-            rewrite /s0' /Mark /Next /Key /Mk0' /Nx0' /Ky0'.
-            by rewrite !lookup_insert. }
+          { rewrite big_opS_singleton. rewrite HTn HMn HNn HKn. done. }
           { clear -n_notin_s0; set_solver. }
           rewrite FP_s0'. rewrite big_opS_union; last first.
           { clear -n_notin_s0; set_solver. }
@@ -1309,10 +1237,11 @@ Module SKIPLIST1_SPEC_INSERT.
               apply leibniz_equiv in Habs0. by rewrite Habs0.
             + rewrite !lookup_total_insert_ne; try lia.
               apply Trans_M0. clear -Ht Ht'; lia. }
-        wp_pures. clear Hflupd. 
+        wp_pures. clear Hflupd.
+        (* 
         wp_apply (maintenanceOp_insert_spec with "[] [$Hpreds $Hsuccs]"); try done.
         iIntros (ps' ss') "(Hpreds & Hsuccs)".
-        wp_pures. admit.
+        wp_pures. admit. *)
   Admitted.          
       
 
