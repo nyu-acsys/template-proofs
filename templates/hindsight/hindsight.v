@@ -9,7 +9,6 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From flows Require Export one_shot_proph typed_proph.
 
-
 Module Type DATA_STRUCTURE.
   
   Parameter dsOp : val.

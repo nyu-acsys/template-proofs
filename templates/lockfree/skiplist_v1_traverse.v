@@ -11,7 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_v1 skiplist_v1_util.
+Require Export skiplist_v1 skiplist_v1_util flows_big_op.
 
 Module SKIPLIST1_SPEC_TRAVERSE.
   Import SKIPLIST1 SKIPLIST1_UTIL.DEFS.
@@ -112,7 +112,9 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
     iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
       ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
-    { admit. }
+    { iDestruct "HtrInv" as (s)"(Past_s & %Htr_s)". 
+      assert (Height s c = Height s0 c) as H'. admit.
+      iFrame "Node_c". iPureIntro. rewrite -H'. apply Htr_s. }
     iAaccIntro with "Hpre".
     { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
       iNext; iExists M0, T0, s0. iFrame "∗%#". 
@@ -135,7 +137,9 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       iDestruct "Nodes" as "(Node_p & Nodes_rest)".
       iAssert ((node p (Height s1 p) (Mark s1 p) (Next s1 p) (Key s1 p)) 
         ∗ ⌜i < Height s1 p⌝)%I with "[Node_p]" as "Hpre".
-      { admit. }
+      { iDestruct "HtrInv" as (s)"(Past_s & %Htr_s)". 
+        assert (Height s p = Height s1 p) as H'. admit.
+        iFrame "Node_p". iPureIntro. rewrite -H'. apply Htr_s. }
       iAaccIntro with "Hpre".
       { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost".
         iNext; iExists M1, T1, s1. iFrame "∗%#". 
@@ -165,12 +169,6 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { admit. }
           assert (Next s1 c !! 0 = Some cn) as Next_c1.
           { admit. }
-          assert (Key s1 p < Key s1 c) as Key_pc.
-          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
-            by pose proof PT p c 0 Next_p1. }
-          assert (Key s1 p < W) as Key_p1.
-          { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
-            destruct FP_c1 as (_&_&_&_&_&H'&_). clear -H' Key_pc. lia. }
           assert (∀ x, x ∈ FP s1 → flow_constraints_I x (FI s1 x) 
                   (Mark s1 x !!! 0) (Next s1 x !! 0) (Key s1 x)) as Hflow.
           { destruct PT_s1 as (_&_&H'&_).
@@ -181,10 +179,52 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { apply Hflow in FP_p1. by rewrite -I1_eq_s1 Next_p1 Mark_p1 in FP_p1. }
           assert (flow_constraints_I c Ic1 true (Some cn) (Key s1 c)) as Hc.
           { apply Hflow in FP_c1. by rewrite -I1_eq_s1 Next_c1 Mark_c1 in FP_c1. }
+          assert (Key s1 p < Key s1 c) as Key_pc.
+          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
+            by pose proof PT p c 0 Next_p1. }
+          assert (Key s1 p < W) as Key_p1.
+          { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
+            destruct FP_c1 as (_&_&_&_&_&H'&_). clear -H' Key_pc. lia. }
+          assert (Key s1 c < Key s1 cn) as Key_ccn.
+          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
+            by pose proof PT c cn 0 Next_c1. }
+          assert (p ≠ c) as p_neq_c.
+          { intros ->. clear -Key_pc; lia. }
+          assert (c ≠ cn) as c_neq_cn.
+          { intros ->. clear -Key_ccn; lia. }
+          assert (p ≠ cn) as p_neq_cn.
+          { intros ->. clear -Key_pc Key_ccn. lia. }
           assert (insets Ip1 ≠ ∅) as Inset_p1_ne.
-          { admit. }
+          { destruct Hp as (_&_&_&(H'&_)&_). intros H''. rewrite H'' in H'.
+            assert (W ∈ (∅: gset nat)) as H1'. apply H'.
+            rewrite elem_of_gset_seq; split; try lia. clear -H1'; set_solver. }
+          assert (dom Ip1 = {[p]}) as Dom_Ip1 by apply Hp.
+          assert (dom Ic1 = {[c]}) as Dom_Ic1 by apply Hc.
+          assert (dom Ip1' = {[p]}) as Dom_Ip1'.
+          { rewrite /dom /flowint_dom /Ip1' /=. apply Dom_Ip1. }
+          assert (dom Ic1' = {[c]}) as Dom_Ic1'.
+          { by rewrite /dom /flowint_dom /Ip1' /= dom_singleton_L. }
+          assert (✓ (Ip1 ⋅ Ic1)) as Vpc1.
+          { destruct PT_s1 as (_&H'&_). rewrite /GFI in H'.
+            assert ({[p; c]} ⊆ FP s1) as Hsub.
+            { clear -FP_p1 FP_c1. set_solver. }
+            pose proof (flow_big_op_valid _ _ {[p; c]} Hsub H') as VI'.
+            rewrite big_opS_union in VI'.
+            rewrite !big_opS_singleton -!I1_eq_s1 in VI'. apply VI'.
+            clear -p_neq_c; set_solver. }
+          assert (dom (out_map Ip1) = {[c]}) as Domout_Ip1.
+          { by apply Hp. }
+          assert (outsets Ip1 ⊆ insets Ic1) as Out_In_c1.
+          { rewrite /outsets /insets Domout_Ip1 Dom_Ic1 !big_opS_singleton.
+            intros k' Hk'. apply (flowint_inset_step Ip1 Ic1); try done.
+            rewrite Dom_Ic1. clear; set_solver. }
           assert (insets Ic1 ≠ ∅) as Inset_c1_ne.
-          { admit. }
+          { assert (W ∈ outsets Ip1) as H'. 
+            { rewrite /outsets Domout_Ip1 big_opS_singleton.
+              destruct Hp as (_&H'&_&(_&H'')&_). apply H' in Inset_p1_ne.
+              rewrite /outsets Inset_p1_ne -leibniz_equiv_iff big_opS_singleton 
+                in H''. rewrite -H''. rewrite elem_of_gset_seq; split; try lia. }
+            apply Out_In_c1 in H'. clear -H'; set_solver. }
           assert (out_pc ≠ 0%CCM) as Out_pc.
           { destruct Hp as (_&H'&_&(_&H'')&_). rewrite /outsets H' in H''. 
             rewrite -leibniz_equiv_iff big_opS_singleton in H''.
@@ -194,28 +234,33 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             rewrite /outset in H''. rewrite -nzmap_elem_of_dom_total2 in H'.
             rewrite -I1_eq_s1 -H'' in H'. apply H'. 
             rewrite elem_of_gset_seq. clear -Key_p1; split; lia. done. }
-          assert (out Ic1 cn = inf Ic1 c) as Out_Ic1.
-          { admit. }
-          assert (p ≠ c) as p_neq_c.
-          { admit. }
-          assert (p ≠ cn) as p_neq_cn.
-          { admit. }
-          assert (c ≠ cn) as c_neq_cn.
-          { admit. }
-          assert (dom Ip1 = {[p]}) as Dom_Ip1 by apply Hp.
-          assert (dom Ic1 = {[c]}) as Dom_Ic1 by apply Hc.
-          assert (dom Ip1' = {[p]}) as Dom_Ip1'.
-          { rewrite /dom /flowint_dom /Ip1' /=. apply Dom_Ip1. }
-          assert (dom Ic1' = {[c]}) as Dom_Ic1'.
-          { by rewrite /dom /flowint_dom /Ip1' /= dom_singleton_L. }
-          assert (dom (out_map Ip1) = {[c]}) as Domout_Ip1.
-          { admit. }
+          
           assert (dom (out_map Ic1) = {[cn]}) as Domout_Ic1.
-          { admit. }
+          { by apply Hc. }
           assert (dom (out_map Ip1') = {[cn]}) as Domout_Ip1'.
-          { admit. }
-          assert (✓ (Ip1 ⋅ Ic1)) as Vpc1.
-          { admit. }
+          { rewrite /Ip1' /= -leibniz_equiv_iff nzmap_dom_insert_nonzero.
+            rewrite /empty /dom. clear; set_solver. done. }        
+          assert (out Ic1 cn = inf Ic1 c) as Out_Ic1.
+          { destruct Hc as (_&_&H'&H''&_&Hc1&Hc2). rewrite /keyset in H''.
+            assert (insets Ic1 ⊆ outsets Ic1) as H1'. clear -H''; set_solver.
+            assert (insets Ic1 = outsets Ic1) as H1''. clear -H1' H'; set_solver.
+            rewrite /insets /outsets Dom_Ic1 Domout_Ic1 in H1''.
+            rewrite -leibniz_equiv_iff !big_opS_singleton in H1''. 
+            clear H' H'' H1'. apply nzmap_eq. intros k'.
+            destruct (decide (k' ∈ inset _ Ic1 c)) as [Hk' | Hk'].
+            - assert (Hk'' := Hk'). rewrite H1'' in Hk''.
+              rewrite /inset nzmap_elem_of_dom_total in Hk'.
+              rewrite /ccmunit /= /nat_unit in Hk'.
+              pose proof Hc1 k' as Hc1.
+              rewrite /outset nzmap_elem_of_dom_total in Hk''.
+              rewrite /ccmunit /= /nat_unit in Hk''.
+              pose proof Hc2 cn k' as Hc2.
+              set a := inf Ic1 c !!! k'. set b := out Ic1 cn !!! k'.
+              rewrite -/a -/b in Hk' Hk'' Hc1 Hc2. clear -Hk' Hk'' Hc1 Hc2; lia.
+            - assert (Hk'' := Hk'). rewrite H1'' in Hk''.
+              rewrite /inset nzmap_elem_of_dom_total2 in Hk'.
+              rewrite /outset nzmap_elem_of_dom_total2 in Hk''.
+              by rewrite Hk' Hk''. }
           assert (✓ (Ip1' ⋅ Ic1')) as Vpc1'.
           { apply intValid_composable. assert (Hcomp := Vpc1). 
             apply intComposable_valid in Hcomp. 
@@ -316,9 +361,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 assert (out Ic1' n = 0%CCM) as ->.
                 { rewrite /out /Ic1' /= nzmap_lookup_total_insert_ne; try done. }
                 assert (out Ip1 n = 0%CCM) as ->.
-                { admit. }
+                { rewrite /out -nzmap_elem_of_dom_total2 Domout_Ip1.
+                  clear -Hn; set_solver. }
                 assert (out Ic1 n = 0%CCM) as ->.
-                { admit. }
+                { rewrite /out -nzmap_elem_of_dom_total2 Domout_Ic1.
+                  clear -Hncn; set_solver. }
                 done.
               + by rewrite Dom_pc.
               + by rewrite Dom_pc'. }
@@ -346,11 +393,14 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 rewrite nzmap_lookup_empty. rewrite /ccmunit /= /nat_unit. lia. }
           set S := dom out_pc.
           assert (S ⊆ insets Ic1) as S_sub_c1.
-          { admit. }
+          { rewrite /S /out_pc. rewrite /outsets Domout_Ip1 big_opS_singleton 
+              /outset in Out_In_c1. done. }
           assert (∀ k', inf Ic1 c !!! k' ≤ 1) as HInf_Ic1.
-          { admit. }
+          { apply Hc. }
+          assert (∀ n' k', out Ic1 n' !!! k' ≤ 1) as HOut_Ic1.
+          { apply Hc. }
           assert (∀ k', out_pc !!! k' ≤ 1) as Hout_pc.
-          { admit. }
+          { intros k'. rewrite /out_pc. apply Hp. }
           assert (insets Ic1' = insets Ic1 ∖ S) as Insets_Ic1'.
           { rewrite /insets Dom_Ic1' Dom_Ic1. apply leibniz_equiv. 
             rewrite !big_opS_singleton. 
@@ -377,7 +427,42 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             rewrite lookup_total_lifting_inv /ccmop_inv /ccm_opinv /= /nat_opinv.
             rewrite Hk2'. clear -Hk1'; lia. }
           assert (outsets Ic1' = outsets Ic1 ∖ S) as Outsets_Ic1'.
-          { admit. }
+          { rewrite /outsets Domout_Ic1.
+            destruct (decide ((out Ic1 cn - out_pc = 0)%CCM)) as [H' | H'].
+            - assert (dom (out_map Ic1') = ∅) as H''.
+              { rewrite /Ic1' /=. rewrite -leibniz_equiv_iff nzmap_dom_insert_zero.
+                clear; set_solver. done. }
+              rewrite H''. rewrite big_opS_empty -leibniz_equiv_iff. 
+              rewrite big_opS_singleton. rewrite /monoid_unit /=.
+              rewrite /ccmunit /lift_unit /ccmop_inv in H'. 
+              apply set_equiv_subseteq. split; try done. intros k' Hk'.
+              rewrite elem_of_difference in Hk'. destruct Hk' as [Hk1' Hk2'].
+              rewrite /outset nzmap_elem_of_dom_total /ccmunit /= /nat_unit in Hk1'.
+              rewrite /S nzmap_elem_of_dom_total2 /ccmunit /= /nat_unit in Hk2'. 
+              rewrite nzmap_eq in H'. pose proof H' k' as H'. 
+              rewrite nzmap_lookup_empty lookup_total_lifting_inv /ccmunit /= in H'.
+              rewrite /ccmop_inv /ccm_opinv /= /nat_unit /nat_opinv in H'.
+              rewrite Hk2' in H'. clear -Hk1' H'. exfalso. lia.
+            - assert (dom (out_map Ic1') = {[cn]}) as H''.
+              { rewrite /Ic1' /=. rewrite -leibniz_equiv_iff. 
+                rewrite nzmap_dom_insert_nonzero /dom. clear; set_solver. done. }
+              rewrite H''. rewrite -leibniz_equiv_iff !big_opS_singleton.
+              rewrite /Ic1' /outset /S {1}/out /= nzmap_lookup_total_insert.
+              rewrite /ccmop_inv. apply set_equiv_subseteq. split.
+              + intros k' Hk'. rewrite nzmap_elem_of_dom_total /ccmunit /= in Hk'.
+                rewrite lookup_total_lifting_inv /ccmop_inv /ccm_opinv /= in Hk'.
+                rewrite /nat_opinv /nat_unit in Hk'. 
+                pose proof HOut_Ic1 cn k' as H1'. pose proof Hout_pc k' as H1''.
+                assert (out Ic1 cn !!! k' = 1 ∧ out_pc !!! k' = 0) as [Hk1 Hk2].
+                { set a := out Ic1 cn !!! k'. set b := out_pc !!! k'.
+                  rewrite -/a -/b in H1'' H1' Hk'. clear -H1'' H1' Hk'; lia. }
+                rewrite elem_of_difference. split. rewrite nzmap_elem_of_dom_total.
+                rewrite Hk1; try done. rewrite nzmap_elem_of_dom_total2 Hk2. done.
+              + intros k' Hk'. rewrite elem_of_difference in Hk'.
+                destruct Hk' as [Hk1' Hk2']. rewrite nzmap_elem_of_dom_total in Hk1'.
+                rewrite nzmap_elem_of_dom_total2 in Hk2'. 
+                rewrite nzmap_elem_of_dom_total lookup_total_lifting_inv Hk2'.
+                rewrite ccm_pinv_unit. done. }
           assert (flow_constraints_I c Ic1' true (Some cn) (Key s1 c)) as Hc'.
           { destruct Hc as (Hc1&Hc2&Hc3&Hc4&Hc5&Hc6&Hc7). 
             split; last split; last split; last split; last split; 
@@ -395,8 +480,21 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               clear -Hc4 S_sub_c1; set_solver.
             - rewrite Insets_Ic1'. intros k'. rewrite elem_of_difference.
               intros [Hk1' Hk2']. by apply Hc5.
-            - admit.
-            - admit. }
+            - intros k'. rewrite /Ic1' /inf /= lookup_insert /=.
+              rewrite /ccmop_inv lookup_total_lifting_inv /ccmop_inv /ccm_opinv /=.
+              rewrite /nat_opinv.  
+              set a := default 0%CCM (inf_map Ic1 !! c) !!! k'.
+              assert (a ≤ 1) as H'. pose proof HInf_Ic1 k' as H'.
+              rewrite /inf in H'. done. clear -H'; lia.
+            - intros n' k'. rewrite /Ic1' /out /=.
+              destruct (decide (n' = cn)) as [-> | Hn'cn].
+              + rewrite nzmap_lookup_total_insert. rewrite /ccmop_inv.
+                rewrite lookup_total_lifting_inv /ccmop_inv /ccm_opinv /= /nat_opinv.
+                set a := (out_map Ic1 !!! cn) !!! k'.
+                assert (a ≤ 1) as H'. pose proof HOut_Ic1 cn k' as H'.
+                rewrite /out in H'. done. clear -H'; lia.
+              + rewrite nzmap_lookup_total_insert_ne; try done.
+                rewrite !nzmap_lookup_empty /ccmunit /= /nat_unit. clear; lia. }
           iAssert (hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as "Hist".
           { admit. }
           iAssert (▷ helping_inv N γ_t γ_r γ_td1 γ_td2 γ_ght M1')%I with
@@ -443,7 +541,10 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             { rewrite Hs1 /FP -Dom_I1 in FP_p1 FP_c1. 
               clear -FP_c1 FP_p1; set_solver. }
             clear -H' Dom_I1; set_solver. }
-          assert (p ≠ tl) as p_neq_tl. admit.
+          assert (p ≠ tl) as p_neq_tl. 
+          { intros ->. destruct PT_s1 as ((_&_&H'&_)&_). clear -H' Key_p1; lia. }
+          assert (cn ∈ FP s1) as FP_cn1.
+          { destruct PT_s1 as (_&_&_&_&H'&_). by pose proof H' c cn 0 Next_c1. }
           assert (per_tick_inv s1') as PT_s1'.
           { destruct PT_s1 as (PT1'&PT2'&PT3'&PT4'&PT5'&PT6').
             split; last split; last split; last split; last split.
@@ -453,7 +554,27 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               + rewrite HK. apply PT13'.
               + by rewrite FP_s1'.
               + by rewrite FP_s1'.
-            - rewrite /s1' /GFI /FP /FI. admit.
+            - rewrite /GFI. rewrite FP_s1'. rewrite /GFI in PT2'.
+              assert (FP s1 = FP s1 ∖ {[p;c]} ∪ {[p;c]}) as H'.
+              { apply set_eq_subseteq. split; clear -FP_p1 FP_c1; try set_solver.
+                intros x Hx. rewrite elem_of_union. 
+                destruct (decide (x ∈ ({[p;c]}: gset Node))) as [H' | H'].
+                right. done. left; by rewrite elem_of_difference. } rewrite H'.
+              rewrite big_opS_union; last first. clear; set_solver.
+              assert (([^op set] y ∈ {[p;c]}, FI s1' y) = Ip1' ⋅ Ic1') as ->.
+              { rewrite big_opS_union; last first. clear -p_neq_c; set_solver.
+                rewrite !big_opS_singleton. rewrite /FI /s1' /I1'.
+                rewrite lookup_insert_ne; try done. by rewrite !lookup_insert. }
+              assert (([^op set] y ∈ (FP s1 ∖ {[p; c]}), FI s1' y) = 
+              ([^op set] y ∈ (FP s1 ∖ {[p; c]}), FI s1 y)) as ->.
+              { apply big_opS_ext. intros x Hx. rewrite /FI /s1' Hs1 /I1'.
+                rewrite !lookup_insert_ne; try done. all: clear -Hx; set_solver. }
+              rewrite Heq. rewrite H' big_opS_union in PT2'; last first.
+              clear; set_solver. 
+              assert (([^op set] y ∈ {[p; c]}, FI s1 y) = Ip1 ⋅ Ic1) as H''.
+              { rewrite big_opS_union; last first. clear -p_neq_c; set_solver.
+                rewrite !big_opS_singleton. rewrite -!I1_eq_s1. done. } 
+              rewrite H'' in PT2'. done.
             - intros n Hn. rewrite FP_s1' in Hn. apply PT3' in Hn.
               destruct (decide (n = p)) as [-> | Hnp].
               + rewrite HNp HK HIp HM HT.
@@ -463,7 +584,10 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 * intros i'. destruct (decide (i' = 0)) as [-> | Hi'i].
                   rewrite lookup_insert. split; try done.
                   rewrite lookup_insert_ne; try done.
-                * rewrite dom_insert_L Hn3. admit.
+                * rewrite dom_insert_L Hn3.
+                  assert (0 ∈ gset_seq 0 (Height s1 p - 1)) as H'.
+                  { rewrite elem_of_gset_seq; split; clear; lia. }
+                  clear -H'; set_solver.
                 * rewrite lookup_insert Mark_p1. done.
               + destruct (decide (n = c)) as [-> | Hnc]; last first.
                 { rewrite HK HM HT. rewrite HN; try done. rewrite HI; try done. }
@@ -473,16 +597,22 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                   try done. rewrite Mark_c1 Next_c1. done.
             - intros n1 n2 i'. destruct (decide (n1 = p)) as [-> | Hn1p].
               + rewrite /Nexti HNp !HK. destruct (decide (i' = 0)) as [-> | Hi'i].
-                rewrite lookup_insert. intros [=<-]. admit.
+                rewrite lookup_insert. intros [=<-]. clear -Key_pc Key_ccn. lia.
                 rewrite lookup_insert_ne; try done. apply PT4'.
               + rewrite !HK /Nexti HN; try done. apply PT4'. 
             - intros n1 n2 i'. rewrite FP_s1'. 
               destruct (decide (n1 = p)) as [-> | Hn1p].
               + rewrite /Nexti HNp. destruct (decide (i' = 0)) as [-> | Hi'i].
-                rewrite lookup_insert. intros [=<-]. admit.
+                rewrite lookup_insert. intros [=<-]. done.
                 rewrite lookup_insert_ne; try done. apply PT5'.
               + rewrite /Nexti HN; try done. apply PT5'.
-            - admit. }
+            - intros n1 n2 i. rewrite /Nexti. 
+              destruct (decide (n1 = p)) as [-> | Hn1p]; last first.
+              { rewrite HT HN; try done. apply PT6'. }
+              rewrite HNp. destruct (decide (i = 0)) as [-> | Hi0].
+              + rewrite lookup_insert HT. intros [=<-]. apply PT3' in FP_cn1.
+                destruct FP_cn1 as (_&_&_&_&H'&_). clear -H'; lia.
+              + rewrite HT lookup_insert_ne; try done. apply PT6'. }
           assert (transition_inv s1 s1') as Trans_s1.
           { repeat split; try rewrite FP_s1'; try done; last first.
             - intros n i' Hfp. rewrite /Marki HM. done.
@@ -503,17 +633,29 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             intros x Hx. iIntros "Hn". rewrite HK HM HT HN. done.
             clear -Hx; set_solver.
             iApply (big_sepS_mono with "Nodes_KS"); try done.
-            intros x Hx. iIntros "Hn". admit. 
-            (*
+            intros x Hx. iIntros "Hn".
             assert (Content s1' x = Content s1 x) as ->.
-            rewrite /Content HK /Marki HM. done. done.*) }
+            { rewrite /Content /Marki HM HK. done. }
+            destruct (decide (x = p)) as [-> | Hxp].
+            { assert (keyset (FI s1' p) = keyset (FI s1 p)) as ->.
+              { rewrite HIp -I1_eq_s1 /keyset Insets_Ip1' Outsets_Ip1'. done. }
+              done. }
+            destruct (decide (x = c)) as [-> | Hxc].
+            { assert (keyset (FI s1' c) = keyset (FI s1 c)) as ->.
+              { rewrite HIc -I1_eq_s1 /keyset Insets_Ic1' Outsets_Ic1'. 
+                destruct Hc as (_&_&_&H'&_). rewrite /keyset in H'. 
+                clear -S_sub_c1 H'; set_solver. }
+              done. }
+            rewrite HI; try done. }
 
           iAssert (∃ s, past_state γ_m t0 s ∗ ⌜traversal_inv s 0 k p cn⌝)%I 
             as "#HtrInv'".
-          { iExists s1'. iFrame "#". iPureIntro. repeat split.
-            rewrite FP_s1'; try done. admit. rewrite HK.
+          { iExists s1'. iFrame "#". iPureIntro. 
+            repeat split; try (by rewrite FP_s1'). rewrite HK. 
             admit. rewrite /Marki HM Mark_p1. done. rewrite /Nexti HNp.
-            by rewrite lookup_insert. admit. admit. }  
+            by rewrite lookup_insert. rewrite HT. 
+            apply PT_s1 in FP_p1. apply FP_p1. rewrite HT. 
+            apply PT_s1 in FP_cn1. apply FP_cn1. }  
           iModIntro. iSplitR "Hpost".
           { iNext. iExists M1', (T1+1), s1'. iFrame "∗#%".
             iPureIntro; rewrite /M1'; split; last split.
@@ -566,9 +708,38 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { by rewrite /FI /s1' Hs1. }
           assert (∀ n, Height s1' n = Height s1 n) as HT.
           { by rewrite /FI /s1' Hs1. }
-          assert (p ≠ tl) as p_neq_tl. admit.
-          assert (Key s1 p < Key s1 cn) as Key_pcn. admit.
-          assert (cn ∈ FP s1) as FP_cn1. admit.
+          assert (Key s1 p < Key s1 c) as Key_pc.
+          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
+            by pose proof PT p c i Next_p1. }
+          assert (c ∈ FP s1) as FP_c1.
+          { admit. }
+          assert (Next s1 c !! i = Some cn) as Next_c1.
+          { admit. }
+          assert (i < Height s1 p) as HT_pi. { admit. }
+          assert (i < Height s1 c) as HT_ci. 
+          { destruct PT_s1 as (_&_&_&_&_&H'). rewrite /Nexti in H'.
+            by pose proof H' p c i Next_p1. }
+          assert (i < Height s1 cn) as HT_cni. 
+          { destruct PT_s1 as (_&_&_&_&_&H'). rewrite /Nexti in H'.
+            by pose proof H' c cn i Next_c1. }
+          assert (Key s1 p < W) as Key_p1.
+          { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
+            destruct FP_c1 as (_&_&_&_&_&H'&_). clear -H' Key_pc. lia. }
+          assert (Key s1 c < Key s1 cn) as Key_ccn.
+          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
+            by pose proof PT c cn i Next_c1. }
+          assert (p ≠ c) as p_neq_c.
+          { intros ->. clear -Key_pc; lia. }
+          assert (c ≠ cn) as c_neq_cn.
+          { intros ->. clear -Key_ccn; lia. }
+          assert (p ≠ cn) as p_neq_cn.
+          { intros ->. clear -Key_pc Key_ccn. lia. }
+          assert (p ≠ tl) as p_neq_tl.
+          { intros ->. destruct PT_s1 as ((_&_&H'&_)&_). clear -H' Key_p1; lia. }
+          assert (cn ∈ FP s1) as FP_cn1.
+          { destruct PT_s1 as (_&_&_&_&H'&_). by pose proof H' c cn i Next_c1. }
+          assert (Key s1 p < Key s1 cn) as Key_pcn.
+          { clear -Key_pc Key_ccn; lia. }
           iAssert (⌜snapshot_constraints s1'⌝)%I as "SShot1'".
           { iPureIntro. exists FP1, C1, Ht1, Mk1, Nx1', Ky1, I1.
             repeat split; try done.
@@ -595,7 +766,10 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 * intros i'. destruct (decide (i' = i)) as [-> | Hi'i].
                   rewrite lookup_insert. split; try done.
                   rewrite lookup_insert_ne; try done.
-                * rewrite dom_insert_L Hn3. admit.
+                * rewrite dom_insert_L Hn3. 
+                  assert (i ∈ gset_seq 0 (Height s1 p - 1)) as H'.
+                  rewrite elem_of_gset_seq. split; try lia.
+                  clear -H'; set_solver.
                 * rewrite lookup_insert_ne; try done.
               + rewrite HK HT HI HM. rewrite HN; try done.
             - intros n1 n2 i'. destruct (decide (n1 = p)) as [-> | Hn1p].
@@ -609,7 +783,12 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 rewrite lookup_insert. intros [=<-]. done. 
                 rewrite lookup_insert_ne; try done. apply PT5'.
               + rewrite /Nexti HN; try done. apply PT5'.
-            - admit. }
+            - intros n1 n2 i'. rewrite /Nexti. 
+              destruct (decide (n1 = p)) as [-> | Hn1p]; last first.
+              { rewrite HT HN; try done. apply PT6'. }
+              rewrite HNp. destruct (decide (i' = i)) as [-> | Hii'].
+              + rewrite lookup_insert HT. intros [=<-]. done.
+              + rewrite HT lookup_insert_ne; try done. apply PT6'. }
           assert (transition_inv s1 s1') as Trans_s1.
           { repeat split; try rewrite FP_s1'; try done; last first.
             - intros n i' Hfp. rewrite /Marki HM. done.
@@ -639,7 +818,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { iExists s1'. iFrame "#". iPureIntro. repeat split.
             rewrite FP_s1'; try done. rewrite FP_s1'; try done.
             admit. rewrite /Marki HM Mark_p1. done. rewrite /Nexti HNp.
-            by rewrite lookup_insert. admit. admit. }  
+            by rewrite lookup_insert. all: by rewrite HT. }  
           iModIntro. iSplitR "Hpost".
           { iNext. iExists M1', (T1+1), s1'. iFrame "∗#%".
             iPureIntro; rewrite /M1'; split; last split.
