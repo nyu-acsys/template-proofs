@@ -400,15 +400,20 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (0 ≤ k ≤ W)
     ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
-  Definition hd_tl_inv s : Prop :=
-      (∀ i, Marki s hd i = false)
-    ∧ (Key s hd = 0)
-    ∧ (Key s tl = W)
-    ∧ (hd ∈ FP s)
-    ∧ (tl ∈ FP s).
+  Definition hd_tl_inv (fp: gset Node) k_hd k_tl (mhd mtl: gmap nat bool)
+    (nhd: gmap nat Node) ht_hd ht_tl : Prop :=
+      {[hd; tl]} ⊆ fp
+    ∧ (k_hd = 0)
+    ∧ (k_tl = W)
+    ∧ (∀ i, mhd !!! i = false)
+    ∧ (∀ i, mtl !!! i = false)
+    ∧ (nhd !! (L-1) = Some tl)
+    ∧ ht_hd = L
+    ∧ ht_tl = L.
 
   Definition per_tick_inv s : Prop := 
-      hd_tl_inv s
+      hd_tl_inv (FP s) (Key s hd) (Key s tl) (Mark s hd) (Mark s tl)
+        (Next s hd) (Height s hd) (Height s tl)
     ∧ ✓ GFI s
     ∧ (∀ n, n ∈ (FP s) → 
         node_inv_pure n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
