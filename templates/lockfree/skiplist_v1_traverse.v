@@ -985,7 +985,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       clear -H' H'' Hk Range_k. lia. } 
     assert (∀ c, Next s0 p !! i = Some c → traversal_inv s0 i k p c) as Hcase.
     { intros c Hn. destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6). repeat split.
-      done. apply (PT5 p c i). apply Hn. rewrite Hk. apply Htr_s. admit. }
+      done. apply (PT5 p c i). apply Hn. rewrite Hk. apply Htr_s.
+      all: admit. }
     iAssert (past_state γ_m t0 s0) as "Past_s0". { admit. }
     iModIntro. iSplitR "Hpreds Hsuccs Hpost Hj".
     { iNext. iExists M0, T0, s0. iFrame "∗%".

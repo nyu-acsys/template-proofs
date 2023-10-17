@@ -48,7 +48,8 @@ Module MAINTENANCEOP_DELETE.
             ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
             ∗ ⌜xs ≡ₚ seq 1 (h-1)⌝
             ∗ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
-                    ∗ ⌜∀ j, j < i → Marki s c (xs !!! j) = true⌝) }}}
+                    ∗ ⌜∀ j, j < i → Marki s c (xs !!! j) = true⌝)
+            ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete_rec #i #h #perm #c
         {{{ RET #();
               (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
@@ -56,7 +57,7 @@ Module MAINTENANCEOP_DELETE.
             ∗ perm ↦∗ vs }}}.
   Proof.
     iIntros "#HInv". iLöb as "IH" forall (i).
-    iIntros (Φ) "!# (Hperm & %Def_vs & %Perm_xs & #Hmark) Hpost". 
+    iIntros (Φ) "!# (Hperm&%Def_vs&%Perm_xs&#Hmark&%c_neq_hd&%c_neq_tl) Hpost". 
     wp_lam. wp_pures.
     destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures.
     - rewrite bool_decide_eq_true in Hbool.
@@ -77,9 +78,14 @@ Module MAINTENANCEOP_DELETE.
       { (* interpolation *) admit. }
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iDestruct "Nodes" as "(Node_c & Nodes_rest)".
+      assert (Height s0 c = h) as Ht_c0. { admit. }
+      assert (idx < h) as idx_lt_h. 
+      { assert (idx ∈ seq 1 (h-1)) as H'. 
+        { rewrite -Perm_xs elem_of_list_lookup. exists i; try done. }
+        rewrite elem_of_seq in H'. clear -H'; lia. }
       iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
         ∗ ⌜idx < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
-      { admit. }
+      { rewrite Ht_c0. iFrame "Node_c". by iPureIntro. }
       iAaccIntro with "Hpre".
       { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
         iSplitR "Hperm"; try done. iNext; iExists M0, T0, s0. iFrame "∗%#". 
@@ -113,7 +119,7 @@ Module MAINTENANCEOP_DELETE.
             by rewrite lookup_total_insert. }
           iExists s0'. iFrame "Past_s0'". iPureIntro.
           split. rewrite /s0' /FP. by rewrite Hs0 /FP in FP_c0.
-          split. admit.
+          split. rewrite /s0' /Height. rewrite Hs0 /Height in Ht_c0. done.
           intros j Hj'. destruct (decide (j = i)) as [-> | Hji]; try done.
           rewrite /s0' /Marki /Mark /Mk0' lookup_insert Def_mark'.
           rewrite lookup_total_insert_ne. rewrite /Marki in Hj0.
@@ -121,8 +127,7 @@ Module MAINTENANCEOP_DELETE.
           clear -Hji Hj' Hidx Hbool Perm_xs. intros H'. apply Hji.
           assert (is_Some (xs !! j)) as [idx' Hidx'].
           apply lookup_lt_is_Some. rewrite Perm_xs seq_length. lia.
-          assert (idx' = idx) as ->.
-          apply lookup_total_correct in Hidx'. rewrite -Hidx'. admit.
+          assert (idx' = idx) as ->. by rewrite H' list_lookup_total_alt Hidx' /=. 
           assert (NoDup xs) as H''. rewrite Perm_xs. apply NoDup_seq.
           by pose proof NoDup_lookup xs i j idx H'' Hidx Hidx'. }
         assert (FP s0' = FP s0) as FP_s0'.
@@ -151,8 +156,6 @@ Module MAINTENANCEOP_DELETE.
         assert (Mark s0' c = <[idx := true]> (Mark s0 c)) as HMc.
         { rewrite /FI /s0' Hs0 /Mk0' /= lookup_insert Def_mark'.
           by rewrite Hs0 /Mark. }
-        assert (c ≠ hd) as c_neq_hd. admit.
-        assert (c ≠ tl) as c_neq_tl. admit.
         iAssert (⌜snapshot_constraints s0'⌝)%I as "SShot0'".
         { iPureIntro. exists FP0, C0, Ht0, Mk0', Nx0, Ky0, I0.
           repeat split; try done.
@@ -163,13 +166,7 @@ Module MAINTENANCEOP_DELETE.
         assert (per_tick_inv s0') as PT_s0'.
         { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6).
           split; last split; last split; last split; last split.
-          - destruct PT1 as (PT11&PT12&PT13&PT14&PT15). repeat split.
-            + intros i'. rewrite /Marki /Mark /s0' /Mk0' lookup_insert_ne; try done.
-              rewrite /Marki /Mark Hs0 in PT11. apply PT11.
-            + rewrite /Key /s0'. by rewrite /Key Hs0 in PT12.
-            + rewrite /Key /s0'. by rewrite /Key Hs0 in PT13.
-            + by rewrite FP_s0'.
-            + by rewrite FP_s0'.
+          - rewrite FP_s0' !HK HN !HT !HM; try done.
           - rewrite /s0' /GFI /FP /FI. by rewrite Hs0 /GFI /FP /FI in PT2.
           - intros n Hn. rewrite FP_s0' in Hn. apply PT3 in Hn.
             destruct (decide (n = c)) as [-> | Hnc].
@@ -182,12 +179,15 @@ Module MAINTENANCEOP_DELETE.
                 rewrite lookup_total_insert_ne in Hi'; try done.
                 rewrite lookup_total_insert_ne; try done. apply Hn1.
                 exists i'; try done.
-              * admit.
+              * rewrite dom_insert_L Hn4. 
+                assert (idx ∈ gset_seq 0 (Height s0 c - 1)) as H'.
+                rewrite elem_of_gset_seq. split; try lia.
+                clear -H'; set_solver.
               * rewrite lookup_total_insert_ne; try done.
             + rewrite HT HN HK HI HM; try done.
           - intros n1 n2 i'. rewrite /Nexti. rewrite HN !HK. apply PT4.
           - intros n1 n2 i'. rewrite /Nexti. rewrite HN FP_s0'. apply PT5.
-          - intros n1 n2 i'. rewrite /Nexti HT. admit. }
+          - intros n1 n2 i'. rewrite /Nexti HT HN. apply PT6. }
         assert (transition_inv s0 s0') as Trans_s0.
         { repeat split; try rewrite FP_s0'; try done; last first.
           intros n i' Hn; rewrite /Marki; intros Hm.
@@ -196,8 +196,12 @@ Module MAINTENANCEOP_DELETE.
             + by rewrite lookup_total_insert.
             + by rewrite lookup_total_insert_ne.
           - by rewrite HM.
-          - admit.
-          - admit. }
+          - intros n. destruct (decide (n = c)) as [-> | Hnc].
+            rewrite /Marki HMc lookup_total_insert_ne; try done.
+            intros Hn1 Hn2. rewrite Hn1 in Hn2. clear -Hn2; done.
+            rewrite /Marki HM; try done.
+            intros Hn1 Hn2. rewrite Hn1 in Hn2. clear -Hn2; done.
+          - intros n i'. rewrite /Nexti HN. clear; try done. }
         iAssert (resources γ_ks s0')%I 
           with "[GKS Nodes_KS Node_c Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s0'. iSplitR "Nodes_KS".
@@ -238,7 +242,7 @@ Module MAINTENANCEOP_DELETE.
           iAssert (⌜Marki s0 c (xs !!! i) = true⌝)%I as %Hi.
           { iPureIntro. rewrite list_lookup_total_alt Hidx /=. done. }
           iExists s0. iSplitL. iExists T0. admit.
-          iPureIntro; split; try done. split. admit.
+          iPureIntro; split; try done. split. done.
           intros j Hj. destruct (decide (j = i)) as [-> | Hji]; try done.
           apply Hj0. lia. }
         iModIntro. iSplitR "Hperm Hpost".
@@ -260,13 +264,13 @@ Module MAINTENANCEOP_DELETE.
     
   Lemma maintenanceOp_delete_spec N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght t0 c:
       main_inv N γ_t γ_s γ_m γ_td1 γ_td2 γ_ght -∗
-        {{{ ∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ }}}
+        {{{ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝) ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete #c
         {{{ RET #();
               (∃ s h, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
                     ∗ ⌜∀ i, 1 ≤ i < h → Marki s c i = true⌝) }}}.
   Proof.
-    iIntros "#HInv". iIntros (Φ) "!# #FP_c Hpost".
+    iIntros "#HInv". iIntros (Φ) "!# (#FP_c & %c_neq_hd & %c_neq_tl) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done. 
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     { admit. }

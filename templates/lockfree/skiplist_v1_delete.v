@@ -76,21 +76,24 @@ Module SKIPLIST1_SPEC_DELETE.
   Proof.
     iIntros "#HInv #HUpd #Thd". iIntros (Φ) "!# AU Hpost".
     assert (0 < k < W) as Range_k. { admit. }
+    assert (1 < L) as HL. { admit. }
     wp_lam. wp_pures. 
     wp_apply traverse_spec; try done.
     iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & #HtrInv)".  
     wp_pures. destruct res; wp_pures.
-    - set c := ss !!! 0.
+    - assert (is_Some(ss !! 0)) as [c Hss0].
+      { rewrite lookup_lt_is_Some. admit. }
       wp_apply (wp_load_offset _ _ _ (DfracOwn (pos_to_Qp 1)) _ 
         ((λ n : loc, #n) <$> ss) #c with "[Hsuccs]"); try done.
-      { rewrite list_lookup_fmap. simpl. admit. }
+      { by rewrite list_lookup_fmap Hss0 /=. }
       { iNext. unfold is_array. admit. }
       iIntros "Hsuccs". wp_pures.
       wp_apply (maintenanceOp_delete_spec with "[] []"); try done.
-      { iAssert (⌜0 < L⌝)%I as "H'". admit.
+      { iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
         iPoseProof ("HtrInv" with "H'") as "H''". 
         iDestruct "H''" as (s)"#(Hpast & %Htr & %H')". rewrite -/c in Htr.
-        iExists s; iFrame "#". iPureIntro; apply Htr. }
+        iExists s; iFrame "#". apply list_lookup_total_correct in Hss0.
+        rewrite Hss0 in Htr. iPureIntro; apply Htr. }
       iIntros "#Hmnt". wp_pure credit:"Hcred". wp_pures.
       awp_apply markNode_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
@@ -101,9 +104,13 @@ Module SKIPLIST1_SPEC_DELETE.
       { (* interpolation *) admit. }
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iDestruct "Nodes" as "(Node_c & Nodes_rest)".
+      iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
+      { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
+        apply leibniz_equiv in Habs0. rewrite <-Habs0.
+        by apply PT0. }
       iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
         ∗ ⌜0 < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
-      { admit. }
+      { iFrame "Node_c". iPureIntro. apply PT_s0 in FP_c0. apply FP_c0. }
       iAaccIntro with "Hpre".
       { iIntros "(Node_c & _)". iModIntro. 
         iSplitR "AU Hcred Hpreds Hsuccs Hpost"; try done.
@@ -124,10 +131,6 @@ Module SKIPLIST1_SPEC_DELETE.
       + iDestruct "Hif" as %[Mark_c0 Def_mark'].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
           [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
-        iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
-        { iDestruct "Hist" as (M0')"(_&_&_&%&_)". iPureIntro.
-          apply leibniz_equiv in Habs0. rewrite <-Habs0.
-          by apply PT0. }
         assert (∀ x, x ∈ FP s0 → flow_constraints_I x (FI s0 x) 
                   (Mark s0 x !!! 0) (Next s0 x !! 0) (Key s0 x)) as Hflow.
         { destruct PT_s0 as (_&_&H'&_).
