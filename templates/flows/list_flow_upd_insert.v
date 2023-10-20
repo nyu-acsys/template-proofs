@@ -54,7 +54,7 @@ Section list_flow_upd_insert.
         clear -n_in_I0 n1_notin_I0.
         set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }  
       assert (∀ x, x ∈ dom I0 → dom (FI (<[n:=In']> I0) x) = {[x]}) 
         as Domm_II.
@@ -509,7 +509,7 @@ Section list_flow_upd_insert.
         clear -n_in_I0 n1_notin_I0.
         set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }  
       assert (insets (FI I n) ≠ ∅) as Insets_n_ne.
       { destruct Inset_k as [k [H1' H1'']]. apply (non_empty_inhabited_L k). 
@@ -687,7 +687,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (insets (FI I n) ≠ ∅) as Insets_n_ne.
       { destruct Inset_k as [k [H1' H1'']]. apply (non_empty_inhabited_L k). 
@@ -811,7 +811,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (insets (FI I n) ≠ ∅) as Insets_n_ne.
       { destruct Inset_k as [k [H1' H1'']]. apply (non_empty_inhabited_L k). 
@@ -918,7 +918,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (n ≠ n1) as n_neq_n1.
       { clear -n1_notin_I0 n_in_I0; set_solver. }
@@ -980,7 +980,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (n ≠ n1) as n_neq_n1.
       { clear -n1_notin_I0 n_in_I0; set_solver. }
@@ -1052,7 +1052,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (n ≠ n1) as n_neq_n1.
       { clear -n1_notin_I0 n_in_I0; set_solver. }
@@ -1193,7 +1193,7 @@ Section list_flow_upd_insert.
       { rewrite /I0' /II. repeat rewrite dom_insert_L.
         clear -n_in_I0 n1_notin_I0. set_solver. }
       assert (n1 ∈ dom I) as n1_in_I.
-      { destruct Hcl as [_ [_ Hcl]].
+      { destruct Hcl as (_&_&Hcl&_).
         by pose proof Hcl n n1 Hnx_n as H'. }
       assert (n ≠ n1) as n_neq_n1.
       { clear -n_in_I0 n1_notin_I0. set_solver. }
@@ -1349,6 +1349,7 @@ Section list_flow_upd_insert.
               outflow_delete_set (inflow_delete_set (FI I x) x S) (Nx !!! x) S)
       ∧ (∀ x k, x ∈ dom II → inf (FI II x) x !!! k ≤ 1)
       ∧ (∀ x x' k, x ∈ dom II → out (FI II x) x' !!! k ≤ 1)
+      ∧ (∀ x, x ∈ dom II → insets (FI I x) ≠ ∅)
       ∧ (∀ x, x ∈ dom II → dom (out_map (FI II x)) = dom (out_map (FI I x)))
       ∧ (∀ x, x ∈ dom II → outsets (FI II x) ⊆ insets (FI II x))
       ∧ (keyset (FI II n0) = keyset (FI I n0) ∪ S)
@@ -1367,7 +1368,7 @@ Section list_flow_upd_insert.
     assert (dom I' = {[n0; n1]}) as Dom_I' by set_solver.
     assert (n1 ∈ dom I') as n1_in_I' by set_solver.
     assert (n1 ∈ dom I) as n1_in_I.
-    { destruct Hcl as [_ [_ Hcl]]. 
+    { destruct Hcl as (_&_&Hcl&_). 
       by apply (Hcl n0). }
     assert (n0 ≠ n1) as n0_neq_n1.
     { pose proof Nx_key n0 n1 Hnx_n0. 
@@ -1618,6 +1619,7 @@ Section list_flow_upd_insert.
     - by apply (list_flow_upd_II' f_decr n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_insert_Inf Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_Out Key n1 R Nx Mk S I I' II nk).
+    - admit.
     - by apply (list_flow_upd_insert_Dom_out Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_Out_In Key n1 R Nx Mk S I I' II nk n0).
     - rewrite /FI 
@@ -1626,7 +1628,7 @@ Section list_flow_upd_insert.
     - by apply (list_flow_upd_insert_KS_nk Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_KS Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_insert_S_in_nk Key n1 R Nx Mk S I I' II nk n0).
-  Qed.
+  Admitted.
 
 End list_flow_upd_insert.
   

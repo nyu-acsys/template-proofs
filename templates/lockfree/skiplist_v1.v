@@ -393,31 +393,31 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition node_inv_pure n h (mark: gmap nat bool) (next: gmap nat Node) 
     k In : Prop :=
       ((∃ i, mark !!! i = false) → mark !!! 0 = false)
-    ∧ (∀ i, next !! i = None ↔ n = tl)
-    ∧ (dom next = gset_seq 0 (h-1)) 
+    ∧ (n ≠ tl → dom next = gset_seq 0 (h-1)) 
     ∧ (dom mark = gset_seq 0 (h-1))
     ∧ (0 < h ≤ L)
     ∧ (0 ≤ k ≤ W)
     ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
-  Definition hd_tl_inv (fp: gset Node) k_hd k_tl (mhd mtl: gmap nat bool)
-    (nhd: gmap nat Node) ht_hd ht_tl : Prop :=
+  Definition hd_tl_inv (fp: gset Node) ht_hd ht_tl (mhd mtl: gmap nat bool)
+    (nhd ntl: gmap nat Node) k_hd k_tl : Prop :=
       {[hd; tl]} ⊆ fp
     ∧ (k_hd = 0)
     ∧ (k_tl = W)
     ∧ (∀ i, mhd !!! i = false)
     ∧ (∀ i, mtl !!! i = false)
     ∧ (nhd !! (L-1) = Some tl)
+    ∧ ntl = ∅
     ∧ ht_hd = L
     ∧ ht_tl = L.
 
   Definition per_tick_inv s : Prop := 
-      hd_tl_inv (FP s) (Key s hd) (Key s tl) (Mark s hd) (Mark s tl)
-        (Next s hd) (Height s hd) (Height s tl)
+      hd_tl_inv (FP s) (Height s hd) (Height s tl) (Mark s hd) (Mark s tl)
+        (Next s hd) (Next s tl) (Key s hd) (Key s tl)
     ∧ ✓ GFI s
     ∧ (∀ n, n ∈ (FP s) → 
         node_inv_pure n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
-    ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → Key s n1 < Key s n2)
+    ∧ (∀ n1 n2, Nexti s n1 0 = Some n2 → Key s n1 < Key s n2)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → i < Height s n2).
   

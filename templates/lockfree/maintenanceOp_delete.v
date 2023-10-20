@@ -166,26 +166,25 @@ Module MAINTENANCEOP_DELETE.
         assert (per_tick_inv s0') as PT_s0'.
         { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6).
           split; last split; last split; last split; last split.
-          - rewrite FP_s0' !HK HN !HT !HM; try done.
+          - rewrite FP_s0' !HK !HN !HT !HM; try done.
           - rewrite /s0' /GFI /FP /FI. by rewrite Hs0 /GFI /FP /FI in PT2.
           - intros n Hn. rewrite FP_s0' in Hn. apply PT3 in Hn.
             destruct (decide (n = c)) as [-> | Hnc].
             + rewrite HT HN HK HI HMc.
-              destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7).
-              split; last split; last split; last split; last split; 
-                last split; try done.
+              destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+              split; last split; last split; last split; last split; try done.
               * intros [i' Hi']. destruct (decide (i' = idx)) as [-> | Hi].
                 by rewrite lookup_total_insert in Hi'.
                 rewrite lookup_total_insert_ne in Hi'; try done.
                 rewrite lookup_total_insert_ne; try done. apply Hn1.
                 exists i'; try done.
-              * rewrite dom_insert_L Hn4. 
+              * rewrite dom_insert_L Hn3. 
                 assert (idx ∈ gset_seq 0 (Height s0 c - 1)) as H'.
                 rewrite elem_of_gset_seq. split; try lia.
                 clear -H'; set_solver.
               * rewrite lookup_total_insert_ne; try done.
             + rewrite HT HN HK HI HM; try done.
-          - intros n1 n2 i'. rewrite /Nexti. rewrite HN !HK. apply PT4.
+          - intros n1 n2. rewrite /Nexti. rewrite HN !HK. apply PT4.
           - intros n1 n2 i'. rewrite /Nexti. rewrite HN FP_s0'. apply PT5.
           - intros n1 n2 i'. rewrite /Nexti HT HN. apply PT6. }
         assert (transition_inv s0 s0') as Trans_s0.

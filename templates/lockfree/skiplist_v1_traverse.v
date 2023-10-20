@@ -101,6 +101,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
   Proof.
     iIntros "#HInv #Thd". iLöb as "IH" forall (p c).
     iIntros (Φ) "!# #HtrInv Hpost". wp_lam. wp_pures.
+    assert (1 < L) as HL. admit.
+    assert (0 < k < W) as Range_k. admit.
     awp_apply findNext_spec.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     { admit. }
@@ -110,11 +112,13 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     { (* interpolation *) admit. }
     rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
-    iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
-      ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
+    iAssert (⌜i < Height s0 c⌝)%I as %Height_c0.
     { iDestruct "HtrInv" as (s)"(Past_s & %Htr_s)". 
       assert (Height s c = Height s0 c) as H'. admit.
-      iFrame "Node_c". iPureIntro. rewrite -H'. apply Htr_s. }
+      iPureIntro. rewrite -H'. apply Htr_s. }
+    iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+      ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
+    { iFrame "Node_c %". }
     iAaccIntro with "Hpre".
     { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
       iNext; iExists M0, T0, s0. iFrame "∗%#". 
@@ -126,9 +130,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       apply leibniz_equiv in Habs0. rewrite <-Habs0.
       by apply PT0. }
     assert (Mark s0 c !!! i = true → Next s0 c !! i = None → false) as Hcontra.
-    { intros Hm Hn. apply PT_s0 in FP_c0. destruct FP_c0 as (_&H'&_).
-      apply H' in Hn. subst c. destruct PT_s0 as ((_&_&_&_&H''&_)&_). 
-      pose proof H'' i as H''. rewrite Hm in H''. done. } clear PT_s0.
+    { intros Hm Hn. apply PT_s0 in FP_c0. 
+      assert (c ≠ tl) as Hctl. admit.
+      destruct FP_c0 as (_&H'&H''&_). apply H' in Hctl. 
+      apply not_elem_of_dom in Hn. rewrite Hctl in Hn. apply Hn.
+      rewrite elem_of_gset_seq. lia. } clear PT_s0.
     iModIntro. iSplitR "Hpost".
     { iNext. iExists M0, T0, s0. iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
@@ -180,7 +186,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           assert (∀ x, x ∈ FP s1 → flow_constraints_I x (FI s1 x) 
                   (Mark s1 x !!! 0) (Next s1 x !! 0) (Key s1 x)) as Hflow.
           { destruct PT_s1 as (_&_&H'&_).
-            intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&_&?). }
+            intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
           assert (∀ x, I1 !!! x = FI s1 x) as I1_eq_s1.
           { intros x. rewrite Hs1; unfold FI. try done. }
           assert (flow_constraints_I p Ip1 false (Some c) (Key s1 p)) as Hp.
@@ -189,13 +195,13 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { apply Hflow in FP_c1. by rewrite -I1_eq_s1 Next_c1 Mark_c1 in FP_c1. }
           assert (Key s1 p < Key s1 c) as Key_pc.
           { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
-            by pose proof PT p c 0 Next_p1. }
+            by pose proof PT p c Next_p1. }
           assert (Key s1 p < W) as Key_p1.
           { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
-            destruct FP_c1 as (_&_&_&_&_&H'&_). clear -H' Key_pc. lia. }
+            destruct FP_c1 as (_&_&_&_&H'&_). clear -H' Key_pc. lia. }
           assert (Key s1 c < Key s1 cn) as Key_ccn.
           { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
-            by pose proof PT c cn 0 Next_c1. }
+            by pose proof PT c cn Next_c1. }
           assert (p ≠ c) as p_neq_c.
           { intros ->. clear -Key_pc; lia. }
           assert (c ≠ cn) as c_neq_cn.
@@ -558,8 +564,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             split; last split; last split; last split; last split.
             - rewrite FP_s1' !HK !HM !HT. repeat split; try apply PT1'. 
               destruct (decide (p = hd)) as [-> | Hphd]. 
-              rewrite HNp. rewrite lookup_insert_ne. apply PT1'. admit.
-              rewrite HN; try done. apply PT1'.
+              rewrite HNp. rewrite lookup_insert_ne. apply PT1'. clear -HL; lia.
+              all: rewrite HN; try done; apply PT1'.
             - rewrite /GFI. rewrite FP_s1'. rewrite /GFI in PT2'.
               assert (FP s1 = FP s1 ∖ {[p;c]} ∪ {[p;c]}) as H'.
               { apply set_eq_subseteq. split; clear -FP_p1 FP_c1; try set_solver.
@@ -584,27 +590,23 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             - intros n Hn. rewrite FP_s1' in Hn. apply PT3' in Hn.
               destruct (decide (n = p)) as [-> | Hnp].
               + rewrite HNp HK HIp HM HT.
-                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7).
-                split; last split; last split; last split; last split; 
-                  last split; try done.
-                * intros i'. destruct (decide (i' = 0)) as [-> | Hi'i].
-                  rewrite lookup_insert. split; try done.
-                  rewrite lookup_insert_ne; try done.
-                * rewrite dom_insert_L Hn3.
-                  assert (0 ∈ gset_seq 0 (Height s1 p - 1)) as H'.
+                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+                split; last split; last split; last split; last split; try done.
+                * intros H'. assert (H1' := H'). apply Hn2 in H1'. 
+                  rewrite dom_insert_L H1'.
+                  assert (0 ∈ gset_seq 0 (Height s1 p - 1)) as H''.
                   { rewrite elem_of_gset_seq; split; clear; lia. }
-                  clear -H'; set_solver.
+                  clear -H''; set_solver. 
                 * rewrite lookup_insert Mark_p1. done.
               + destruct (decide (n = c)) as [-> | Hnc]; last first.
                 { rewrite HK HM HT. rewrite HN; try done. rewrite HI; try done. }
                 rewrite HK HM HT HIc HN; try done.
-                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7).
-                split; last split; last split; last split; last split; last split;
+                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+                split; last split; last split; last split; last split;
                   try done. rewrite Mark_c1 Next_c1. done.
-            - intros n1 n2 i'. destruct (decide (n1 = p)) as [-> | Hn1p].
-              + rewrite /Nexti HNp !HK. destruct (decide (i' = 0)) as [-> | Hi'i].
+            - intros n1 n2. destruct (decide (n1 = p)) as [-> | Hn1p].
+              + rewrite /Nexti HNp !HK.
                 rewrite lookup_insert. intros [=<-]. clear -Key_pc Key_ccn. lia.
-                rewrite lookup_insert_ne; try done. apply PT4'.
               + rewrite !HK /Nexti HN; try done. apply PT4'. 
             - intros n1 n2 i'. rewrite FP_s1'. 
               destruct (decide (n1 = p)) as [-> | Hn1p].
@@ -617,7 +619,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               { rewrite HT HN; try done. apply PT6'. }
               rewrite HNp. destruct (decide (i = 0)) as [-> | Hi0].
               + rewrite lookup_insert HT. intros [=<-]. apply PT3' in FP_cn1.
-                destruct FP_cn1 as (_&_&_&_&H'&_). clear -H'; lia.
+                destruct FP_cn1 as (_&_&_&H'&_). clear -H'; lia.
               + rewrite HT lookup_insert_ne; try done. apply PT6'. }
           assert (transition_inv s1 s1') as Trans_s1.
           { repeat split; try rewrite FP_s1'; try done; last first.
@@ -717,12 +719,19 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { by rewrite /FI /s1' Hs1. }
           assert (∀ n, Height s1' n = Height s1 n) as HT.
           { by rewrite /FI /s1' Hs1. }
+          
+          (*
           assert (Key s1 p < Key s1 c) as Key_pc.
           { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
             by pose proof PT p c i Next_p1. }
+          *)
+          assert (Key s1 p < k) as Key_pk.
+          { admit. }
           assert (c ∈ FP s1) as FP_c1.
           { admit. }
           assert (Next s1 c !! i = Some cn) as Next_c1.
+          { admit. }
+          assert (Mark s1 c !!! i = true) as Mark_c1.
           { admit. }
           assert (i < Height s1 p) as HT_pi. { admit. }
           assert (i < Height s1 c) as HT_ci. 
@@ -731,24 +740,15 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           assert (i < Height s1 cn) as HT_cni. 
           { destruct PT_s1 as (_&_&_&_&_&H'). rewrite /Nexti in H'.
             by pose proof H' c cn i Next_c1. }
-          assert (Key s1 p < W) as Key_p1.
-          { destruct PT_s1 as (_&_&PT&_). apply PT in FP_c1.
-            destruct FP_c1 as (_&_&_&_&_&H'&_). clear -H' Key_pc. lia. }
-          assert (Key s1 c < Key s1 cn) as Key_ccn.
-          { destruct PT_s1 as (_&_&_&PT&_). rewrite /Nexti in PT.
-            by pose proof PT c cn i Next_c1. }
+          assert (Key s1 p < W) as Key_pW.
+          { clear -Key_pk Range_k; lia. }
+
           assert (p ≠ c) as p_neq_c.
-          { intros ->. clear -Key_pc; lia. }
-          assert (c ≠ cn) as c_neq_cn.
-          { intros ->. clear -Key_ccn; lia. }
-          assert (p ≠ cn) as p_neq_cn.
-          { intros ->. clear -Key_pc Key_ccn. lia. }
+          { intros ->. rewrite Mark_c1 in Mark_p1. done. }
           assert (p ≠ tl) as p_neq_tl.
-          { intros ->. destruct PT_s1 as ((_&_&H'&_)&_). clear -H' Key_p1; lia. }
+          { intros ->. destruct PT_s1 as ((_&_&H'&_)&_). clear -H' Key_pW; lia. }
           assert (cn ∈ FP s1) as FP_cn1.
           { destruct PT_s1 as (_&_&_&_&H'&_). by pose proof H' c cn i Next_c1. }
-          assert (Key s1 p < Key s1 cn) as Key_pcn.
-          { clear -Key_pc Key_ccn; lia. }
           iAssert (⌜snapshot_constraints s1'⌝)%I as "SShot1'".
           { iPureIntro. exists FP1, C1, Ht1, Mk1, Nx1', Ky1, I1.
             repeat split; try done.
@@ -756,8 +756,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             assert (p ∈ dom Nx1). 
             { rewrite Hs1 in FP_p1. rewrite Dom_Nx1. by unfold FP in FP_p1. }
             clear -H Dom_Nx1. set_solver. }
-          assert (Mark s1 c !!! i = true) as Mark_c1.
-          { admit. }
+          
           assert (per_tick_inv s1') as PT_s1'.
           { destruct PT_s1 as (PT1'&PT2'&PT3'&PT4'&PT5'&PT6').
             split; last split; last split; last split; last split.
@@ -768,26 +767,22 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               inversion H''. subst c. pose proof H' (L-1) as H'.
               rewrite H' in Mark_c1. clear -Mark_c1; done.
               rewrite lookup_insert_ne; try done. apply PT1'.
-              rewrite HN; try done. apply PT1'.
+              all: rewrite HN; try done; apply PT1'.
             - rewrite /s1' /GFI /FP /FI. by rewrite Hs1 /GFI /FP /FI in PT2'.
             - intros n Hn. rewrite FP_s1' in Hn. apply PT3' in Hn.
               destruct (decide (n = p)) as [-> | Hnp].
               + rewrite HNp HK HI HT HM.
-                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7).
-                split; last split; last split; last split; last split; 
-                  last split; try done.
-                * intros i'. destruct (decide (i' = i)) as [-> | Hi'i].
-                  rewrite lookup_insert. split; try done.
-                  rewrite lookup_insert_ne; try done.
-                * rewrite dom_insert_L Hn3. 
-                  assert (i ∈ gset_seq 0 (Height s1 p - 1)) as H'.
+                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+                split; last split; last split; last split; last split; try done.
+                * intros H'. assert (H1' := H'). apply Hn2 in H1'. 
+                  rewrite dom_insert_L H1'.
+                  assert (i ∈ gset_seq 0 (Height s1 p - 1)) as H''.
                   rewrite elem_of_gset_seq. split; try lia.
-                  clear -H'; set_solver.
+                  clear -H''; set_solver.
                 * rewrite lookup_insert_ne; try done.
               + rewrite HK HT HI HM. rewrite HN; try done.
-            - intros n1 n2 i'. destruct (decide (n1 = p)) as [-> | Hn1p].
-              + rewrite /Nexti HNp !HK. destruct (decide (i = i')) as [-> | Hi'i].
-                rewrite lookup_insert. intros [=<-]. done. 
+            - intros n1 n2. destruct (decide (n1 = p)) as [-> | Hn1p].
+              + rewrite /Nexti HNp !HK. 
                 rewrite lookup_insert_ne; try done. apply PT4'.
               + rewrite !HK /Nexti HN; try done. apply PT4'. 
             - intros n1 n2 i'. rewrite FP_s1'. 
@@ -893,7 +888,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           iExists s. iFrame "#". admit.  
       + wp_pures. iApply "IH". { iExists s0. admit. }
         iFrame.
-    - exfalso; apply Hcontra; try done.
+    - exfalso; apply Hcontra; try done. 
     - iModIntro. iSpecialize ("Hpost" $! (Some (p,c,false))). 
       iEval (rewrite /=) in "Hpost". iApply "Hpost".
       iDestruct "HtrInv" as (s)"(Past_s & Hpc)".
@@ -980,9 +975,12 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       by apply PT0. }
     assert (Key s0 p = Key s p) as Hk. admit.
     assert (Next s0 p !! i = None → false) as Hcontra.
-    { intros Hn. apply PT_s0 in FP_p0. apply FP_p0 in Hn. subst p.
-      destruct Htr_s as (_&_&H'&_). destruct PT_s0 as ((_&_&H''&_)&_).
-      clear -H' H'' Hk Range_k. lia. } 
+    { intros Hn. apply PT_s0 in FP_p0. 
+      assert (p ≠ tl) as H'. admit. apply FP_p0 in H'.
+      apply not_elem_of_dom in Hn. rewrite H' in Hn. apply Hn.
+      rewrite elem_of_gset_seq. split; try lia. 
+      destruct Htr_s as (_&_&_&_&_&H''&_).
+      assert (i+1 < Height s0 p) as H1'. admit. clear -H1'. lia. } 
     assert (∀ c, Next s0 p !! i = Some c → traversal_inv s0 i k p c) as Hcase.
     { intros c Hn. destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6). repeat split.
       done. apply (PT5 p c i). apply Hn. rewrite Hk. apply Htr_s.
@@ -1045,6 +1043,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       {{{ (ps ss: list Node) (res: bool), 
             RET (#preds, #succs, #res);
             is_array preds ps ∗ is_array succs ss
+          ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
           ∗ (∀ i, ⌜i < L⌝ → ∃ s, past_state γ_m t0 s 
                           ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝
                           ∗ ⌜i = 0 → let c := ss !!! 0 in
@@ -1074,6 +1073,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       iApply "Hpost". iFrame "Hpreds Hsuccs". 
       iAssert (⌜i = 0⌝)%I as "Htr0". { iPureIntro; lia. }
       iDestruct ("Hi0" with "Htr0") as "H'".
+      repeat try (iSplitR; first by iPureIntro).
       iIntros (j) "%Hj". destruct (decide (j = 0)) as [-> | Hj0].
       + iDestruct "H'" as (s)"(Hpast_s & #Htr & Hres)".
         iExists s; try iFrame "∗#". iIntros "_". iFrame.
@@ -1097,6 +1097,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       {{{ (preds succs: loc) (ps ss: list Node) (res: bool), 
             RET (#preds, #succs, #res);
             is_array preds ps ∗ is_array succs ss
+          ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
           ∗ (∀ i, ⌜i < L⌝ → ∃ s, past_state γ_m t0 s 
                           ∗ ⌜traversal_inv s i k (ps !!! i) (ss !!! i)⌝
                           ∗ ⌜i = 0 → let c := ss !!! 0 in
@@ -1125,9 +1126,9 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iAssert (∃ s, past_state γ_m t0 s ∗ ⌜traversal_inv s (L-1) k hd tl⌝)%I
       as "#Htr". 
     { iExists s0. iSplitL. admit. iPureIntro.
-      destruct PT_s0 as ((H1'&H2'&H3'&H4'&H5'&H6'&H7'&H8')&_). repeat split.
-      clear -H1'; set_solver. clear -H1'; set_solver. rewrite H2'. lia.
-      by rewrite /Marki H4'. apply H6'. rewrite H7'; lia. rewrite H8'; lia. }
+      destruct PT_s0 as ((PT1&PT2&PT3&PT4&PT5&PT6&PT7&PT8&PT9)&_). repeat split.
+      clear -PT1; set_solver. clear -PT1; set_solver. rewrite PT2. lia.
+      by rewrite /Marki PT4. apply PT6. rewrite PT8; lia. rewrite PT9; lia. }
     iModIntro. iSplitR "Hpost Hpreds Hsuccs".
     { iNext. iExists M0, T0, s0. iFrame "∗%". } iModIntro.
     wp_apply (traverse_rec_spec with "[] [] [Hpreds Hsuccs]"); try done.
@@ -1139,7 +1140,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iSplitR. iPureIntro. rewrite lookup_total_replicate_2. done. lia.
     iFrame "Htr". iIntros (j) "%Hj". 
     assert (j = L-1) as -> by lia. rewrite !lookup_total_replicate_2.
-    all : try lia. iFrame "Htr".
+    all : try lia. iFrame "Htr". 
   Admitted.
 
 End SKIPLIST1_SPEC_TRAVERSE.
