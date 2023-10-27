@@ -32,24 +32,25 @@ Section two_counter.
       "v1" + "v2".
 
   Definition sing_incr: val :=
-    rec: "sing_incr" "l" :=
+    rec: "sing_incr" "l" "p" :=
        let: "oldv" := !"l" in
-       if: CAS "l" "oldv" ("oldv" + #1)
-         then #()
+       let: "v" := (Resolve (CmpXchg "l" "oldv" ("oldv" + #1)) "p" #()) in
+       if: Snd "v"
+         then #0%nat
          else "sing_incr" "l".
 
   Definition incr: val :=
-    λ: "l1" "l2", 
+    λ: "l1" "l2" "p", 
       let: "random" := nondet_bool #() in
        if: "random"
-        then sing_incr "l1"
-        else sing_incr "l2".
+        then sing_incr "l1" "p"
+        else sing_incr "l2" "p".
         
   Definition dsOp : val :=
-    λ: "OP" "l1" "l2",
+    λ: "OP" "l1" "l2" "p",
       if: "OP" = #0 
       then read "l1" "l2"
-      else incr "l1" "l2".
+      else incr "l1" "l2" "p".
 
   Inductive Op := readOp | incrOp.
 
@@ -84,7 +85,7 @@ Section two_counter.
   Definition seq_spec (op: Op) (C: absT) (C': absT) (res: resT) : Prop :=
     match op with
     | readOp => (C' = C) ∧ (res = C)
-    | incrOp => (C' = C + 1) ∧ (res = C)
+    | incrOp => (C' = C + 1) ∧ (res = 0)
     end.
 
   Global Instance seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
@@ -205,7 +206,6 @@ Section two_counter.
   
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
-  
 
   Definition map_max (M: gmap nat snapshot) : nat := 
     max_list (elements (dom M)).
@@ -236,7 +236,8 @@ Section two_counter.
   Definition au N γ_r op (Q : val → iProp) := 
     (AU << ∃∃ a, dsRep γ_r a >> 
           @ ⊤ ∖ (↑(cntrN N) ∪ ↑(threadN N)), ∅
-        << ∀∀ a' res (res': resT), dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝, COMM Q #res' >>)%I.
+        << ∀∀ a' res, dsRep γ_r a' 
+          ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
 
   Definition past_lin M T op res t0 : iProp :=
     ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
@@ -256,67 +257,32 @@ Section two_counter.
   Definition past_lin_witness γ_m op res t0 : iProp :=
     ∃ s, past_state γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝.
 
-  Definition Pending M T op vp t0 : iProp := 
-    ¬ past_lin M T op vp t0.
+  Definition Pending P M T op vp t0 : iProp := 
+      P ∗ £1 ∗ ¬ past_lin M T op vp t0.
 
-  Definition Done N γ_tk (P: iProp) (Q: val → iProp) M T op (vp: resT) t0 : iProp := 
-      past_lin M T op vp t0
-    ∗ ((P -∗ |={⊤ ∖ ↑threadN N ∖ ↑cntrN N}=> Q #vp) ∨ Token γ_tk).
-
-  (*
-  Definition Accept_contra P : iProp :=
-    P.
+  Definition Done γ_tk (Q: val → iProp) M T op (vp: resT) t0 : iProp := 
+      past_lin M T op vp t0 ∗ (Q #vp ∨ Token γ_tk).
   
-  Definition Submit_contra γ_cm op (t_id: proph_id) : iProp :=
-    ∃ res, ⌜updater_thread op res = true⌝ 
-          ∗ own γ_cm (◯ {[t_id := to_agree res]}).
-  *)
-  
-  Definition State_nupd N γ_sy γ_tk P Q M T op vp t0: iProp :=
+  Definition State γ_sy γ_tk P Q M T op vp t0: iProp :=
         own γ_sy (to_frac_agree (1/2) M)
       ∗ ⌜T = map_max M⌝ 
-      ∗ (Pending M T op vp t0 ∨ Done N γ_tk P Q M T op vp t0).
+      ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
 
   Definition thread_vars γ_t γ_ght γ_sy t_id t0 : iProp := 
     own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition Reg_nupd N γ_t γ_r γ_ght t_id M : iProp :=
+  Definition Reg N γ_t γ_r γ_ght t_id M : iProp :=
     ∃ γ_tk γ_sy Q op vp t0 (vtid: val), 
         proph1 t_id vtid
       ∗ thread_vars γ_t γ_ght γ_sy t_id t0
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
-      ∗ ⌜updater_thread op vp = false⌝ 
       ∗ inv (threadN N) 
-        (∃ M T, State_nupd N γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
-  
-  (*
-  Definition State_upd γ_tk1 γ_tk2 γ_tk3 P Q vp : iProp :=
-    Token γ_tk1 ∗ P ∨ Token γ_tk2 ∗ (Q #vp ∨ Token γ_tk3).
-
-  Definition Reg_upd N γ_t γ_r γ_ght t_id : iProp :=
-    ∃ γ_tk1 γ_tk2 γ_tk3 Q op vp t0 (vtid: val), 
-        proph1 t_id vtid
-      ∗ thread_vars γ_t γ_ght γ_tk1 t_id t0
-      ∗ ⌜updater_thread op vp = true⌝ 
-      ∗ inv (threadN N)
-        (State_upd γ_tk1 γ_tk2 γ_tk3 (au N γ_r op Q) Q vp).
-  *)
-
-  (*
-  Lemma test N γ_r op Q M T vp t0 γ_tk :
-    Pending (au N γ_r op Q) M T op vp t0 -∗
-      Done γ_tk Q M T op vp t0 ∧ (au N γ_r op Q).
-  Proof.  
-    iIntros "(AU & Hcred & #Hpast)".
-    iSplit; try done.
-  Admitted.
-  *)
-  
-  Definition helping_inv (N: namespace) γ_t γ_r γ_n γ_ght M : iProp :=
+        (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
+    
+  Definition helping_inv (N: namespace) γ_t γ_r γ_ght M : iProp :=
     ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR (prodO _ _))),
-        own γ_n (● R)
-      ∗ own γ_ght (● hγt) ∗ ⌜R ⊆ dom hγt⌝
-      ∗ ([∗ set] t_id ∈ R, Reg_nupd N γ_t γ_r γ_ght t_id M).
+        own γ_ght (● hγt) ∗ ⌜R = dom hγt⌝
+      ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_ght t_id M).
 
   Definition transition_inv (s s': snapshot) : Prop :=
     (s'.1 = (s.1 + 1)%nat ∧ s'.2 = s.2) 
@@ -330,557 +296,354 @@ Section two_counter.
       resources s
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
   
-  Definition main_inv N γ_t γ_r γ_m γ_n γ_ght : iProp :=
+  Definition main_inv N γ_t γ_r γ_m γ_ght : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
       dsRepI γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
     ∗ hist γ_t γ_m M T
-    ∗ helping_inv N γ_t γ_r γ_n γ_ght M
+    ∗ helping_inv N γ_t γ_r γ_ght M
     ∗ ds_inv M T s).
 
-  Definition update_helping_protocol N γ_t γ_r γ_n γ_ght : iProp :=
+  Definition update_helping_protocol N γ_t γ_r γ_ght : iProp :=
         ∀ M T s, 
           ⌜map_max M < T⌝ -∗   
             dsRep γ_r (abs s) -∗
-              helping_inv N γ_t γ_r γ_n γ_ght M ={⊤ ∖ ↑cntrN N}=∗
-                helping_inv N γ_t γ_r γ_n γ_ght (<[T := s]> M) 
+              helping_inv N γ_t γ_r γ_ght M ={⊤ ∖ ↑cntrN N}=∗
+                helping_inv N γ_t γ_r γ_ght (<[T := s]> M) 
                 ∗ dsRep γ_r (abs s).
 
-  Lemma dsOp_spec N γ_t γ_r γ_m γ_n γ_ght op (r: loc) 
-    γ_sy t_id t0 Q:
-          main_inv N γ_t γ_r γ_m γ_n γ_ght -∗
-          □ update_helping_protocol N γ_t γ_r γ_n γ_ght -∗
-          thread_vars γ_t γ_ght γ_sy t_id t0 -∗
-            {{{ au N γ_r op Q }}} 
-                  dsOp (Op_to_val op) #r
-            {{{ (res: resT), RET #res; 
-                  ⌜updater_thread op res = true⌝ ∗ Q #res
-                ∨ ⌜updater_thread op res = false⌝ 
-                  ∗ past_lin_witness γ_m op res t0 
-                  ∗ au N γ_r op Q }}}.
+  Definition is_updating (pvs : list (val * val)) : Prop :=
+    Exists (λ x, ∃ v1, x.1 = (v1, #true)%V) pvs.
+  
+  Global Instance is_updating_dec : ∀ pvs, Decision (is_updating pvs).
   Proof.
+    intros pvs. rewrite /is_updating. apply Exists_dec. intros [x1 x2].
+    rewrite /=. destruct x1.
+    - right; intros [v1 H']; try done.
+    - right; intros [v1 H']; try done.
+    - destruct (decide (x1_2 = #true)) as [-> | Hx1]. 
+      + left. by exists x1_1.
+      + right. intros [v1 H']. inversion H'. done.
+    - right; intros [v1 H']; try done.
+    - right; intros [v1 H']; try done.
+  Qed.
+
+  Lemma dsOp_spec N γ_t γ_r γ_m γ_ght op r (p: proph_id) pvs 
+    γ_sy t_id t0 Q:
+          main_inv N γ_t γ_r γ_m γ_ght -∗
+          □ update_helping_protocol N γ_t γ_r γ_ght -∗
+            {{{ proph p pvs ∗ 
+                (⌜is_updating pvs⌝ ∗ au N γ_r op Q ∨
+                  ⌜¬ is_updating pvs⌝ ∗ thread_vars γ_t γ_ght γ_sy t_id t0) }}} 
+                  dsOp (Op_to_val op) #r #p
+            {{{ (res: resT), RET #res; 
+                  ⌜is_updating pvs⌝ ∗ Q #res
+                ∨ ⌜¬ is_updating pvs⌝ ∗ past_lin_witness γ_m op res t0 }}}.
+  Proof.
+  Admitted.
+
+  Lemma dsOp_spec' N γ_t γ_r γ_m γ_ght op (p: proph_id) pvs 
+    γ_sy t_id t0 Q:
+          main_inv N γ_t γ_r γ_m γ_ght -∗
+          □ update_helping_protocol N γ_t γ_r γ_ght -∗
+            {{{ proph p pvs ∗ 
+                (⌜is_updating pvs⌝ ∗ au N γ_r op Q ∨
+                  ⌜¬ is_updating pvs⌝ ∗ thread_vars γ_t γ_ght γ_sy t_id t0) }}} 
+                  dsOp (Op_to_val op) #l1 #l2 #p
+            {{{ (res: resT), RET #res; 
+                  ⌜is_updating pvs⌝ ∗ Q #res
+                ∨ ⌜¬ is_updating pvs⌝ ∗ past_lin_witness γ_m op res t0 }}}.
+  Proof.
+    iIntros "#HInv #HUpd" (Φ) "!# (Proph&Hor) Hpost".
+    wp_lam. wp_pures. destruct op; wp_pures.
+    - admit.
+    - wp_lam; wp_pures. wp_apply nondet_bool_spec; try done.
+      iIntros (b) "_". wp_pures. destruct b; wp_pures.
+      + wp_lam; wp_pures. wp_bind (! _)%E.
+        iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
+        iDestruct "Templ" as "(Res & %Htrans0)".
+        iDestruct "Res" as "(Hl1 & Hl2)".
+        destruct s0 as [a0 b0]. iSimpl in "Hl1 Hl2".
+        wp_load. iModIntro. iSplitR "Hor Proph Hpost".
+        { iNext. iExists M0, T0, (a0, b0). iFrame "#∗%". }
+        wp_pures. wp_bind (Resolve _ _ _)%E.
+        iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
+        iDestruct "Templ" as "(Res & %Htrans1)".
+        iDestruct "Res" as "(Hl1 & Hl2)".
+        destruct s1 as [a1 b1]. iSimpl in "Hl1 Hl2".
+        destruct (decide (a1 = a0)) as [-> | Ha01].
+        * wp_apply (wp_resolve_cmpxchg_suc with "[$Hl1 $Proph]").
+          { by left. }
+          iIntros "H'". iDestruct "H'" as  (pvs')"(%Def_pvs & Proph & Hl1)".
+          iDestruct "Hor" as "[Hor | Hor]"; last first.
+          { iDestruct "Hor" as "(%H'&_)". rewrite /is_updating in H'.
+            apply Forall_Exists_neg in H'. rewrite Def_pvs in H'. 
+            apply Forall_inv in H'. exfalso; apply H'. simpl. by exists #a0. }
+          iDestruct "Hor" as "(%Hupd&AU)".
+          iMod "AU" as (s)"[DsR [_ Hcomm]]". 
+          assert (s = abs (a0, b1)) as ->. admit.
+          iAssert (dsRep γ_r (abs (a0+1, b1)) ∗ dsRepI γ_r (abs (a0+1, b1)))%I
+            with "[DsR Ds]" as "(DsR & Ds)".
+          { admit. }
+          iSpecialize ("Hcomm" $! (abs (a0+1, b1)) 0).
+          iMod ("Hcomm" with "[$DsR]") as "HQ".
+          { iPureIntro. rewrite /seq_spec /abs. lia. }
+          set s: snapshot := (a0+1, b1).
+          set M1' := <[T1+1 := s]> M1.
+          assert (transition_inv (a0, b1) s) as Htr.
+          { rewrite /s /transition_inv /=. by left. }
+          iAssert (hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as "Hist".
+          { admit. }
+          unfold update_helping_protocol. 
+          iSpecialize ("HUpd" $! M1 (T1+1) s).
+          iAssert (⌜map_max M1 < T1+1⌝)%I as "H'". admit.
+          iPoseProof ("HUpd" with "[$H'] [$Ds] [$Help]") as ">(Help&Ds)".
+          iModIntro. iSplitR "HQ Proph Hpost". iNext. iExists M1', (T1+1), s.
+          iFrame. iSplitR. iPureIntro. by rewrite /M1' lookup_total_insert.
+          rewrite /s /=. assert (#(a0+1)%nat = #(a0+1)) as ->.
+          { repeat apply f_equal. lia. } iFrame "Hl1". 
+          iPureIntro. admit.
+          wp_pures. iApply "Hpost". iModIntro. iLeft. iFrame "∗%".
+        * wp_apply (wp_resolve_cmpxchg_fail with "[$Hl1 $Proph]").
+          { intros H'; inversion H'. apply Ha01. done. }
+          
+          
+          
+          
+          
   Admitted.
   
   Definition dsOp' : val :=
     λ: "OP" "r",     
       let: "t_id" := NewProph in
+      let: "p_upd" := NewProph in
       let: "p" := NewProph in
-      let: "v" := dsOp "OP" "r" in
+      let: "v" := dsOp "OP" "r" "p_upd" in
       resolve_proph: "p" to: "v";;
       "v".
 
-  Lemma dsOp'_spec N γ_t γ_r γ_m γ_n γ_ght op (r: loc) :
-          main_inv N γ_t γ_r γ_m γ_n γ_ght -∗
+
+  Lemma dsOp'_spec N γ_t γ_r γ_m γ_ght op (r: loc) :
+          main_inv N γ_t γ_r γ_m γ_ght -∗
               <<< ∀∀ a, dsRep γ_r a >>> 
                      dsOp' (Op_to_val op) #r @ ↑(cntrN N) ∪ ↑(threadN N)
               <<< ∃∃ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝, 
                   RET #res >>>.
   Proof.
     iIntros "#HInv" (Φ) "AU". wp_lam. 
-    wp_pure credit:"Hc". wp_pures.
+    wp_pure credit:"Hc". wp_pure credit:"Hc'". wp_pures.
     wp_apply wp_new_proph1; try done.
     iIntros (tid vtid)"Htid". wp_pures.
+    wp_apply wp_new_proph; first done.
+    iIntros (pvs p1)"Hproph1". wp_pures.
     wp_apply (typed_proph_wp_new_proph1 resTTypedProph); first done.
-    iIntros (vp p)"Hproph". wp_pures.
+    iIntros (vp p2) "Hproph2". wp_pures.
     
-    destruct (decide (updater_thread op vp = true)) as [Upd_thr | Upd_thr].
-    - 
-    iApply fupd_wp. 
-    iInv "HInv" as (M0 T0 s0) "(>HCntr & >%Habs0 & >Hist & Help & Templ)".
-    iApply (lc_fupd_add_later with "Hc"). iNext. 
-    iDestruct "Help" as (R0 hγt)"(HR & Hγt & Domm_hγt & Hstar)".
-    
-    iAssert (¬ ⌜tid ∈ R0⌝)%I as %H'.
-    { admit. }
-    assert (tid ∉ R0) as tid_notin_R0 by done.
-    clear H'.
-    (*
-    iAssert (▷ (⌜tid ∉ R⌝ 
-            ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id M0) 
-            ∗ proph1 tid vtid))%I with "[Hstar_reg Htid]" 
-            as "(>%tid_notin_R & Hstar_reg & Htid)".
-    { destruct (decide (tid ∈ R)); try done.
-      - iEval (rewrite (big_sepS_elem_of_acc _ (R) tid); 
-                            last by eauto) in "Hstar_reg".
-        iDestruct "Hstar_reg" as "(Hreg & Hstar_reg')".
-        iDestruct "Hreg" as (? ? ? ? ? ? ?)"(H' & _)".
-        iAssert (▷ False)%I with "[H' Htid]" as "HF".
-        iApply (proph1_exclusive tid with "[Htid]"); try done.
-        iNext. iExFalso; try done.
-      - iNext. iFrame. by iPureIntro. }
-    *)
-    
-    
-    
-    (*
-    iMod (own_update γ_u (● Ru1) (● (Ru1 ∪ {[tid]})) with "[$HR1]") as "HR1".
-    { apply (auth_update_auth _ _ (Ru1 ∪ {[tid]})).
-      apply gset_local_update. set_solver. }
-    iMod (own_update γ_u (● (Ru1 ∪ {[tid]})) (● (Ru1 ∪ {[tid]}) ⋅ ◯ {[tid]}) 
-              with "[$HR1]") as "(HR1 & #FP_t)".
-    { apply (auth_update_dfrac_alloc _ (Ru1 ∪ {[tid]}) ({[tid]})).
-      apply gset_included. clear; set_solver. }
-      
-    iMod (own_alloc (1)%Qp) as (γ_fr)"Hfr". { try done. }
-    iEval (rewrite <-Qp.half_half) in "Hfr".      
-    iEval (rewrite -(frac_op (1/2) (1/2))) in "Hfr". 
-    iDestruct "Hfr" as "(Hfr1 & Hfr2)". 
-
-    iMod (own_alloc (to_frac_agree (1) (M0))) 
-            as (γ_sy)"Hfr_t". { try done. }        
-    iEval (rewrite <-Qp.half_half) in "Hfr_t".      
-    iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hfr_t". 
-    iDestruct "Hfr_t" as "(Hreg_sy1 & Hreg_sy2)".  
-    *)
-    iMod (own_alloc (Excl ())) as (γ_tk1) "Token1"; first try done.
-    iMod (own_alloc (Excl ())) as (γ_tk2) "Token2"; first try done.
-    iMod (own_alloc (Excl ())) as (γ_tk3) "Token3"; first try done.
-    
-    iDestruct "Domm_hγt" as %Domm_hγt.
-    set (<[ tid := to_agree (T0, γ_tk1) ]> hγt) as hγt'.
-    iDestruct (own_update _ _ 
-      (● hγt' ⋅ ◯ {[ tid := to_agree (T0, γ_tk1) ]})
-             with "Hγt") as ">Hγt".
-    { apply auth_update_alloc. 
-      rewrite /hγt'.
-      apply alloc_local_update; last done.
-      (*
-      rewrite <-Domm_hγt in tid_notin_R1.
-      by rewrite not_elem_of_dom in tid_notin_R1. *) }
-    iDestruct "Hγt" as "(Hγt & #Hreg_gh)".
-
-    iAssert (⌜map_max M0 = T0⌝)%I as %M_max. 
-    { by iDestruct "Hist" as (M0') "(_&_&%&_)". }
-    iDestruct "Hist" as (M0')"(H'&H'')". Check own_update.
-    iDestruct (own_update _ _ (● (MaxNat T0) ⋅ ◯ (MaxNat T0)) with "H'") 
-      as ">H1'".
-    { apply auth_update_alloc. apply max_nat_local_update. 
-      try done. }
-    iDestruct "H1'" as "(H' & #HfragT0)".
-    iAssert (hist γ_t γ_m M0 T0) with "[H' H'']" as "Hist".
-    { iExists M0'; iFrame. }
-    
-    (*
-    iMod (inv_alloc (threadN N) _
-              (State_upd γ_tk1 γ_tk2 γ_tk3 (au N γ_r op Φ) Φ vp) 
-                                    with "[AU Token1]") as "#HthInv".
-    { iNext. iLeft. iFrame "∗". }
-    *)
-    
-    iModIntro. iSplitR "AU Htid Hproph Token2 Token3". iNext.
-    iExists M0, T0, s0. iFrame "∗%".
-      iExists R0, hγt'. iFrame. admit.
-      (*
-      iSplitR. iPureIntro. subst hγt'.
-      apply leibniz_equiv. rewrite dom_insert.
-      rewrite Domm_hγt. clear; set_solver.
-      rewrite (big_sepS_delete _ (Ru1 ∪ {[tid]}) tid); last by set_solver.
-      iSplitR "Hstar1". unfold Reg_upd.
-      iExists γ_tk1, γ_tk2, γ_tk3, Φ, op, vp, T0, vtid.
-      rewrite Upd_thr; iFrame "∗#". by iPureIntro.
-      assert ((Ru1 ∪ {[tid]}) ∖ {[tid]} = Ru1) as H' 
-                  by (clear -tid_notin_R1; set_solver).
-      by rewrite H'.*)
-      
-      iModIntro. wp_bind (dsOp _ _)%E.
-      
-      iAssert (update_helping_protocol N γ_t γ_r γ_n γ_ght)%I 
+    iAssert (update_helping_protocol N γ_t γ_r γ_ght)%I 
         as "Upd_help". 
-      { iIntros (M T s)"%Map_max DSRep".
-        iIntros "Prot". clear hγt' Domm_hγt hγt.
-        iDestruct "Prot" as (R hγt)"(HR & Hγt & Domm_hγt & Hstar)".
-        iAssert (dsRep γ_r (abs s) -∗
-                  ([∗ set] t_id ∈ R, Reg_nupd N γ_t γ_r γ_ght t_id M) ={⊤ ∖ ↑cntrN N}=∗
-                  (([∗ set] t_id ∈ R, Reg_nupd N γ_t γ_r γ_ght t_id (<[T:=s]> M))
-                  ∗ dsRep γ_r (abs s)))%I as "H'".
-        { iIntros "DSRep". 
-          iInduction R as [|tid' R' tid_notin_R IH] "HInd" using set_ind_L; 
-            auto using big_sepS_empty'.
-          rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
-          rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
-          assert (({[tid']} ∪ R') ∖ {[tid']} = R') as HR'. set_solver.
-          rewrite HR'.
-          iIntros "(Htid & Hbigstar)". 
-          iMod ("HInd" with "[$DSRep] Hbigstar") as "(H' & DSRep)".
-          iFrame "H'". 
-          iDestruct "Htid" as (γ_tk' γ_sy' Q' op' vp' t0' vtid')
-            "(Hproph & #Hthd & Hsy & %Hupd & #HthInv)".
-          iInv "HthInv" as (M'' T'')"Hstate".
-          iDestruct "Hstate" as "(>Hsy' & >%Map_max'' & Hstate)".
-          assert (M'' = M) as ->. admit.
-          iAssert (own γ_sy' (to_frac_agree (1 / 2) (<[T:=s]> M))
-            ∗ own γ_sy' (to_frac_agree (1 / 2) (<[T:=s]> M)))%I
-            with "[Hsy Hsy']" as "(Hsy & Hsy')".
-          { admit. }
-          iDestruct "Hstate" as "[>%HPending | HDone]".
-          - destruct (decide (seq_spec op' (abs s) (abs s) vp'))
-              as [Hss | Hss].
-            + iAssert (□ (au N γ_r op' Q' -∗ 
-                  |={⊤ ∖ ↑cntrN N ∖ ↑threadN N}=> Q' #vp'))%I 
-                  with "[DSRep]" as "H'".
-              { iModIntro. }
-              iModIntro. iSplitL "Hsy". iNext. iExists (<[T:=s]> M), T.
-              iFrame. iSplitR. admit. iRight. unfold Done. iSplitR. 
-              iPureIntro. exists T. split; try done. admit.
-              by rewrite lookup_total_insert. iLeft.
-              iIntros "AU".
-              iMod "AU" as (c) "[Cntr [_ Hcomm]]".
-              iAssert (⌜c = abs s⌝)%I as "%". 
-              { unfold dsRep, dsRepI. Search own valid.
-                iDestruct (own_valid_2 with "[$DSRep] [$Cntr]") as %H'.
-                rewrite frac_agree_op_valid_L in H'.
-                destruct H' as [_ H']; by iPureIntro. } subst c. 
-              iSpecialize ("Hcomm" $! (abs s) vp'). 
-              iMod ("Hcomm" with "[Cntr]") as "HΦ".
-              { iFrame. by iPureIntro. }
-              iModIntro. iFrame. by rewrite lookup_total_insert.
-              iModIntro. iFrame.
-              iExists γ_tk', γ_sy', Q', op', vp', t0', vtid'.
-              iFrame "∗#%".
-            + iModIntro. iSplitL "Hsy". iNext. iExists (<[T:=s]> M), T.
-              iFrame. iSplitR. admit. iLeft. iPureIntro. 
-              intros [t Ht]. admit.
-              iModIntro. iFrame.
-              iExists γ_tk', γ_sy', Q', op', vp', t0', vtid'.
-              iFrame "∗#%".
-          - iModIntro. iSplitL "HDone Hsy". iNext. 
-            iDestruct "HDone" as "(%H' & HDone)".
-            iExists (<[T:=s]> M), T.
-            iFrame. iSplitR. admit. iRight. iSplitR.
-            iPureIntro. admit.
-            iDestruct "HDone" as "[HAU | Token]".
-            + iLeft. iIntros "(AU & DSRep)".
-              iEval (rewrite lookup_total_insert) in "DSRep".
-              iMod "AU" as (c) "[Cntr [_ Hcomm]]".
-              iAssert (⌜c = abs s⌝)%I as "%". 
-              { unfold dsRep, dsRepI. Search own valid.
-                iDestruct (own_valid_2 with "[$DSRep] [$Cntr]") as %H''.
-                rewrite frac_agree_op_valid_L in H''.
-                destruct H'' as [_ H'']; by iPureIntro. } subst c. 
-              iSpecialize ("Hcomm" $! (abs s) vp'). 
-              iMod ("Hcomm" with "[Cntr]") as "HΦ".
-              { iFrame. by iPureIntro. }
-           }
-        iDestruct ("H'" with "[$DSRep] [$Hstar]") as ">(Hstar & DSRep)".
-        iModIntro. iFrame "DSRep".
-        iExists R, hγt. iFrame.  *) admit. }
-      iAssert (thread_vars γ_t γ_ght γ_tk1 tid T0)%I as "#Thr_vars".
-      { iFrame "#". } 
-      wp_apply (dsOp_spec with "[] [] [] [AU]"); try done. unfold au.
-      (* { iFrame "#∗". } *)
-      
-      iIntros (res)"HpastW". wp_pures.
-      wp_apply ((typed_proph_wp_resolve1 resTTypedProph 
-                  _ _ _ _ _ _ _ (res))
-        with "Hproph"); try done.
-      { unfold typed_proph_from_val; simpl. admit. }  
-      wp_pures. iModIntro. iIntros "<-".
-      rewrite Upd_thr. wp_pures. 
-      iDestruct "HpastW" as "[HpastW | HpastW]".
-      iModIntro; iDestruct "HpastW" as "(_&H')". iFrame.
-      iDestruct "HpastW" as "(%&_)". exfalso; try done.
-      
-      (*
-      wp_pure credit: "Hc"; wp_pure credit: "Hc'"; try done.
-      
-      iDestruct "HpastW" as "[HpastW | HpastW]"; last first.
-      { iDestruct "HpastW" as "(% & _)"; exfalso; try done. }
-      
-      iDestruct "HpastW" as "(_ & Token1)". 
-      iInv "HInv" as (M1 T1 s1) "(>HCntr & >%Habs1 & >Hist & Help & Templ)".
+    { iIntros (M T s)"%Map_max Ds Prot".
+      iDestruct "Prot" as (R G)"(HG & Domm_G & Hstar)".
+      iAssert (dsRep γ_r (abs s) -∗
+        ([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_ght t_id M) ={⊤ ∖ ↑cntrN N}=∗
+        (([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_ght t_id (<[T:=s]> M))
+        ∗ dsRep γ_r (abs s)))%I as "H'".
+      { iIntros "Ds". 
+        iInduction R as [|tid' R' tid_notin_R IH] "HInd" using set_ind_L; 
+          auto using big_sepS_empty'.
+        rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
+        rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
+        assert (({[tid']} ∪ R') ∖ {[tid']} = R') as HR'. set_solver. rewrite HR'.
+        iIntros "(Htid & Hbigstar)". 
+        iMod ("HInd" with "[$Ds] Hbigstar") as "(H' & Ds)". iFrame "H'". 
+        iDestruct "Htid" as (γ_tk' γ_sy' Q' op' vp' t0' vtid')
+          "(Hproph & #Hthd & Hsy & #HthInv)".
+        iInv "HthInv" as (M'' T'')"Hstate".
+        iDestruct "Hstate" as "(>Hsy' & >%Map_max'' & Hstate)".
+        assert (M'' = M) as ->. admit.
+        iAssert (own γ_sy' (to_frac_agree (1 / 2) (<[T:=s]> M))
+          ∗ own γ_sy' (to_frac_agree (1 / 2) (<[T:=s]> M)))%I
+          with "[Hsy Hsy']" as "(Hsy & Hsy')".
+        { admit. }
+        iDestruct "Hstate" as "[HPending | HDone]".
+        - iDestruct "HPending" as "(AU & >Hc & >%Past_W)".
+          destruct (decide (seq_spec op' (abs s) (abs s) vp'))
+            as [Hss | Hss].
+          + iApply (lc_fupd_add_later with "Hc"). iNext.
+            iMod "AU" as (c) "[DsR [_ Hcomm]]".
+            iAssert (⌜c = abs s⌝)%I as "%". 
+            { unfold dsRep, dsRepI. Search own valid.
+              iDestruct (own_valid_2 with "[$Ds] [$DsR]") as %H'.
+              rewrite frac_agree_op_valid_L in H'.
+              destruct H' as [_ H']; by iPureIntro. } subst c. 
+            iSpecialize ("Hcomm" $! (abs s) vp'). 
+            iMod ("Hcomm" with "[DsR]") as "HΦ".
+            { iFrame. by iPureIntro. }
+            iModIntro. iSplitL "Hsy HΦ". iNext. iExists (<[T:=s]> M), T.
+            iFrame. iSplitR. admit. iRight. iSplitR. 
+            iPureIntro. exists T. split. split; try done. admit.
+            by rewrite lookup_total_insert. by iLeft.
+            iModIntro. iFrame.
+            iExists γ_tk', γ_sy', Q', op', vp', t0', vtid'.
+            iFrame "∗#%".
+          + iModIntro. iSplitL "AU Hc Hsy". iNext. iExists (<[T:=s]> M), T.
+            iFrame. iSplitR. admit. iLeft. iFrame. iPureIntro. 
+            intros [t Ht]. admit.
+            iModIntro. iFrame.
+            iExists γ_tk', γ_sy', Q', op', vp', t0', vtid'.
+            iFrame "∗#%".
+        - iDestruct "HDone" as "(>%PastW & HDone)".
+          iModIntro. iSplitL "HDone Hsy". iNext. 
+          iExists (<[T:=s]> M), T.
+          iFrame. iSplitR. admit. iRight. iSplitR.
+          iPureIntro. admit. iFrame.
+          iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0', vtid'.
+          iFrame "∗#%". }
+      iPoseProof ("H'" with "[$Ds] [$Hstar]") as ">(Hstar & Ds)".
+      iModIntro. iFrame. iExists R, G. iFrame. }
+    
+    destruct (decide (is_updating pvs)) as [Hpvs | Hpvs].
+    - wp_apply (dsOp_spec with "[] [] [AU Hproph1]"); try done.
+      { iFrame "Hproph1". iLeft. iFrame "AU %". }
+      iIntros (res)"Hor". iDestruct "Hor" as "[Hor | Hor]"; last first.
+      { iDestruct "Hor" as "(% & _)". exfalso; try done. }
+      iDestruct "Hor" as "(_&HΦ)". wp_pures. 
+      wp_apply (typed_proph_wp_resolve1 resTTypedProph with "Hproph2"); try done.
+      wp_pures. iModIntro. iIntros "_". wp_pures. done.
+    - iApply fupd_wp. 
+      iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iApply (lc_fupd_add_later with "Hc"). iNext. 
-      clear tid_notin_R1 Domm_hγt Ru1 Rn1 hγt hγt'.
-      iDestruct "Help" as (Ru2 Rn2 hγt)"(HR1 & HR2 & Hγt & 
-        Domm_hγt & Hstar1 & Hstar2)".
+      iDestruct "Help" as (R0 G0)"(HG & %Domm_G0 & Hstar)".
       
-      assert (tid ∈ Ru2) as tid_in_Ru2. { admit. }
-      
-      rewrite (big_opS_delete _ Ru2 tid).
-      iDestruct "Hstar1" as "(Htid & Hstar1')".
-      iInv "HthInv" as "H'".
-      iApply (lc_fupd_add_later with "Hc'"). iNext.
-      
-      assert (γ_tk1' = γ_tk1) as ->. { admit. }
-      
-      iDestruct "H'" as "[Acc | Sub]".
-      { iDestruct "Acc" as "(Acc & _)". 
-        iPoseProof (own_valid_2 _ _ _ with "[$Token1] [$Acc]") as "%".
-        exfalso; try done. }
-      iDestruct "Sub" as "(Token2 & H')".
-      iDestruct "H'" as "[HΦ | H']"; last first.
-      { iPoseProof (own_valid_2 _ _ _ with "[$Token3] [$H']") as "%".
-        exfalso; try done. }
-      iModIntro. iSplitL "Token2 Token3". iNext.
-      iRight. iFrame.
-      iModIntro. iSplitR "HΦ". iNext.
-      iExists M1, T1, s1. iFrame "∗%#".
-      iExists Ru2, Rn2, hγt. iFrame "∗%#".
-      rewrite (big_opS_delete _ Ru2 tid); try done. 
-      iFrame "Hstar1' Htid".
-      iModIntro; iFrame. done.
-      *)
-    -   
-      rewrite not_true_iff_false in Upd_thr.
-      iApply fupd_wp. 
-      iInv "HInv" as (M0 T0 s0) "(>HCntr & >%Habs0 & >Hist & Help & Templ)".
-      iApply (lc_fupd_add_later with "Hc"). iNext. 
+      iAssert (¬ ⌜tid ∈ R0⌝)%I as %tid_notin_R0.
+      { admit. }
+            
+      iMod (own_alloc (to_frac_agree (1) (M0))) 
+              as (γ_sy)"Hfr_t". { try done. }        
+      iEval (rewrite <-Qp.half_half) in "Hfr_t".      
+      iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hfr_t". 
+      iDestruct "Hfr_t" as "(Hreg_sy1 & Hreg_sy2)".  
 
-    iDestruct "Help" as (R0 hγt)"(HR & Hγt & Domm_hγt & Hstar)".
-    
-    iAssert (¬ ⌜tid ∈ R0⌝)%I as %H'.
-    { admit. }
-    assert (tid ∉ R0) as tid_notin_R0 by done.
-    clear H'.
-    (*
-    iAssert (▷ (⌜tid ∉ R⌝ 
-            ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_s γ_ght t_id M0) 
-            ∗ proph1 tid vtid))%I with "[Hstar_reg Htid]" 
-            as "(>%tid_notin_R & Hstar_reg & Htid)".
-    { destruct (decide (tid ∈ R)); try done.
-      - iEval (rewrite (big_sepS_elem_of_acc _ (R) tid); 
-                            last by eauto) in "Hstar_reg".
-        iDestruct "Hstar_reg" as "(Hreg & Hstar_reg')".
-        iDestruct "Hreg" as (? ? ? ? ? ? ?)"(H' & _)".
-        iAssert (▷ False)%I with "[H' Htid]" as "HF".
-        iApply (proph1_exclusive tid with "[Htid]"); try done.
-        iNext. iExFalso; try done.
-      - iNext. iFrame. by iPureIntro. }
-    *)
-    
-    iMod (own_update γ_n (● R0) (● (R0 ∪ {[tid]})) with "[$HR]") as "HR".
-    { apply (auth_update_auth _ _ (R0 ∪ {[tid]})).
-      apply gset_local_update. set_solver. }
-    iMod (own_update γ_n (● (R0 ∪ {[tid]})) (● (R0 ∪ {[tid]}) ⋅ ◯ {[tid]}) 
-              with "[$HR]") as "(HR & #FP_t)".
-    { apply (auth_update_dfrac_alloc _ (R0 ∪ {[tid]}) ({[tid]})).
-      apply gset_included. clear; set_solver. }
-      
-    iMod (own_alloc (to_frac_agree (1) (M0))) 
-            as (γ_sy)"Hfr_t". { try done. }        
-    iEval (rewrite <-Qp.half_half) in "Hfr_t".      
-    iEval (rewrite (frac_agree_op (1/2) (1/2) _)) in "Hfr_t". 
-    iDestruct "Hfr_t" as "(Hreg_sy1 & Hreg_sy2)".  
+      iMod (own_alloc (Excl ())) as (γ_tk) "Token"; first try done.
 
-    iMod (own_alloc (Excl ())) as (γ_tk) "Token"; first try done.
-    iMod (own_alloc (Excl ())) as (γ_tk1) "Token1"; first try done.
-    iMod (own_alloc (Excl ())) as (γ_tk2) "Token2"; first try done.
+      set (<[ tid := to_agree (T0, γ_sy) ]> G0) as G0'.
+      iDestruct (own_update _ _ 
+        (● G0' ⋅ ◯ {[ tid := to_agree (T0, γ_sy) ]})
+               with "HG") as ">HG".
+      { apply auth_update_alloc. rewrite /G0'.
+        apply alloc_local_update; last done. apply not_elem_of_dom.
+        by rewrite Domm_G0 in tid_notin_R0. }
+      iDestruct "HG" as "(HG & #Hreg_gh)".
 
-    iDestruct "Domm_hγt" as %Domm_hγt.
-    set (<[ tid := to_agree (T0, γ_sy) ]> hγt) as hγt'.
-    iDestruct (own_update _ _ 
-      (● hγt' ⋅ ◯ {[ tid := to_agree (T0, γ_sy) ]})
-             with "Hγt") as ">Hγt".
-    { apply auth_update_alloc. 
-      rewrite /hγt'.
-      apply alloc_local_update; last done.
-      admit.
-      (*
-      rewrite <-Domm_hγt in tid_notin_R1.
-      by rewrite not_elem_of_dom in tid_notin_R12.*) }
-    iDestruct "Hγt" as "(Hγt & #Hreg_gh)".
-
-    iAssert (⌜map_max M0 = T0⌝)%I as %M_max. 
-    { by iDestruct "Hist" as (M0') "(_&_&%&_)". }
-    iDestruct "Hist" as (M0')"(H'&H'')". Check own_update.
-    iDestruct (own_update _ _ (● (MaxNat T0) ⋅ ◯ (MaxNat T0)) with "H'") 
-      as ">H1'".
-    { apply auth_update_alloc. apply max_nat_local_update. 
-      try done. }
-    iDestruct "H1'" as "(H' & #HfragT0)".
-    iAssert (hist γ_t γ_m M0 T0) with "[H' H'']" as "Hist".
-    { iExists M0'; iFrame. }
-    
-(*      assert (∀ op c c' res, Decision (seq_spec op c c' res)) 
-        as seq_spec_dec. { apply seq_spec_dec. } 
-      destruct (decide (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp))
-        as [Hss | Hss].
-*)
+      iAssert (⌜map_max M0 = T0⌝)%I as %M_max. 
+      { by iDestruct "Hist" as (M0') "(_&_&%&_)". }
+      iDestruct "Hist" as (M0')"(H'&H'')".
+      iDestruct (own_update _ _ (● (MaxNat T0) ⋅ ◯ (MaxNat T0)) with "H'") 
+        as ">H1'".
+      { apply auth_update_alloc. apply max_nat_local_update. try done. }
+      iDestruct "H1'" as "(H' & #HfragT0)".
+      iAssert (hist γ_t γ_m M0 T0) with "[H' H'']" as "Hist".
+      { iExists M0'; iFrame. }
       
-      (*
-      iMod "AU" as (c) "[Cntr [_ Hcomm]]".
-      iAssert (⌜c = abs s0⌝)%I as "%". 
-      { unfold dsRep, dsRepI. Search own valid.
-        iDestruct (own_valid_2 with "[$Cntr] [$HCntr]") as %H'.
-        rewrite frac_agree_op_valid_L in H'.
-        destruct H' as [_ H']; by iPureIntro. } subst c. 
-      iSpecialize ("Hcomm" $! (abs s0) vp). 
-      iMod ("Hcomm" with "[Cntr]") as "HΦ".
-      { iFrame. apply leibniz_equiv in Habs0. 
-        rewrite Habs0 in Hss. by iPureIntro. }
-      
-      iAssert (past_lin M0 T0 op vp T0)%I as "Hpast".
-      { iPureIntro. exists T0. split; try done. }
-      *)
-      iAssert (∀ c, dsRep γ_r c -∗ ⌜c = abs s0⌝)%I as "H'".
-        
-      iMod (inv_alloc (threadN N) _ 
-        (∃ M T, State_nupd N γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0) 
-        with "[]") as "#HthInv".
-      { iNext. iExists M0, T0. iFrame. iSplitR. by iPureIntro.
-        destruct (decide (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp))
-          as [Hss | Hss]; last first.
-        - iLeft. iIntros "%Hpast". 
-          destruct Hpast as [t [H' Hss']].
-          assert (t = T0) as -> by lia. contradiction.
-        - iRight. iSplitR. 
-          iPureIntro. exists T0. split; try done.
-          iLeft. iIntros "(AU & HCntr)".
-          iMod "AU" as (c) "[Cntr [_ Hcomm]]".
-          iAssert (⌜c = abs (M0 !!! T0)⌝)%I as "%". 
-          { unfold dsRep, dsRepI. Search own valid.
-            iDestruct (own_valid_2 with "[$HCntr] [$Cntr]") as %H'.
+      iAssert (|={⊤ ∖ ↑cntrN N}=> dsRepI γ_r (abs s0) ∗ 
+        (inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0)))%I
+        with "[Ds AU Hc' Hreg_sy1]" as "H'".
+      { destruct (decide (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp))
+          as [Hss | Hss].
+        - iMod "AU" as (c) "[DsR [_ Hcomm]]".
+          iAssert (⌜c = abs s0⌝)%I as "%". 
+          { unfold dsRep, dsRepI.
+            iDestruct (own_valid_2 with "[$Ds] [$DsR]") as %H'.
             rewrite frac_agree_op_valid_L in H'.
             destruct H' as [_ H']; by iPureIntro. } subst c. 
-          iSpecialize ("Hcomm" $! (abs (M0 !!! T0)) vp). 
-          iMod ("Hcomm" with "[Cntr]") as "HΦ".
-          { iFrame. by iPureIntro. }
-          iApply fupd_mask_intro. set_solver. iIntros "_". iFrame. }
-      
-      iModIntro. iSplitR "Hproph AU Token". iNext.
-      iExists M0, T0, s0.  iFrame "∗%".
-      iExists (R0 ∪ {[tid]}), hγt'. iFrame.
-      iSplitR. iPureIntro. subst hγt'. rewrite dom_insert.
-      clear -Domm_hγt; set_solver.
+          iSpecialize ("Hcomm" $! (abs s0) vp). 
+          iMod ("Hcomm" with "[DsR]") as "HΦ".
+          { iFrame. apply leibniz_equiv in Habs0. 
+            rewrite Habs0 in Hss. by iPureIntro. }
+        
+          iAssert (past_lin M0 T0 op vp T0)%I as "Hpast".
+          { iPureIntro. exists T0. split; try done. }
+          
+          iMod (inv_alloc (threadN N) _ 
+            (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0) 
+            with "[HΦ Hreg_sy1]") as "#HthInv".
+          { iNext. iExists M0, T0. iFrame. iSplitR. by iPureIntro.
+            iRight. iSplitR. iFrame "#". by iLeft. }
+          iModIntro; iFrame "∗#".
+        - iMod (inv_alloc (threadN N) _ 
+           (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0) 
+            with "[AU Hc' Hreg_sy1]") as "#HthInv".
+          { iNext. iExists M0, T0. iFrame. iSplitR. by iPureIntro.
+            iLeft. iFrame "AU Hc'". iPureIntro. intros [t [Ht Hss']].
+            assert (t = T0) as -> by lia. done. }
+          iModIntro; iFrame "∗#". }
+      iDestruct "H'" as ">(Ds & #HthInv)".
+
+      iModIntro. iSplitR "Hproph1 Hproph2 Token". iNext.
+      iExists M0, T0, s0. iFrame "∗%".
+      iExists (R0 ∪ {[tid]}), G0'. iFrame.
+      iSplitR. iPureIntro. subst G0'. rewrite dom_insert_L.
+      clear -Domm_G0; set_solver.
       rewrite (big_sepS_delete _ (R0 ∪ {[tid]}) tid); last by set_solver.
-      iSplitR "Hstar". unfold Reg_nupd.
-      iExists γ_tk, γ_sy, Φ, op, vp, T0, vtid. rewrite Upd_thr. iFrame "∗#".
-      by iPureIntro.
+      iSplitR "Hstar". 
+      iExists γ_tk, γ_sy, Φ, op, vp, T0, vtid. iFrame "∗#".
       assert ((R0 ∪ {[tid]}) ∖ {[tid]} = R0) as H' 
                 by (clear -tid_notin_R0; set_solver).
-      by rewrite H'.  
-        
-      iModIntro.
-
-      iAssert (update_helping_protocol N γ_t γ_r γ_n γ_ght)%I 
-        as "Upd_help". { admit. }
-      iAssert (thread_vars γ_t γ_ght γ_sy tid T0)%I as "#Thr_vars".
-      { iFrame "#". } 
-      wp_apply (dsOp_spec with "[] [] [] [AU]"); try done.
+      by rewrite H'.
       
-      iIntros (res)"HpastW". wp_pures.
+      iAssert (thread_vars γ_t γ_ght γ_sy tid T0)%I as "#Thd".
+      { iFrame "#". }
+    
+      iModIntro. wp_apply (dsOp_spec with "[] [] [Hproph1]"); try done.
+      { iFrame "Hproph1". iRight. iFrame "#%". }
+      
+      iIntros (res)"Hor". iDestruct "Hor" as "[Hor | Hor]".
+      { iDestruct "Hor" as "(%&_)"; exfalso; try done. }
+      
+      iDestruct "Hor" as "(_&PastW)".
+      wp_pures. 
       wp_apply ((typed_proph_wp_resolve1 resTTypedProph 
-                  _ _ _ _ _ _ _ (res))
-        with "Hproph"); try done.
-      { unfold typed_proph_from_val; simpl. admit. }  
-      wp_pures. iModIntro. iIntros "<-".
-      rewrite Upd_thr. wp_pure credit: "Hc". wp_pures. 
-      iDestruct "HpastW" as "[HpastW | HpastW]".
-      iDestruct "HpastW" as "(%&_)". exfalso; try done.
-      iDestruct "HpastW" as "(_&HpastW)".
-
-(*       iDestruct "HpastW" as "(%Upd_thr' & HpastW)". *)
-      iDestruct "HpastW" as "(HpastW & AU)".
-      iInv "HthInv" as (M1_th T1_th)"(>Hth_sy & >% & Hth_or)".
-      iInv "HInv" as (M1 T1 s1) "(>HCntr & >%Habs1 & >Hist & Help & Templ)".
-      iApply (lc_fupd_add_later with "Hc"). iNext. 
-      iDestruct "Help" as (R1 hγt1)"(HR & Hγt & Domm_hγt & Hstar_reg)".
+                _ _ _ _ _ _ _ (res))
+        with "Hproph2"); try done.
+      { unfold typed_proph_from_val; simpl. apply f_equal. lia. }
+    
+      wp_pures. iModIntro. iIntros "<-". wp_pure credit: "Hc1". 
+      wp_pure credit: "Hc2". 
+      iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
+      iApply (lc_fupd_add_later with "Hc1"). iNext. 
+      iDestruct "Help" as (R1 G1)"(HG & %Domm_G1 & Hstar)".
       
-      iAssert (⌜tid ∈ R1⌝)%I as "%".
-      { iPoseProof (own_valid_2 _ _ _ with "[$HR] [$FP_t]") as "H'".
-        iDestruct "H'" as %H'.
-        apply auth_both_valid_discrete in H'.
-        destruct H' as [H' _].
-        apply gset_included in H'.
-        iPureIntro. set_solver. }
-      rename H into tid_in_R1.
-      
+      iAssert (⌜tid ∈ R1⌝)%I as "%tid_in_R1".
+      { iPoseProof (own_valid_2 _ _ _ with "[$HG] [$Hreg_gh]") as "%H'".
+        apply auth_both_valid_discrete in H'. destruct H' as [H' _].
+        apply dom_included in H'. rewrite dom_singleton_L -Domm_G1 in H'.
+        iPureIntro. clear -H'; set_solver. }
+    
       iAssert (⌜map_max M1 = T1⌝)%I as %M_max1. 
       { by iDestruct "Hist" as (M1') "(_&_&%&_)". }
       
+      iInv "HthInv" as (M1_th T1_th)"(>Hth_sy & >% & Hth_or)".
+      iApply (lc_fupd_add_later with "Hc2"). iNext. 
       assert (M1_th = M1) as ->. admit.
       assert (T1_th = T1) as ->. admit.
-      
-      (*
-      iAssert (▷ (⌜M1_th = M1⌝ ∗ ⌜T1_th = T1⌝ 
-               ∗ ([∗ set] t_id ∈ R1, Reg N γ_t γ_s γ_ght t_id M1)
-               ∗ own (γ_sy) (to_frac_agree (1 / 2) M1_th) ))%I
-                with "[Hstar_reg Hth_sy]" as "(>% & >% & Hstar_reg & >Hth_sy)". 
-      { 
-        iEval (rewrite (big_sepS_elem_of_acc _ (R1) tid); 
-                                last by eauto) in "Hstar_reg".
-        iDestruct "Hstar_reg" as "(Hreg_t & Hstar_reg')".
-        iDestruct "Hreg_t" as (γ_tk' γ_sy' Q' op' vp' t0' vtid')
-                          "(Hreg_proph & >Hreg_gh' & >Hreg_sy & H')".
-        iDestruct "Hreg_gh'" as "(Hreg_gh' & #?)".
-        iCombine "Hreg_gh" "Hreg_gh'" as "H''".
-        iPoseProof (own_valid with "H''") as "Valid".
-        iDestruct "Valid" as %Valid.
-        rewrite auth_frag_valid in Valid.
-        apply singleton_valid in Valid.
-        apply to_agree_op_inv in Valid.
-        apply leibniz_equiv in Valid.
-        injection Valid; intros <- <-.
-
-
-        iAssert (⌜M1_th = M1 ∧ T1_th = T1⌝)%I as "(% & %)".
-        { iPoseProof (own_valid_2 _ _ _ with "[$Hth_sy] [$Hreg_sy]") 
-              as "V_M".
-          iDestruct "V_M" as %V_M.
-          apply frac_agree_op_valid in V_M. destruct V_M as [_ V_M].
-          iPureIntro. split; first by apply leibniz_equiv.
-          rewrite tid_in_R1. apply leibniz_equiv in V_M. by rewrite V_M. } 
-        subst M1_th T1_th.
-          
-        iSplitR. { by iPureIntro. } 
-        iSplitR. iNext; by iPureIntro.
-        iSplitR "Hth_sy". iApply "Hstar_reg'".
-        iNext. iExists γ_tk', γ_sy, Q', op', vp', T0, vtid'.
-        iFrame "∗#". by iNext. 
-      } subst M1_th T1_th.
-      *)
-      
-      iEval (unfold past_lin_witness) in "HpastW".
-      (* iEval (rewrite Upd_thr) in "HpastW".*)
-
       iDestruct "Hth_or" as "[HPending | HDone]".
-      { iDestruct "HPending" as "%HPending".
-        
-        iDestruct "HpastW" as (s) "(HpastW & %Hseq)".
-          iDestruct "HpastW" as (t)"(%T0_le_t & Ht)".
-          iDestruct "Hist" as (M1') "(H'&H''&H''')".
-          admit.
-          (*
-          iDestruct (history_sync with "[$H''] [$Ht]") as "%M1'_t".
-          iDestruct "H'''" as %(H1' & _ & H1'' & H1''').
-          apply (H1'' t s) in M1'_t.
-          exfalso. apply HPending. exists t.
-          split.
-          + split; try done. apply elem_of_dom_2 in M1'_t.
-            by apply map_max_dom in M1'_t.
-          + rewrite !lookup_total_alt. rewrite M1'_t. by simpl.
-          *) }
-      
-      iDestruct "HDone" as "(#Hpast'& HDone)".
-      iDestruct "HDone" as "[HDone | Token']"; last first.
+      { iDestruct "HPending" as "(_&_&%HPending)".
+        iDestruct "PastW" as (s) "(#PastW & %Hseq)".
+        iDestruct "PastW" as (t)"(%T0_le_t & Ht)".
+        iDestruct "Hist" as (M1') "(H'&H''&H''')". admit. }
+    
+      iDestruct "HDone" as "(#PastW' & HDone)".
+      iDestruct "HDone" as "[HΦ | Token']"; last first.
       { iPoseProof (own_valid_2 _ _ _ with "[$Token] [$Token']") as "%".
         exfalso; try done. }
       
-      iMod ("HDone" with "[AU HCntr]") as "(HΦ & HCntr)".
-      apply leibniz_equiv in Habs1. rewrite Habs1. iFrame.
+      iModIntro. iSplitL "Hth_sy Token".
+      iNext. iExists M1, T1. iFrame "Hth_sy %". iRight. iFrame "#". by iRight.
+      iModIntro. iSplitR "HΦ".  
+      iNext. iExists M1, T1, s1; iFrame "∗%".
+      iExists R1, G1; iFrame "∗%".
+      done. Unshelve. done. done. done. done.
+  Admitted.
 
-      apply leibniz_equiv in Habs1. rewrite Habs1.
-      iModIntro. iSplitR "HΦ Hth_sy Token".
-      iExists M1, T1, s1; iFrame "∗%".
-      iNext. iSplitR. iPureIntro. by apply leibniz_equiv_iff.
-      iExists R1, hγt1; iFrame.     
-
-      iModIntro. iSplitL "Token Hth_sy".
-      iNext. iExists M1, T1. iFrame "Hth_sy". 
-      iSplitR. by iPureIntro. iRight. iFrame "∗#%".
-      
-      by iModIntro.
-  Admitted. 
-      
-      
-      
-        
-      
-      
-      
-     
-    
-  
-  
 
 
 End two_counter.

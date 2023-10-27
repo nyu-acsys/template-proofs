@@ -75,10 +75,16 @@ Module MAINTENANCEOP_DELETE.
       iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
-      { (* interpolation *) admit. }
+      { apply leibniz_equiv in Habs0. rewrite -Habs0.
+        iDestruct "Hmark" as (s)"(Past_s & % & _)".
+        iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iDestruct "Nodes" as "(Node_c & Nodes_rest)".
-      assert (Height s0 c = h) as Ht_c0. { admit. }
+      iAssert (⌜Height s0 c = h⌝)%I as %Ht_c0. 
+      { apply leibniz_equiv in Habs0. rewrite -Habs0.
+        iDestruct "Hmark" as (s)"(Past_s & % & -> & _)".
+        iPoseProof (height_eq_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+        try done. }
       assert (idx < h) as idx_lt_h. 
       { assert (idx ∈ seq 1 (h-1)) as H'. 
         { rewrite -Perm_xs elem_of_list_lookup. exists i; try done. }
@@ -90,6 +96,12 @@ Module MAINTENANCEOP_DELETE.
       { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
         iSplitR "Hperm"; try done. iNext; iExists M0, T0, s0. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
+      iAssert (∀ j, ⌜j < i⌝ → ⌜Marki s0 c (xs !!! j) = true⌝)%I as %Hj0.
+      { iIntros (j)"%Hj". 
+        iDestruct "Hmark" as (s) "(Past_s & %FP_c' & %Ht_c & %Hj')".
+        apply Hj' in Hj. apply leibniz_equiv in Habs0. rewrite -Habs0.
+        iPoseProof (marking_mono_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+            try done. }
       iIntros (success mark')"(Node_c & Hif)". destruct success.
       + iDestruct "Hif" as %[Mark_c0 Def_mark'].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
@@ -111,8 +123,6 @@ Module MAINTENANCEOP_DELETE.
         iAssert (∃ s : snapshot, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
           ∗ ⌜∀ j : nat, j < i + 1 → Marki s c (xs !!! j) = true⌝)%I as "#Hmark'".
         { iDestruct "Hmark" as (s) "(Hpast_s & %FP_c' & %Ht_c & %Hj)".
-          assert (∀ j, j < i → Marki s0 c (xs !!! j) = true) as Hj0.
-          { admit. }
           iAssert (⌜Marki s0' c (xs !!! i) = true⌝)%I as %Hi.
           { iPureIntro. rewrite list_lookup_total_alt Hidx /=.
             rewrite /s0' /Marki /Mark /Mk0' lookup_insert Def_mark'.
@@ -236,9 +246,7 @@ Module MAINTENANCEOP_DELETE.
       + iDestruct "Hif" as %[Mark_c0 ->].
         iAssert (∃ s : snapshot, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
           ∗ ⌜∀ j : nat, j < i + 1 → Marki s c (xs !!! j) = true⌝)%I as "#Hmark'".
-        { assert (∀ j, j < i → Marki s0 c (xs !!! j) = true) as Hj0.
-          { admit. }
-          iAssert (⌜Marki s0 c (xs !!! i) = true⌝)%I as %Hi.
+        { iAssert (⌜Marki s0 c (xs !!! i) = true⌝)%I as %Hi.
           { iPureIntro. rewrite list_lookup_total_alt Hidx /=. done. }
           iExists s0. iSplitL. iExists T0. admit.
           iPureIntro; split; try done. split. done.
@@ -276,22 +284,25 @@ Module MAINTENANCEOP_DELETE.
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
-    { (* interpolation *) admit. }
+    { apply leibniz_equiv in Habs0. rewrite -Habs0.
+      iDestruct "FP_c" as (s)"(Past_s & %)".
+      iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
     rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
     iAaccIntro with "Node_c".
     { iIntros "Node_c". iModIntro. iFrame "Hpost".
       iNext; iExists M0, T0, s0. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
-    iIntros "Node_c". iSplitR " Hpost".
+    iIntros "Node_c". 
+    iSplitR " Hpost".
     { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }  
     iModIntro. wp_pures. set h := Height s0 c. 
     wp_apply permute_levels_spec; try done.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
     wp_apply (maintenanceOp_delete_rec_spec with "[] [Hperm]"); try done.
-    { iFrame "Hperm %". iDestruct "FP_c" as (s)"(Hs & FP_c)".
-      iExists s. iFrame "Hs FP_c". iPureIntro; split; try lia. admit. }
+    { iFrame "Hperm %". iExists s0. iSplitL. admit. 
+      iPureIntro. repeat split; try done. lia. }
     iIntros "(Hs & Hperm)". iDestruct "Hs" as (s)"(Hs & %H' & %H'' & %H1')".
     iApply "Hpost". iExists s, h; iFrame. iPureIntro; repeat split; try done.
     intros i Hi. assert (∃ j, j < h - 1 ∧ (xs !!! j = i)) as [j [H1'' <-]].
@@ -299,7 +310,7 @@ Module MAINTENANCEOP_DELETE.
       rewrite elem_of_list_lookup in Hixs. destruct Hixs as [j Hjxs].
       exists j; split. apply lookup_lt_Some in Hjxs. 
       by rewrite Perm_xs seq_length in Hjxs. 
-      by rewrite list_lookup_total_alt Hjxs.  }
+      by rewrite list_lookup_total_alt Hjxs. }
     apply H1'; try done.
   Admitted.
 

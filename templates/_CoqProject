@@ -24,7 +24,7 @@ util/typed_proph.v
 
 hindsight/hindsight.v
 
-lockfree/skiplist_v1.v
-lockfree/skiplist_v1_util.v
-lockfree/skiplist_v1_traverse.v
+#lockfree/skiplist_v1.v
+#lockfree/skiplist_v1_util.v
+#lockfree/skiplist_v1_traverse.v
 

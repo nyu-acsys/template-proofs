@@ -62,25 +62,10 @@ Section list_flow_upd_marking.
       apply HInd; try done; clear HInd.
       + rewrite Dom_I0'. set_solver.
       + rewrite Dom_I0'. set_solver.
-      + apply (list_flow_upd_Key_I0 Key Nx n n1 I0 I0'); try done.
+      + apply (list_flow_upd_Key_I0_rec Key Nx n n1 I0 I0'); try done.
       + rewrite /I0' /FI lookup_total_insert /In1' /In1. done.
       + rewrite Dom_I0'. set_solver.
-      + rewrite Dom_I0'. intros x; rewrite elem_of_union.
-        intros [Hx | Hx].
-        * subst I0'. 
-          assert (x ≠ n1) as H'.
-          { clear -Hx n1_notin_I0. set_solver. }
-          unfold FI.
-          rewrite lookup_total_insert_ne; try done.
-          subst II.
-          apply Domm_II; try done.
-        * assert (x = n1) as -> by (clear -Hx; set_solver).
-          unfold FI. subst I0'.
-          rewrite lookup_total_insert.
-          subst In1'.
-          rewrite flowint_inflow_map_set_dom.
-          subst In1. rewrite Domm_I; try done.
-          clear; set_solver.
+      + apply (list_flow_upd_domm_rec Key f_incr S Nx n n1 I I0); try done.
       + rewrite Dom_I0'.
         rewrite !big_opS_union; [try done | set_solver | set_solver].
         rewrite !big_opS_singleton. 
@@ -1036,6 +1021,7 @@ Section list_flow_upd_marking.
           pose proof Out_In n1 n1_in_I as H'. clear -H'; set_solver.
   Qed.
 
+
   Lemma marking_flow_upd_summary Key n0 Nx Mk S I res n1:
     let FI := λ I x, I !!! x in 
     (nx_key_rel Nx Key) →
@@ -1318,6 +1304,9 @@ Section list_flow_upd_marking.
       - rewrite /I' /FI lookup_total_insert /In1.
         rewrite inflow_insert_set_outsets inflow_insert_set_insets.
         pose proof Out_In n1 n1_in_I as H'. clear -H'; set_solver. }
+    assert (∀ x, x ∈ dom I' → insets (FI I x) ≠ ∅) as Insets_ne.
+    { intros x. rewrite Dom_I' elem_of_union. intros [Hx | Hx].
+      all: (rewrite elem_of_singleton in Hx; subst x; try done). }
 
     exists II, nk. repeat split; try done.
     - by apply (list_flow_upd_n0_dom f_incr n1 R Nx Mk S I I' II nk).
@@ -1330,7 +1319,7 @@ Section list_flow_upd_marking.
     - by apply (list_flow_upd_II' f_incr n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_marking_Inf Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_marking_Out Key n1 R Nx Mk S I I' II nk n0).
-    - admit.
+    - by apply (list_flow_upd_Insets_ne Key f_incr n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_marking_Dom_out Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_marking_Out_In Key n1 R Nx Mk S I I' II nk).
     - rewrite /FI 
@@ -1338,6 +1327,6 @@ Section list_flow_upd_marking.
         try done.
     - by apply (list_flow_upd_marking_KS_nk Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_marking_KS Key n1 R Nx Mk S I I' II nk n0).
-  Admitted.
+  Qed.
   
 End list_flow_upd_marking.

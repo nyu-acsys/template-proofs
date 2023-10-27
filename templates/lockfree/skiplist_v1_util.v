@@ -168,7 +168,14 @@ Module SKIPLIST1_UTIL.
   Proof.
     apply (temporal_interpolation_refl_trans _ _ _ (λ x, Key x n)); try apply _.
   Qed.
-  
+
+  Lemma temporal_interpolation_ht (M : gmap nat snapshot) t0 T n :
+      (∀ t, t0 ≤ t < T → Height (M !!! t) n = Height (M !!! (t+1)%nat) n) →
+        (∀ t1 t2, t0 ≤ t1 ≤ t2 ≤ T → Height (M !!! t1) n = Height (M !!! t2) n).
+  Proof.
+    apply (temporal_interpolation_refl_trans _ _ _ (λ x, Height x n)); try apply _.
+  Qed.
+
   Lemma temporal_interpolation_marking_mono (M : gmap nat snapshot) t0 T n i :
     let F := λ (x: bool), match x with false => 0 | true => 1 end in
       (∀ t, t0 ≤ t < T → 
@@ -202,7 +209,26 @@ Module SKIPLIST1_UTIL.
     iPureIntro. apply (H'' ts t). repeat (split; try lia).
     rewrite lookup_total_alt. by rewrite M_ts'.
   Qed.
-  
+
+  Lemma in_FP_2 n M T γ_t γ_m s t0:
+  ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+  hist γ_t γ_m M T -∗
+  past_state γ_m t0 s -∗ 
+  ⌜n ∈ FP s⌝ -∗ 
+    ⌜n ∈ FP (M !!! T)⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s".
+    iDestruct "Past_s" as (ts)"(%Hts & Hs)".
+    iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
+    { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
+      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
+      by iPureIntro. }
+    iApply (in_FP with "[%] [$Hist] [$Hs] [%]"); try done.
+  Qed.
+
   Lemma key_eq n M T γ_t γ_m s ts t:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
     hist γ_t γ_m M T -∗
@@ -233,7 +259,76 @@ Module SKIPLIST1_UTIL.
     iPureIntro. rewrite -M_ts. symmetry. apply Hk'.
     repeat (split; try done).
   Qed.
-  
+
+  Lemma key_eq_2 n M T γ_t γ_m s t0:
+    ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+    hist γ_t γ_m M T -∗
+    past_state γ_m t0 s -∗ 
+    ⌜n ∈ FP s⌝ -∗
+      ⌜Key (M !!! T) n = Key s n⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s".
+    iDestruct "Past_s" as (ts)"(%Hts & Hs)".
+    iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
+    { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
+      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
+      by iPureIntro. }
+    iApply (key_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
+  Qed.
+
+  Lemma height_eq n M T γ_t γ_m s ts t:
+    ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+    hist γ_t γ_m M T -∗
+    own γ_m (◯ {[ts := to_agree s]}) -∗
+    ⌜n ∈ FP s⌝ -∗
+    ⌜ts ≤ t ≤ T⌝ -∗
+      ⌜Height (M !!! t) n = Height s n⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s %Ht".
+    iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
+    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    apply H2'' in M_ts. 
+    assert (ts ∈ dom M) as ts_in_M.
+    { rewrite elem_of_dom. by rewrite M_ts. }
+    apply lookup_total_correct in M_ts.
+    assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as FP_t.
+    { intros t' Ht'. apply Trans in Ht'. 
+      by destruct Ht' as (_&_&_&_&_&H'). }
+    pose proof temporal_interpolation_fp _ _ FP_t as FP_t'.
+    assert (∀ t, ts ≤ t < T → Height (M !!! t) n = Height (M !!! (t+1)%nat) n) as Hk.
+    { intros t' Ht'. 
+      assert (0 <= t' < T) as H'%Trans by lia. 
+      destruct H' as (_&_&_&H'&_).
+      rewrite -M_ts in n_in_s. symmetry.
+      apply H'. apply (FP_t' ts); try (done || lia). }
+    pose proof temporal_interpolation_ht _ _ _ _ Hk as Hk'.
+    iPureIntro. rewrite -M_ts. symmetry. apply Hk'.
+    repeat (split; try done).
+  Qed.
+
+  Lemma height_eq_2 n M T γ_t γ_m s t0:
+    ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+    hist γ_t γ_m M T -∗
+    past_state γ_m t0 s -∗ 
+    ⌜n ∈ FP s⌝ -∗
+      ⌜Height (M !!! T) n = Height s n⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s".
+    iDestruct "Past_s" as (ts)"(%Hts & Hs)".
+    iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
+    { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
+      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
+      by iPureIntro. }
+    iApply (height_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
+  Qed.
+
   Lemma marking_mono n i M T γ_t γ_m s ts t :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
     hist γ_t γ_m M T -∗
@@ -280,6 +375,26 @@ Module SKIPLIST1_UTIL.
     set a : bool := Marki (M !!! t) n i.
     rewrite -/a in Hm'. destruct a; try (done || lia).
   Qed.
+
+  Lemma marking_mono_2 n i M T γ_t γ_m s t0 :
+    ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+    hist γ_t γ_m M T -∗
+    past_state γ_m t0 s -∗ 
+    ⌜n ∈ FP s⌝ -∗
+    ⌜Marki s n i = true⌝ -∗
+      ⌜Marki (M !!! T) n i = true⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s %Hm".
+    iDestruct "Past_s" as (ts)"(%Hts & Hs)".
+    iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
+    { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
+      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
+      by iPureIntro. }
+    iApply (marking_mono with "[%] [$Hist] [$Hs] [%] [%]"); try done.
+  Qed.  
 
   Lemma temporal_interpolation_marking (M : gmap nat snapshot) 
     (t0 T: nat) (Mark: snapshot → bool) :
@@ -373,6 +488,57 @@ Module SKIPLIST1_UTIL.
       H' Mark1 Mark_n' Ht_s as H''. 
     destruct H'' as [t [? [? ?]]].
     iPureIntro. exists t; repeat split; try (done || lia).
+  Qed.
+
+  Lemma temporal_interpolation_next (M : gmap nat snapshot) 
+    (t0 t T: nat) (Mark: snapshot → bool) (Next: snapshot → option Node) :
+      (∀ t, t0 ≤ t < T → Next (M !!! S t) = Next (M !!! t)) →
+      t0 ≤ t ≤ T →
+        (Next (M !!! t) = Next (M !!! t0)).
+  Proof.
+    intros Htrans; induction t; intros Range_t.
+    - assert (t0 = 0) as -> by lia. done.
+    - destruct (decide (S t = t0)) as [-> | H']; try done.
+      rewrite Htrans. apply IHt. all: lia.
+  Qed.
+
+  Lemma next_unchanged n i M T γ_t γ_m t0 s :
+    ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
+    hist γ_t γ_m M T -∗
+    past_state γ_m t0 s -∗ 
+    ⌜n ∈ FP s⌝ -∗
+    ⌜Marki s n i = true⌝ -∗
+      ⌜Nexti (M !!! T) n i = Nexti s n i⌝.
+  Proof.
+    iIntros "%Trans Hist #Past_s %n_in_s %Mark_n".
+    iAssert (past_state γ_m t0 s) with "Past_s" as "H'".
+    iDestruct "H'" as (ts)"(%Hts & Hs)".
+    iAssert (∀ t, ⌜ts ≤ t < T⌝ → 
+      ⌜Nexti (M !!! S t) n i = Nexti (M !!! t) n i⌝)%I as %Htrans.
+    { iIntros (t)"%Range_t". assert (0 ≤ t < T) as H'. lia.
+      apply Trans in H'. destruct H' as (H'&_).
+      iAssert (⌜n ∈ FP (M !!! t)⌝)%I as %Hfp.
+      { iApply (in_FP with "[%] [$Hist] [$Hs] [%] [%]"); try done. lia. }
+      iAssert (⌜Marki (M !!! (t+1)%nat) n i = true⌝)%I as %Hm.
+      { iApply (marking_mono with "[%] [$Hist] [$Hs] [%] [%] [%]"); try done. lia. }
+      iPureIntro. assert (∀ t, (t+1)%nat = S t) as H'' by lia. rewrite -H''.
+      apply H'; try done. }
+    iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
+    { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
+      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
+      by iPureIntro. }
+    assert (ts ≤ T ≤ T) as H' by lia.
+    pose proof temporal_interpolation_next _ ts T T (λ s, Marki s n i)
+      (λ s, Nexti s n i) Htrans H' as H''. rewrite /= in H''.
+    
+    iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+    iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    apply H2'' in M_ts. apply lookup_total_correct in M_ts.
+    rewrite M_ts in H''. by iPureIntro.
   Qed.
 
 End SKIPLIST1_UTIL.

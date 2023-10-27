@@ -363,14 +363,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition GFI (s: snapshot) : multiset_flowint_ur nat :=
     ([^op set] x ∈ FP s, FI s x). 
   
-  Definition gset_seq i j : gset nat :=
-    list_to_set (seq i (j + 1 - i)).
-
-  Lemma elem_of_gset_seq i j k :
-    k ∈ gset_seq i j ↔ i ≤ k ≤ j.
-  Proof.
-    intros; rewrite elem_of_list_to_set elem_of_seq; lia.
-  Qed.
 
   Definition snapshot_constraints (s: snapshot) : Prop :=
     ∃ (N: gset Node) (C: gset nat) (H: gmap Node nat)
@@ -404,8 +396,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       {[hd; tl]} ⊆ fp
     ∧ (k_hd = 0)
     ∧ (k_tl = W)
-    ∧ (∀ i, mhd !!! i = false)
-    ∧ (∀ i, mtl !!! i = false)
+    ∧ (∀ i, i < L → mhd !!! i = false)
+    ∧ (∀ i, i < L → mtl !!! i = false)
     ∧ (nhd !! (L-1) = Some tl)
     ∧ ntl = ∅
     ∧ ht_hd = L

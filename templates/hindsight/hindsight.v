@@ -31,11 +31,13 @@ Module Type DATA_STRUCTURE.
   Parameter resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
   
   Parameter seq_spec : Op -> absT -> absT -> resT -> Prop.
-  Parameter seq_spec_dec : ∀ op c c' res, Decision (seq_spec op c c' res).
+  #[global] Declare Instance seq_spec_dec : 
+    ∀ op c c' res, Decision (seq_spec op c c' res).
+  (*
   Parameter updater_thread: Op -> resT -> bool.
   Parameter updater_thread_dec: 
     ∀ op res b, Decision (updater_thread op res = b).
-
+  *)
 
   Parameter snapshotUR : ucmra.
   Definition snapshot := ucmra_car snapshotUR.
@@ -110,8 +112,9 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
-  
 
+  (* Util *)
+  (*
   Definition map_max (M: gmap nat snapshot) : nat := 
     max_list (elements (dom M)).
     
@@ -122,11 +125,33 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     apply max_list_elem_of_le.
     set_solver.
   Qed.
+  *)
+  Definition gset_seq i j : gset nat :=
+    list_to_set (seq i (j + 1 - i)).
+
+  Lemma elem_of_gset_seq i j k :
+    k ∈ gset_seq i j ↔ i ≤ k ≤ j.
+  Proof.
+    intros; rewrite elem_of_list_to_set elem_of_seq; lia.
+  Qed.
+
+  Lemma gset_seq_eq T T' :
+    gset_seq 0 T = gset_seq 0 T' → T = T'.
+  Proof.
+    intros Heq. 
+    assert (T ∈ gset_seq 0 T') as HT. 
+    { rewrite -Heq elem_of_gset_seq. lia. }
+    assert (T' ∈ gset_seq 0 T) as HT'. 
+    { rewrite Heq elem_of_gset_seq. lia. }
+    rewrite !elem_of_gset_seq in HT HT'. lia.
+  Qed.
+
+  (* Util over *)
   
   Definition hist γ_t γ_m M T : iProp :=
     ∃ (M': gmap nat (agreeR (_))),
       own γ_t (● MaxNat T) ∗ own γ_m (● M')
-    ∗ ⌜T = map_max M⌝ ∗ ⌜T ∈ dom M⌝
+    ∗ ⌜dom M = gset_seq 0 T⌝
     ∗ ⌜∀ t s, M' !! t ≡ Some (to_agree s) ↔ M !! t = Some s⌝
     ∗ ⌜∀ t, t < T → (M !!! t) ≠ (M !!! (t+1)%nat)⌝.
 
@@ -140,81 +165,63 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   
   Definition au N γ_r op (Q : val → iProp) := 
     (AU << ∃∃ a, dsRep γ_r a >> 
-          @ ⊤ ∖ ↑(cntrN N), ∅
-        << ∀∀ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
-  (*
-  Definition au_nupd N γ_r op (Q : val → iProp) := 
-    (AU << ∃∃ a, dsRep γ_r a >> 
-          @ ⊤ ∖ ↑(cntrN N), ∅
-        << ∀∀ res, dsRep γ_r a ∗ ⌜seq_spec op a a res⌝, COMM Q #res >>)%I.
-  *)
+          @ ⊤ ∖ (↑(cntrN N) ∪ ↑(threadN N)), ∅
+        << ∀∀ a' res, dsRep γ_r a' 
+          ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
+
   Definition past_lin M T op res t0 : iProp :=
     ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
 
   Definition past_state γ_m (t0: nat) (s: snapshot) : iProp :=
     ∃ t, ⌜t0 ≤ t⌝ ∗ own γ_m (◯ {[t := to_agree s]}).
   
-  (*
-  Definition past_two_states γ_m (t0: nat) (s s': snapshot) : iProp :=
-    ∃ t, ⌜t0 ≤ t⌝ 
-    ∗ own γ_m (◯ {[t := to_agree s]}) 
-    ∗ own γ_m (◯ {[t+1 := to_agree s']}).
-  *)
-  
   Definition past_lin_witness γ_m op res t0 : iProp :=
     ∃ s, past_state γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝.
 
-  Definition Pending (P: iProp) M T op vp t0 : iProp := 
-    P ∗ £1 ∗ ¬ past_lin M T op vp t0.
+  Definition Token γ := own γ (Excl ()).
+  
+  Definition Pending P M T op vp t0 : iProp := 
+      P ∗ £1 ∗ ¬ past_lin M T op vp t0.
 
   Definition Done γ_tk (Q: val → iProp) M T op (vp: resT) t0 : iProp := 
-      (Q #vp ∨ own γ_tk (Excl ())) ∗ past_lin M T op vp t0.
-
-  Definition State γ_sy γ_tk P Q M T op vp t0 : iProp :=
-      own γ_sy (to_frac_agree (1/2) M)
-    ∗ ⌜T = map_max M⌝ 
-    ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
+    (Q #vp ∨ Token γ_tk) ∗ past_lin M T op vp t0.
+  
+  Definition State γ_sy γ_tk P Q M T op vp t0: iProp :=
+        own γ_sy (to_frac_agree (1/2) M)
+      ∗ ⌜dom M = gset_seq 0 T⌝ ∗ ⌜t0 ≤ T⌝
+      ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
 
   Definition thread_vars γ_t γ_ght γ_sy t_id t0 : iProp := 
     own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition Reg_nupd N γ_t γ_r γ_ght t_id M : iProp :=
+  Definition Reg N γ_t γ_r γ_ght t_id M : iProp :=
     ∃ γ_tk γ_sy Q op vp t0 (vtid: val), 
         proph1 t_id vtid
       ∗ thread_vars γ_t γ_ght γ_sy t_id t0
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
-      ∗ ⌜updater_thread op vp = false⌝ 
-      ∗ inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
+      ∗ inv (threadN N) 
+        (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
+    
+  Definition helping_inv (N: namespace) γ_t γ_r γ_ght M : iProp :=
+    ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR (prodO _ _))),
+        own γ_ght (● hγt) ∗ ⌜R = dom hγt⌝
+      ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_ght t_id M).
 
-  Definition Reg_upd N γ_t γ_r γ_ght t_id : iProp :=
-    ∃ γ_fr Q op vp t0 (vtid: val), 
-        proph1 t_id vtid
-      ∗ thread_vars γ_t γ_ght γ_fr t_id t0
-      ∗ ⌜updater_thread op vp = true⌝ 
-      ∗ ((au N γ_r op Q) ∗ own (γ_fr) (1/2)%Qp ∨ own (γ_fr) (1%Qp)).
-
-  Definition helping_inv (N: namespace) γ_t γ_r γ_td1 γ_td2 γ_ght M : iProp :=
-    ∃ (R1 R2: gset proph_id) (hγt: gmap proph_id (agreeR _)),
-        own γ_td1 (● R1) ∗ own γ_td2 (● R2)
-      ∗ own γ_ght (● hγt) ∗ ⌜dom hγt = R1 ∪ R2⌝
-      ∗ ([∗ set] t_id ∈ R1, Reg_upd N γ_t γ_r γ_ght t_id)
-      ∗ ([∗ set] t_id ∈ R2, Reg_nupd N γ_t γ_r γ_ght t_id M).
-  
-  Definition main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght : iProp :=
+  Definition main_inv N γ_t γ_r γ_m γ_ght : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
       dsRepI γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
     ∗ hist γ_t γ_m M T
-    ∗ helping_inv N γ_t γ_r γ_td1 γ_td2 γ_ght M
+    ∗ helping_inv N γ_t γ_r γ_ght M
     ∗ ds_inv M T s).
 
-  Definition update_helping_protocol N γ_t γ_s γ_td1 γ_td2 γ_ght : iProp :=
-        ∀ M T n s, 
-          ⌜map_max M = T⌝ -∗   
-            dsRep γ_s n -∗ own γ_t (● MaxNat T) -∗ 
-              helping_inv N γ_t γ_s γ_td1 γ_td2 γ_ght M ={⊤ ∖ ↑cntrN N}=∗
-                helping_inv N γ_t γ_s γ_td1 γ_td2 γ_ght (<[T := s]> M) 
-                ∗ dsRep γ_s n ∗ own γ_t (● MaxNat T).
+  Definition update_helping_protocol N γ_t γ_r γ_ght : iProp :=
+        ∀ M T s, 
+          ⌜dom M = gset_seq 0 T⌝ -∗   
+            dsRep γ_r (abs s) -∗
+              helping_inv N γ_t γ_r γ_ght M ={⊤ ∖ ↑cntrN N}=∗
+                helping_inv N γ_t γ_r γ_ght (<[T+1 := s]> M) 
+                ∗ dsRep γ_r (abs s).
     
 End HINDSIGHT_DEFS.
 

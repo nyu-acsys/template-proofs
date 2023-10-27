@@ -1599,8 +1599,10 @@ Section list_flow_upd_insert.
       pose proof Out_In n0 n0_in_I as H'. clear -H'; set_solver. }
     assert (∀ x, x ∈ dom I' ∖ {[n0; n1]} → Mk !! x = Some true) as Mk_x.
     { intros x Hx; rewrite Dom_I' in Hx. clear -Hx; set_solver. }
+    assert (∀ x, x ∈ dom I' → insets (FI I x) ≠ ∅) as Insets_ne.
+    { intros x. rewrite Dom_I' elem_of_union. intros [Hx | Hx].
+      all: (rewrite elem_of_singleton in Hx; subst x; try done). }
 
-    
     set R := dom I ∖ {[n0]}.
     
     exists II, nk. repeat split; try done.
@@ -1619,7 +1621,7 @@ Section list_flow_upd_insert.
     - by apply (list_flow_upd_II' f_decr n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_insert_Inf Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_Out Key n1 R Nx Mk S I I' II nk).
-    - admit.
+    - by apply (list_flow_upd_Insets_ne Key f_decr n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_Dom_out Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_Out_In Key n1 R Nx Mk S I I' II nk n0).
     - rewrite /FI 
@@ -1628,7 +1630,7 @@ Section list_flow_upd_insert.
     - by apply (list_flow_upd_insert_KS_nk Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_KS Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_insert_S_in_nk Key n1 R Nx Mk S I I' II nk n0).
-  Admitted.
+  Qed.
 
 End list_flow_upd_insert.
   
