@@ -203,7 +203,7 @@ Module SKIPLIST1_UTIL.
     pose proof temporal_interpolation_fp _ _ H' as H''.
     iDestruct "Hist" as (M') "(H'&H''&H''')".
     iDestruct (history_sync with "[$H''] [$Past_s]") as "%M_ts".
-    iDestruct "H'''" as "(%H1'&_&%H1''&_)".
+    iDestruct "H'''" as "(%H1'&%H1''&_)".
     apply H1'' in M_ts. assert (M_ts' := M_ts). 
     apply lookup_total_correct in M_ts.
     iPureIntro. apply (H'' ts t). repeat (split; try lia).
@@ -222,10 +222,9 @@ Module SKIPLIST1_UTIL.
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
       iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
-      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
-      by iPureIntro. }
+      rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (in_FP with "[%] [$Hist] [$Hs] [%]"); try done.
   Qed.
 
@@ -240,7 +239,7 @@ Module SKIPLIST1_UTIL.
     iIntros "%Trans Hist #Past_s %n_in_s %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
     iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
-    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
     { rewrite elem_of_dom. by rewrite M_ts. }
@@ -272,10 +271,9 @@ Module SKIPLIST1_UTIL.
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
       iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
-      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
-      by iPureIntro. }
+      rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (key_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
   Qed.
 
@@ -290,7 +288,7 @@ Module SKIPLIST1_UTIL.
     iIntros "%Trans Hist #Past_s %n_in_s %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
     iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
-    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
     { rewrite elem_of_dom. by rewrite M_ts. }
@@ -322,10 +320,9 @@ Module SKIPLIST1_UTIL.
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
       iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
-      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
-      by iPureIntro. }
+      rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (height_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
   Qed.
 
@@ -341,7 +338,7 @@ Module SKIPLIST1_UTIL.
     iIntros "%Trans Hist #Past_s %n_in_s Mark_n %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
     iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
-    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
     { rewrite elem_of_dom. by rewrite M_ts. }
@@ -366,7 +363,7 @@ Module SKIPLIST1_UTIL.
       destruct a; destruct b; unfold F; try (done || lia). }
     pose proof temporal_interpolation_marking_mono _ _ _ _ _ Hm as Hm'.
     assert (ts ≤ T) as Hts. 
-    { apply map_max_dom in ts_in_M. by rewrite -H2' in ts_in_M. }
+    { rewrite H2' elem_of_gset_seq in ts_in_M. lia. }
     assert (ts ≤ ts ≤ t ≤ T) as H' by lia.
     pose proof Hm' _ _ H' as Hm'.
     iDestruct "Mark_n" as %Mark_n.
@@ -389,10 +386,9 @@ Module SKIPLIST1_UTIL.
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
       iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
-      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
-      by iPureIntro. }
+      rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (marking_mono with "[%] [$Hist] [$Hs] [%] [%]"); try done.
   Qed.  
 
@@ -448,43 +444,39 @@ Module SKIPLIST1_UTIL.
   Qed.
 
 
-  Lemma marking_witness n i M T γ_t γ_m t0 s :
+  Lemma marking_witness n i M T γ_t γ_m ts s :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
     hist γ_t γ_m M T -∗
-    past_state γ_m t0 s -∗ 
+    own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜Marki s n i = false⌝ -∗
     ⌜Marki (M !!! T) n i = true⌝ -∗
-      ⌜∃ t, t0 ≤ t < T ∧ Marki (M !!! t) n i = false ∧ Marki (M !!! S t) n i = true⌝.
+      ⌜∃ t, ts ≤ t < T ∧ Marki (M !!! t) n i = false ∧ Marki (M !!! S t) n i = true⌝.
   Proof.
-    iIntros "%Trans Hist #Past_s %n_in_s %Mark_n %Mark_n'".
-    iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-    iDestruct "Past_s" as (t_s)"(%t0_le_ts & Ht_s)".
-    iDestruct (history_sync with "[$H1''] [$Ht_s]") as "%M_ts".
-    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
-    apply H2'' in M_ts. 
-    assert (t_s ∈ dom M) as ts_in_M.
+    iIntros "%Trans Hist #Hts %n_in_s %Mark_n %Mark_n'".
+    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    iDestruct (history_sync with "[$HM'] [$Hts]") as "%M_ts".
+    apply M_eq in M_ts. assert (ts ∈ dom M) as ts_in_M.
     { rewrite elem_of_dom. by rewrite M_ts. }
     apply lookup_total_correct in M_ts.
     assert (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) as FP_t.
     { intros t' Ht'. apply Trans in Ht'. 
       by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ FP_t as FP_t'.
-    assert (∀ t, t_s ≤ t < T → Marki (M !!! t) n i = true → 
+    assert (∀ t, ts ≤ t < T → Marki (M !!! t) n i = true → 
                                 Marki (M !!! S t) n i = true) as H'.
     { intros t' Ht'. 
       assert (0 <= t' < T) as H'%Trans by lia. 
       destruct H' as (_&_&H'&_).
       assert (n ∈ FP (M !!! t')) as n_in_t'.
-      { assert (0 ≤ t_s ≤ t' ≤ T) as H''%FP_t' by lia. apply H''.
+      { assert (0 ≤ ts ≤ t' ≤ T) as H''%FP_t' by lia. apply H''.
         by rewrite -M_ts in n_in_s. }
       pose proof (H' n i n_in_t') as H''.
-      assert (S t' = t' + 1) as -> by lia.
-      done. }
-    assert (Marki (M !!! t_s) n i = false) as Mark1.
+      assert (S t' = t' + 1) as -> by lia. done. }
+    assert (Marki (M !!! ts) n i = false) as Mark1.
     { rewrite M_ts. done. }
-    assert (t_s ≤ T) as Ht_s. { rewrite H2'. by apply map_max_dom. }
-    pose proof temporal_interpolation_marking M t_s T (λ s, Marki s n i) 
+    assert (ts ≤ T) as Ht_s. { rewrite Dom_M elem_of_gset_seq in ts_in_M. lia. }
+    pose proof temporal_interpolation_marking M ts T (λ s, Marki s n i) 
       H' Mark1 Mark_n' Ht_s as H''. 
     destruct H'' as [t [? [? ?]]].
     iPureIntro. exists t; repeat split; try (done || lia).
@@ -526,19 +518,112 @@ Module SKIPLIST1_UTIL.
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
       iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-      iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+      iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
-      apply map_max_dom in M_ts. rewrite -H2' in M_ts.
-      by iPureIntro. }
+      rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     assert (ts ≤ T ≤ T) as H' by lia.
     pose proof temporal_interpolation_next _ ts T T (λ s, Marki s n i)
       (λ s, Nexti s n i) Htrans H' as H''. rewrite /= in H''.
     
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
     iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
-    iDestruct "H1'''" as "(%H2'&_&%H2''&_)".
+    iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. apply lookup_total_correct in M_ts.
     rewrite M_ts in H''. by iPureIntro.
+  Qed.
+
+  Lemma per_tick_current γ_t γ_m M T s :
+    ⌜M !!! T ≡ s⌝ -∗ 
+    ⌜∀ t, t ∈ dom M → per_tick_inv (M !!! t)⌝ -∗
+    hist γ_t γ_m M T -∗ 
+      ⌜per_tick_inv s⌝.
+  Proof.
+    iIntros "%Habs %PT Hist". iDestruct "Hist" as (M')"(_&_&%H'&_)". iPureIntro.
+    apply leibniz_equiv in Habs. rewrite <-Habs. apply PT.
+    rewrite H' elem_of_gset_seq; lia. 
+  Qed.
+
+  Lemma snapshot_create t γ_t γ_m M T t0:
+    ⌜t ∈ dom M⌝ -∗
+    ⌜t0 ≤ t⌝ -∗ 
+    own γ_t (◯ MaxNat t0) -∗ 
+    hist γ_t γ_m M T -∗ 
+      |==> past_state γ_m t0 (M !!! t) ∗ hist γ_t γ_m M T.
+  Proof.
+    iIntros "%Dom_t %t0_le_t Ht0 Hist".
+    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    apply elem_of_dom in Dom_t. destruct Dom_t as [s Dom_t].
+    apply M_eq in Dom_t. 
+    iPoseProof (own_update _ (● M') (● M' ⋅ ◯ {[t := to_agree s]}) with "HM'") 
+      as ">(HM' & #Ht)". 
+    { apply auth_update_alloc, local_update_unital_discrete. 
+      intros z Hm Hz. split; try done. rewrite left_id in Hz. rewrite -Hz.
+      apply map_equiv_iff. intros x. destruct (decide (x = t)) as [-> | Hxz].
+      - rewrite lookup_op Dom_t lookup_insert. rewrite /op /cmra_op /=.
+        by rewrite agree_idemp.
+      - rewrite lookup_op lookup_insert_ne; try done. rewrite lookup_empty.
+        rewrite /op /cmra_op /=. destruct (M' !! x) eqn:H'; rewrite H'; try done. }
+    iModIntro. iFrame. iSplitR. iExists t. apply M_eq, lookup_total_correct in Dom_t.
+    rewrite Dom_t. iFrame "%#". iExists M'. iFrame "∗%".
+  Qed.
+
+  Lemma snapshot_current γ_t γ_m M T s t0:
+    ⌜M !!! T ≡ s⌝ -∗ 
+    own γ_t (◯ MaxNat t0) -∗ 
+    hist γ_t γ_m M T -∗ 
+      |==> past_state γ_m t0 s ∗ hist γ_t γ_m M T.
+  Proof.
+    iIntros "%Habs #Ht0 Hist". 
+    iAssert (⌜t0 ≤ T ∧ T ∈ dom M⌝)%I as "(%H' & %H'')".
+    { iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+      iPoseProof (own_valid_2 with "HT Ht0") as "%Hv".
+      rewrite auth_both_valid_discrete max_nat_included /= in Hv.
+      iPureIntro. split. apply Hv. rewrite Dom_M elem_of_gset_seq; lia. }
+    apply leibniz_equiv in Habs. rewrite -Habs.
+    iPoseProof (snapshot_create with "[%] [%] [$Ht0] [$Hist]") as "H'"; try done.
+  Qed.
+
+  Lemma hist_upd γ_t γ_m M T s s':
+  ⌜M !!! T ≡ s⌝ -∗
+  ⌜s ≠ s'⌝ -∗ 
+  hist γ_t γ_m M T -∗
+    |==> hist γ_t γ_m (<[T+1:=s']> M) (T+1).
+  Proof.
+    iIntros "%Habs %Hs Hist".
+    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    iPoseProof (own_update _ (● MaxNat T) (● MaxNat (T+1)) with "HT") 
+      as ">HT".
+    { apply (auth_update_auth _ _ (MaxNat (T+1))), max_nat_local_update.
+      simpl. lia. } 
+    iPoseProof (own_update _ (● M') (● (<[T+1:= to_agree s']> M')) with "HM'") 
+      as ">HM'". 
+    { apply (auth_update_auth _ _ {[T+1 := to_agree s']}). 
+      apply local_update_unital_discrete. intros z Hm Hz. rewrite left_id in Hz. 
+      rewrite -Hz. split. 
+      - apply insert_valid; try done.
+      - assert (M' !! (T+1) = None) as Hmt. 
+        { assert (T+1 ∉ dom M) as H'. rewrite Dom_M elem_of_gset_seq. lia.
+          assert (T+1 ∉ dom M') as H''. intros H''. rewrite elem_of_dom in H''.
+          destruct H'' as [x H'']. assert (M' !! (T+1) ≡ Some x) as H1'.
+          rewrite H''. done. pose proof lookup_valid_Some _ _ _ Hm H1' as H1''.
+          apply to_agree_uninj in H1''. destruct H1'' as [s'' H1''].
+          rewrite -H1'' in H1'. apply M_eq in H1'. apply elem_of_dom_2 in H1'.
+          set_solver. by rewrite not_elem_of_dom in H''. }
+        apply map_equiv_iff. intros x. destruct (decide (x = T+1)) as [-> | Hxz].
+        + rewrite lookup_op Hmt !lookup_insert /=. try done.
+        + rewrite lookup_op !lookup_insert_ne; try done. rewrite lookup_empty.
+          rewrite /op /cmra_op /=. destruct (M' !! x) eqn:H'; rewrite H'; try done. }
+    iModIntro. iExists (<[T+1:= to_agree s']> M'). iFrame. iPureIntro. split; last split.
+    - rewrite dom_insert_L Dom_M. rewrite gset_seq_union. clear; set_solver.
+    - intros t s0. destruct (decide (t = T+1)) as [-> | Ht].
+      + rewrite !lookup_insert. split. intros H'. inversion H'.
+        apply to_agree_inj in H1. apply leibniz_equiv in H1. by rewrite H1.
+        intros [=]. by subst s0.
+      + rewrite !lookup_insert_ne; try done.
+    - intros t. destruct (decide (t = T)) as [-> | Ht].
+      + rewrite lookup_total_insert_ne. rewrite lookup_total_insert.
+        apply leibniz_equiv in Habs. rewrite Habs. done. lia.
+      + intros ?; rewrite !lookup_total_insert_ne; try lia. apply M_neq. lia.
   Qed.
 
 End SKIPLIST1_UTIL.

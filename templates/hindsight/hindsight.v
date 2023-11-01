@@ -7,7 +7,7 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
-From flows Require Export one_shot_proph typed_proph.
+From flows Require Export one_shot_proph typed_proph gset_seq.
 
 Module Type DATA_STRUCTURE.
   
@@ -77,9 +77,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   Definition frac_historyR := dfrac_agreeR $ historyR.
   Definition tokenUR := exclR unitO.
   Definition set_tidR := authR (gsetUR proph_id). 
-  Definition thread_viewR := authUR $ 
-                              gmapUR proph_id $ 
-                                agreeR $ prodO natO gnameO.
+  Definition sync_mapR := authUR $ gmapUR proph_id $ agreeR $ gnameO.
+  Definition ts_mapR := authUR $ gmapUR proph_id $ agreeR $ natO.
   Definition upd_fracR := fracR. 
 
   Class hsG Σ := HS {
@@ -91,7 +90,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
                   hsG_tokenG :> inG Σ tokenUR;
                   hsG_frac_historyG :> inG Σ frac_historyR;
                   hsG_set_tidG :> inG Σ set_tidR;
-                  hsG_thread_viewG :> inG Σ thread_viewR;
+                  hsG_sync_mapG :> inG Σ sync_mapR;
+                  hsG_ts_mapG :> inG Σ ts_mapR;
                   hsG_upd_fracG :> inG Σ upd_fracR
                  }.
                  
@@ -100,7 +100,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
        GFunctor frac_absTR; GFunctor historyR;
        GFunctor auth_historyR; GFunctor tokenUR; 
        GFunctor frac_historyR; GFunctor set_tidR;
-       GFunctor thread_viewR; GFunctor upd_fracR].
+       GFunctor sync_mapR; GFunctor ts_mapR; GFunctor upd_fracR].
   
   Global Instance subG_hsΣ {Σ} : subG hsΣ Σ → hsG Σ.
   Proof. solve_inG. Qed.
@@ -112,41 +112,6 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
-
-  (* Util *)
-  (*
-  Definition map_max (M: gmap nat snapshot) : nat := 
-    max_list (elements (dom M)).
-    
-  Lemma map_max_dom (M: gmap nat snapshot) t :
-    t ∈ dom M → t ≤ map_max M.
-  Proof.
-    intros Ht. unfold map_max.
-    apply max_list_elem_of_le.
-    set_solver.
-  Qed.
-  *)
-  Definition gset_seq i j : gset nat :=
-    list_to_set (seq i (j + 1 - i)).
-
-  Lemma elem_of_gset_seq i j k :
-    k ∈ gset_seq i j ↔ i ≤ k ≤ j.
-  Proof.
-    intros; rewrite elem_of_list_to_set elem_of_seq; lia.
-  Qed.
-
-  Lemma gset_seq_eq T T' :
-    gset_seq 0 T = gset_seq 0 T' → T = T'.
-  Proof.
-    intros Heq. 
-    assert (T ∈ gset_seq 0 T') as HT. 
-    { rewrite -Heq elem_of_gset_seq. lia. }
-    assert (T' ∈ gset_seq 0 T) as HT'. 
-    { rewrite Heq elem_of_gset_seq. lia. }
-    rewrite !elem_of_gset_seq in HT HT'. lia.
-  Qed.
-
-  (* Util over *)
   
   Definition hist γ_t γ_m M T : iProp :=
     ∃ (M': gmap nat (agreeR (_))),
@@ -165,7 +130,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   
   Definition au N γ_r op (Q : val → iProp) := 
     (AU << ∃∃ a, dsRep γ_r a >> 
-          @ ⊤ ∖ (↑(cntrN N) ∪ ↑(threadN N)), ∅
+          @ ⊤ ∖ (↑N), ∅
         << ∀∀ a' res, dsRep γ_r a' 
           ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
 
@@ -191,38 +156,136 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
       ∗ ⌜dom M = gset_seq 0 T⌝ ∗ ⌜t0 ≤ T⌝
       ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
 
-  Definition thread_vars γ_t γ_ght γ_sy t_id t0 : iProp := 
-    own γ_ght (◯ {[t_id := to_agree (t0, γ_sy)]}) ∗ own γ_t (◯ MaxNat t0).
+  Definition thread_start γ_t γ_mt t_id t0 : iProp := 
+    own γ_mt (◯ {[t_id := to_agree t0]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition Reg N γ_t γ_r γ_ght t_id M : iProp :=
-    ∃ γ_tk γ_sy Q op vp t0 (vtid: val), 
-        proph1 t_id vtid
-      ∗ thread_vars γ_t γ_ght γ_sy t_id t0
+  Definition thread_sync γ_msy t_id γ_sy : iProp := 
+      own γ_msy (◯ {[t_id := to_agree γ_sy]}).
+  
+  Definition Reg N γ_t γ_r γ_mt γ_msy t_id M : iProp :=
+    ∃ γ_tk γ_sy Q op vp t0, 
+        thread_start γ_t γ_mt t_id t0
+      ∗ own γ_msy (◯ {[t_id := to_agree γ_sy]})
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
       ∗ inv (threadN N) 
         (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
     
-  Definition helping_inv (N: namespace) γ_t γ_r γ_ght M : iProp :=
-    ∃ (R: gset proph_id) (hγt: gmap proph_id (agreeR (prodO _ _))),
-        own γ_ght (● hγt) ∗ ⌜R = dom hγt⌝
-      ∗ ([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_ght t_id M).
+  Definition helping_inv (N: namespace) γ_t γ_r γ_mt γ_msy M : iProp :=
+    ∃ (Mt: gmap proph_id (agreeR nat)) (Msy: gmap proph_id (agreeR gname)),
+        own γ_mt (● Mt) 
+      ∗ own γ_msy (● Msy) 
+      ∗ ⌜dom Msy ⊆ dom Mt⌝ 
+      ∗ ([∗ set] t_id ∈ dom Mt, ∃ vtid, proph1 t_id vtid)
+      ∗ ([∗ set] t_id ∈ dom Msy, Reg N γ_t γ_r γ_mt γ_msy t_id M).
 
-  Definition main_inv N γ_t γ_r γ_m γ_ght : iProp :=
+  Definition main_inv N γ_t γ_r γ_m γ_mt γ_msy : iProp :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
       dsRepI γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
     ∗ hist γ_t γ_m M T
-    ∗ helping_inv N γ_t γ_r γ_ght M
+    ∗ helping_inv N γ_t γ_r γ_mt γ_msy M
     ∗ ds_inv M T s).
 
-  Definition update_helping_protocol N γ_t γ_r γ_ght : iProp :=
-        ∀ M T s, 
-          ⌜dom M = gset_seq 0 T⌝ -∗   
-            dsRep γ_r (abs s) -∗
-              helping_inv N γ_t γ_r γ_ght M ={⊤ ∖ ↑cntrN N}=∗
-                helping_inv N γ_t γ_r γ_ght (<[T+1 := s]> M) 
-                ∗ dsRep γ_r (abs s).
-    
+  Definition update_helping_protocol N γ_t γ_r γ_mt γ_msy : iProp :=
+    ∀ M T s, 
+    ⌜dom M = gset_seq 0 T⌝ -∗   
+    dsRep γ_r (abs s) -∗
+    helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
+        helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s]> M) ∗ dsRep γ_r (abs s).
+
+  Definition update_helping_protocol2 N γ_t γ_r γ_mt γ_msy : iProp :=
+    ∀ M T s', 
+    ⌜dom M = gset_seq 0 T⌝ -∗
+    ⌜abs s' = abs (M !!! T)⌝ -∗
+    helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
+        helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s']> M).
+
+  Definition snd_is_true (x : val * val) := ∃ v, x.1 = (v, #true)%V. 
+
+  Global Instance snd_is_true_dec : ∀ (x : val * val), Decision (snd_is_true x).
+  Proof.
+    intros [x1 x2]. rewrite /snd_is_true /=. destruct x1.
+    - right; intros [v1 H']; try done.
+    - right; intros [v1 H']; try done.
+    - destruct (decide (x1_2 = #true)) as [-> | Hx1]. 
+      + left. by exists x1_1.
+      + right. intros [v1 H']. inversion H'. done.
+    - right; intros [v1 H']; try done.
+    - right; intros [v1 H']; try done.
+  Qed.
+
+  Definition process_proph (tid: proph_id) (pvs : list (val * val)) 
+    : option (nat * option nat) :=
+    match list_find (λ x, x.2 = #tid) pvs with
+      None => None
+    | Some (i, _) => 
+      let ls := take i pvs in
+      match list_find snd_is_true ls with
+        None => Some (i, None)
+      | Some (j, _) => Some (i, Some j) end end.
+  
+  Lemma process_proph_case1 tid pvs :
+    process_proph tid pvs = None → Forall (λ x, x.2 ≠ #tid) pvs.
+  Proof.
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'.
+    { destruct p. destruct (list_find snd_is_true _); try destruct p0; try done. }
+    intros _. by apply list_find_None in H'.
+  Qed.
+
+  Lemma process_proph_case2 tid pvs i :
+    process_proph tid pvs = Some (i, None) → 
+      (∃ x, pvs !! i = Some (x, #tid))
+      ∧ (∀ j, j < i → (pvs !!! j).2 ≠ #tid)
+      ∧ (∀ j, j < i → ¬ snd_is_true (pvs !!! j)).
+  Proof.
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
+    destruct p as [i' x]. destruct (list_find snd_is_true _) eqn: H''. 
+    { destruct p. try done. }
+    intros [=]. subst i'. apply list_find_None in H''. apply list_find_Some in H'.
+    destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
+    subst x2. split; last split.
+    - by exists x1.
+    - intros j Hji. assert (is_Some (pvs !! j)) as [[xj1 xj2] Hpvsj]. 
+      { rewrite lookup_lt_is_Some. apply mk_is_Some in Hi. 
+        rewrite lookup_lt_is_Some in Hi. lia. }
+      pose proof Hj j (xj1, xj2) as H'. assert (H1' := Hpvsj).
+      apply list_lookup_total_correct in H1'. rewrite H1'. by apply H'.
+    - intros j Hji. assert (is_Some (pvs !! j)) as [[xj1 xj2] Hpvsj]. 
+      { rewrite lookup_lt_is_Some. apply mk_is_Some in Hi. 
+        rewrite lookup_lt_is_Some in Hi. lia. }
+      rewrite Forall_lookup in H''. pose proof H'' j (xj1, xj2) as H''.
+      rewrite lookup_take in H''; try done. assert (H' := Hpvsj).
+      apply list_lookup_total_correct in H'. rewrite H'. by apply H''.
+  Qed.
+
+  Lemma process_proph_case3 tid pvs i j :
+    process_proph tid pvs = Some (i, Some j) → 
+      (∃ x, pvs !! i = Some (x, #tid))
+      ∧ (∀ j', j' < i → (pvs !!! j').2 ≠ #tid)
+      ∧ (j < i) ∧ (snd_is_true (pvs !!! j)).
+  Proof.
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
+    destruct p as [i' x]. destruct (list_find snd_is_true _) eqn: H''; last done.
+    destruct p as [j' y]. intros [=]. subst i' j'. 
+    apply list_find_Some in H''. apply list_find_Some in H'.
+    destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
+    destruct H'' as [Hy [Hy' Hj']]. subst x2. 
+    assert (j < i) as j_lt_i. { apply mk_is_Some, lookup_lt_is_Some in Hy.
+      apply mk_is_Some, lookup_lt_is_Some in Hi. rewrite take_length in Hy. lia. }
+    assert (is_Some (pvs !! j)) as [[xj1 xj2] Hpvsj]. 
+    { rewrite lookup_lt_is_Some. apply mk_is_Some, lookup_lt_is_Some in Hi. lia. }
+    split; last split; last split; try done.
+    - by exists x1.
+    - intros j' Hji. assert (is_Some (pvs !! j')) as [[xj1' xj2'] Hpvsj']. 
+      { rewrite lookup_lt_is_Some. apply mk_is_Some in Hi. 
+        rewrite lookup_lt_is_Some in Hi. lia. }
+      pose proof Hj j' (xj1', xj2') Hpvsj' Hji as H'.
+      apply list_lookup_total_correct in Hpvsj'. by rewrite Hpvsj'.
+    - rewrite lookup_take in Hy; try done. apply list_lookup_total_correct in Hy.
+      by rewrite Hy.
+  Qed.
+        
+
 End HINDSIGHT_DEFS.
 
 

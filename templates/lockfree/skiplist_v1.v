@@ -11,7 +11,8 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export multiset_flows keyset_ra2 hindsight bool_ra.
+From flows Require Export multiset_flows keyset_ra2 bool_ra.
+From flows Require Export hindsight.
 
 Module SKIPLIST1 <: DATA_STRUCTURE.
 
@@ -109,7 +110,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       maintenanceOp_delete_rec #0%nat "h" "perm" "curr".
   
   Definition delete : val :=
-    λ: "h" "t" "k",
+    λ: "h" "t" "k" "p",
       let: "preds_succs_res" := traverse "h" "t" "k" in
       let: "preds" := Fst (Fst "preds_succs_res") in
       let: "succs" := Snd (Fst "preds_succs_res") in
@@ -119,7 +120,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       else 
         let: "curr" := ! ("succs" +ₗ #0%nat) in 
         maintenanceOp_delete "curr";;
-        match: markNode "curr" #0%nat  with
+        match: markNode "curr" "p"  with
           NONE => #false
         | SOME "_" => traverse_rec "k" "preds" "succs" #(L-2)%nat;; #true end.
 
@@ -145,7 +146,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       maintenanceOp_insert_rec #0%nat "k" "h" "perm" "preds" "succs" "new_node".
   
   Definition insert : val :=
-    rec: "ins" "h" "t" "k" :=
+    rec: "ins" "h" "t" "k" "p" :=
       let: "preds_succs_res" := traverse "h" "t" "k" in
       let: "preds" := Fst (Fst "preds_succs_res") in
       let: "succs" := Snd (Fst "preds_succs_res") in
@@ -156,8 +157,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         let: "new_node" := createNode "k" "succs" in
         let: "pred" := ! ("preds" +ₗ #0%nat) in
         let: "curr" := ! ("succs" +ₗ #0%nat) in
-        match: changeNext "pred" "curr" "new_node" #0%nat with
-          NONE => "ins" "h" "t" "k"
+        match: changeNext "pred" "curr" "new_node" "p" with
+          NONE => "ins" "h" "t" "k" "p"
         | SOME "_" => 
           maintenanceOp_insert "k" "preds" "succs" "new_node";;
           #true end.
@@ -221,6 +222,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     destruct op; try apply and_dec; try destruct res; try apply _.
   Qed.
 
+  (*
   Definition updater_thread (op: Op) (res: resT) : bool := 
     match op, res with
     | searchOp _, _ => false
@@ -234,7 +236,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     intros op res b. unfold updater_thread.
     destruct op; destruct res; try apply _.
   Qed.  
-
+  *)
+  
   Global Instance Op_inhabited : Inhabited Op := populate (searchOp 0).
   Global Instance absTUR_discrete : CmraDiscrete absTUR.
   Proof. try apply _. Qed.
@@ -362,7 +365,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       
   Definition GFI (s: snapshot) : multiset_flowint_ur nat :=
     ([^op set] x ∈ FP s, FI s x). 
-  
 
   Definition snapshot_constraints (s: snapshot) : Prop :=
     ∃ (N: gset Node) (C: gset nat) (H: gmap Node nat)
@@ -471,49 +473,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     rewrite -> fmap_replicate.
     iAssumption.
   Qed.
-
-  Parameter findNext_spec : ∀ (n: Node) (i: nat),
-     ⊢ (<<< ∀∀ mark next k, node n mark next k >>>
-           findNext #n #i @ ⊤
-       <<< ∃∃ (m: bool) (opt_n': option Node),
-              node n mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
-              RET (match opt_n' with None => (#m, NONEV) 
-                                    | Some n' => (#m, SOMEV #n') end) >>>)%I.
-
-  Parameter try_constraint_traverse_spec : ∀ (i: nat) (p c s: Node),
-     ⊢ (<<< ∀∀ mark next k, node p mark next k >>>
-           try_constraint #i #p #c #s @ ⊤
-       <<< ∃∃ (success: bool) (next': NextT),
-              node p mark next' k
-            ∗ (match success with true => ⌜mark !!! i = false 
-                                            ∧ next !!! i = c 
-                                            ∧ next' = <[i := s]> next⌝
-                                | false => ⌜mark !!! i = true 
-                                            ∧ next' = next⌝ end),
-              RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>)%I.
-
-  Parameter compareKey_spec : ∀ (n: Node) (k': nat),
-     ⊢ (<<< ∀∀ mark next k, node n mark next k >>>
-           compareKey #n #k' @ ⊤
-       <<< ∃∃ (res: nat),
-              node n mark next k ∗ 
-              ⌜if decide (res = 0) then k < k'
-               else if decide (res = 1) then k = k'
-               else k > k'⌝,
-              RET #res >>>)%I.
-
-  Parameter try_constraint_delete_spec : ∀ (curr: Node) (i: nat),
-     ⊢ (<<< ∀∀ mark next k, node curr mark next k >>>
-           try_constraint #curr #i @ ⊤
-       <<< ∃∃ (success: bool) mark',
-              node curr mark' next k
-            ∗ (match success with true => ⌜mark !!! i = false
-                                            ∧ mark' = <[i := true]> mark⌝
-                                | false => ⌜mark !!! i = true
-                                            ∧ mark' = mark⌝ end),
-              RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>)%I.
   *)
 
   Definition dsG0 : dsG Σ.

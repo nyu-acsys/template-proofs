@@ -39,7 +39,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
 
   Parameter findNext_spec : ∀ (n: Node) (i: nat),
     ⊢ <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
-          findNext #n #i @⊤
+          findNext #n #i @ ∅
       <<< ∃∃ (m: bool) (opt_n': option Node),
               node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
               RET (match opt_n' with None => (#m, NONEV) 
@@ -47,7 +47,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
 
   Parameter changeNext_spec : ∀ (n m m': Node) (i: nat),
     ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
-            changeNext #n #m #m' #i @⊤
+            changeNext #n #m #m' #i @ ∅
       <<< ∃∃ (success: bool) next',
               node n h mark next' k
             ∗ (match success with true => ⌜next !! i = Some m 
@@ -61,7 +61,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
 
   Parameter compareKey_spec : ∀ (n: Node) (k': nat),
     ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
-           compareKey #n #k' @ ⊤
+           compareKey #n #k' @ ∅
      <<< ∃∃ (res: nat),
             node n h mark next k 
           ∗ ⌜if decide (res = 0) then k < k'
@@ -69,51 +69,42 @@ Module SKIPLIST1_SPEC_TRAVERSE.
              else k > k'⌝,
          RET #res >>>.
 
-(*
-  Definition traversal_inv s i k p c : Prop :=
-    p ∈ FP s 
-  ∧ c ∈ FP s 
-  ∧ Key s p < k 
-  ∧ Marki s p i = false
-  (* ∧ Nexti s p i = Some c *)
-  ∧ i < Height s p
-  ∧ i < Height s c.
-*)
-
   Definition traversal_inv γ_m t0 i k p c : iProp :=
     (∃ s, past_state γ_m t0 s 
           ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ Marki s p 0 = false ∧ i < Height s p⌝)
   ∗ (∃ s, past_state γ_m t0 s 
           ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
 
-  Lemma traverse_i_spec N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght
-  γ_sy t_id t0 k (i: nat) (p c: Node):
-  main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
-    thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
-    {{{ traversal_inv γ_m t0 i k p c }}}
-      traverse_i #i #p #c #k
-    {{{ (ores: option (Node * Node * bool)), 
-          RET (match ores with
-                None => NONEV
-              | Some res =>SOMEV (#res.1.1,#res.1.2,#res.2) end);
-          match ores with 
-            None => True
-          | Some res =>
-            let p' := res.1.1 in
-            let c' := res.1.2 in
-            let b := res.2 in
-            traversal_inv γ_m t0 i k p' c'
-            ∗ (⌜i = 0⌝ → (∃ s, past_state γ_m t0 s 
-                        ∗ ⌜if b then k ∈ abs s ∧ k = Key s c'
-                            else k ∉ abs s ∧ k < Key s c'⌝)) end }}}.
+  Lemma traverse_i_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k (i: nat) (p c: Node):
+    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
+    thread_start γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    ⌜1 < L ∧ 0 < k < W⌝ -∗
+      {{{ traversal_inv γ_m t0 i k p c }}}
+        traverse_i #i #p #c #k @ ⊤
+      {{{ (ores: option (Node * Node * bool)), 
+            RET (match ores with
+                  None => NONEV
+                | Some res =>SOMEV (#res.1.1,#res.1.2,#res.2) end);
+            match ores with 
+              None => True
+            | Some res =>
+              let p' := res.1.1 in
+              let c' := res.1.2 in
+              let b := res.2 in
+              traversal_inv γ_m t0 i k p' c'
+              ∗ (⌜i = 0⌝ → (∃ s, past_state γ_m t0 s ∗ 
+                              ⌜if b then 
+                                  k ∈ abs s ∧ k = Key s c' 
+                                  ∧ c' ∈ FP s ∧ Marki s c' 0 = false
+                                else 
+                                  k ∉ abs s ∧ k < Key s c' 
+                                  ∧ c' ∈ FP s⌝)) end }}}.
   Proof.
-    iIntros "#HInv #Thd". iLöb as "IH" forall (p c).
-    iIntros (Φ) "!# #Htr Hpost". wp_lam. wp_pures.
-    assert (1 < L) as HL. admit.
-    assert (0 < k < W) as Range_k. admit.
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (p c).
+    iIntros (Φ) "!# #Htr Hpost". wp_lam. wp_pure credit: "Hc". wp_pures.
     awp_apply findNext_spec.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    { admit. }
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
@@ -133,15 +124,13 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
     { iFrame "Node_c %". }
     iAaccIntro with "Hpre".
-    { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
+    { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost Hc".
       iNext; iExists M0, T0, s0. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto. 
       iFrame "Nodes_rest". iFrame. }
     iIntros (m c') "(Node_c & %Mark_c0 & %Next_c0)".
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
-    { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
-      apply leibniz_equiv in Habs0. rewrite <-Habs0.
-      by apply PT0. }
+    { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     assert (Mark s0 c !!! i = true → Next s0 c !! i = None → false) as Hcontra.
     { intros Hm Hn. apply PT_s0 in FP_c0. 
       assert (c ≠ tl) as Hctl. 
@@ -150,8 +139,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       destruct FP_c0 as (_&H'&H''&_). apply H' in Hctl. 
       apply not_elem_of_dom in Hn. rewrite Hctl in Hn. apply Hn.
       rewrite elem_of_gset_seq. lia. }
-    iAssert (past_state γ_m t0 s0)%I as "#Past_s0".
-    { admit. }
+
+    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
+    { iDestruct "Thd_st" as "(_&H')". iFrame "H'". }
+    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+      as ">(#Past_s0&Hist)"; try done.
     
     iAssert (∀ cn, ⌜Mark s0 c !!! i = false⌝ → ⌜Next s0 c !! i = Some cn⌝ →
       ⌜Key s0 c < k⌝ → traversal_inv γ_m t0 i k c cn)%I as "#Hcase".
@@ -159,15 +151,23 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       repeat split; try done. apply PT_s0 in FP_c0. destruct FP_c0 as (H'&_).
       apply H'. by exists i. destruct PT_s0 as (_&_&_&_&PT&PT'). 
       repeat split; try done. by apply (PT c _ i). by apply (PT' c _ i). }
+    iAssert (⌜i = 0 → Mark s0 c !!! i =false → k < Key s0 c → 
+      k ∉ abs s0⌝)%I as %Hcase1.
+    { admit. }
+    iAssert (⌜i = 0 → Mark s0 c !!! i =false → k = Key s0 c → 
+      k ∈ abs s0⌝)%I as %Hcase2.
+    { admit. }
+    iAssert (⌜i = 0 → Mark s0 c !!! i = false → Next s0 c !!! i = None → 
+      k ∉ abs s0 ∧ k < Key s0 c⌝)%I as %Hcase3.
+    { admit. }
     clear PT_s0.
-    iModIntro. iSplitR "Hpost".
+    iModIntro. iSplitR "Hpost Hc".
     { iNext. iExists M0, T0, s0. iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iFrame "Nodes_rest". iFrame. }
     destruct c' as [cn |]; destruct m; wp_pures. 
     - awp_apply changeNext_spec; try done.
       iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
-      { admit. }
       iDestruct "Templ" as "(SShot1 & Res & %PT1 & %Trans_M1)".
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜p ∈ FP s1⌝)%I as %FP_p1.
@@ -187,10 +187,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
         ∗ ⌜i < Height s1 p⌝)%I with "[Node_p]" as "Hpre".
       { iFrame "Node_p %". }
       iAaccIntro with "Hpre".
-      { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost".
+      { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost Hc".
         iNext; iExists M1, T1, s1. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s1) p); last by eauto. iFrame. }
       iIntros (success next') "(Node_p & Hsuccess)".
+      iApply (lc_fupd_add_later with "Hc"). iNext. 
       destruct success.
       + iDestruct "Hsuccess" as %[Next_p1 [Mark_p1 Def_next']].
         iAssert (⌜c ∈ FP s1⌝)%I as %FP_c1.
@@ -215,10 +216,9 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           iPoseProof (key_eq_2 p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
             try done. }
         iAssert (⌜per_tick_inv s1⌝)%I as %PT_s1.
-        { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
-          apply leibniz_equiv in Habs1. rewrite <-Habs1.
-          by apply PT1. }
-        destruct (decide (i = 0)) as [-> | Hi0].
+        { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
+        destruct (decide (i = 0)) as [-> | Hi0]; 
+          last destruct (decide (c = cn)) as [<- | c_neq_cn].
         * iDestruct "SShot1" as %[FP1 [C1 [Ht1 [Mk1 [Nx1 [Ky1 [I1 
             [Hs1 [Dom_Ht1 [Dom_Mk1 [Dom_Nx1 [Dom_Ky1 Dom_I1]]]]]]]]]]]].
           set Nx1' := <[p := next']> Nx1.
@@ -557,13 +557,6 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 rewrite /out in H'. done. clear -H'; lia.
               + rewrite nzmap_lookup_total_insert_ne; try done.
                 rewrite !nzmap_lookup_empty /ccmunit /= /nat_unit. clear; lia. }
-          iAssert (hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as "Hist".
-          { admit. }
-          iAssert (▷ helping_inv N γ_t γ_r γ_td1 γ_td2 γ_ght M1')%I with
-            "[Help]" as "Help".
-          { admit. }
-          iAssert (past_state γ_m t0 s1')%I as "Past_s1'".
-          { admit. }
           assert (FP s1' = FP s1) as FP_s1'.
           { by rewrite /FP /s1' Hs1. }
           assert (abs s1' = abs s1) as Habs'.
@@ -707,6 +700,25 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           iAssert (⌜Key s1' p < k⌝)%I as %Key_p1k.
           { rewrite HK. by iPureIntro. }
 
+          iAssert (⌜dom M1 = gset_seq 0 T1⌝)%I as %Dom_M1. 
+          { by iDestruct "Hist" as (M1'') "(_&_&%&_)". }
+
+          iAssert (|==> hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as ">Hist".
+          { iPoseProof (hist_upd _ _ _ _ _ s1' with "[%] [%] [$Hist]") as ">H'".
+            apply  Habs1. intros <-. rewrite map_eq_iff in HNp.
+            pose proof HNp 0 as HNp. rewrite Next_p1 lookup_insert in HNp.
+            inversion HNp; try done. by rewrite /M1'. }
+          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy M1')%I with
+            "[Help]" as "Help".
+          { unfold update_helping_protocol2.
+            iSpecialize ("Upd" $! M1 T1 s1').
+            iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
+            apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
+            admit. }
+          iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+            as ">(#Past_s1'&Hist)"; try done.
+          iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
+        
           iAssert (traversal_inv γ_m t0 0 k p cn)%I as "#Htr'".
           { iSplitL; iExists s1'; iFrame "Past_s1'". iPureIntro. 
             repeat split; try (by rewrite FP_s1' || done).
@@ -727,6 +739,16 @@ Module SKIPLIST1_SPEC_TRAVERSE.
                 apply leibniz_equiv in Habs1. by rewrite Habs1. clear; lia.
               + rewrite !lookup_total_insert_ne. apply Trans_M1.
                 all: clear -Ht Ht'; lia. }
+          wp_pures.
+          iApply "IH"; try done.
+        * assert (next' = Next s1 p) as Hnext'. 
+          { rewrite Def_next'. apply map_eq. intros i'. 
+            destruct (decide (i' = i)) as [-> | Hi]. 
+            by rewrite lookup_insert Next_p1. by rewrite lookup_insert_ne. }
+          rewrite Hnext'.
+          iModIntro. iSplitR "Hpost".
+          { iNext. iExists M1, T1, s1. iFrame "∗#%".
+            rewrite (big_sepS_delete _ (FP s1) p); try done. iFrame. }
           wp_pures.
           iApply "IH"; try done.
         * iDestruct "SShot1" as %[FP1 [C1 [Ht1 [Mk1 [Nx1 [Ky1 [I1 
@@ -847,13 +869,24 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           iAssert (⌜Key s1' p < k⌝)%I as %Key_p1k.
           { rewrite HK. by iPureIntro. }
 
-          iAssert (hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as "Hist".
-          { admit. }
-          iAssert (▷ helping_inv N γ_t γ_r γ_td1 γ_td2 γ_ght M1')%I with
+          iAssert (⌜dom M1 = gset_seq 0 T1⌝)%I as %Dom_M1. 
+          { by iDestruct "Hist" as (M1'') "(_&_&%&_)". }
+
+          iAssert (|==> hist γ_t γ_m M1' (T1+1))%I with "[Hist]" as ">Hist".
+          { iPoseProof (hist_upd _ _ _ _ _ s1' with "[%] [%] [$Hist]") as ">H'".
+            apply  Habs1. intros <-. rewrite map_eq_iff in HNp.
+            pose proof HNp i as HNp. rewrite Next_p1 lookup_insert in HNp.
+            inversion HNp; try done. by rewrite /M1'. }
+          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy M1')%I with
             "[Help]" as "Help".
-          { admit. }
-          iAssert (past_state γ_m t0 s1')%I as "Past_s1'".
-          { admit. }
+          { unfold update_helping_protocol2.
+            iSpecialize ("Upd" $! M1 T1 s1').
+            iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
+            apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
+            admit. }
+          iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+            as ">(#Past_s1'&Hist)"; try done.
+          iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
 
           iAssert (traversal_inv γ_m t0 i k p cn)%I as "#Htr'".
           { iSplitL; iExists s1'; iFrame "Past_s1'"; iPureIntro. 
@@ -884,7 +917,6 @@ Module SKIPLIST1_SPEC_TRAVERSE.
         wp_pures. iSpecialize ("Hpost" $! None). by iApply "Hpost".
     - awp_apply compareKey_spec. 
       iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
-      { admit. }
       iDestruct "Templ" as "(SShot1 & Res & %PT1 & %Trans_M1)".
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜c ∈ FP s1⌝)%I as %FP_c1.
@@ -893,12 +925,12 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       rewrite (big_sepS_delete _ (FP s1) c); last by eauto.
       iDestruct "Nodes" as "(Node_c & Nodes_rest)".
       iAaccIntro with "Node_c".
-      { iIntros "Node_c". iModIntro. iFrame "Hpost".
+      { iIntros "Node_c". iModIntro. iFrame "Hpost Hc".
         iNext; iExists M1, T1, s1. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s1) c); last by eauto. iFrame. }
       iIntros (res)"(Node_c & %Hif)".
-      iAssert (past_state γ_m t0 s1) as "#Hs1".
-      { admit. }
+      iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+            as ">(#Past_s1&Hist)"; try done.
       iAssert (⌜Key s1 c = Key s0 c⌝)%I as %Key_c10.
       { apply leibniz_equiv in Habs1. rewrite -Habs1.
         iPoseProof (key_eq_2 with "[%] [$Hist] [$Past_s0] [%]") as "->"; try done. }
@@ -911,32 +943,45 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       + rewrite bool_decide_eq_false in Hbool.
         assert (res ≠ 0) as Hres0. { intros ->. by apply Hbool. } 
         wp_pures. destruct (bool_decide (#res = #1)) eqn:Hbool1; first last.
-        * wp_pures. iModIntro. iSpecialize ("Hpost" $! (Some (p,c,false))).
-          iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "#". admit.  
+        * rewrite bool_decide_eq_false in Hbool1.
+          assert (res ≠ 1) as Hres1. { intros ->. by apply Hbool1. } 
+          wp_pures. iModIntro. iSpecialize ("Hpost" $! (Some (p,c,false))).
+          iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "#".
+          iIntros "%Hi0". iExists s0. iFrame "#". iPureIntro.
+          repeat rewrite decide_False in Hif; try done.
+          repeat split; try done. apply Hcase1; try done. 
+          all : clear -Hif Key_c10; lia.
         * rewrite bool_decide_eq_true in Hbool1. inversion Hbool1.
           assert (res = 1) as -> by lia.
           wp_pures. iModIntro. iSpecialize ("Hpost" $! (Some (p,c,true))).
-          iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "#". admit.  
+          iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "#".
+          iIntros "%Hi0". iExists s0. iFrame "#". iPureIntro.
+          rewrite /= in Hif. repeat split; try (done || lia).
+          apply Hcase2; try done. by rewrite -Key_c10. 
+          by rewrite Hi0 in Mark_c0.
       + wp_pures. iApply "IH"; try done. iApply "Hcase"; try done. iPureIntro.
         rewrite -Key_c10. rewrite bool_decide_eq_true in Hbool. inversion Hbool.
         rewrite decide_True in Hif. done. clear -H0; lia.
     - exfalso; apply Hcontra; try done. 
     - iModIntro. iSpecialize ("Hpost" $! (Some (p,c,false))). 
-      iEval (rewrite /=) in "Hpost". iApply "Hpost".
-      iDestruct "HtrInv" as (s)"(Past_s & Hpc)".
-      iExists s. iFrame "#". admit.
-*)
+      iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "#".
+      iIntros "%Hi0". iExists s0. iFrame "#". iPureIntro.
+      pose proof Hcase3 Hi0 Mark_c0 Next_c0 as (H'&H'').
+      repeat split; try done.
   Admitted.
 
-  Lemma traverse_pop_spec N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght
-    γ_sy t_id t0 k preds succs ps0 ss0 (i: nat):
-    main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
-      thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+
+  Lemma traverse_pop_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k 
+    preds succs ps0 ss0 (i: nat):
+    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
+    thread_start γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    ⌜1 < L ∧ 0 < k < W⌝ -∗
         {{{ is_array preds ps0 ∗ is_array succs ss0 
             ∗ ⌜length ps0 = L⌝ ∗ ⌜length ss0 = L⌝ ∗ ⌜i+1 < L⌝
             ∗ ⌜ps0 !!! (L-1) = hd⌝ ∗ ⌜ss0 !!! (L-1) = tl⌝
             ∗ (∀ j, ⌜i < j < L⌝ → traversal_inv γ_m t0 j k (ps0 !!! j) (ss0 !!! j)) }}}
-          traverse_pop traverse_rec #k #preds #succs #i
+          traverse_pop traverse_rec #k #preds #succs #i @ ⊤
         {{{ (ores: option (loc * loc * bool)) (ps ss: list Node) (b: bool), 
               RET (match ores with 
                     None => NONEV 
@@ -951,13 +996,16 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               ∗ (∀ j, ⌜i-1 < j < L⌝ → traversal_inv γ_m t0 j k (ps !!! j) (ss !!! j))
               ∗ (⌜i = 0⌝ →  let p := ps !!! 0 in
                             let c := ss !!! 0 in
-                            traversal_inv γ_m t0 0 k p c
-                            ∗ (∃ s, past_state γ_m t0 s ∗
-                                  ⌜if b then k ∈ abs s ∧ k = Key s c
-                                    else k ∉ abs s ∧ k < Key s c⌝)) end }}}.
+                            traversal_inv γ_m t0 0 k p c ∗ 
+                            (∃ s, past_state γ_m t0 s ∗
+                              ⌜if b then 
+                                  k ∈ abs s ∧ k = Key s c 
+                                  ∧ c ∈ FP s ∧ Marki s c 0 = false
+                                else 
+                                  k ∉ abs s ∧ k < Key s c 
+                                  ∧ c ∈ FP s⌝)) end }}}.
   Proof.
-    iIntros "#HInv #Thd". iIntros (Φ) "!# Hpre Hpost".
-    assert (0 < k < W) as Range_k. admit.
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iIntros (Φ) "!# Hpre Hpost".
     iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps0 & %Len_ss0 & %Len_i 
       & %Hps0_L & %Hss0_L & #Hj)". 
     wp_lam. wp_pures. iEval (rewrite /is_array) in "Hpreds".
@@ -975,7 +1023,6 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     wp_pures. wp_bind (findNext _ _)%E. 
     awp_apply findNext_spec.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    { admit. }
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (traversal_inv γ_m t0 (i+1) k p (ss0 !!! (i+1)%nat))%I as "#Htr_i1". 
@@ -1004,9 +1051,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
     iIntros (m oc) "(Node_p & %Mark_p0 & %Next_p0)".
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
-    { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
-      apply leibniz_equiv in Habs0. rewrite <-Habs0.
-      by apply PT0. }
+    { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     iDestruct "Htr_i1" as "(Htr_p & Htr_si1)".
     iDestruct "Htr_p" as (s)"(#Past_s & %Htr_p)".
     iAssert (⌜Key s0 p = Key s p⌝)%I as %Key_p.
@@ -1020,7 +1065,10 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       apply FP_p0 in H'. apply not_elem_of_dom in Next_p0. 
       rewrite H' in Next_p0. exfalso; apply Next_p0.
       rewrite elem_of_gset_seq. split; try lia. }
-    iAssert (past_state γ_m t0 s0) as "Past_s0". { admit. }
+    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
+    { by iDestruct "Thd_st" as "(_&H')". }
+    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+      as ">(#Past_s0&Hist)"; try done.
     iAssert (traversal_inv γ_m t0 i k p c)%I as "#Hcase".
     { iSplitL. iExists s. iFrame "Past_s". iPureIntro. 
       repeat split; try apply Htr_p. destruct Htr_p as (_&_&_&H'). 
@@ -1045,7 +1093,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iIntros "!> Hsuccs". wp_pures.
     iSpecialize ("Hpost" $! (Some (preds,succs,b)) _ _ b).
     iSimpl in "Hpost". iApply "Hpost".
-    iModIntro. iFrame "∗%". repeat (iSplitR; first by iPureIntro).
+    iModIntro. iFrame "Hpreds Hsuccs". repeat (iSplitR; first by iPureIntro).
     iDestruct "Hores" as "(#Htr & #Hzero)".
     iSplitR. iPureIntro. by rewrite insert_length.
     iSplitR. iPureIntro. by rewrite insert_length.
@@ -1064,31 +1112,36 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     all: try rewrite Len_ps0 Len_ss0; lia.
   Admitted.
 
-  Lemma traverse_rec_spec N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght γ_sy t_id 
+  Lemma traverse_rec_spec N γ_t γ_r γ_m γ_mt γ_msy tid 
     t0 k preds succs ps0 ss0 (i: nat):
-    main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
-      thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
+    thread_start γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    ⌜1 < L ∧ 0 < k < W⌝ -∗
       {{{ is_array preds ps0 ∗ is_array succs ss0
           ∗ ⌜length ps0 = L⌝ ∗ ⌜length ss0 = L⌝ ∗ ⌜i+1 < L⌝
           ∗ ⌜ps0 !!! (L-1) = hd⌝ ∗ ⌜ss0 !!! (L-1) = tl⌝
           ∗ (traversal_inv γ_m t0 (L - 1) k hd tl)
           ∗ (∀ j, ⌜i < j < L⌝ → traversal_inv γ_m t0 j k (ps0 !!! j) (ss0 !!! j)) }}}
-        traverse_rec #k #preds #succs #i
+        traverse_rec #k #preds #succs #i @ ⊤
       {{{ (ps ss: list Node) (res: bool), 
             RET (#preds, #succs, #res);
             is_array preds ps ∗ is_array succs ss
           ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
           ∗ (∀ i, ⌜i < L⌝ → traversal_inv γ_m t0 i k (ps !!! i) (ss !!! i))
-          ∗ (let c := ss !!! 0 in ∃ s, past_state γ_m t0 s ∗
-                                  ⌜if res then k ∈ abs s ∧ k = Key s c
-                                    else k ∉ abs s ∧ k < Key s c⌝) }}}.
+          ∗ (let c := ss !!! 0 in 
+                ∃ s, past_state γ_m t0 s ∗
+                    ⌜if res then 
+                      k ∈ abs s ∧ k = Key s c ∧ c ∈ FP s ∧ Marki s c 0 = false
+                    else 
+                      k ∉ abs s ∧ k < Key s c ∧ c ∈ FP s⌝) }}}.
   Proof.
-    iIntros "#HInv #Thd". iLöb as "IH" forall (i ps0 ss0). 
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (i ps0 ss0). 
     iIntros (Φ) "!# Hpre Hpost".
     iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps0 & %Len_ss0 & %Len_i 
       & %Hps0_L & %Hss0_L & #HtrL & #Hj)".
     wp_lam. wp_pures. 
-    wp_apply (traverse_pop_spec with "[] [] [Hpreds Hsuccs]"); try done.
+    wp_apply (traverse_pop_spec with "[] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs Hj %". iIntros (ores ps ss b)"Hores".
     destruct ores as [[[preds' succs'] res] |]; last first.
     { wp_pures. iDestruct "Hores" as "(Hpreds & Hsuccs)".
@@ -1114,25 +1167,28 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       assert (Z.sub i 1 = (i-1)%nat) as -> by lia.
       iApply ("IH" with "[$Hpreds $Hsuccs]"); try done. iFrame "%#".
       iPureIntro. clear -Len_i; lia.
-  Admitted.
+  Qed.
 
-  Lemma traverse_spec N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght γ_sy t_id t0 k:
-    main_inv N γ_t γ_r γ_m γ_td1 γ_td2 γ_ght -∗
-      thread_vars γ_t γ_ght γ_sy t_id t0 -∗  
+  Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
+    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
+    thread_start γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    ⌜1 < L ∧ 0 < k < W⌝ -∗
       {{{ True }}}
-          traverse #hd #tl #k
+          traverse #hd #tl #k @ ⊤
       {{{ (preds succs: loc) (ps ss: list Node) (res: bool), 
             RET (#preds, #succs, #res);
             is_array preds ps ∗ is_array succs ss
           ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
           ∗ (∀ i, ⌜i < L⌝ → traversal_inv γ_m t0 i k (ps !!! i) (ss !!! i))
-          ∗ (let c := ss !!! 0 in ∃ s, past_state γ_m t0 s ∗
-                                  ⌜if res then k ∈ abs s ∧ k = Key s c
-                                    else k ∉ abs s ∧ k < Key s c⌝) }}}.
+          ∗ (let c := ss !!! 0 in 
+                ∃ s, past_state γ_m t0 s ∗
+                    ⌜if res then 
+                      k ∈ abs s ∧ k = Key s c ∧ c ∈ FP s ∧ Marki s c 0 = false
+                    else 
+                      k ∉ abs s ∧ k < Key s c ∧ c ∈ FP s⌝) }}}.
   Proof.
-    iIntros "#HInv #Thd". iIntros (Φ) "!# _ Hpost".
-    assert (1 < L) as HL. admit.
-    assert (0 < k < W) as Range_k. admit.
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iIntros (Φ) "!# _ Hpost".
     wp_lam. wp_pures. wp_bind (AllocN _ _)%E. 
     iApply array_repeat. iPureIntro; lia.
     iNext. iIntros (preds) "Hpreds".
@@ -1144,10 +1200,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
-    { iDestruct "Hist" as (M')"(_&_&_&%&_)". iPureIntro.
-      apply leibniz_equiv in Habs0. rewrite <-Habs0.
-      by apply PT0. }
-    iAssert (past_state γ_m t0 s0) as "Past_s0". { admit. }
+    { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
+    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
+    { by iDestruct "Thd_st" as "(_&H')". }
+    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+      as ">(#Past_s0&Hist)"; try done.
     iAssert (traversal_inv γ_m t0 (L-1) k hd tl)%I as "#Htr". 
     { iSplitL; iExists s0; iFrame "Past_s0"; iPureIntro;
       destruct PT_s0 as ((PT1&PT2&PT3&PT4&PT5&PT6&PT7&PT8&PT9)&_). repeat split.
@@ -1156,7 +1213,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       rewrite PT9; clear -HL; lia. } 
     iModIntro. iSplitR "Hpost Hpreds Hsuccs".
     { iNext. iExists M0, T0, s0. iFrame "∗%". } iModIntro.
-    wp_apply (traverse_rec_spec with "[] [] [Hpreds Hsuccs]"); try done.
+    wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs".
     iSplitR. iPureIntro. by rewrite replicate_length.
     iSplitR. iPureIntro. by rewrite replicate_length.
@@ -1166,7 +1223,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     iFrame "Htr". iIntros (j) "%Hj". 
     assert (j = L-1) as -> by lia. rewrite !lookup_total_replicate_2.
     all : try lia. iFrame "Htr". 
-  Admitted.
+  Qed.
 
 End SKIPLIST1_SPEC_TRAVERSE.
   

@@ -43,13 +43,15 @@ Module M_ONE.
     {{{ True }}} m0 m1 #v {{{ b, RET #b; ⌜Nat.even v = b⌝ }}}.
   Proof.
     iIntros (v Φ) "_ Hpost".
-    wp_lam. wp_pures. wp_lam.
+    wp_lam. wp_pures.
+  Admitted.
 
 
   Lemma m1_3 : {{{ True }}} m1 m0 #3 {{{ RET #true; True}}}.
   Proof.
     iIntros (Φ) "_ Hpost".
     wp_lam. wp_pures. wp_lam.
+  Admitted.
   
   Parameter test1_spec: ∀ (r: nat),
     {{{ True }}} test1 #r {{{ l, RET #l; l ↦ #0 }}}.
@@ -69,5 +71,34 @@ Module M_TWO.
 
 End M_TWO.
   
+Module M_THREE.
+
+  Definition test : val :=
+    rec: "tr" "p" :=
+      let: "b" := nondet_bool #() in
+      resolve_proph: "p" to: "b";;
+      if: "b" then
+        #()
+      else
+        "tr" "p".
   
+  Context `{!heapGS Σ}.
+
+  Lemma test_spec (p: proph_id) pvs:
+    ⊢ {{{ proph p pvs }}} test #p 
+      {{{ prf pvs', RET #(); proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝}}}. 
+  Proof.
+    iLöb as "IH" forall (pvs). iIntros (Φ) "!# Hproph Hpost". wp_lam. 
+    wp_apply nondet_bool_spec; try done. iIntros (b)"_". wp_pures.
+    wp_apply (wp_resolve with "[$Hproph]"). try done.
+    wp_pures. iModIntro. iIntros (pvs') "%Hpvs' Hproph".
+    wp_pures. destruct b; wp_pures.
+    - iApply ("Hpost" $! [(#(), #true)]). iFrame. iPureIntro. set_solver.
+    - iApply ("IH" with "[$Hproph]"). iNext.
+      iIntros (prf' pvs'') "(Hproph & %Hpvs'')". 
+      iApply ("Hpost" $! ((#(), #false) :: prf')). iFrame.
+      iPureIntro. rewrite Hpvs' Hpvs''. set_solver.
+  Qed.
+  
+End M_THREE.  
   
