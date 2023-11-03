@@ -45,25 +45,25 @@ Module SKIPLIST1_SPEC_INSERT.
   Parameter changeNext_proph_spec : ∀ (n m m': Node) (p: proph_id),
     ⊢  <<< ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs >>>
             changeNext #n #m #m' #p @ ∅
-      <<< ∃∃ (success: bool) next' pvs',
+      <<< ∃∃ (success: bool) next' prf pvs',
               node n h mark next' k
-            ∗ proph p pvs' 
+            ∗ proph p pvs'
+            ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
             ∗ (match success with 
                 true => ⌜next !! 0 = Some m 
                         ∧ mark !!! 0 = false
                         ∧ next' = <[0 := m']> next
-                        ∧ (∃ v1, pvs = ((v1, #true)%V, #()) :: pvs')⌝
+                        ∧ (∃ v1, pvs = prf ++ (((v1, #true)%V, #()) :: pvs'))⌝
               | false => ⌜(next !! 0 ≠ Some m ∨ mark !!! 0 = true)
                           ∧ next' = next
-                          ∧ pvs' = pvs⌝ end),
+                          ∧ pvs = prf ++ pvs'⌝ end),
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end) >>>.
 
   Definition traversal_inv γ_m t0 i k p c : iProp :=
-    (∃ s, past_state γ_m t0 s 
-          ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ Marki s p 0 = false ∧ i < Height s p⌝)
-  ∗ (∃ s, past_state γ_m t0 s 
-          ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
+    (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
+      Marki s p 0 = false ∧ i < Height s p ∧ (i = 0 → Nexti s p i = Some c)⌝)
+  ∗ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
 
   Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
@@ -118,7 +118,7 @@ Module SKIPLIST1_SPEC_INSERT.
              | Some (i, Some j) => Q #res ∨ 
                  ⌜∃ i' j', process_proph tid pvs' = Some(i', Some (j'))⌝ end) }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd1 #Upd2 [%HL %Range_k]". iLöb as "IH".
+    iIntros "#HInv #Thd_st #Upd1 #Upd2 [%HL %Range_k]". iLöb as "IH" forall (pvs).
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
     wp_lam. wp_pures. wp_apply traverse_spec; try done.
     iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & %Len_ps 
@@ -184,14 +184,28 @@ Module SKIPLIST1_SPEC_INSERT.
         iFrame "Hpost Hproph Hmatch Node_n Hpreds Hsuccs Hc".
         iNext; iExists M0, T0, s0. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
-      iIntros (success next' pvs')"(Node_p & Hproph & Hif)".
+      iIntros (success next' prf pvs')"(Node_p & Hproph & %Hprf & Hif)".
       iApply (lc_fupd_add_later with "Hc"). iNext.
       destruct success; last first.
-      + iDestruct "Hif" as %[H' [-> ->]]. 
+      + iDestruct "Hif" as %[H' [-> Hpvs]]. 
         iModIntro. iSplitR "Hpost Hproph Hmatch".
         { iNext. iExists M0, T0, s0. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
-        wp_pures. iApply ("IH" with "[Hproph Hmatch]"); try done. iFrame.
+        wp_pures.
+        destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
+          last (destruct o as [j | ]).
+        * assert (process_proph tid pvs' = None) as Hpvs'.
+          { admit. }
+          iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
+          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
+        * assert (∃ i' j', process_proph tid pvs' = Some (i', Some j')) 
+            as [i' [j' Hpvs']]. { admit. }
+          iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
+          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
+        * assert (∃ i', process_proph tid pvs' = Some (i', None)) 
+            as [i' Hpvs']. { admit. }
+          iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
+          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
       + iDestruct "Hif" as %(Next_p0 & Mark_p0 & Def_next' & Hpvs').
         iAssert (∀ i, ⌜i < L⌝ → ⌜(ss !!! i) ∈ FP s0⌝ ∗ ⌜i < Height s0 (ss !!! i)⌝)%I 
           as %Hss.
@@ -1389,7 +1403,7 @@ Module SKIPLIST1_SPEC_INSERT.
           + rewrite !lookup_total_insert_ne; try lia.
             apply Trans_M0. clear -Ht Ht'; lia. }
 
-        destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
+        destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
           last (destruct o as [j | ]).
         * iMod "Hmatch" as (a)"[DsR [_ H']]".
           iCombine "DsR Ds" as "H''".
@@ -1455,13 +1469,21 @@ Module SKIPLIST1_SPEC_INSERT.
             try done. { admit. }
           iIntros "_". wp_pures. iApply "Hpost". iFrame "Hproph".
           iModIntro. by iLeft.
-        * exfalso. clear -Hpvs Hpvs'. apply process_proph_case2 in Hpvs.
-          destruct Hpvs' as [v1 Hpvs']. destruct Hpvs as (Hi & Htid & Hj).
-          destruct Hi as [x Hi]. destruct (decide (i = 0)) as [-> | Hi0].
-          { rewrite Hpvs' /= in Hi. inversion Hi. }
-          assert (0 < i) as H'. lia. pose proof Hj 0 H' as H''.
-          rewrite list_lookup_total_alt Hpvs' /= in H''.
-          apply H''. rewrite /snd_is_true. by exists v1. 
+        * exfalso. clear -Def_pvs Hpvs' Hprf. apply process_proph_case2 in Def_pvs.
+          destruct Hpvs' as [v1 Hpvs']. destruct Def_pvs as (Hi & Htid & Hj).
+          destruct Hi as [x Hi]. 
+          destruct (decide (i ≤ length prf)) as [Hiprf | Hiprf].
+          { rewrite Hpvs' /= in Hi. rewrite Nat.le_lteq in Hiprf. 
+            destruct Hiprf as [Hiprf | Hiprf]. 
+            rewrite lookup_app_l in Hi; try done.
+            rewrite Forall_lookup in Hprf.
+            pose proof Hprf i (x, #tid) Hi as [? H']. try done.
+            rewrite list_lookup_middle in Hi. by inversion Hi. done. }
+          rewrite Nat.nle_gt in Hiprf. pose proof Hj (length prf) Hiprf as H'. 
+          assert (pvs !!! length prf = ((v1, #true)%V, #())) as H''.
+          { rewrite Hpvs' list_lookup_total_alt. rewrite list_lookup_middle /=.
+            all: done. }
+          rewrite H'' in H'. apply H'. rewrite /is_snd /=. by exists v1.
           Unshelve. all: try done.
   Admitted.
       

@@ -200,14 +200,14 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
         helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s']> M).
 
-  Definition snd_is_true (x : val * val) := ∃ v, x.1 = (v, #true)%V. 
+  Definition is_snd (b: bool) (x : val * val) := ∃ v, x.1 = (v, #b)%V.  
 
-  Global Instance snd_is_true_dec : ∀ (x : val * val), Decision (snd_is_true x).
+  Global Instance is_snd_dec : ∀ b (x : val * val), Decision (is_snd b x).
   Proof.
-    intros [x1 x2]. rewrite /snd_is_true /=. destruct x1.
+    intros b [x1 x2]. rewrite /is_snd /=. destruct x1.
     - right; intros [v1 H']; try done.
     - right; intros [v1 H']; try done.
-    - destruct (decide (x1_2 = #true)) as [-> | Hx1]. 
+    - destruct (decide (x1_2 = #b)) as [-> | Hx1]. 
       + left. by exists x1_1.
       + right. intros [v1 H']. inversion H'. done.
     - right; intros [v1 H']; try done.
@@ -220,7 +220,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
       None => None
     | Some (i, _) => 
       let ls := take i pvs in
-      match list_find snd_is_true ls with
+      match list_find (is_snd true) ls with
         None => Some (i, None)
       | Some (j, _) => Some (i, Some j) end end.
   
@@ -228,7 +228,7 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     process_proph tid pvs = None → Forall (λ x, x.2 ≠ #tid) pvs.
   Proof.
     rewrite /process_proph. destruct (list_find _ pvs) eqn: H'.
-    { destruct p. destruct (list_find snd_is_true _); try destruct p0; try done. }
+    { destruct p. destruct (list_find (is_snd true)); try destruct p0; try done. }
     intros _. by apply list_find_None in H'.
   Qed.
 
@@ -236,10 +236,10 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     process_proph tid pvs = Some (i, None) → 
       (∃ x, pvs !! i = Some (x, #tid))
       ∧ (∀ j, j < i → (pvs !!! j).2 ≠ #tid)
-      ∧ (∀ j, j < i → ¬ snd_is_true (pvs !!! j)).
+      ∧ (∀ j, j < i → ¬ (is_snd true (pvs !!! j))).
   Proof.
     rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
-    destruct p as [i' x]. destruct (list_find snd_is_true _) eqn: H''. 
+    destruct p as [i' x]. destruct (list_find (is_snd true) _) eqn: H''. 
     { destruct p. try done. }
     intros [=]. subst i'. apply list_find_None in H''. apply list_find_Some in H'.
     destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
@@ -262,10 +262,10 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     process_proph tid pvs = Some (i, Some j) → 
       (∃ x, pvs !! i = Some (x, #tid))
       ∧ (∀ j', j' < i → (pvs !!! j').2 ≠ #tid)
-      ∧ (j < i) ∧ (snd_is_true (pvs !!! j)).
+      ∧ (j < i) ∧ (is_snd true (pvs !!! j)).
   Proof.
     rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
-    destruct p as [i' x]. destruct (list_find snd_is_true _) eqn: H''; last done.
+    destruct p as [i' x]. destruct (list_find (is_snd true) _) eqn: H''; last done.
     destruct p as [j' y]. intros [=]. subst i' j'. 
     apply list_find_Some in H''. apply list_find_Some in H'.
     destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
@@ -284,7 +284,6 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     - rewrite lookup_take in Hy; try done. apply list_lookup_total_correct in Hy.
       by rewrite Hy.
   Qed.
-        
 
 End HINDSIGHT_DEFS.
 

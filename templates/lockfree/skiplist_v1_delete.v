@@ -32,24 +32,24 @@ Module SKIPLIST1_SPEC_DELETE.
   Parameter markNode_proph_spec : ∀ (n: Node) (p: proph_id),
     ⊢ <<< ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs >>>
             markNode #n #p @ ∅
-      <<< ∃∃ (success: bool) mark' pvs',
+      <<< ∃∃ (success: bool) mark' prf pvs',
               node n h mark' next k
             ∗ proph p pvs'
+            ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
             ∗ (match success with 
                 true => ⌜mark !!! 0 = false
                         ∧ mark' = <[0 := true]> mark
-                        ∧ (∃ v1, pvs = ((v1, #true)%V, #()) :: pvs')⌝
+                        ∧ (∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs')⌝
               | false => ⌜mark !!! 0 = true
                         ∧ mark' = mark
-                        ∧ pvs' = pvs⌝ end),
+                        ∧ pvs = prf ++ pvs'⌝ end),
               RET (match success with true => SOMEV #() 
                                     | false => NONEV end)  >>>.
 
   Definition traversal_inv γ_m t0 i k p c : iProp :=
-    (∃ s, past_state γ_m t0 s 
-          ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ Marki s p 0 = false ∧ i < Height s p⌝)
-  ∗ (∃ s, past_state γ_m t0 s 
-          ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
+    (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
+      Marki s p 0 = false ∧ i < Height s p ∧ (i = 0 → Nexti s p i = Some c)⌝)
+  ∗ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
 
   Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
@@ -146,7 +146,7 @@ Module SKIPLIST1_SPEC_DELETE.
         iNext; iExists M0, T0, s0. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) c); try done. 
         iFrame. iFrame. }
-      iIntros (success mark' pvs')"(Node_c & Hproph & Hif)".
+      iIntros (success mark' prf pvs')"(Node_c & Hproph & %Hprf & Hif)".
       iApply (lc_fupd_add_later with "Hcred"). iNext.
       iAssert (∀ i, ⌜1 ≤ i < Height s0 c⌝ → ⌜Marki s0 c i = true⌝)%I as %Marki_c.
       { iIntros (i)"%Hi". 
