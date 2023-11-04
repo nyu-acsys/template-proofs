@@ -205,7 +205,6 @@ Section list_flow_upd_insert.
               set_solver. }
             clear -H'; set_solver.
           - intros H'. rewrite Domm_I0 in H'; try done.
-            clear -H'; set_solver.
           - assert (([^op set] y ∈ (dom I0 ∖ {[n]}), FI I0 y) ⋅ I0 !!! n =
                       ([^op set] y ∈ dom I0, FI I0 y)) as H'.
             { rewrite (big_opS_delete _ (dom I0) n); try done.

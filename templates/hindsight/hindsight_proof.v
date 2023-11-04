@@ -80,10 +80,10 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
 
   Lemma dsOp'_spec N γ_t γ_r γ_m γ_mt γ_msy op (r: loc) :
           main_inv N γ_t γ_r γ_m γ_mt γ_msy -∗
-              <<< ∀∀ a, dsRep γ_r a >>> 
+              <<{ ∀∀ a, dsRep γ_r a }>> 
                      dsOp' (Op_to_val op) #r @ ↑N
-              <<< ∃∃ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝, 
-                  RET #res >>>.
+              <<{ ∃∃ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝ 
+                  | RET #res }>>.
   Proof.
     iIntros "#HInv" (Φ) "AU". wp_lam. 
     wp_pure credit:"Hc". wp_pure credit:"Hc'". wp_pures.

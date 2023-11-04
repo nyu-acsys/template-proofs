@@ -29,23 +29,23 @@ Module SKIPLIST1_SPEC_INSERT.
             ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.
 
   Parameter changeNext_spec : ∀ (n m m': Node) (i: nat),
-    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢  <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
             changeNext #n #m #m' #i @ ∅
-      <<< ∃∃ (success: bool) next',
+      <<{ ∃∃ (success: bool) next',
               node n h mark next' k
             ∗ (match success with true => ⌜next !! i = Some m 
                                             ∧ mark !!! i = false
                                             ∧ next' = <[i := m']> next⌝
                                 | false => ⌜(next !! i ≠ Some m ∨ 
                                               mark !!! i = true)
-                                            ∧ next' = next⌝ end),
+                                            ∧ next' = next⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end)  }>>.
 
   Parameter changeNext_proph_spec : ∀ (n m m': Node) (p: proph_id),
-    ⊢  <<< ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs >>>
+    ⊢  <<{ ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs }>>
             changeNext #n #m #m' #p @ ∅
-      <<< ∃∃ (success: bool) next' prf pvs',
+      <<{ ∃∃ (success: bool) next' prf pvs',
               node n h mark next' k
             ∗ proph p pvs'
             ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
@@ -56,9 +56,9 @@ Module SKIPLIST1_SPEC_INSERT.
                         ∧ (∃ v1, pvs = prf ++ (((v1, #true)%V, #()) :: pvs'))⌝
               | false => ⌜(next !! 0 ≠ Some m ∨ mark !!! 0 = true)
                           ∧ next' = next
-                          ∧ pvs = prf ++ pvs'⌝ end),
+                          ∧ pvs = prf ++ pvs'⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end) >>>.
+                                    | false => NONEV end) }>>.
 
   Definition traversal_inv γ_m t0 i k p c : iProp :=
     (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
@@ -1486,7 +1486,7 @@ Module SKIPLIST1_SPEC_INSERT.
           rewrite H'' in H'. apply H'. rewrite /is_snd /=. by exists v1.
           Unshelve. all: try done.
   Admitted.
-      
+
 
     
 

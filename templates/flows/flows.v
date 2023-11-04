@@ -75,9 +75,13 @@ Global Instance int_eq_dec: EqDecision flowintT.
 Proof.
   unfold EqDecision.
   unfold Decision.
-  repeat decide equality.
-  - apply nzmap_eq_eq.
-  - apply gmap_eq_eq.
+  intros x y. 
+  destruct x as [ [xI xO] | ]; destruct y as [ [yI yO] | ];
+    try by right.
+  - destruct (decide (xI = yI)) as [-> | ?].
+    destruct (decide (xO = yO)) as [-> | ?].
+    by left. all : right; by intros [=].
+  - by left.
 Qed.
 
 (** Interface validity *)
@@ -413,7 +417,7 @@ Proof.
   intros.
   rewrite ?elem_of_dom.
   unfold infComp.
-  rewrite gmap_imerge_prf.
+  rewrite gmap_imerge_lookup.
   unfold dom, flowint_dom.
   repeat rewrite elem_of_dom.
   unfold infComp_op.
@@ -551,16 +555,16 @@ Proof.
         now rewrite H_lookup2.
       * (* in I1 but not in I2 *)
         intros H_lookup2 f1 H_lookup1.
-        (*rewrite H_lookup1. rewrite H_lookup2.*)
-        auto.
+        rewrite !gmap_imerge_lookup; try done.
+        rewrite H_lookup1 H_lookup2. auto.  
       * (* in I2 but not in I1 *)
         intros f2 H_lookup2 H_lookup1.
-        (*rewrite H_lookup1. rewrite H_lookup2.*)
-        auto.
+        rewrite !gmap_imerge_lookup; try done.
+        rewrite H_lookup1 H_lookup2. auto.
       * (* in neither *)
         intros H_lookup2 H_lookup1.
-        (*rewrite H_lookup1. rewrite H_lookup2.*)
-        auto.
+        rewrite !gmap_imerge_lookup; try done.
+        rewrite H_lookup1 H_lookup2. auto.
     + (* outR equality *)
       apply nzmap_eq.
       intros.
@@ -643,7 +647,7 @@ Proof.
   unfold op, intComp in C.
   destruct (decide (intComposable I1 I2)).
   - unfold inf_map at 1 in CL. simpl in CL.
-    rewrite gmap_imerge_prf in CL.
+    rewrite gmap_imerge_lookup in CL.
     rewrite lookup_empty.
     rewrite lookup_empty in CL.
     destruct (inf_map I1 !! n);
@@ -815,7 +819,7 @@ Proof.
     + unfold inf.
       rewrite <- Idef.
       unfold inf_map at 1; simpl.
-      rewrite gmap_imerge_prf.
+      rewrite gmap_imerge_lookup.
       * rewrite D.
         unfold default, id.
         rewrite ccm_comm in H1.
@@ -866,7 +870,7 @@ Proof.
   contradiction.
   unfold inf at 1, inf_map at 1.
   simpl.
-  rewrite gmap_imerge_prf.
+  rewrite gmap_imerge_lookup.
   unfold dom, flowint_dom in D.
   apply elem_of_dom in D.
   unfold is_Some in D.
@@ -946,7 +950,7 @@ Proof.
   f_equal.
   - apply map_eq.
     intros n.
-    rewrite gmap_imerge_prf.
+    rewrite gmap_imerge_lookup.
     case_eq (inf_map I1 !! n).
     + intros x xDef.
       assert (n ∈ I1) as nI1.
@@ -1093,7 +1097,7 @@ Proof.
         simpl in nD.
         rewrite Heqinf12 in nD.
         rewrite elem_of_dom in nD.
-        rewrite gmap_imerge_prf in nD.
+        rewrite gmap_imerge_lookup in nD.
         unfold dom, flowint_dom.
         repeat rewrite elem_of_dom.
         destruct (inf_map I1 !! n).
@@ -1115,7 +1119,7 @@ Proof.
         simpl.
         rewrite Heqinf12.
         rewrite elem_of_dom.
-        rewrite gmap_imerge_prf.
+        rewrite gmap_imerge_lookup.
         rewrite Heqf_inf.
         destruct nD as [nD | nD];
         unfold dom, flowint_dom in nD;
@@ -1138,7 +1142,7 @@ Proof.
       unfold inf_map.
       simpl.
       rewrite Heqinf12.
-      rewrite gmap_imerge_prf.
+      rewrite gmap_imerge_lookup.
       rewrite n_inf.
       rewrite Heqf_inf.
       simpl.
@@ -1179,7 +1183,7 @@ Proof.
       unfold inf_map.
       simpl.
       rewrite Heqinf12.
-      rewrite gmap_imerge_prf.
+      rewrite gmap_imerge_lookup.
       rewrite n_inf.
       rewrite Heqf_inf.
       rewrite HeqI.
@@ -1236,7 +1240,7 @@ Proof.
       unfold inf at 1, inf_map.
       simpl.
       rewrite Heqinf12.
-      rewrite gmap_imerge_prf.
+      rewrite gmap_imerge_lookup.
       rewrite I12Def in nI12.
       rewrite intComp_dom in nI12.
       rewrite elem_of_union in nI12.
@@ -1570,7 +1574,7 @@ Proof.
   destruct (decide (intComposable I1 I3)); last first. contradiction.
   simpl in Eqinf.
   unfold infComp, infComp_op in Eqinf.
-  repeat rewrite gmap_imerge_prf in Eqinf.
+  repeat rewrite gmap_imerge_lookup in Eqinf.
   rewrite I1_def in Eqinf.
   rewrite I2_def in Eqinf.
   rewrite I3_def in Eqinf.
@@ -1985,7 +1989,7 @@ Proof.
     destruct (decide (intComposable In Io)); try contradiction. 
     assert (VI'' := VI'). apply intComposable_valid in VI''. 
     destruct (decide (intComposable In' Io)); try contradiction.
-    unfold inf. unfold inf_map. simpl. repeat rewrite gmap_imerge_prf; try done.
+    unfold inf. unfold inf_map. simpl. repeat rewrite gmap_imerge_lookup; try done.
     case_eq In. intros fIn Hfin. case_eq In'. intros fIn' Hfin'. case_eq Io. 
     intros fIo Hfio. case_eq (infR fIn !! n). intros mn Hmn. 
     case_eq (infR fIn' !! n). intros mn' Hmn'.
@@ -2126,12 +2130,6 @@ Proof.
       set_solver.
       rewrite nzmap_dom_insert_nonzero; try done.
       set_solver.
-    - simpl. intros H'.
-      rewrite map_eq_iff in H'.
-      pose proof H' n1 as H'.
-      rewrite lookup_insert in H'.
-      rewrite lookup_empty in H'.
-      done.
     - rewrite <-Domm_I1. rewrite Domm_In1.
       clear -n1_notin_I1; set_solver.
     - unfold map_Forall. intros n x Hnx.

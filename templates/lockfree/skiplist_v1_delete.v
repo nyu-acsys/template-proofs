@@ -18,21 +18,21 @@ Module SKIPLIST1_SPEC_DELETE.
 
 
   Parameter markNode_spec : ∀ (n: Node) (i: nat),
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
             markNode #n #i @ ∅
-      <<< ∃∃ (success: bool) mark',
+      <<{ ∃∃ (success: bool) mark',
               node n h mark' next k
             ∗ (match success with true => ⌜mark !!! i = false
                                             ∧ mark' = <[i := true]> mark⌝
                                 | false => ⌜mark !!! i = true
-                                            ∧ mark' = mark⌝ end),
+                                            ∧ mark' = mark⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end)  }>>.
 
   Parameter markNode_proph_spec : ∀ (n: Node) (p: proph_id),
-    ⊢ <<< ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs >>>
+    ⊢ <<{ ∀∀ h mark next k pvs, node n h mark next k ∗ ⌜0 < h⌝ ∗ proph p pvs }>>
             markNode #n #p @ ∅
-      <<< ∃∃ (success: bool) mark' prf pvs',
+      <<{ ∃∃ (success: bool) mark' prf pvs',
               node n h mark' next k
             ∗ proph p pvs'
             ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
@@ -42,9 +42,9 @@ Module SKIPLIST1_SPEC_DELETE.
                         ∧ (∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs')⌝
               | false => ⌜mark !!! 0 = true
                         ∧ mark' = mark
-                        ∧ pvs = prf ++ pvs'⌝ end),
+                        ∧ pvs = prf ++ pvs'⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end)  }>>.
 
   Definition traversal_inv γ_m t0 i k p c : iProp :=
     (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
@@ -748,7 +748,7 @@ Module SKIPLIST1_SPEC_DELETE.
           + rewrite !lookup_total_insert_ne; try lia.
             apply Trans_M0. clear -Ht Ht'; lia. }
         
-        destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
+        destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
           last (destruct o as [j | ]).
         * iMod "Hmatch" as (a)"[DsR [_ H']]".
           iCombine "DsR Ds" as "H''".
@@ -806,14 +806,22 @@ Module SKIPLIST1_SPEC_DELETE.
           { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
             by rewrite lookup_total_insert. }
           wp_pures. admit.
-        * exfalso. clear -Hpvs Hpvs'. apply process_proph_case2 in Hpvs.
-          destruct Hpvs' as [v1 Hpvs']. destruct Hpvs as (Hi & Htid & Hj).
-          destruct Hi as [x Hi]. destruct (decide (i = 0)) as [-> | Hi0].
-          { rewrite Hpvs' /= in Hi. inversion Hi. }
-          assert (0 < i) as H'. lia. pose proof Hj 0 H' as H''.
-          rewrite list_lookup_total_alt Hpvs' /= in H''.
-          apply H''. rewrite /snd_is_true. by exists v1.
-      + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> ->]].
+        * exfalso. clear -Def_pvs Hpvs' Hprf. apply process_proph_case2 in Def_pvs.
+          destruct Hpvs' as [v1 Hpvs']. destruct Def_pvs as (Hi & Htid & Hj).
+          destruct Hi as [x Hi]. 
+          destruct (decide (i ≤ length prf)) as [Hiprf | Hiprf].
+          { rewrite Hpvs' /= in Hi. rewrite Nat.le_lteq in Hiprf. 
+            destruct Hiprf as [Hiprf | Hiprf]. 
+            rewrite lookup_app_l in Hi; try done.
+            rewrite Forall_lookup in Hprf.
+            pose proof Hprf i (x, #tid) Hi as [? H']. try done.
+            rewrite list_lookup_middle in Hi. by inversion Hi. done. }
+          rewrite Nat.nle_gt in Hiprf. pose proof Hj (length prf) Hiprf as H'. 
+          assert (pvs !!! length prf = ((v1, #true)%V, #())) as H''.
+          { rewrite Hpvs' list_lookup_total_alt. rewrite list_lookup_middle /=.
+            all: done. }
+          rewrite H'' in H'. apply H'. rewrite /is_snd /=. by exists v1.
+      + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> Def_pvs]].
         iDestruct "HtrInv" as "(_&HtrInv)". 
         iDestruct "HtrInv" as (s)"(Past_s & %H')".
         iDestruct "Past_s" as (ts)"(%Ht0_ts & #Hts)". 
@@ -845,15 +853,19 @@ Module SKIPLIST1_SPEC_DELETE.
         { iExists (M0 !!! S t). iFrame "#". iPureIntro. clear -Hk'; set_solver. } 
         destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
           last (destruct o as [j | ]).
-        * iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
+        * assert (process_proph tid pvs' = None) as Hpvs'.
+          { admit. }
+          iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
           { iNext. iExists M0, T0, s0. iFrame "∗%". 
             rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
           wp_pures. iApply "Hpost". iFrame "Hproph". by iPureIntro.
-        * iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
+        * assert (∃ i' j', process_proph tid pvs' = Some (i', Some j')) 
+            as [i' [j' Hpvs']]. { admit. }
+          iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
           { iNext. iExists M0, T0, s0. iFrame "∗%". 
             rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
           wp_pures. iApply "Hpost". iFrame "Hproph". iModIntro. iRight.
-          iPureIntro. by exists i, j.
+          iPureIntro. by exists i', j'.
         * iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
           { iNext. iExists M0, T0, s0. iFrame "∗%". 
             rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }

@@ -38,36 +38,36 @@ Module SKIPLIST1_SPEC_TRAVERSE.
   Admitted.
 
   Parameter findNext_spec : ∀ (n: Node) (i: nat),
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
           findNext #n #i @ ∅
-      <<< ∃∃ (m: bool) (opt_n': option Node),
-              node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
+      <<{ ∃∃ (m: bool) (opt_n': option Node),
+              node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝ |
               RET (match opt_n' with None => (#m, NONEV) 
-                                    | Some n' => (#m, SOMEV #n') end) >>>.
+                                    | Some n' => (#m, SOMEV #n') end) }>>.
 
   Parameter changeNext_spec : ∀ (n m m': Node) (i: nat),
-    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢  <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
             changeNext #n #m #m' #i @ ∅
-      <<< ∃∃ (success: bool) next',
+      <<{ ∃∃ (success: bool) next',
               node n h mark next' k
             ∗ (match success with true => ⌜next !! i = Some m 
                                             ∧ mark !!! i = false
                                             ∧ next' = <[i := m']> next⌝
                                 | false => ⌜(next !! i ≠ Some m ∨ 
                                               mark !!! i = true)
-                                            ∧ next' = next⌝ end),
+                                            ∧ next' = next⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end) }>>.
 
   Parameter compareKey_spec : ∀ (n: Node) (k': nat),
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k }>>
            compareKey #n #k' @ ∅
-     <<< ∃∃ (res: nat),
+     <<{ ∃∃ (res: nat),
             node n h mark next k 
           ∗ ⌜if decide (res = 0) then k < k'
              else if decide (res = 1) then k = k'
-             else k > k'⌝,
-         RET #res >>>.
+             else k > k'⌝ |
+         RET #res }>>.
 
   Definition traversal_inv γ_m t0 i k p c : iProp :=
     (∃ s, past_state γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
@@ -1213,7 +1213,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       as ">(#Past_s0&Hist)"; try done.
     iAssert (traversal_inv γ_m t0 (L-1) k hd tl)%I as "#Htr". 
     { iSplitL; iExists s0; iFrame "Past_s0"; iPureIntro;
-      destruct PT_s0 as ((PT1&PT2&PT3&PT4&PT5&PT6&PT7&PT8&PT9)&_). repeat split.
+      destruct PT_s0 as ((PT1&PT2&PT3&PT4&PT5&PT6&PT7&PT8&PT9)&_). 
+      repeat split; try done.
       clear -PT1; set_solver. rewrite PT2. lia. rewrite /Marki PT4. done. lia.
       rewrite PT8; clear -HL; lia. split. clear -PT1; set_solver. 
       rewrite PT9; clear -HL; lia. } 

@@ -521,11 +521,11 @@ Definition nzmap_imerge_op `{Countable K} `{CCM A} (f : K → A → A → A) :=
 
 Lemma nzmap_imerge_wf `{Countable K} `{CCM A}
       (f : K → A → A → A) (m1 m2 : gmap K A) :
-  nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (imerge (nzmap_imerge_op f) m1 m2).
+  nzmap_wf m1 → nzmap_wf m2 → nzmap_wf (gmap_imerge (nzmap_imerge_op f) m1 m2).
 Proof.
   unfold nzmap_wf. unfold map_Forall.
   intros Hm1 Hm2 k x Hm.
-  rewrite gmap_imerge_prf in Hm.
+  rewrite gmap_imerge_lookup in Hm.
   unfold nzmap_imerge_op in Hm.
   destruct (m1 !! _), (m2 !! _); 
   try (destruct (decide (0 = _)) eqn:?; naive_solver).
@@ -536,7 +536,7 @@ Definition nzmap_imerge `{Countable K} `{CCM A} :=
   λ (f : K → A → A → A)  (m1 m2 : nzmap K A),
     let (m1, Hm1) := m1 in
     let (m2, Hm2) := m2 in
-    NZMap (imerge (nzmap_imerge_op f) m1 m2) (bool_decide_pack _ (nzmap_imerge_wf f _ _
+    NZMap (gmap_imerge (nzmap_imerge_op f) m1 m2) (bool_decide_pack _ (nzmap_imerge_wf f _ _
     (bool_decide_unpack _ Hm1) (bool_decide_unpack _ Hm2))).
 
 Lemma nzmap_delete_wf `{Countable K} `{CCM A}
@@ -822,7 +822,7 @@ Proof.
   unfold lookup, nzmap_lookup.  
   destruct m1, m2.
   unfold nzmap_imerge_op.
-  rewrite gmap_imerge_prf.
+  rewrite gmap_imerge_lookup; last done.
   destruct (nzmap_car0 !! _) eqn:?,
            (nzmap_car1 !! _) eqn:?;
            simpl;
@@ -833,7 +833,6 @@ Proof.
   unfold UnitId in H1.
   rewrite H1.
   reflexivity.
-  try done.
 Qed.
 
 Lemma nzmap_imerge_empty {A} `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)}

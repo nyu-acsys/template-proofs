@@ -585,7 +585,7 @@ Lemma flowint_map_set_infComp f I1 I1' I2 I2' n S :
           infComp I1 I2 = infComp I1' I2'.
 Proof.
   intros Hf n_in_I2 Hi1 Hi2. apply map_eq.
-  intros n'. unfold infComp. rewrite !gmap_imerge_prf.
+  intros n'. unfold infComp. rewrite !gmap_imerge_lookup.
   unfold infComp_op.
   destruct (decide (n' = n)).
   - replace n'.

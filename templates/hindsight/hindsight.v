@@ -51,15 +51,17 @@ Module Type DATA_STRUCTURE.
   #[global] Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
   #[global] Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   #[global] Declare Instance snapshot_inhabited : Inhabited snapshot.
-  
-(*   Parameter dsG : gFunctors -> Set. *)
-  (* Parameter dsΣ : gFunctors. *)
-  
-  (* Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ. *)
+  (*
+  Parameter dsG : gFunctors -> Set.
+  Parameter dsΣ : gFunctors.
+
+  Parameter test : heapGS dsΣ.
+  Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ.
+  *)
   
   Context `{!heapGS Σ, !dsG Σ}.
   
-  Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ.
+  Parameter ds_inv :  gmap nat snapshot -> nat -> snapshot -> iProp Σ.
 
 End DATA_STRUCTURE.  
 
@@ -70,8 +72,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   (* RAs used in proof *)
 
   Definition auth_natUR := authUR $ max_natUR.
-  Definition agree_snapshotR := agreeR $ snapshotUR.
   Definition frac_absTR := dfrac_agreeR $ absTUR.
+  Definition agree_snapshotR := agreeR $ snapshotUR.
   Definition historyR := gmapUR nat $ snapshotUR.
   Definition auth_historyR := authR $ gmapUR nat $ agree_snapshotR.
   Definition frac_historyR := dfrac_agreeR $ historyR.
@@ -129,10 +131,10 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   (** Helping Inv **)
   
   Definition au N γ_r op (Q : val → iProp) := 
-    (AU << ∃∃ a, dsRep γ_r a >> 
+    (AU <{ ∃∃ a, dsRep γ_r a }> 
           @ ⊤ ∖ (↑N), ∅
-        << ∀∀ a' res, dsRep γ_r a' 
-          ∗ ⌜seq_spec op a a' res⌝, COMM Q #res >>)%I.
+        <{ ∀∀ a' res, dsRep γ_r a' 
+          ∗ ⌜seq_spec op a a' res⌝, COMM Q #res }>)%I.
 
   Definition past_lin M T op res t0 : iProp :=
     ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
@@ -285,6 +287,6 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
       by rewrite Hy.
   Qed.
 
-End HINDSIGHT_DEFS.
-
+  
+  End HINDSIGHT_DEFS.
 
