@@ -290,7 +290,7 @@ Section node_impl.
     iAssert (n ↦ (#k, #h)%V ∗ (n +ₗ 1) ↦ #arr)%I with "[Hn]" as "(Hk & Hn)".
     { rewrite /array /big_opL. iDestruct "Hn" as "(Hn1 & Hn2 & _)".
       assert (n +ₗ 0%nat = n) as ->.
-      { rewrite /loc_add /=. assert (Z.add (loc_car n) 0%nat = loc_car n) as ->.
+      { rewrite /Loc.add /=. assert (Z.add (loc_car n) 0%nat = loc_car n) as ->.
         lia. destruct n; try done. } iFrame. }
     iDestruct (mapsto_persist with "Hk") as ">Hk".
     iDestruct (mapsto_persist with "Hn") as ">Hn".
@@ -307,14 +307,14 @@ Section node_impl.
   Admitted.
 
   Lemma compareKey_spec (n: Node) (k': nat) :
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k }>>
            compareKey #n #k' @ ∅
-     <<< ∃∃ (res: nat),
+     <<{ ∃∃ (res: nat),
             node n h mark next k 
           ∗ ⌜if decide (res = 0) then k < k'
              else if decide (res = 1) then k = k'
-             else k > k'⌝,
-         RET #res >>>.
+             else k > k'⌝ |
+         RET #res }>>.
   Proof.
     iIntros (Φ) "AU".
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -360,9 +360,9 @@ Section node_impl.
   Qed.
 
   Lemma getHeight_spec (n: Node) (i: nat) :
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k }>>
           getHeight #n @ ∅
-      <<< node n h mark next k, RET #h >>>.
+      <<{ node n h mark next k | RET #h }>>.
   Proof.
     iIntros (Φ) "AU".
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -375,12 +375,12 @@ Section node_impl.
   Qed.
 
   Lemma findNext_spec (n: Node) (i: nat) :
-    ⊢ <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢ <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
           findNext #n #i @⊤
-      <<< ∃∃ (m: bool) (opt_n': option Node),
-              node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝,
+      <<{ ∃∃ (m: bool) (opt_n': option Node),
+              node n h mark next k ∗ ⌜mark !!! i = m⌝ ∗ ⌜next !! i = opt_n'⌝ |
               RET (match opt_n' with None => (#m, NONEV) 
-                                    | Some n' => (#m, SOMEV #n') end) >>>.
+                                    | Some n' => (#m, SOMEV #n') end) }>>.
   Proof.
     iIntros (Φ) "AU".
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -408,16 +408,16 @@ Section node_impl.
   Qed.
   
   Lemma markNode_spec (n: Node) (i: nat) :
-    ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>
+    ⊢  <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
             markNode #n #i @⊤
-      <<< ∃∃ (success: bool) mark',
+      <<{ ∃∃ (success: bool) mark',
               node n h mark' next k
             ∗ (match success with true => ⌜mark !!! i = false
                                             ∧ mark' = <[i := true]> mark⌝
                                 | false => ⌜mark !!! i = true
-                                            ∧ mark' = mark⌝ end),
+                                            ∧ mark' = mark⌝ end) |
               RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                    | false => NONEV end) }>>.
   Proof.
     iIntros (Φ) "AU". iLöb as "IH".
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -508,18 +508,22 @@ Section node_impl.
 
   Lemma markNode'_spec (n: Node) (p: proph_id) (pvs: list (val * val)):
     ⊢ proph p pvs -∗  
-      <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜0 < h⌝ >>>
+      <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜0 < h⌝ }>>
             markNode' #n #p @⊤
-      <<< ∃∃ (success: bool) mark' pvs',
+      <<{ ∃∃ (success: bool) mark' ,
               node n h mark' next k
-            ∗ proph p pvs'
-            ∗ (⌜pvs' = pvs⌝ ∨ ⌜∃ v1, pvs = ((v1, #success)%V, #()) :: pvs'⌝)
             ∗ (match success with true => ⌜mark !!! 0 = false
                                             ∧ mark' = <[0 := true]> mark⌝
                                 | false => ⌜mark !!! 0 = true
-                                            ∧ mark' = mark⌝ end),
-              RET (match success with true => SOMEV #() 
-                                    | false => NONEV end)  >>>.
+                                            ∧ mark' = mark⌝ end) |
+          prf pvs', 
+          RET (match success with true => SOMEV #() 
+                                | false => NONEV end);
+            proph p pvs'
+          ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
+          ∗ (match success with 
+              | true => ⌜∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs'⌝
+              | false => ⌜pvs = prf ++ pvs'⌝ end) }>>.
   Proof.
     iIntros "Hproph" (Φ) "AU". iLöb as "IH" forall (pvs).
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -542,12 +546,12 @@ Section node_impl.
     iDestruct ("Hls1" with "[%]") as "H'". apply Def_li.
     destruct (decide (m1 !!! 0 = true)) as [Hmi | Hmi].
     - iDestruct "HAU" as "[_ Hclose]".
-      iSpecialize ("Hclose" $! false m1 pvs).
-      iMod ("Hclose" with "[Harr Hproph]") as "HΦ".
-      { iFrame. iSplitL. iExists arr0, ls1. iFrame "∗#%".
-        iSplitL. by iLeft. by iPureIntro. }
+      iSpecialize ("Hclose" $! false m1).
+      iMod ("Hclose" with "[Harr]") as "HΦ".
+      { iFrame. iSplitL. iExists arr0, ls1. iFrame "∗#%". by iPureIntro. }
       iModIntro. wp_pures. wp_load. wp_pures.
-      rewrite Hmi. wp_pures. done.
+      rewrite Hmi. wp_pures. iSpecialize ("HΦ" $! [] pvs).
+      iApply "HΦ". iModIntro. iFrame. iPureIntro; split; try done.
     - apply not_true_is_false in Hmi.
       iDestruct "HAU" as "[Hclose _]".
       iMod ("Hclose" with "[Harr]") as "AU".
@@ -617,7 +621,8 @@ Section node_impl.
         iMod ("Hclose" with "[Harr Harr0]") as "AU".
         { (* iSplitL; last by iPureIntro. iExists arr0, ls2. iFrame "∗#%".*)
           admit. }
-        iModIntro. wp_pures. iApply ("IH" with "[$Hproph] [AU]"). 
+        iModIntro. wp_pures. iApply ("IH" with "[$Hproph] [AU]"); try done.
+        iIntros "AU'". iSplitL. 
 
   Qed.  
 

@@ -9,7 +9,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export skiplist_v1.
+From flows Require Export skiplist_v1 flows_big_op.
 
 Module SKIPLIST1_UTIL.
   Module DEFS := HINDSIGHT_DEFS SKIPLIST1.
@@ -543,6 +543,20 @@ Module SKIPLIST1_UTIL.
     rewrite H' elem_of_gset_seq; lia. 
   Qed.
 
+  Lemma per_tick_past γ_t γ_m M T s t0:
+    ⌜∀ t, t ∈ dom M → per_tick_inv (M !!! t)⌝ -∗
+    hist γ_t γ_m M T -∗ 
+    past_state γ_m t0 s -∗
+      ⌜per_tick_inv s⌝.
+  Proof.
+    iIntros "%PT Hist #Past_s".
+    iDestruct "Past_s" as (ts)"(_&Hts)".
+    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    iPoseProof (history_sync with "HM' Hts") as "%H'".
+    assert (H'' := H'). apply M_eq, lookup_total_correct in H''.
+    apply M_eq, elem_of_dom_2, PT in H'. by rewrite -H''.
+  Qed.
+
   Lemma snapshot_create t γ_t γ_m M T t0:
     ⌜t ∈ dom M⌝ -∗
     ⌜t0 ≤ t⌝ -∗ 
@@ -624,6 +638,170 @@ Module SKIPLIST1_UTIL.
       + rewrite lookup_total_insert_ne. rewrite lookup_total_insert.
         apply leibniz_equiv in Habs. rewrite Habs. done. lia.
       + intros ?; rewrite !lookup_total_insert_ne; try lia. apply M_neq. lia.
+  Qed.
+
+  Lemma in_keyset s p c k :
+    per_tick_inv s → 
+    p ∈ FP s → 
+    c ∈ FP s → 
+    Marki s p 0 = false → 
+    Marki s c 0 = false →
+    Nexti s p 0 = Some c → 
+    Key s p < k ≤ Key s c → 
+    0 < k < W → 
+        k ∈ keyset (FI s c).
+  Proof.
+    intros PT FP_p FP_c Mark_p Mark_c Next_p Hk Range_k.
+    assert (flow_constraints_I p (FI s p) false (Some c) (Key s p)) as Hp.
+    { apply PT in FP_p. destruct FP_p as (_&_&_&_&_&H'). 
+      by rewrite -Mark_p -Next_p. }
+    assert (flow_constraints_I c (FI s c) false (Next s c !! 0) (Key s c)) as Hc.
+    { apply PT in FP_c. destruct FP_c as (_&_&_&_&_&H'). by rewrite -Mark_c. }
+    destruct Hp as (Hp1&Hp2&Hp3&(Hp4&Hp4')&Hp5&Hp6&Hp7).
+    destruct Hc as (Hc1&Hc2&Hc3&(Hc4&Hc4')&Hc5&Hc6&Hc7).
+    assert (k ∈ outsets (FI s p)) as k_in_outsp.
+    { rewrite -Hp4' elem_of_gset_seq. lia. }
+    assert (insets (FI s p) ≠ ∅) as Domout_p%Hp2.
+    { clear -Hp3 k_in_outsp. set_solver. }
+    assert (k ∈ outset _ (FI s p) c) as k_in_outp.
+    { by rewrite /outsets Domout_p big_opS_singleton in k_in_outsp. }
+    assert (k ∉ outsets (FI s c)) as k_notin_outc.
+    { rewrite -Hc4' elem_of_gset_seq. lia. }
+    assert (p ≠ c) as p_neq_c. { intros ->; clear -Hk; lia. }
+    assert (✓ (FI s p ⋅ FI s c)) as VI.
+    { destruct PT as (_&VI&_). rewrite /GFI in VI.
+      assert ({[p; c]} ⊆ FP s) as Hsub.
+      { clear -FP_p FP_c. set_solver. }
+      pose proof (flow_big_op_valid _ _ {[p; c]} Hsub VI) as VI'.
+      rewrite big_opS_union in VI'.
+      by rewrite !big_opS_singleton in VI'. clear -p_neq_c; set_solver. }
+    assert (k ∈ insets (FI s c)) as k_in_infc.
+    { apply (inset_in_insets _ c).  
+      apply (flowint_inset_step (FI s p) (FI s c) k); try done.
+      by rewrite Hc1 elem_of_singleton. }
+    clear -k_in_infc k_notin_outc. set_solver.
+  Qed.
+
+  Lemma keyset_big_op_auth (S: gset Node) (fks fc : Node → gset nat) :
+    ([^op set] x ∈ S, ◯ prodKS (fks x, fc x)) ≡
+      ◯ ([^op set] x ∈ S, prodKS (fks x, fc x)).
+  Proof.
+    induction S as [| s S] using set_ind_L; try done.
+    - by rewrite !big_opS_empty.
+    - rewrite !big_opS_union; try set_solver.
+      rewrite !big_opS_singleton. rewrite IHS.
+      by rewrite auth_frag_op.
+  Qed.
+
+  Lemma keyset_big_op (S: gset Node) (fks fc : Node → gset nat) :
+    ✓ ([^op set] x ∈ S, prodKS (fks x, fc x)) → 
+    ([^op set] x ∈ S, prodKS (fks x, fc x)) ≡
+        prodKS (([^union set] x ∈ S, fks x), ([^union set] x ∈ S, fc x)).
+  Proof.
+    induction S as [| s S] using set_ind_L; try done.
+    - by rewrite !big_opS_empty.
+    - rewrite big_opS_union; last by set_solver. rewrite big_opS_singleton.
+      intros HV. assert (HVl := HV). assert (HVr := HV).
+      apply (cmra_valid_op_l (prodKS (fks s, fc s))) in HVl.
+      apply (cmra_valid_op_r (prodKS (fks s, fc s))) in HVr.
+      pose proof IHS HVr as H'. rewrite H'. 
+      assert (([^union set] x ∈ ({[s]} ∪ S), fks x) = 
+        fks s ∪ ([^union set] x ∈ S, fks x)) as ->.
+      { apply leibniz_equiv. rewrite big_opS_union. 
+        by rewrite big_opS_singleton. set_solver. }
+      assert (([^union set] x ∈ ({[s]} ∪ S), fc x) = 
+        fc s ∪ ([^union set] x ∈ S, fc x)) as ->.
+      { apply leibniz_equiv. rewrite big_opS_union. 
+        by rewrite big_opS_singleton. set_solver. }
+      rewrite H' in HV. rewrite ksRAT_prodKS_op; try done.
+  Qed.
+
+  Lemma keyset_big_op_valid (S: gset Node) (fks fc : Node → gset nat) :
+    ✓ ([^op set] x ∈ S, prodKS (fks x, fc x)) → 
+      ((∀ n1 n2 : Node, n1 ∈ S → n2 ∈ S → n1 ≠ n2 → fks n1 ## fks n2)
+      ∧ (∀ n, n ∈ S → fc n ⊆ fks n)).
+  Proof.
+    induction S as [| s S] using set_ind_L; try done.
+    rewrite big_opS_union; last by set_solver. rewrite big_opS_singleton.
+    intros HV. assert (HVl := HV). assert (HVr := HV).
+    apply (cmra_valid_op_l (prodKS (fks s, fc s))) in HVl.
+    apply (cmra_valid_op_r (prodKS (fks s, fc s))) in HVr.
+    pose proof IHS HVr as H'. pose proof keyset_big_op _ _ _ HVr as H''. 
+    rewrite H'' in HV. assert (HV' := HV).
+    apply ksRAT_composable_valid in HV'.
+    destruct HV' as (_&_&Disj). simpl in Disj.
+    assert (∀ x, x ∈ S → fks x ⊆ ([^union set] x ∈ S, fks x)) as Hx.
+    { intros x Hx. rewrite (big_opS_delete _ _ x); try done. set_solver. } 
+    split.
+    - intros n1 n2. rewrite !elem_of_union !elem_of_singleton.
+      intros [-> | Hn1s]; intros [-> | Hn2s]; try done.
+      + apply Hx in Hn2s. intros _. set_solver.
+      + apply Hx in Hn1s. intros _. set_solver.
+      + by apply H'.
+    - intros n. rewrite elem_of_union elem_of_singleton.
+      intros [-> | Hns]. by rewrite /valid /cmra_valid /= in HVl.
+      apply IHS; try done.
+  Qed. 
+
+  Lemma keyset_disjoint_subset γ_ks (S: gset Node) (fks fc : Node → gset nat) :
+    ([∗ set] n ∈ S, own γ_ks (◯ prodKS (fks n, fc n))) -∗
+        ⌜∀ n1 n2, n1 ∈ S → n2 ∈ S → n1 ≠ n2 → fks n1 ## fks n2⌝
+      ∗ ⌜∀ n, n ∈ S → fc n ⊆ fks n⌝.
+  Proof.
+    destruct (decide (S = ∅)) as [-> | Hs].
+    { iIntros "_". iPureIntro. set_solver. }
+    rewrite -big_opS_own; try done. iIntros "HKS".
+    iPoseProof (own_valid with "HKS") as "%HV".
+    iPureIntro. rewrite keyset_big_op_auth in HV.
+    rewrite auth_frag_valid in HV. 
+    pose proof keyset_big_op_valid _ _ _ HV as H'. apply H'.
+  Qed.
+
+  Lemma elem_of_big_op `{Countable A, Countable B} (f : A → gset B) (S: gset A) k :
+    k ∈ ([^union set] x ∈ S, f x) → ∃ y, y ∈ S ∧ k ∈ f y.
+  Proof.
+    induction S as [| s S] using set_ind_L; try done.
+    - by rewrite big_opS_empty.
+    - rewrite big_opS_union; last by set_solver.
+      rewrite big_opS_singleton elem_of_union.
+      intros [Hk | Hk]. exists s; set_solver.
+      apply IHS in Hk. destruct Hk as [y [Hk1 Hk2]].
+      exists y; set_solver. 
+  Qed.
+
+  Lemma keyset_summary γ_ks (S: gset Node) fks fc (C: gset nat):
+    own γ_ks (● prodKS (KS, C)) -∗
+    ([∗ set] n ∈ S, own γ_ks (◯ prodKS (fks n, fc n))) -∗
+      ⌜∀ n k, n ∈ S → k ∈ fks n → (k ∈ C ↔ k ∈ fc n)⌝.
+  Proof.
+    destruct (decide (S = ∅)) as [-> | Hs].
+    { iIntros "_ _". iPureIntro. set_solver. }
+    iIntros "GKS HKS". rewrite -big_opS_own; try done. 
+    rewrite keyset_big_op_auth.
+    iPoseProof (own_valid with "HKS") as "%HV".
+    rewrite auth_frag_valid in HV. 
+    pose proof keyset_big_op_valid _ _ _ HV as [Disj Hsub].
+    pose proof keyset_big_op _ _ _ HV as H'.
+    iPoseProof (own_valid_2 with "GKS HKS") as "%HV2".
+    assert (Hincl := HV2). apply auth_both_valid_discrete in Hincl.
+    rewrite H' in Hincl. destruct Hincl as [Hincl VKS].
+    rewrite H' in HV. 
+    pose proof auth_ks_included _ _ _ _ HV VKS Hincl as [Ke [Ce H'']].
+    destruct H'' as (Def_KS&Def_C&Disj_ks&Disj_c&Sub1&Sub2&Sub3).
+    iPureIntro. intros n k Hn Hk. split.
+    - intros Hc. rewrite Def_C elem_of_union in Hc.
+      destruct Hc as [Hc | Hc].
+      + apply elem_of_big_op in Hc. destruct Hc as [x [Hx1 Hx2]].
+        destruct (decide (x = n)) as [-> | Hxn]; try done.
+        apply Hsub in Hx2; try done. pose proof Disj x n Hx1 Hn Hxn as H''.
+        clear -H'' Hk Hx2; set_solver.
+      + apply Sub3 in Hc. rewrite (big_opS_delete _ _ n) in Disj_ks; try done.
+        clear -Disj_ks Hk Hc; set_solver.
+    - intros Hc. 
+      assert (([^union set] x ∈ S, fc x) = 
+        fc n ∪ ([^union set] x ∈ S ∖ {[n]}, fc x)) as H''.
+      { apply leibniz_equiv. by rewrite (big_opS_delete _ S n). }
+      rewrite H'' in Def_C. clear -Def_C Hc; set_solver.
   Qed.
 
 End SKIPLIST1_UTIL.

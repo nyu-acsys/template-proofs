@@ -302,8 +302,7 @@ Section keyset_ra.
   ✓ prodKS (a1, b1) → 
   ✓ prodKS (a2, b2) → 
   prodKS (a1, b1) ≼ prodKS (a2, b2) → 
-      (a1 = a2 ∧ b1 = b2) 
-    ∨ (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 
+      (∃ a0 b0, a2 = a1 ∪ a0 ∧ b2 = b1 ∪ b0 
                 ∧ a1 ## a0 ∧ b1 ## b0 ∧ b1 ⊆ a1 ∧ b2 ⊆ a2 ∧ b0 ⊆ a0).
   Proof.
     intros Ha1 Ha2 Hincl. destruct Hincl as [z Hincl]. 

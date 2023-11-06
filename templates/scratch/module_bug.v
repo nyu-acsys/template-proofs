@@ -84,16 +84,37 @@ Module M_THREE.
   
   Context `{!heapGS Σ}.
 
-  Lemma test_spec (p: proph_id) pvs:
-    ⊢ {{{ proph p pvs }}} test #p 
-      {{{ prf pvs', RET #(); proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝}}}. 
+  Lemma test_spec1 (p: proph_id) pvs:
+    ⊢ {{{ proph p pvs }}} test #p
+      {{{ prf pvs', RET #(); proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ }}}. 
   Proof.
-    iLöb as "IH" forall (pvs). iIntros (Φ) "!# Hproph Hpost". wp_lam. 
+    iLöb as "IH" forall (pvs). iIntros  (Φ) "!# Hproph Hpost". wp_lam. 
     wp_apply nondet_bool_spec; try done. iIntros (b)"_". wp_pures.
     wp_apply (wp_resolve with "[$Hproph]"). try done.
     wp_pures. iModIntro. iIntros (pvs') "%Hpvs' Hproph".
     wp_pures. destruct b; wp_pures.
     - iApply ("Hpost" $! [(#(), #true)]). iFrame. iPureIntro. set_solver.
+    - iApply ("IH" with "[$Hproph]"). iNext.
+      iIntros (prf' pvs'') "(Hproph & %Hpvs'')". 
+      iApply ("Hpost" $! ((#(), #false) :: prf')). iFrame.
+      iPureIntro. rewrite Hpvs' Hpvs''. set_solver.
+  Qed.
+
+  Lemma test_spec2 (p: proph_id) pvs:
+    ⊢ proph p pvs -∗
+      <<{ ∀∀ [_: ()], True }>> test #p @ ⊤
+      <<{ ∃∃ [_: ()], True | 
+          prf pvs', RET #(); proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝}>>. 
+  Proof.
+    iLöb as "IH" forall (pvs). iIntros "Hproph" (Φ) "AU". wp_lam. 
+    wp_apply nondet_bool_spec; try done. iIntros (b)"_". wp_pures.
+    wp_apply (wp_resolve with "[$Hproph]"). try done.
+    wp_pures. iModIntro. iIntros (pvs') "%Hpvs' Hproph".
+    wp_pures. destruct b; wp_pures.
+    - iMod "AU" as (_)"[_ [_ H']]".
+      iSpecialize ("H'" $! ()).
+      iMod ("H'" with "[]") as "Hpost"; try done.
+      iApply ("Hpost" $! [(#(), #true)]). iFrame. iPureIntro. set_solver.
     - iApply ("IH" with "[$Hproph]"). iNext.
       iIntros (prf' pvs'') "(Hproph & %Hpvs'')". 
       iApply ("Hpost" $! ((#(), #false) :: prf')). iFrame.

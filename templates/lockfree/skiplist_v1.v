@@ -409,6 +409,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       hd_tl_inv (FP s) (Height s hd) (Height s tl) (Mark s hd) (Mark s tl)
         (Next s hd) (Next s tl) (Key s hd) (Key s tl)
     ∧ ✓ GFI s
+    ∧ (∀ n k, n ∈ FP s → k ∈ keyset (FI s n) → (k ∈ abs s ↔ k ∈ Content s n))
     ∧ (∀ n, n ∈ (FP s) → 
         node_inv_pure n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
     ∧ (∀ n1 n2, Nexti s n1 0 = Some n2 → Key s n1 < Key s n2)

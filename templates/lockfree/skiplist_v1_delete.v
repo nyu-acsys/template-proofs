@@ -164,7 +164,7 @@ Module SKIPLIST1_SPEC_DELETE.
           [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
         assert (∀ x, x ∈ FP s0 → flow_constraints_I x (FI s0 x) 
                   (Mark s0 x !!! 0) (Next s0 x !! 0) (Key s0 x)) as Hflow.
-        { destruct PT_s0 as (_&_&H'&_).
+        { destruct PT_s0 as (_&_&_&H'&_).
           intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
         iAssert (⌜Key s0 c = k⌝)%I as %Key_c. 
         { iDestruct "HtrInv" as "(_ & Htr)". iDestruct "Htr" as (s)"(Past_s & %H')".
@@ -173,7 +173,7 @@ Module SKIPLIST1_SPEC_DELETE.
           iPoseProof (key_eq_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
             try done. rewrite Hss0 in H''. done. }
         iAssert (⌜∃ cn, Nexti s0 c 0 = Some cn⌝)%I as %[cn Def_cn].
-        { destruct PT_s0 as ((_&_&Hk&_)&_&H'&_). apply H' in FP_c0.
+        { destruct PT_s0 as ((_&_&Hk&_)&_&_&H'&_). apply H' in FP_c0.
           destruct FP_c0 as (_&H''&_). iPureIntro.
           destruct (decide (c = tl)) as [-> | Hctl].
           rewrite -Key_c Hk in Range_k. clear -Range_k; lia.
@@ -277,7 +277,7 @@ Module SKIPLIST1_SPEC_DELETE.
               assert (H1' := H'). 
               apply elem_of_dom_2 in H'.
               rewrite Dom_Mk0 in H'.
-              destruct PT_s0 as (_&_&PT&_).
+              destruct PT_s0 as (_&_&_&PT&_).
               rewrite {1}Hs0 in PT. unfold FP in PT.
               apply PT in H'. destruct H' as (_&_&H'&_).
               rewrite Hs0 /Mark H1' in H'.
@@ -287,13 +287,13 @@ Module SKIPLIST1_SPEC_DELETE.
           { rewrite Hs0. unfold Key. try done. }
           
           assert (nx_key_rel Nx Ky0) as Nx_key_rel.
-          { destruct PT_s0 as (_&_&_&H'&_). intros n1 n2.
+          { destruct PT_s0 as (_&_&_&_&H'&_). intros n1 n2.
             rewrite !Def_Nx !Def_Ky0. apply H'. }
           assert (nx_mk_closed Nx Mk (dom I0)) as Hcl.
           { split; last split; last split. 
             - rewrite Dom_I0 -Dom_Nx0. done.
             - rewrite Dom_Mk. clear -Dom_Mk0 Dom_I0; set_solver.
-            - destruct PT_s0 as (_&_&_&_&H'&_). intros n1 n2.
+            - destruct PT_s0 as (_&_&_&_&_&H'&_). intros n1 n2.
               rewrite {2}Hs0 in H'. unfold FP in H'.
               rewrite !Def_Nx Dom_I0. apply H'.
             - intros x Hmx Hnx.
@@ -344,13 +344,15 @@ Module SKIPLIST1_SPEC_DELETE.
           set res := list_flow_upd_marking c Nx Mk S I0.
           assert (list_flow_upd_marking c Nx Mk S I0 = res) as Def_res by try done.
           
-          assert (∀ n1 n2, n1 ∈ dom I0 → n2 ∈ dom I0 → 
-                    n1 ≠ n2 → keyset (I0 !!! n1) ## keyset (I0 !!! n2)) as Disj_KS.
-          { admit. }
+          iAssert (⌜∀ n1 n2, n1 ∈ dom I0 → n2 ∈ dom I0 → 
+            n1 ≠ n2 → keyset (I0 !!! n1) ## keyset (I0 !!! n2)⌝)%I as %Disj_KS.
+          { iPoseProof (keyset_disjoint_subset with "Nodes_KS") as "(%H' & _)".
+            rewrite FP_s0_I0 in H'. iPureIntro. intros n1 n2; rewrite !I0_eq_s0.
+            apply H'. }
           assert (∀ x, x ∈ dom I0 → Mk !!! x = false → 
             Ky0 !!! c < Ky0 !!! x → S ## outsets (I0 !!! x)) as Disj_outsets.
           { intros x Hx Mk_x Hkey. rewrite elem_of_disjoint. intros k' Hk1' Hk2'.
-            destruct PT_s0 as (_&_&H'&_). rewrite {1}Hs0 /FP -Dom_I0 in H'.
+            destruct PT_s0 as (_&_&_&H'&_). rewrite {1}Hs0 /FP -Dom_I0 in H'.
             apply H' in Hx. destruct Hx as (_&_&_&_&Hx&Hx'). 
             rewrite /Marki in Def_Mk. rewrite -Def_Ky0 -Def_Mk Mk_x in Hx'. 
             destruct Hx' as (_&_&_&Hx'&_). destruct Hx' as [Hx1 Hx2]. 
@@ -524,77 +526,7 @@ Module SKIPLIST1_SPEC_DELETE.
           clear -HL; lia. rewrite H'' in Marki_c. clear H''.
           pose proof Marki_c 1 H1' as H''. rewrite /Marki in H''. 
           rewrite H' in H''. clear -H''; done. done. }
-        
-        assert (per_tick_inv s0') as PT_s0'.
-        { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6).
-          split; last split; last split; last split; last split.
-          - rewrite FP_s0' !HK !HN !HT !HM; try done. 
-          - rewrite /GFI FP_s0'.
-            assert (([^op set] x ∈ FP s0, FI s0' x) 
-              = ([^op set] x ∈ FP s0, I0' !!! x)) as ->.
-            { apply big_opS_ext. intros x Hx'.
-              by rewrite /s0' /FI /=. }
-            unfold GFI in PT2.
-            assert (([^op set] x ∈ FP s0, I0' !!! x) 
-              = ([^op set] x ∈ FP s0, FI s0 x)) as ->; last done.
-            rewrite {1 3}Hs0 /FP -Dom_I0.
-            assert (([^op set] x ∈ dom I0, FI s0 x) 
-              = ([^op set] x ∈ dom I0, I0 !!! x)) as ->.
-            { apply big_opS_ext. intros x Hx'.
-              by rewrite Hs0 /FI /=. }
-            symmetry. apply (intf_merge_intfEq I); try done.
-            assert (([^op set] x ∈ dom I, I0 !!! x)
-              = ([^op set] x ∈ dom I, FI s0 x)) as ->.
-            { apply big_opS_ext. intros x Hx.
-              rewrite Hs0; unfold FI; try done. }
-            by apply Hflupd.
-          - rewrite FP_s0' FP_I0. intros n Hn. assert (Hnn := Hn).
-            rewrite FP_I0 in PT3. apply PT3 in Hn.
-            destruct (decide (n ∈ dom I)) as [Hn' | Hn'].
-            + destruct (decide (n = c)) as [-> | Hnc].
-              * rewrite HN HT HK HI; try done. rewrite HMc.
-                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
-                split; last split; last split; last split; last split; try done.
-                { intros [i Hi]. destruct (decide (i = 0)) as [-> | Hi'].
-                  by rewrite lookup_total_insert in Hi.
-                  rewrite lookup_total_insert_ne in Hi; try done.
-                  rewrite /Marki in Marki_c. assert (Hii := Hi).
-                  rewrite Marki_c in Hi. done.
-                  rewrite lookup_total_alt in Hii. 
-                  destruct (Mark s0 c !! i) as [mc | ] eqn: Hmc.
-                  apply elem_of_dom_2 in Hmc. rewrite Hn3 elem_of_gset_seq in Hmc.
-                  clear -Hn4 Hmc Hi'. lia. rewrite Hmc /= in Hii. done. }
-                { rewrite dom_insert_L Hn3. 
-                  assert (0 ∈ gset_seq 0 (Height s0 c - 1)) as H'. 
-                  { rewrite elem_of_gset_seq; lia. } clear -H'; set_solver. }
-                { rewrite lookup_total_insert. apply Hflupd. }
-              * rewrite HN HT HK HI; try done. rewrite HM; try done.
-                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
-                split; last split; last split; last split; last split; try done.
-                apply Hflupd. done. done.
-            + rewrite HN HT HK HI'. rewrite HM. all: try done.
-              assert (c ∈ dom I) as H' by (apply Hflupd).
-              clear -H' Hn'; set_solver.
-          - intros n1 n2. rewrite /Nexti HN !HK. apply PT4.
-          - intros n1 n2 i. rewrite /Nexti HN FP_s0'. apply PT5.
-          - intros n1 n2 i. rewrite /Nexti HN HT. apply PT6. }
-        
-        assert (transition_inv s0 s0') as Trans_s0.
-        { repeat split.
-          - intros n i. rewrite /Nexti HN. clear; try done.
-          - intros n. destruct (decide (n = c)) as [-> | Hcn].
-            + intros _ _. rewrite Key_c /s0' /abs. clear; set_solver.
-            + rewrite /Marki HM. intros H' H''. rewrite H' in H''; done. done.
-          - intros n i FP_n. 
-            destruct (decide (n = c)) as [-> | Hcn].
-            + rewrite /Marki HMc. intros Hm.
-              destruct (decide (i = 0)) as [-> | Hi0].
-              * by rewrite lookup_total_insert.
-              * rewrite lookup_total_insert_ne; try done.
-            + rewrite /Marki HM; try done.
-          - intros. by rewrite HT.
-          - intros. by rewrite HK.
-          - by rewrite FP_s0'. }
+
         iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources γ_ks s0' ∗ ⌜k ∈ abs s0⌝)%I 
           with "[GKS Nodes_KS Node_c Nodes_rest]" as ">(Res & %k_in_s0)".
         { rewrite (big_sepS_delete _ _ c); try done.
@@ -611,8 +543,6 @@ Module SKIPLIST1_SPEC_DELETE.
             destruct H' as [H' _]. apply auth_ks_included in H'; try done.
             assert (Content s0 c = {[k]}) as Hcont.
             { by rewrite /Content /Marki Mark_c0 Key_c. }
-            destruct H' as [H' | H']. destruct H' as [_ H'].
-            rewrite -H' Hcont. clear; set_solver.
             destruct H' as [? [? [_ [H' _]]]]. rewrite H' Hcont.
             clear; set_solver. } iFrame "%".
           iCombine "KS_c KS_nk" as "KS_cnk".
@@ -720,6 +650,83 @@ Module SKIPLIST1_SPEC_DELETE.
           rewrite elem_of_difference; split. rewrite Hs0 /FP.
           rewrite -Dom_I0. apply Dom_I_in_I0. by destruct Hflupd as (_&_&_&?&_).
           destruct Hflupd as (_&_&_&_&H1''&_). clear -H1''; set_solver. }
+
+        iAssert (⌜∀ n k, n ∈ FP s0' → k ∈ keyset (FI s0' n) →
+          (k ∈ abs s0' ↔ k ∈ Content s0' n)⌝)%I as "%Hks".
+        { iDestruct "Res" as "(GKS & _ & HKS)".
+          iPoseProof (keyset_summary with "GKS HKS") as "%H'"; try done. }
+          
+        assert (per_tick_inv s0') as PT_s0'.
+        { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6&PT7).
+          split; last split; last split; last split; last split; last split.
+          - rewrite FP_s0' !HK !HN !HT !HM; try done. 
+          - rewrite /GFI FP_s0'.
+            assert (([^op set] x ∈ FP s0, FI s0' x) 
+              = ([^op set] x ∈ FP s0, I0' !!! x)) as ->.
+            { apply big_opS_ext. intros x Hx'.
+              by rewrite /s0' /FI /=. }
+            unfold GFI in PT2.
+            assert (([^op set] x ∈ FP s0, I0' !!! x) 
+              = ([^op set] x ∈ FP s0, FI s0 x)) as ->; last done.
+            rewrite {1 3}Hs0 /FP -Dom_I0.
+            assert (([^op set] x ∈ dom I0, FI s0 x) 
+              = ([^op set] x ∈ dom I0, I0 !!! x)) as ->.
+            { apply big_opS_ext. intros x Hx'.
+              by rewrite Hs0 /FI /=. }
+            symmetry. apply (intf_merge_intfEq I); try done.
+            assert (([^op set] x ∈ dom I, I0 !!! x)
+              = ([^op set] x ∈ dom I, FI s0 x)) as ->.
+            { apply big_opS_ext. intros x Hx.
+              rewrite Hs0; unfold FI; try done. }
+            by apply Hflupd.
+          - done.
+          - rewrite FP_s0' FP_I0. intros n Hn. assert (Hnn := Hn).
+            rewrite FP_I0 in PT4. apply PT4 in Hn.
+            destruct (decide (n ∈ dom I)) as [Hn' | Hn'].
+            + destruct (decide (n = c)) as [-> | Hnc].
+              * rewrite HN HT HK HI; try done. rewrite HMc.
+                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+                split; last split; last split; last split; last split; try done.
+                { intros [i Hi]. destruct (decide (i = 0)) as [-> | Hi'].
+                  by rewrite lookup_total_insert in Hi.
+                  rewrite lookup_total_insert_ne in Hi; try done.
+                  rewrite /Marki in Marki_c. assert (Hii := Hi).
+                  rewrite Marki_c in Hi. done.
+                  rewrite lookup_total_alt in Hii. 
+                  destruct (Mark s0 c !! i) as [mc | ] eqn: Hmc.
+                  apply elem_of_dom_2 in Hmc. rewrite Hn3 elem_of_gset_seq in Hmc.
+                  clear -Hn4 Hmc Hi'. lia. rewrite Hmc /= in Hii. done. }
+                { rewrite dom_insert_L Hn3. 
+                  assert (0 ∈ gset_seq 0 (Height s0 c - 1)) as H'. 
+                  { rewrite elem_of_gset_seq; lia. } clear -H'; set_solver. }
+                { rewrite lookup_total_insert. apply Hflupd. }
+              * rewrite HN HT HK HI; try done. rewrite HM; try done.
+                destruct Hn as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6).
+                split; last split; last split; last split; last split; try done.
+                apply Hflupd. done. done.
+            + rewrite HN HT HK HI'. rewrite HM. all: try done.
+              assert (c ∈ dom I) as H' by (apply Hflupd).
+              clear -H' Hn'; set_solver.
+          - intros n1 n2. rewrite /Nexti HN !HK. apply PT5.
+          - intros n1 n2 i. rewrite /Nexti HN FP_s0'. apply PT6.
+          - intros n1 n2 i. rewrite /Nexti HN HT. apply PT7. }
+        
+        assert (transition_inv s0 s0') as Trans_s0.
+        { repeat split.
+          - intros n i. rewrite /Nexti HN. clear; try done.
+          - intros n. destruct (decide (n = c)) as [-> | Hcn].
+            + intros _ _. rewrite Key_c /s0' /abs. clear; set_solver.
+            + rewrite /Marki HM. intros H' H''. rewrite H' in H''; done. done.
+          - intros n i FP_n. 
+            destruct (decide (n = c)) as [-> | Hcn].
+            + rewrite /Marki HMc. intros Hm.
+              destruct (decide (i = 0)) as [-> | Hi0].
+              * by rewrite lookup_total_insert.
+              * rewrite lookup_total_insert_ne; try done.
+            + rewrite /Marki HM; try done.
+          - intros. by rewrite HT.
+          - intros. by rewrite HK.
+          - by rewrite FP_s0'. }
         
         iAssert (⌜dom M0 = gset_seq 0 T0⌝)%I as %Dom_M0. 
         { by iDestruct "Hist" as (M0'') "(_&_&%&_)". }
