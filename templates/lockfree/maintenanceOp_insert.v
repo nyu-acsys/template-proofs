@@ -84,6 +84,7 @@ Module MAINTENANCEOP_INSERT.
           ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
           ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝ ∗ ⌜h < L⌝
           ∗ ⌜ps !!! (L - 1) = hd⌝ ∗ ⌜ss !!! (L - 1) = tl⌝
+          ∗ (∃ s, past_state γ_m t0 s ∗ ⌜n ∈ FP s⌝ ∗ ⌜Height s n = h⌝)
           ∗ (∀ i, ⌜i < L⌝ → traversal_inv γ_m t0 i k (ps !!! i) (ss !!! i))
           ∗ perm ↦∗ vs
           ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
@@ -98,7 +99,7 @@ Module MAINTENANCEOP_INSERT.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (i ps ss). 
     iIntros (Φ) "!# Hpre Hpost".
     iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HhL 
-      & %HpsL & %HssL & #Htr & Hperm & %Def_vs & %Perm_xs)".
+      & %HpsL & %HssL & #FP_n & #Htr & Hperm & %Def_vs & %Perm_xs)".
     wp_lam. wp_pures. 
     destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures.
     - rewrite bool_decide_eq_true in Hbool.
@@ -172,7 +173,7 @@ Module MAINTENANCEOP_INSERT.
         iIntros (ps' ss' b) "(Hpreds & Hsuccs & %Lep_ps' & %Len_ss' 
           & %HpsL' & %HssL' & #Htr'' & _)". wp_pures.
         iSpecialize ("IH" $! i ps' ss').
-        iApply ("IH" with "[-Hpost]"); try done. iFrame "Hperm Htr'' %". admit.
+        iApply ("IH" with "[-Hpost]"); try done. iFrame "Hperm # %". admit.
       + iDestruct "Hif" as %[Next_p0 [Mark_p0 Def_next']].
         assert (next' = Next s0 p) as Hnext'. 
         { rewrite Def_next'. apply map_eq. intros i'. 
@@ -189,7 +190,7 @@ Module MAINTENANCEOP_INSERT.
           iSplitR. iPureIntro. apply Len_ps.
           iSplitR. iPureIntro. apply Len_ss.
           iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
-          iSplitR. by iPureIntro. iFrame "Htr". iFrame "Hperm".
+          iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
           by iPureIntro. }
       + iDestruct "Hif" as %[Next_p0 [Mark_p0 Def_next']].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
@@ -244,9 +245,26 @@ Module MAINTENANCEOP_INSERT.
           assert (Content s0' x = Content s0 x) as ->.
           rewrite /Content HK /Marki HM. done. done. }
         
-        assert (p ≠ tl) as p_neq_tl. admit.
-        assert (n ∈ FP s0) as FP_n0. admit.
-        assert (idx < Height s0 n) as Hidxn. admit.
+        iAssert (⌜Key s0 p < W⌝)%I as %Key_pW. 
+        { iDestruct "Htr'" as "(Htr'&_)". 
+          iDestruct"Htr'" as (s)"(Past_s & %FP_ps & %Key_ps & _)".
+          apply leibniz_equiv in Habs0. rewrite -Habs0.
+          iPoseProof (key_eq_2 p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+            try done. iPureIntro. clear -Key_ps Range_k. lia. }
+        assert (p ≠ tl) as p_neq_tl. 
+        { intros ->. destruct PT_s0 as ((_&_&H'&_)&_).
+          rewrite H' in Key_pW. clear -Key_pW. lia. }
+        iAssert (⌜n ∈ FP s0⌝)%I as %FP_n0.
+        { apply leibniz_equiv in Habs0. rewrite -Habs0. 
+          iDestruct "FP_n" as (s)"(Past_s & %H' & _)".
+          iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
+        iAssert (⌜idx < Height s0 n⌝)%I as %Hidxn. 
+        { apply leibniz_equiv in Habs0. rewrite -Habs0. 
+          iDestruct "FP_n" as (s)"(Past_s & %H' & %H'')".
+          iPoseProof (height_eq_2 with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+            try done. rewrite H''. iPureIntro. 
+          apply elem_of_list_lookup_2 in Hidx. rewrite Perm_xs in Hidx.
+          rewrite elem_of_seq in Hidx. lia. }
         
         assert (per_tick_inv s0') as PT_s0'.
         { destruct PT_s0 as (PT1'&PT2'&PT3'&PT4'&PT5'&PT6'&PT7').
@@ -320,7 +338,7 @@ Module MAINTENANCEOP_INSERT.
           - intros t Ht. destruct (decide (t = T0+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
             + rewrite lookup_total_insert_ne; try done. apply PT0.
-              rewrite dom_insert in Ht. clear -Ht' Ht; set_solver.
+              clear -Ht' Ht; lia.
           - intros t Ht. destruct (decide (t = T0)) as [-> | Ht'].
             + rewrite lookup_total_insert. rewrite lookup_total_insert_ne.
               apply leibniz_equiv in Habs0. by rewrite Habs0. clear; lia.
@@ -333,12 +351,12 @@ Module MAINTENANCEOP_INSERT.
           iSplitR. iPureIntro. apply Len_ps.
           iSplitR. iPureIntro. apply Len_ss.
           iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
-          iSplitR. by iPureIntro. iFrame "Htr". iFrame "Hperm".
+          iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
           by iPureIntro. }
   Admitted.
 
-  Lemma maintenanceOp_insert_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k (n:Node) 
-    preds succs ps ss:
+  Lemma maintenanceOp_insert_spec ps ss N γ_t γ_r γ_m γ_mt γ_msy tid t0 k (n:Node) 
+    preds succs:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy -∗
     thread_start γ_t γ_mt tid t0 -∗
     □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
@@ -346,6 +364,7 @@ Module MAINTENANCEOP_INSERT.
         {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
             ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
             ∗ (∃ s, past_state γ_m t0 s ∗ ⌜n ∈ FP s⌝)
+            ∗ ⌜n ≠ hd⌝ ∗ ⌜n ≠ tl⌝
             ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
             ∗ ⌜ps !!! (L - 1) = hd⌝ ∗ ⌜ss !!! (L - 1) = tl⌝
             ∗ (∀ i, ⌜i < L⌝ → traversal_inv γ_m t0 i k (ps !!! i) (ss !!! i)) }}}
@@ -356,7 +375,8 @@ Module MAINTENANCEOP_INSERT.
             ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss') }}}.
   Proof.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". 
-    iIntros (Φ) "!# (Hpreds&Hsuccs&#FP_n&%Len_ps&%Len_ss&%HpsL&%HssL&#Htr) Hpost".
+    iIntros (Φ) "!# (Hpreds & Hsuccs & #FP_n & %n_neq_hd & %n_neq_tl & 
+      %Len_ps & %Len_ss & %HpsL & %HssL & #Htr) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
@@ -376,7 +396,9 @@ Module MAINTENANCEOP_INSERT.
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
     { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     assert (h < L). 
-    { apply PT_s0 in FP_n0. destruct FP_n0 as (_&_&_&H'&_). admit. }
+    { apply PT_s0 in FP_n0. destruct FP_n0 as (_&_&_&H'&_). by apply H'. }
+    iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
+      as ">(#Past_s0&Hist)"; try done.
     iSplitR "Hpreds Hsuccs Hpost".
     { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) n); try done. iFrame. } 
@@ -385,10 +407,9 @@ Module MAINTENANCEOP_INSERT.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
     wp_apply (maintenanceOp_insert_rec_spec with "[] [] [] [] 
       [$Hperm $Hpreds $Hsuccs]"); try done.
-    { iFrame "#%". }
+    { iFrame "#%". iExists s0. iFrame "#". by iPureIntro. }
     iIntros (ps' ss')"(Hpreds & Hsuccs & Hperm)". 
     iApply "Hpost". iFrame.
   Admitted.
 
 End MAINTENANCEOP_INSERT.
-

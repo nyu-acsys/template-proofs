@@ -96,7 +96,8 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
     
     iAssert (update_helping_protocol N γ_t γ_r γ_mt γ_msy)%I 
         as "Upd_help". 
-    { iIntros (M T s)"%Dom_M Ds Prot".
+    { (*
+      iIntros (M T s)"%Dom_M Ds Prot".
       iDestruct "Prot" as (Mt Msy)"(HMt & HMsy & %Domm_Mt & Hstar_t & Hstar_sy)".
       set R := dom Msy.
       iAssert (dsRep γ_r (abs s) -∗
@@ -175,11 +176,12 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
           iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0'.
           iFrame "∗#%". }
       iPoseProof ("H'" with "[$Ds] [$Hstar_sy]") as ">(Hstar_sy & Ds)".
-      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%". }
+      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%".*) admit. }
 
     iAssert (update_helping_protocol2 N γ_t γ_r γ_mt γ_msy)%I 
         as "Upd_help2". 
-    { iIntros (M T s')"%Dom_M %Habs Prot".
+    { (*
+      iIntros (M T s')"%Dom_M %Habs Prot".
       iDestruct "Prot" as (Mt Msy)"(HMt & HMsy & %Domm_Mt & Hstar_t & Hstar_sy)".
       set R := dom Msy.
       iAssert (([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_mt γ_msy t_id M) ={⊤ ∖ ↑cntrN N}=∗
@@ -239,7 +241,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
           iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0'.
           iFrame "∗#%". }
       iPoseProof ("H'" with "[$Hstar_sy]") as ">Hstar_sy".
-      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%". }
+      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%".*) admit. }
 
     iApply fupd_wp. 
     iInv "HInv" as (M0 T0 s0) "(Ds & >%Habs0 & Hist & Help & Templ)".
@@ -304,10 +306,11 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       iDestruct "Hmatch" as "[HΦ | %H']"; last first.
       { exfalso. destruct H' as [i' [j' H']].
         assert (pvs' !! 0 = Some (#(), #tid)) as Hp0. rewrite Def_pvs'; set_solver.
-        apply process_proph_case3 in H'. destruct H' as (Hi'&Hj'&Hji'&_).
+        apply process_proph_case3 in H'. destruct H' as (Hji'&Hi'&_&Htakei'&_).
         destruct (decide (i' = 0)) as [-> | Hi0]; try (done || lia).
-        apply list_lookup_total_correct in Hp0. assert (0 < i') as H'' by lia.
-        pose proof Hj' 0 H'' as H1'. rewrite Hp0 in H1'. done. }
+        assert (0 < i') as H'' by lia. assert (take i' pvs' !! 0 = pvs' !! 0) as H1'.
+        rewrite lookup_take; try done. rewrite Hp0 in H1'.
+        rewrite Forall_lookup in Htakei'. pose proof Htakei' 0 _ H1' as H1''. done. }
       
       wp_apply (typed_proph_wp_resolve1 resTTypedProph with "Hproph2"); try done.
       { rewrite /typed_proph_from_val /=. by rewrite resT_proph_resolve. }

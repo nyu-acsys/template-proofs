@@ -506,24 +506,23 @@ Section node_impl.
         iModIntro. wp_pures. by iApply "IH".
   Qed.  
 
-  Lemma markNode'_spec (n: Node) (p: proph_id) (pvs: list (val * val)):
-    ⊢ proph p pvs -∗  
+  Lemma markNode_proph_spec (n: Node) (p: proph_id) pvs :
+    ⊢ proph p pvs -∗ 
       <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜0 < h⌝ }>>
-            markNode' #n #p @⊤
-      <<{ ∃∃ (success: bool) mark' ,
+            markNode' #n #p @ ∅
+      <<{ ∃∃ (success: bool) mark' prf pvs',
               node n h mark' next k
-            ∗ (match success with true => ⌜mark !!! 0 = false
-                                            ∧ mark' = <[0 := true]> mark⌝
-                                | false => ⌜mark !!! 0 = true
-                                            ∧ mark' = mark⌝ end) |
-          prf pvs', 
-          RET (match success with true => SOMEV #() 
-                                | false => NONEV end);
-            proph p pvs'
-          ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
-          ∗ (match success with 
-              | true => ⌜∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs'⌝
-              | false => ⌜pvs = prf ++ pvs'⌝ end) }>>.
+            ∗ proph p pvs'
+            ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
+            ∗ (match success with 
+                true => ⌜mark !!! 0 = false
+                        ∧ mark' = <[0 := true]> mark
+                        ∧ (∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs')⌝
+              | false => ⌜mark !!! 0 = true
+                        ∧ mark' = mark
+                        ∧ pvs = prf ++ pvs'⌝ end) |
+              RET (match success with true => SOMEV #() 
+                                    | false => NONEV end)  }>>.
   Proof.
     iIntros "Hproph" (Φ) "AU". iLöb as "IH" forall (pvs).
     wp_lam. wp_pures. wp_bind (! _)%E.
@@ -547,11 +546,10 @@ Section node_impl.
     destruct (decide (m1 !!! 0 = true)) as [Hmi | Hmi].
     - iDestruct "HAU" as "[_ Hclose]".
       iSpecialize ("Hclose" $! false m1).
-      iMod ("Hclose" with "[Harr]") as "HΦ".
+      iMod ("Hclose" with "[Harr Hproph]") as "HΦ".
       { iFrame. iSplitL. iExists arr0, ls1. iFrame "∗#%". by iPureIntro. }
       iModIntro. wp_pures. wp_load. wp_pures.
-      rewrite Hmi. wp_pures. iSpecialize ("HΦ" $! [] pvs).
-      iApply "HΦ". iModIntro. iFrame. iPureIntro; split; try done.
+      rewrite Hmi. wp_pures. done.
     - apply not_true_is_false in Hmi.
       iDestruct "HAU" as "[Hclose _]".
       iMod ("Hclose" with "[Harr]") as "AU".
@@ -564,69 +562,69 @@ Section node_impl.
       iDestruct "Node" as (arr2 ls2) "(#Hk2 & #Hn2 & Harr & %Len_vs2 & #Hls2)".
       iDestruct (mapsto_agree with "[$Hn0] [$Hn2]") as "%H'". 
       inversion H'; subst arr2; clear H'.
-      assert (∃ li', ls2 !! 0 = Some li') as [li' Def_li'].
-      { apply lookup_lt_is_Some. by rewrite Len_vs2.  }
-      assert (∃ (ls2': list loc), 
-        (λ l : loc, #l) <$> ls2 = #li' :: ((λ l : loc, #l) <$> ls2'))
-        as [l2' Hl2'].
-      { admit. }
-      iEval (unfold array; rewrite Hl2' big_sepL_cons) in "Harr".
+      destruct ls2 as [|li' ls2'] eqn: Def_ls2. 
+      { rewrite /= in Len_vs2. exfalso; lia. }
+      assert (ls2 !! 0 = Some li') as Def_li'.
+      { by rewrite Def_ls2 /=. }
+      assert (((λ l : loc, #l) <$> li' :: ls2') = 
+        #li' :: ((λ l : loc, #l) <$> ls2')) as ->.
+      { by rewrite fmap_cons. } rewrite array_cons. 
       iDestruct "Harr" as "(Harr0 & Harr)".
+      assert (arr0 +ₗ 0%nat = arr0) as ->. { by rewrite Loc.add_0. }
       destruct (decide (li' = li)) as [-> | Des_li].
       + wp_apply (wp_resolve_cmpxchg_suc with "[$Harr0 $Hproph]").
         { by left. }
         iIntros "H''". iDestruct "H''" as (pvs')"(%Hpvs' & Hproph & Harr0)".
-        iCombine "Harr0 Harr" as "Harr".
-        iEval (rewrite -(big_sepL_cons (λ k' y', (arr0 +ₗ k') ↦ y')%I)) in "Harr".
-        (*
-        wp_apply (wp_cmpxchg_suc_offset _ _ _ _ _ _ with "[Harr]"); 
-          try done.
-        { by rewrite list_lookup_fmap Def_li' /=. }
-        { left; try done. }
-        iIntros "Harr".
         iDestruct "HAU" as "[_ Hclose]".
-        iSpecialize ("Hclose" $! true (<[i:=true]> m2)).
+        iSpecialize ("Hclose" $! true (<[0:=true]> m2)).
         iDestruct (mapsto_persist with "Hnew") as ">#Hnew'".
-        iDestruct ("Hls2" with "[%]") as "H''". apply Def_li'.
+        iDestruct ("Hls2" with "[%]") as "H''". rewrite -Def_ls2. apply Def_li'.
         iDestruct (mapsto_agree with "H' H''") as "%H'". inversion H'.
-        iMod ("Hclose" with "[Harr]") as "HΦ".
-        { iSplitL. iExists arr0, (<[i:= li_new]> ls2). iFrame "#".
-          iSplitL "Harr". 
-          assert (((λ l : loc, #l) <$> <[i:=li_new]> ls2) = 
-            <[i:=#li_new]> ((λ l : loc, #l) <$> ls2)) as ->.
-          { apply list_eq. intros i'. destruct (decide (i' = i)) as [-> | Hi'].
-            rewrite list_lookup_fmap !list_lookup_insert /=. done.
-            by rewrite fmap_length Len_vs2. by rewrite Len_vs2. 
-            rewrite list_lookup_fmap !list_lookup_insert_ne /=; try done.
-            by rewrite list_lookup_fmap. }
-          iFrame "Harr". iSplitR. { iPureIntro. by rewrite insert_length. }
-          iIntros (l j)"%Hlj". destruct (decide (j = i)) as [-> | Hj].
-          assert (<[i:=true]> m2 !!! i = true) as ->.
+        iMod ("Hclose" with "[Harr Harr0 Hproph]") as "HΦ".
+        { iFrame "Hproph". iSplitL. iExists arr0, (<[0:= li_new]> ls2). iFrame "#".
+          iSplitL. assert (((λ l : loc, #l) <$> <[0:=li_new]> ls2) = 
+            #li_new :: ((λ l : loc, #l) <$> ls2')) as ->.
+          { rewrite Def_ls2 /=. apply f_equal. done. } 
+          rewrite array_cons. iFrame. 
+          iSplitR. { iPureIntro. by rewrite insert_length Def_ls2. }
+          iIntros (l j)"%Hlj". destruct (decide (j = 0)) as [-> | Hj].
+          assert (<[0:=true]> m2 !!! 0 = true) as ->.
           by rewrite lookup_total_insert.
           rewrite list_lookup_insert in Hlj. inversion Hlj.
-          rewrite H1; try done. by rewrite Len_vs2.
-          assert (<[i:=true]> m2 !!! j = m2 !!! j) as ->.
+          rewrite H1; try done. by rewrite Def_ls2 Len_vs2.
+          assert (<[0:=true]> m2 !!! j = m2 !!! j) as ->.
           by rewrite lookup_total_insert_ne.
           rewrite list_lookup_insert_ne in Hlj; try done.
           iClear "H' H''".
-          iDestruct ("Hls2" with "[%]") as "H'". apply Hlj.
-          done.
-          by iPureIntro. }
-        iModIntro. wp_pures. done. *) admit.
+          iDestruct ("Hls2" with "[%]") as "H'". rewrite -Def_ls2. apply Hlj.
+          iFrame "#". iPureIntro. repeat split; try done.
+          exists #li. rewrite Hpvs'. clear; set_solver. }
+        iModIntro. wp_pures. done.
       + wp_apply (wp_resolve_cmpxchg_fail with "[$Harr0 $Hproph]").
         { by intros [=->]. }
         { by left. }
         iIntros "H''". iDestruct "H''" as (pvs')"(%Hpvs' & Hproph & Harr0)".
         iDestruct "HAU" as "[Hclose _]".
         iMod ("Hclose" with "[Harr Harr0]") as "AU".
-        { (* iSplitL; last by iPureIntro. iExists arr0, ls2. iFrame "∗#%".*)
-          admit. }
+        { iSplitL; last by iPureIntro. iExists arr0, (li' :: ls2'). iFrame "∗#%". }
         iModIntro. wp_pures. iApply ("IH" with "[$Hproph] [AU]"); try done.
-        iIntros "AU'". iSplitL. 
-
-  Qed.  
-
-  
+        iAuIntro. rewrite /atomic_acc /=. iClear "#". 
+        iMod "AU" as (h3 m3 nx3 k3)"[H' H'']". iModIntro.
+        iExists h3, m3, nx3, k3. iFrame "H'". iSplit.
+        * iDestruct "H''" as "[H'' _]". iApply "H''".
+        * iDestruct "H''" as "[_ H'']". iIntros (res m3' prf pvs'').
+          iIntros "(Node & Hproph & %Hprf & Hres)". 
+          iSpecialize ("H''" $! res m3' (((#li', #false)%V, #()) :: prf) pvs'').
+          iMod ("H''" with "[Node Hproph Hres]") as "HΦ".
+          iFrame "Node Hproph". iSplitR. iPureIntro. 
+          rewrite Forall_cons; split; try done. by exists #li'.
+          destruct res; iDestruct "Hres" as "%H'"; iPureIntro; 
+            repeat split; try apply H'. destruct H' as (_&_&[v1 Def_pvs']).
+          rewrite Def_pvs' in Hpvs'. exists v1. rewrite Hpvs'. done.
+          destruct H' as (_&_&Def_pvs'). rewrite Def_pvs' in Hpvs'.
+          rewrite Hpvs'. clear; set_solver.
+          done.
+  Qed.
 
   Lemma changeNext_spec (n m m': Node) (i: nat) :
     ⊢  <<< ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ >>>

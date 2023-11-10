@@ -74,17 +74,17 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       Marki s p 0 = false ∧ i < Height s p ∧ (i = 0 → Nexti s p i = Some c)⌝)
   ∗ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
 
-  Lemma traversal_inv_hd_tl γ_m γ_t M T s t0 k:
+  Lemma traversal_inv_hd_tl γ_m γ_t γ_mt M T s tid t0 k:
     ⌜M !!! T ≡ s⌝ -∗ 
     ⌜per_tick_inv s⌝ -∗
     ⌜1 < L⌝ -∗
     ⌜0 < k < W⌝ -∗
-    own γ_t (◯ MaxNat t0) -∗ 
+    thread_start γ_t γ_mt tid t0 -∗
     hist γ_t γ_m M T -∗
       |==> traversal_inv γ_m t0 (L-1) k hd tl ∗ hist γ_t γ_m M T.
   Proof.
-    iIntros "%Habs %PT %HL %Range_k #Ht0 Hist".
-    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+    iIntros "%Habs %PT %HL %Range_k #Thd_st Hist".
+    iPoseProof (snapshot_current with "[%] [#] [$]") 
       as ">(#Past_s&Hist)"; try done.
     destruct PT as ((H1'&H2'&H3'&H4'&H5'&H6'&H7'&H8'&H9')&_).
     iModIntro. iFrame. iSplit; iExists s; iFrame "Past_s".
@@ -136,7 +136,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     { apply leibniz_equiv in Habs0. rewrite -Habs0.
       iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s & %Htr_sc)".
       destruct Htr_sc as (H'&H'').
-      iPoseProof (height_eq_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+      iPoseProof (height_eq_2 c with "[%] [$] [$Past_s] [%]") as "->"; 
         try done. }
     iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
       ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
@@ -152,15 +152,13 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     assert (Mark s0 c !!! i = true → Next s0 c !! i = None → false) as Hcontra.
     { intros Hm Hn. apply PT_s0 in FP_c0. 
       assert (c ≠ tl) as Hctl. 
-      { intros ->. destruct PT_s0 as ((_&_&_&_&H'&_)&_). rewrite H' in Hm.
-        done. destruct FP_c0 as (_&_&_&H''&_). clear -Height_c0 H''; lia. }
+      { intros ->. destruct PT_s0 as ((_&_&_&_&H'&_&_&_&H'')&_). 
+        rewrite H' in Hm. done. clear -Height_c0 H''; lia. }
       destruct FP_c0 as (_&H'&H''&_). apply H' in Hctl. 
       apply not_elem_of_dom in Hn. rewrite Hctl in Hn. apply Hn.
       rewrite elem_of_gset_seq. lia. }
 
-    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
-    { iDestruct "Thd_st" as "(_&H')". iFrame "H'". }
-    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+    iPoseProof (snapshot_current with "[%] [#] [$]") 
       as ">(#Past_s0&Hist)"; try done.
     
     iAssert (∀ cn, ⌜Mark s0 c !!! i = false⌝ → ⌜Next s0 c !! i = Some cn⌝ →
@@ -277,8 +275,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
       destruct success.
       + iDestruct "Hsuccess" as %[Next_p1 [Mark_p1 Def_next']].
         iAssert (⌜c ∈ FP s1⌝)%I as %FP_c1.
+        iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s & %Htr_sc)".
         { apply leibniz_equiv in Habs1. rewrite -Habs1.
-          iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s & %Htr_sc)".
           destruct Htr_sc as (H'&_). 
           iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
         iAssert (⌜Mark s1 c !!! i = true⌝)%I as %Mark_c1.
@@ -682,6 +680,16 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { intros ->. destruct PT_s1 as ((_&_&H'&_)&_). clear -H' Key_p1; lia. }
           assert (cn ∈ FP s1) as FP_cn1.
           { destruct PT_s1 as (_&_&_&_&_&H'&_). by pose proof H' c cn 0 Next_c1. }
+          assert (0 < Height s1 p) as Ht_p1.
+          { destruct (decide (p = hd)) as [-> | Hphd].
+            destruct PT_s1 as ((_&_&_&_&_&_&_&->&_)&_).
+            clear -HL; lia. apply PT_s1 in FP_p1. by apply FP_p1. }
+          assert (0 < Height s1 cn) as Ht_cn1.
+          { destruct (decide (cn = tl)) as [-> | Hcntl].
+            destruct PT_s1 as ((_&_&_&_&_&_&_&_&->)&_).
+            clear -HL; lia. apply PT_s1 in FP_cn1. apply FP_cn1; try done.
+            intros [=->]. destruct PT_s1 as ((_&H'&_)&_).
+            rewrite H' in Key_ccn. clear -Key_ccn; lia. }
           iAssert (resources γ_ks s1')%I 
             with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
           { iFrame "GKS". rewrite FP_s1'. iSplitR "Nodes_KS".
@@ -772,7 +780,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
               { rewrite HT HN; try done. apply PT7'. }
               rewrite HNp. destruct (decide (i = 0)) as [-> | Hi0].
               + rewrite lookup_insert HT. intros [=<-]. apply PT4' in FP_cn1.
-                destruct FP_cn1 as (_&_&_&H'&_). clear -H'; lia.
+                destruct FP_cn1 as (_&_&_&H'&_). apply Ht_cn1.
               + rewrite HT lookup_insert_ne; try done. apply PT7'. }
           assert (transition_inv s1 s1') as Trans_s1.
           { repeat split; try rewrite FP_s1'; try done; last first.
@@ -803,19 +811,18 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             iSpecialize ("Upd" $! M1 T1 s1').
             iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
             apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
+            Check (↑N).
             admit. }
-          iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+          iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
             as ">(#Past_s1'&Hist)"; try done.
           iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
         
           iAssert (traversal_inv γ_m t0 0 k p cn)%I as "#Htr'".
           { iSplitL; iExists s1'; iFrame "Past_s1'". iPureIntro. 
             repeat split; try (by rewrite FP_s1' || done).
-            rewrite /Marki HM Mark_p1. done. rewrite HT. 
-            apply PT_s1 in FP_p1. apply FP_p1.
+            rewrite /Marki HM Mark_p1. done. rewrite HT. done.
             by rewrite /Nexti HNp lookup_insert. iPureIntro. split. 
-            by rewrite FP_s1'. rewrite HT.
-            apply PT_s1 in FP_cn1. apply FP_cn1. }  
+            by rewrite FP_s1'. by rewrite HT. }  
           iModIntro. iSplitR "Hpost".
           { iNext. iExists M1', (T1+1), s1'. iFrame "∗#%".
             iPureIntro; rewrite /M1'; split; last split.
@@ -823,7 +830,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             - intros t Ht. destruct (decide (t = T1+1)) as [-> | Ht'].
               + by rewrite lookup_total_insert.
               + rewrite lookup_total_insert_ne; try done. apply PT1.
-                rewrite dom_insert in Ht. clear -Ht' Ht; set_solver.
+                clear -Ht' Ht; lia.
             - intros t Ht. destruct (decide (t = T1)) as [-> | Ht'].
               + rewrite lookup_total_insert. rewrite lookup_total_insert_ne.
                 apply leibniz_equiv in Habs1. by rewrite Habs1. clear; lia.
@@ -977,7 +984,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
             apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
             admit. }
-          iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+          iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
             as ">(#Past_s1'&Hist)"; try done.
           iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
 
@@ -994,7 +1001,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             - intros t Ht. destruct (decide (t = T1+1)) as [-> | Ht'].
               + by rewrite lookup_total_insert.
               + rewrite lookup_total_insert_ne; try done. apply PT1.
-                rewrite dom_insert in Ht. clear -Ht' Ht; set_solver.
+                clear -Ht' Ht; lia.
             - intros t Ht. destruct (decide (t = T1)) as [-> | Ht'].
               + rewrite lookup_total_insert. rewrite lookup_total_insert_ne.
                 apply leibniz_equiv in Habs1. by rewrite Habs1. clear; lia.
@@ -1022,7 +1029,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
         iNext; iExists M1, T1, s1. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s1) c); last by eauto. iFrame. }
       iIntros (res)"(Node_c & %Hif)".
-      iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+      iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
             as ">(#Past_s1&Hist)"; try done.
       iAssert (⌜Key s1 c = Key s0 c⌝)%I as %Key_c10.
       { apply leibniz_equiv in Habs1. rewrite -Habs1.
@@ -1149,12 +1156,11 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     { apply PT_s0 in FP_p0. assert (p ≠ tl) as H'.
       { intros ->. destruct PT_s0 as ((_&_&H'&_)&_). 
         destruct Htr_p as (_&H''&_). rewrite -Key_p H' in H''. lia. }
+      destruct FP_p0 as (_&FP_p0&_).
       apply FP_p0 in H'. apply not_elem_of_dom in Next_p0. 
       rewrite H' in Next_p0. exfalso; apply Next_p0.
       rewrite elem_of_gset_seq. split; try lia. }
-    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
-    { by iDestruct "Thd_st" as "(_&H')". }
-    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+    iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
       as ">(#Past_s0&Hist)"; try done.
     iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> traversal_inv γ_m t0 i k p c ∗ 
       hist γ_t γ_m M0 T0)%I with "[Hist]" as ">(#Hcase & Hist)".
@@ -1181,7 +1187,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           { rewrite Dom_M0 elem_of_gset_seq; lia. }
           assert (H'' := t_in_M0).
           apply elem_of_dom in t_in_M0. destruct t_in_M0 as [s' Hs'].
-          iPoseProof (snapshot_create t with "[%] [%] [$Ht0] [Hist]")
+          iPoseProof (snapshot_create t t0 with "[%] [$Hist]")
             as ">(#Past_t & Hist)"; try done. lia.
 
           iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> own γ_m (◯ {[t := to_agree s']}) 
@@ -1207,8 +1213,8 @@ Module SKIPLIST1_SPEC_TRAVERSE.
           assert (S t ∈ dom M0) as Hst.
           { rewrite Dom_M0 elem_of_gset_seq. lia. }
           assert (t0 ≤ S t) as Hst' by lia.
-          iPoseProof (snapshot_create (S t) with "[%] [%] [Ht0] [Hist]")
-            as ">(#Past_st & Hist)"; try done.
+          iPoseProof (snapshot_create (S t) t0 with "[%] [$Hist]")
+            as ">(#Past_st & Hist)"; try done. lia. 
           assert (FP_pst := FP_pt). apply Hfp' in FP_pst.
           iPoseProof (next_unchanged with "[%] [$Hist] [$Past_st] [%] [%]")
             as "%H'"; try done. rewrite -H' in Hn'.
@@ -1294,11 +1300,9 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     wp_lam. wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
-    iAssert (own γ_t (◯ MaxNat t0))%I as "#Ht0".
-    { iDestruct "Thd_st" as "(_&H'')". iFrame "#". }
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
     { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
-    iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [$Ht0] [Hist]") 
+    iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
       as ">(#HtrL & Hist)"; try done.
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
     { iNext. iExists M0, T0, s0. iFrame "∗%". }
@@ -1360,11 +1364,9 @@ Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
     iNext. iIntros (succs) "Hsuccs". wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
-    iAssert (own γ_t (◯ MaxNat t0))%I as "#Ht0".
-    { iDestruct "Thd_st" as "(_&H'')". iFrame "#". }
     iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
     { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
-    iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [$Ht0] [Hist]") 
+    iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
       as ">(#HtrL & Hist)"; try done.
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
     { iNext. iExists M0, T0, s0. iFrame "∗%". }
@@ -1376,11 +1378,9 @@ Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
     iSplitR. iPureIntro. clear -HL; lia.
     iSplitR. iPureIntro. rewrite lookup_total_replicate_2. done. lia.
     iSplitR. iPureIntro. rewrite lookup_total_replicate_2. done. lia.
-    (* iFrame "Htr". *) iIntros (j) "%Hj". 
+    iIntros (j) "%Hj". 
     assert (j = L-1) as -> by lia. rewrite !lookup_total_replicate_2.
     all : try lia. iFrame "HtrL". 
   Qed.
 
 End SKIPLIST1_SPEC_TRAVERSE.
-  
-  

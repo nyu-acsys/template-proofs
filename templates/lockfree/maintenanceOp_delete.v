@@ -105,9 +105,7 @@ Module MAINTENANCEOP_DELETE.
             try done. }
       iAssert (⌜dom M0 = gset_seq 0 T0⌝)%I as %Dom_M0. 
       { by iDestruct "Hist" as (M0'') "(_&_&%&_)". }
-      iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
-      { iDestruct "Thd_st" as "(_&H')". iFrame "H'". }      
-      iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+      iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
         as ">(#Past_s0&Hist)"; try done.
 
       iIntros (success mark')"(Node_c & Hif)". destruct success.
@@ -222,7 +220,7 @@ Module MAINTENANCEOP_DELETE.
           iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
           apply leibniz_equiv in Habs0. rewrite Habs0. by rewrite /s0' Hs0 /=.
           admit. }
-        iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+        iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
           as ">(#Past_s0'&Hist)"; try done.
         iEval (rewrite /M0' lookup_total_insert) in "Past_s0'".
         iAssert (∃ s : snapshot, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
@@ -253,7 +251,7 @@ Module MAINTENANCEOP_DELETE.
           - intros t Ht. destruct (decide (t = T0+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
             + rewrite lookup_total_insert_ne; try done. apply PT0.
-              rewrite dom_insert in Ht. clear -Ht' Ht; set_solver.
+              clear -Ht' Ht; lia.
           - intros t Ht. destruct (decide (t = T0)) as [-> | Ht'].
             + rewrite lookup_total_insert. rewrite lookup_total_insert_ne.
               apply leibniz_equiv in Habs0. by rewrite Habs0. clear; lia.
@@ -316,9 +314,7 @@ Module MAINTENANCEOP_DELETE.
       iNext; iExists M0, T0, s0. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
     iIntros "Node_c". 
-    iAssert (own γ_t (◯ MaxNat t0)) as "#Ht0".
-    { iDestruct "Thd_st" as "(_&H')". iFrame "H'". }      
-    iPoseProof (snapshot_current with "[%] [$Ht0] [$Hist]") 
+    iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
       as ">(#Past_s0&Hist)"; try done.
     iSplitR " Hpost".
     { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". 

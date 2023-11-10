@@ -389,7 +389,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       ((∃ i, mark !!! i = false) → mark !!! 0 = false)
     ∧ (n ≠ tl → dom next = gset_seq 0 (h-1)) 
     ∧ (dom mark = gset_seq 0 (h-1))
-    ∧ (0 < h ≤ L)
+    ∧ (n ≠ hd → n ≠ tl → 0 < h < L)
     ∧ (0 ≤ k ≤ W)
     ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
@@ -433,7 +433,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     (T: nat) (s: snapshot) : iProp :=
       ⌜snapshot_constraints s⌝
     ∗ resources γ_ks s
-    ∗ ⌜∀ t, t ∈ dom M → per_tick_inv (M !!! t)⌝
+    ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
     
   Global Instance ds_inv_timeless M T s : 

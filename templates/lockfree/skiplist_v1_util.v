@@ -56,8 +56,8 @@ Module SKIPLIST1_UTIL.
     destruct (II !! x) as [mII |] eqn: HmII.
     - destruct (I !! x) as [mI |] eqn: HmI; try done.
     - assert (I !! x = None) as H'.
-      { apply not_elem_of_dom. 
-        apply not_elem_of_dom_2 in HmII.
+    apply not_elem_of_dom_2 in HmII.
+    { apply not_elem_of_dom. 
         set_solver. }
       by rewrite H'.
   Qed.    
@@ -532,19 +532,27 @@ Module SKIPLIST1_UTIL.
     rewrite M_ts in H''. by iPureIntro.
   Qed.
 
+  Lemma history_dom t γ_t γ_m M T :
+    hist γ_t γ_m M T -∗
+      ⌜t ∈ dom M ↔ 0 ≤ t ≤ T⌝.
+  Proof.
+    iIntros "Hist".
+    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    by rewrite Dom_M elem_of_gset_seq.
+  Qed. 
+
   Lemma per_tick_current γ_t γ_m M T s :
     ⌜M !!! T ≡ s⌝ -∗ 
-    ⌜∀ t, t ∈ dom M → per_tick_inv (M !!! t)⌝ -∗
+    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝ -∗
     hist γ_t γ_m M T -∗ 
       ⌜per_tick_inv s⌝.
   Proof.
     iIntros "%Habs %PT Hist". iDestruct "Hist" as (M')"(_&_&%H'&_)". iPureIntro.
-    apply leibniz_equiv in Habs. rewrite <-Habs. apply PT.
-    rewrite H' elem_of_gset_seq; lia. 
+    apply leibniz_equiv in Habs. rewrite <-Habs. apply PT. lia.
   Qed.
 
   Lemma per_tick_past γ_t γ_m M T s t0:
-    ⌜∀ t, t ∈ dom M → per_tick_inv (M !!! t)⌝ -∗
+    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝ -∗
     hist γ_t γ_m M T -∗ 
     past_state γ_m t0 s -∗
       ⌜per_tick_inv s⌝.
@@ -553,19 +561,20 @@ Module SKIPLIST1_UTIL.
     iDestruct "Past_s" as (ts)"(_&Hts)".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
     iPoseProof (history_sync with "HM' Hts") as "%H'".
-    assert (H'' := H'). apply M_eq, lookup_total_correct in H''.
-    apply M_eq, elem_of_dom_2, PT in H'. by rewrite -H''.
+    assert (H'' := H'). apply M_eq, elem_of_dom_2 in H''.
+    rewrite Dom_M elem_of_gset_seq in H''.
+    apply PT in H''. apply M_eq, lookup_total_correct in H'. by rewrite -H'.
   Qed.
 
-  Lemma snapshot_create t γ_t γ_m M T t0:
-    ⌜t ∈ dom M⌝ -∗
-    ⌜t0 ≤ t⌝ -∗ 
-    own γ_t (◯ MaxNat t0) -∗ 
+  Lemma snapshot_create t t0 γ_t γ_m M T:
+    ⌜t0 ≤ t ≤ T⌝ -∗ 
     hist γ_t γ_m M T -∗ 
       |==> past_state γ_m t0 (M !!! t) ∗ hist γ_t γ_m M T.
   Proof.
-    iIntros "%Dom_t %t0_le_t Ht0 Hist".
+    iIntros "%Ht Hist".
+    iPoseProof (history_dom t with "Hist") as "%Hdom".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
+    assert (0 ≤ t ≤ T) as Dom_t by lia. apply Hdom in Dom_t.
     apply elem_of_dom in Dom_t. destruct Dom_t as [s Dom_t].
     apply M_eq in Dom_t. 
     iPoseProof (own_update _ (● M') (● M' ⋅ ◯ {[t := to_agree s]}) with "HM'") 
@@ -578,23 +587,23 @@ Module SKIPLIST1_UTIL.
       - rewrite lookup_op lookup_insert_ne; try done. rewrite lookup_empty.
         rewrite /op /cmra_op /=. destruct (M' !! x) eqn:H'; rewrite H'; try done. }
     iModIntro. iFrame. iSplitR. iExists t. apply M_eq, lookup_total_correct in Dom_t.
-    rewrite Dom_t. iFrame "%#". iExists M'. iFrame "∗%".
+    rewrite Dom_t. iFrame "%#". iPureIntro; lia. iExists M'. iFrame "∗%".
   Qed.
 
-  Lemma snapshot_current γ_t γ_m M T s t0:
+  Lemma snapshot_current γ_t γ_m γ_mt M T s tid t0:
     ⌜M !!! T ≡ s⌝ -∗ 
-    own γ_t (◯ MaxNat t0) -∗ 
+    thread_start γ_t γ_mt tid t0 -∗
     hist γ_t γ_m M T -∗ 
       |==> past_state γ_m t0 s ∗ hist γ_t γ_m M T.
   Proof.
-    iIntros "%Habs #Ht0 Hist". 
-    iAssert (⌜t0 ≤ T ∧ T ∈ dom M⌝)%I as "(%H' & %H'')".
+    iIntros "%Habs #(_&Ht0) Hist".
+    iAssert (⌜t0 ≤ T⌝)%I as "%H'".
     { iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
       iPoseProof (own_valid_2 with "HT Ht0") as "%Hv".
       rewrite auth_both_valid_discrete max_nat_included /= in Hv.
-      iPureIntro. split. apply Hv. rewrite Dom_M elem_of_gset_seq; lia. }
+      iPureIntro. apply Hv. }
     apply leibniz_equiv in Habs. rewrite -Habs.
-    iPoseProof (snapshot_create with "[%] [%] [$Ht0] [$Hist]") as "H'"; try done.
+    iPoseProof (snapshot_create with "[%] [$Hist]") as "H'"; try done.
   Qed.
 
   Lemma hist_upd γ_t γ_m M T s s':

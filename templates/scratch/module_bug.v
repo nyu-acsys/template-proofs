@@ -81,8 +81,47 @@ Module M_THREE.
         #()
       else
         "tr" "p".
-  
+
+  Definition test2 : val :=
+    rec: "tr" "l" :=
+      let: "b" := nondet_bool #() in
+      if: "b" then
+        let: "v" := ! "l" in
+        "v"
+      else
+        FAA "l" #1;;
+        "tr" "l".
+
   Context `{!heapGS Σ}.
+
+  Lemma test_spec1 (l : loc) (v: Z):
+    ⊢ {{{ l ↦ #v }}} test2 #l
+      {{{ (v': Z), RET #v'; l ↦ #v' ∗ ⌜(v ≤ v')%Z⌝ }}}. 
+  Proof.
+    iLöb as "IH" forall (v). iIntros  (Φ) "!# Hl Hpost". wp_lam. 
+    wp_apply nondet_bool_spec; try done. iIntros (b)"_". wp_pures.
+    destruct b; wp_pures.
+    - wp_load. wp_pures. iApply "Hpost". iFrame. by iPureIntro.
+    - wp_faa. wp_pures. iApply ("IH" with "[Hl]"); try done.
+      iNext. iIntros (v')"(Hl&%)".
+      iApply "Hpost". iFrame "∗". iPureIntro; lia.
+  Qed.
+
+  Lemma test_spec2 (l : loc) (v: Z):
+    ⊢ l ↦ #v -∗ 
+      <<{ ∀∀ [_: ()], True }>> test2 #l @ ⊤
+      <<{ ∃∃ [_: ()], True | (v': Z), RET #v'; l ↦ #v' ∗ ⌜(v ≤ v')%Z⌝ }>>. 
+  Proof.
+    iLöb as "IH" forall (v). iIntros "Hl" (Φ) "AU". wp_lam. 
+    wp_apply nondet_bool_spec; try done. iIntros (b)"_". wp_pures.
+    destruct b; wp_pures.
+    - wp_load. wp_pures. iMod "AU" as (_)"[_ [_ H']]". iSpecialize ("H'" $! _).
+      iMod ("H'" with "[]") as "Hpost"; try done. 
+      iApply "Hpost". iFrame. by iPureIntro.
+    - wp_faa. wp_pures. iApply ("IH" with "[Hl]"); try done.
+      (* Stuck *)
+  Admitted.
+
 
   Lemma test_spec1 (p: proph_id) pvs:
     ⊢ {{{ proph p pvs }}} test #p
