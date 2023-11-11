@@ -69,7 +69,7 @@ Module SKIPLIST1_SPEC_INSERT.
   Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
   main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
   thread_start γ_t γ_mt tid t0 -∗
-  □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+  □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
   ⌜1 < L ∧ 0 < k < W⌝ -∗
     {{{ True }}}
         traverse #hd #tl #k @ ⊤
@@ -92,7 +92,7 @@ Module SKIPLIST1_SPEC_INSERT.
     preds succs:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
         {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
             ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
@@ -114,7 +114,6 @@ Module SKIPLIST1_SPEC_INSERT.
        main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
        thread_start γ_t γ_mt tid t0 -∗
        □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗
-       □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗
        ⌜1 < L ∧ 0 < k < W⌝ -∗
          {{{ proph pr pvs ∗ 
              (match process_proph tid pvs with
@@ -130,7 +129,7 @@ Module SKIPLIST1_SPEC_INSERT.
              | Some (i, Some j) => Q #res ∨ 
                  ⌜∃ i' j', process_proph tid pvs' = Some(i', Some (j'))⌝ end) }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd1 #Upd2 [%HL %Range_k]". iLöb as "IH" forall (pvs).
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (pvs).
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
     wp_lam. wp_pures. wp_apply traverse_spec; try done.
     iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & %Len_ps 
@@ -1461,12 +1460,12 @@ Module SKIPLIST1_SPEC_INSERT.
           iSpecialize ("H'" $! (abs s0') true).
           iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
           
-          iSpecialize ("Upd1" $! M0 T0 s0').
-          iPoseProof ("Upd1" with "[%] [Ds] [Help]") as "Help"; try done.
-          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy (<[(T0+1)%nat:=s0']>M0)
-            ∗ dsRep γ_r (abs s0'))%I 
-            with "[Help ]" as "(Help & Ds)".
-          { admit. }
+          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+            helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
+            "[Help Ds]" as ">(Help & Ds)".
+          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+            apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
           iModIntro. iSplitR "Hpreds Hsuccs Hproph HQ Hpost".
           { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
             by rewrite lookup_total_insert. }
@@ -1504,12 +1503,12 @@ Module SKIPLIST1_SPEC_INSERT.
           iSpecialize ("H'" $! (abs s0') true).
           iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
           
-          iSpecialize ("Upd1" $! M0 T0 s0').
-          iPoseProof ("Upd1" with "[%] [Ds] [Help]") as "Help"; try done.
-          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy (<[(T0+1)%nat:=s0']>M0)
-            ∗ dsRep γ_r (abs s0'))%I 
-            with "[Help ]" as "(Help & Ds)".
-          { admit. }
+          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+            helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
+            "[Help Ds]" as ">(Help & Ds)".
+          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+            apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
           iModIntro. iSplitR "Hpreds Hsuccs Hproph HQ Hpost".
           { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
             by rewrite lookup_total_insert. }

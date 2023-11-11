@@ -96,7 +96,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
   Lemma traverse_i_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k (i: nat) (p c: Node):
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
       {{{ traversal_inv γ_m t0 i k p c }}}
         traverse_i #i #p #c #k @ ⊤
@@ -805,14 +805,12 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             apply  Habs1. intros <-. rewrite map_eq_iff in HNp.
             pose proof HNp 0 as HNp. rewrite Next_p1 lookup_insert in HNp.
             inversion HNp; try done. by rewrite /M1'. }
-          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy M1')%I with
-            "[Help]" as "Help".
-          { unfold update_helping_protocol2.
-            iSpecialize ("Upd" $! M1 T1 s1').
-            iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
-            apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
-            Check (↑N).
-            admit. }
+          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+            helping_inv N γ_t γ_r γ_mt γ_msy M1' ∗ dsRep γ_r (abs s1'))%I with
+            "[Help Ds]" as ">(Help & Ds)".
+          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+            apply leibniz_equiv in Habs1. iMod "H'" as "_". by iModIntro. }
           iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
             as ">(#Past_s1'&Hist)"; try done.
           iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
@@ -977,13 +975,12 @@ Module SKIPLIST1_SPEC_TRAVERSE.
             apply  Habs1. intros <-. rewrite map_eq_iff in HNp.
             pose proof HNp i as HNp. rewrite Next_p1 lookup_insert in HNp.
             inversion HNp; try done. by rewrite /M1'. }
-          iAssert (helping_inv N γ_t γ_r γ_mt γ_msy M1')%I with
-            "[Help]" as "Help".
-          { unfold update_helping_protocol2.
-            iSpecialize ("Upd" $! M1 T1 s1').
-            iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
-            apply leibniz_equiv in Habs1. rewrite Habs1. by rewrite /s1' Hs1 /=.
-            admit. }
+          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+            helping_inv N γ_t γ_r γ_mt γ_msy M1' ∗ dsRep γ_r (abs s1'))%I with
+            "[Help Ds]" as ">(Help & Ds)".
+          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+            apply leibniz_equiv in Habs1. iMod "H'" as "_". by iModIntro. }
           iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
             as ">(#Past_s1'&Hist)"; try done.
           iEval (rewrite /M1' lookup_total_insert) in "Past_s1'".
@@ -1063,13 +1060,13 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     - iModIntro. iSpecialize ("Hpost" $! (Some (p,c,false))). 
       iEval (rewrite /=) in "Hpost". iApply "Hpost". iFrame "Htr".
       iIntros "%Hi0". iApply "Hcase3"; try done.
-  Admitted.
+  Qed.
 
   Lemma traverse_pop_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k 
     preds succs ps0 ss0 (i: nat):
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
         {{{ is_array preds ps0 ∗ is_array succs ss0 
             ∗ ⌜length ps0 = L⌝ ∗ ⌜length ss0 = L⌝ ∗ ⌜i+1 < L⌝
@@ -1273,7 +1270,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
     t0 k preds succs ps0 ss0 (i: nat):
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
       {{{ is_array preds ps0 ∗ is_array succs ss0
           ∗ ⌜length ps0 = L⌝ ∗ ⌜length ss0 = L⌝ ∗ ⌜i+1 < L⌝
@@ -1338,7 +1335,7 @@ Module SKIPLIST1_SPEC_TRAVERSE.
 Lemma traverse_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 k:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
       {{{ True }}}
           traverse #hd #tl #k @ ⊤

@@ -33,11 +33,6 @@ Module Type DATA_STRUCTURE.
   Parameter seq_spec : Op -> absT -> absT -> resT -> Prop.
   #[global] Declare Instance seq_spec_dec : 
     ∀ op c c' res, Decision (seq_spec op c c' res).
-  (*
-  Parameter updater_thread: Op -> resT -> bool.
-  Parameter updater_thread_dec: 
-    ∀ op res b, Decision (updater_thread op res = b).
-  *)
 
   Parameter snapshotUR : ucmra.
   Definition snapshot := ucmra_car snapshotUR.
@@ -51,19 +46,19 @@ Module Type DATA_STRUCTURE.
   #[global] Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
   #[global] Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   #[global] Declare Instance snapshot_inhabited : Inhabited snapshot.
-  (*
-  Parameter dsG : gFunctors -> Set.
-  Parameter dsΣ : gFunctors.
-
-  Parameter test : heapGS dsΣ.
-  Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ.
-  *)
   
+  (* Parameter dsΣ : gFunctors. *)
+  
+  
+  (* Parameter test : heapGS dsΣ. *)
+  (* Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ. *)
+
+
   Context `{!heapGS Σ, !dsG Σ}.
-  
-  Parameter ds_inv :  gmap nat snapshot -> nat -> snapshot -> iProp Σ.
+   
+  Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ.
 
-End DATA_STRUCTURE.  
+End DATA_STRUCTURE.
 
 
 Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
@@ -84,17 +79,17 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   Definition upd_fracR := fracR. 
 
   Class hsG Σ := HS {
-                  hsG_auth_natG :> inG Σ auth_natUR;
-                  hsG_agree_snapshotG :> inG Σ agree_snapshotR;
-                  hsG_frac_absTG :> inG Σ frac_absTR;
-                  hsG_historyG :> inG Σ historyR;
-                  hsG_auth_historyG :> inG Σ auth_historyR;
-                  hsG_tokenG :> inG Σ tokenUR;
-                  hsG_frac_historyG :> inG Σ frac_historyR;
-                  hsG_set_tidG :> inG Σ set_tidR;
-                  hsG_sync_mapG :> inG Σ sync_mapR;
-                  hsG_ts_mapG :> inG Σ ts_mapR;
-                  hsG_upd_fracG :> inG Σ upd_fracR
+                  hsG_auth_natG :: inG Σ auth_natUR;
+                  hsG_agree_snapshotG :: inG Σ agree_snapshotR;
+                  hsG_frac_absTG :: inG Σ frac_absTR;
+                  hsG_historyG :: inG Σ historyR;
+                  hsG_auth_historyG :: inG Σ auth_historyR;
+                  hsG_tokenG :: inG Σ tokenUR;
+                  hsG_frac_historyG :: inG Σ frac_historyR;
+                  hsG_set_tidG :: inG Σ set_tidR;
+                  hsG_sync_mapG :: inG Σ sync_mapR;
+                  hsG_ts_mapG :: inG Σ ts_mapR;
+                  hsG_upd_fracG :: inG Σ upd_fracR
                  }.
                  
   Definition hsΣ : gFunctors :=
@@ -194,13 +189,6 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     dsRep γ_r (abs s) -∗
     helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
         helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s]> M) ∗ dsRep γ_r (abs s).
-
-  Definition update_helping_protocol2 N γ_t γ_r γ_mt γ_msy : iProp :=
-    ∀ M T s', 
-    ⌜dom M = gset_seq 0 T⌝ -∗
-    ⌜abs s' = abs (M !!! T)⌝ -∗
-    helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
-        helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s']> M).
 
   Definition is_snd (b: bool) (x : val * val) := ∃ v, x.1 = (v, #b)%V.  
 

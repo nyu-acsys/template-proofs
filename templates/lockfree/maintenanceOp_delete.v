@@ -45,7 +45,7 @@ Module MAINTENANCEOP_DELETE.
     perm vs xs i h:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
         {{{   perm ↦∗ vs
             ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
             ∗ ⌜xs ≡ₚ seq 1 (h-1)⌝
@@ -60,7 +60,7 @@ Module MAINTENANCEOP_DELETE.
   Proof.
     iIntros "#HInv #Thd_st #Upd". iLöb as "IH" forall (i).
     iIntros (Φ) "!# (Hperm&%Def_vs&%Perm_xs&#Hmark&%c_neq_hd&%c_neq_tl) Hpost". 
-    wp_lam. wp_pures.
+    wp_lam. wp_pure credit: "Hc". wp_pures.
     destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures.
     - rewrite bool_decide_eq_true in Hbool.
       assert (is_Some (xs !! i)) as [idx Hidx].
@@ -94,8 +94,8 @@ Module MAINTENANCEOP_DELETE.
         ∗ ⌜idx < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
       { rewrite Ht_c0. iFrame "Node_c". by iPureIntro. }
       iAaccIntro with "Hpre".
-      { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
-        iSplitR "Hperm"; try done. iNext; iExists M0, T0, s0. iFrame "∗%#". 
+      { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost Hc Hperm".
+        iNext; iExists M0, T0, s0. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
       iAssert (∀ j, ⌜j < i⌝ → ⌜Marki s0 c (xs !!! j) = true⌝)%I as %Hj0.
       { iIntros (j)"%Hj". 
@@ -107,8 +107,10 @@ Module MAINTENANCEOP_DELETE.
       { by iDestruct "Hist" as (M0'') "(_&_&%&_)". }
       iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
         as ">(#Past_s0&Hist)"; try done.
-
-      iIntros (success mark')"(Node_c & Hif)". destruct success.
+      
+      iIntros (success mark')"(Node_c & Hif)". 
+      iApply (lc_fupd_add_later with "Hc"). iNext.
+      destruct success.
       + iDestruct "Hif" as %[Mark_c0 Def_mark'].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
           [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
@@ -213,13 +215,12 @@ Module MAINTENANCEOP_DELETE.
           pose proof HMc idx as HMc. rewrite lookup_insert in HMc.
           apply lookup_total_correct in HMc. by rewrite Mark_c0 in HMc.
           by rewrite /M0'. }
-        iAssert (helping_inv N γ_t γ_r γ_mt γ_msy M0')%I with
-          "[Help]" as "Help".
-        { unfold update_helping_protocol2.
-          iSpecialize ("Upd" $! M0 T0 s0').
-          iPoseProof ("Upd" with "[%] [%] [Help]") as "Help"; try done.
-          apply leibniz_equiv in Habs0. rewrite Habs0. by rewrite /s0' Hs0 /=.
-          admit. }
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+          helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
+          "[Help Ds]" as ">(Help & Ds)".
+        { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+          iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+          apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
         iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
           as ">(#Past_s0'&Hist)"; try done.
         iEval (rewrite /M0' lookup_total_insert) in "Past_s0'".
@@ -291,7 +292,7 @@ Module MAINTENANCEOP_DELETE.
   Lemma maintenanceOp_delete_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 c:
     main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
     thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
       {{{ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝) ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete #c @ ⊤
         {{{ RET #();

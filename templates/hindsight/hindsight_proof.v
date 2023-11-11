@@ -19,7 +19,6 @@ Module Type HINDSIGHT_SPEC (DS : DATA_STRUCTURE).
           main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
           thread_start γ_t γ_mt tid t0 -∗
           □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗
-          □ update_helping_protocol2 N γ_t γ_r γ_mt γ_msy -∗
             {{{ proph p pvs ∗ 
                 (match process_proph tid pvs with
                   None => au N γ_r op Q
@@ -96,8 +95,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
     
     iAssert (update_helping_protocol N γ_t γ_r γ_mt γ_msy)%I 
         as "Upd_help". 
-    { (*
-      iIntros (M T s)"%Dom_M Ds Prot".
+    { iIntros (M T s)"%Dom_M Ds Prot".
       iDestruct "Prot" as (Mt Msy)"(HMt & HMsy & %Domm_Mt & Hstar_t & Hstar_sy)".
       set R := dom Msy.
       iAssert (dsRep γ_r (abs s) -∗
@@ -176,72 +174,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
           iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0'.
           iFrame "∗#%". }
       iPoseProof ("H'" with "[$Ds] [$Hstar_sy]") as ">(Hstar_sy & Ds)".
-      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%".*) admit. }
-
-    iAssert (update_helping_protocol2 N γ_t γ_r γ_mt γ_msy)%I 
-        as "Upd_help2". 
-    { (*
-      iIntros (M T s')"%Dom_M %Habs Prot".
-      iDestruct "Prot" as (Mt Msy)"(HMt & HMsy & %Domm_Mt & Hstar_t & Hstar_sy)".
-      set R := dom Msy.
-      iAssert (([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_mt γ_msy t_id M) ={⊤ ∖ ↑cntrN N}=∗
-        (([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_mt γ_msy t_id (<[T+1:=s']> M))))%I as "H'".
-      { iInduction R as [|tid' R' tid_notin_R IH] "HInd" using set_ind_L; 
-          auto using big_sepS_empty'.
-        rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
-        rewrite (big_sepS_delete _ ({[tid']} ∪ R') tid'); last by set_solver.
-        assert (({[tid']} ∪ R') ∖ {[tid']} = R') as HR'. set_solver. rewrite HR'.
-        iIntros "(Htid & Hbigstar)". 
-        iMod ("HInd" with "Hbigstar") as "H'". iFrame "H'". 
-        iDestruct "Htid" as (γ_tk' γ_sy' Q' op' vp' t0')
-          "(#Hthst & #Hthsy & Hsy & #HthInv)".
-        iInv "HthInv" as (M'' T'')"Hstate".
-        iDestruct "Hstate" as "(>Hsy' & >%Dom_M'' & >%Ht0 & Hstate)".
-        iAssert (⌜M'' = M⌝)%I as %->.
-        { iPoseProof (own_valid_2 _ _ _ with "[$Hsy] [$Hsy']") as "%H'".
-          rewrite frac_agree_op_valid_L in H'. iPureIntro; symmetry; apply H'. }
-        assert (T'' = T) as ->.
-        { rewrite Dom_M in Dom_M''. apply gset_seq_eq in Dom_M''. done. }
-        iAssert (|={⊤ ∖ ↑cntrN N ∖ ↑threadN N}=> 
-            own γ_sy' (to_frac_agree (1 / 2) (<[T+1:=s']> M))
-          ∗ own γ_sy' (to_frac_agree (1 / 2) (<[T+1:=s']> M)))%I
-          with "[Hsy Hsy']" as ">(Hsy & Hsy')".
-        { iCombine "Hsy Hsy'" as "H'". 
-          iEval (rewrite <-frac_agree_op) in "H'".
-          iEval (rewrite Qp.half_half) in "H'".
-          iMod ((own_update (γ_sy') (to_frac_agree 1 M) 
-                        (to_frac_agree 1 (<[T+1 := s']> M))) with "[$H']") as "H'".
-          { apply cmra_update_exclusive. 
-            rewrite /valid /cmra_valid /= /prod_valid_instance.
-            split; simpl; try done. }
-          iEval (rewrite <-Qp.half_half) in "H'".
-          iEval (rewrite frac_agree_op) in "H'".  
-          iDestruct "H'" as "(Hsy & Hsy')". by iFrame. }
-        assert (dom (<[(T + 1)%nat:=s']> M) = gset_seq 0 (T + 1)) as Dom_M'.
-        { rewrite dom_insert_L Dom_M. apply set_eq_subseteq. split.
-          all: intros x; rewrite elem_of_union elem_of_singleton 
-            !elem_of_gset_seq; lia. }
-        assert (t0' ≤ T+1) as Ht0' by lia.
-        iDestruct "Hstate" as "[HPending | HDone]".
-        - iDestruct "HPending" as "(AU & >Hc & >%Past_W)".
-          iModIntro. iSplitL "AU Hc Hsy". iNext. iExists (<[T+1:=s']> M), (T+1).
-          iFrame "∗%". iLeft. iFrame. iPureIntro. 
-          { intros [t [Ht1 Ht2]]. destruct (decide (t = T+1)) as [-> | Ht].
-            rewrite lookup_total_insert Habs in Ht2. 
-            apply Past_W. exists T. split. lia. done.
-            rewrite lookup_total_insert_ne in Ht2; try done.
-            apply Past_W. exists t. split. lia. done. } 
-          iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0'.
-          iFrame "∗#%".
-        - iDestruct "HDone" as "(HDone & >%PastW)".
-          iModIntro. iSplitL "HDone Hsy". iNext. iExists (<[T+1:=s']> M), (T+1).
-          iFrame "∗%". iRight. iSplitL; last first. iPureIntro.
-          { destruct PastW as [t [Ht1 Ht2]]. exists t. split. lia.
-            rewrite lookup_total_insert_ne. done. lia. } iFrame.
-          iModIntro. iFrame. iExists γ_tk', γ_sy', Q', op', vp', t0'.
-          iFrame "∗#%". }
-      iPoseProof ("H'" with "[$Hstar_sy]") as ">Hstar_sy".
-      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%".*) admit. }
+      iModIntro. iFrame. iExists Mt, Msy. iFrame "∗%". }
 
     iApply fupd_wp. 
     iInv "HInv" as (M0 T0 s0) "(Ds & >%Habs0 & Hist & Help & Templ)".
@@ -281,7 +214,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       rewrite big_sepS_union. iFrame. rewrite big_sepS_singleton. by iExists vtid.
       set_solver. iModIntro.
 
-      wp_apply (dsOp_spec with "[] [] [] [] [AU Hproph1]"); try done.
+      wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
       iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
       iDestruct "Hmatch" as %Hpvs'. 
@@ -298,7 +231,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       rewrite big_sepS_union. iFrame. rewrite big_sepS_singleton. by iExists vtid.
       set_solver. iModIntro.
 
-      wp_apply (dsOp_spec with "[] [] [] [] [AU Hproph1]"); try done.
+      wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
       iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
       wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
@@ -375,7 +308,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       iFrame. iSplitL "Htid". by iExists vtid.
       iExists γ_tk, γ_sy, Φ, op, vp, T0. iFrame "∗#". set_solver. set_solver.
       
-      iModIntro. wp_apply (dsOp_spec with "[] [] [] [] [Hproph1]"); try done.
+      iModIntro. wp_apply (dsOp_spec with "[] [] [] [Hproph1]"); try done.
       { iFrame "Hproph1". by rewrite Def_pres. }
 
       iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
