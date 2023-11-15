@@ -804,103 +804,87 @@ Module SKIPLIST1_SPEC_DELETE.
           + rewrite !lookup_total_insert_ne; try lia.
             apply Trans_M0. clear -Ht Ht'; lia. }
         
-        destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
-          last (destruct o as [j | ]).
-        * iMod "Hmatch" as (a)"[DsR [_ H']]".
-          iCombine "DsR Ds" as "H''".
-          iAssert (⌜a = abs s0⌝)%I as %->. 
-          { iPoseProof (own_valid with "[$H'']") as "%H'".
-            rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
-          iEval (rewrite <-frac_agree_op) in "H''".
-          iEval (rewrite Qp.half_half) in "H''".
-          iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
-            with "[$H'']") as "H''".
-          { apply cmra_update_exclusive. 
-            rewrite /valid /cmra_valid /= /prod_valid_instance.
-            split; simpl; try done. }
-          iEval (rewrite -Qp.half_half) in "H''".
-          iEval (rewrite frac_agree_op) in "H''".
-          iDestruct "H''" as "(Ds & DsR)".
-          iSpecialize ("H'" $! (abs s0') true).
-          iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
-          
-          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
-            helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
-            "[Help Ds]" as ">(Help & Ds)".
-          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
-            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
-            apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
-          iModIntro. iSplitR "Hpreds Hsuccs Hproph HQ Hpost".
-          { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
-            by rewrite lookup_total_insert. }
-          wp_pures. 
-          wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); 
-            try done.
-          { iFrame "Hpreds". iSplitL "Hsuccs". admit.
-            repeat (try iSplit; first by iPureIntro).
-            iSplit. iPureIntro; clear -HL; lia.
-            repeat (try iSplit; first by iPureIntro).
-            iIntros (j) "%Hj". 
-            assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". }
-          iIntros (???)"_". wp_pures. iApply "Hpost". iFrame "Hproph".
-          iPureIntro. clear -Hpvs' Hprf Def_pvs. destruct Hpvs' as [v1 Hpvs']. 
-          apply (process_proph_case1_rec _ (prf ++ [((v1, #true)%V, #())])).
-          rewrite -app_assoc. by rewrite -Hpvs'. apply Forall_app. split.
-          rewrite Forall_lookup. rewrite Forall_lookup in Hprf.
-          intros i' x' H'%Hprf. destruct H' as [v1' ->]. done. 
-          rewrite Forall_singleton. done.
-        * iMod "Hmatch" as (a)"[DsR [_ H']]".
-          iCombine "DsR Ds" as "H''".
-          iAssert (⌜a = abs s0⌝)%I as %->. 
-          { iPoseProof (own_valid with "[$H'']") as "%H'".
-            rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
-          iEval (rewrite <-frac_agree_op) in "H''".
-          iEval (rewrite Qp.half_half) in "H''".
-          iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
-            with "[$H'']") as "H''".
-          { apply cmra_update_exclusive. 
-            rewrite /valid /cmra_valid /= /prod_valid_instance.
-            split; simpl; try done. }
-          iEval (rewrite -Qp.half_half) in "H''".
-          iEval (rewrite frac_agree_op) in "H''".
-          iDestruct "H''" as "(Ds & DsR)".
-          iSpecialize ("H'" $! (abs s0') true).
-          iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
-          
-          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
-            helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
-            "[Help Ds]" as ">(Help & Ds)".
-          { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
-            iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
-            apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
-          iModIntro. iSplitR "Hpreds Hsuccs Hproph HQ Hpost".
-          { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
-            by rewrite lookup_total_insert. }
-          wp_pures.
-          wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); 
-            try done.
-          { iFrame "Hpreds". iSplitL "Hsuccs". admit.
-            repeat (try iSplit; first by iPureIntro).
-            iSplit. iPureIntro; clear -HL; lia.
-            repeat (try iSplit; first by iPureIntro).
-            iIntros (j') "%Hj". 
-            assert (j' = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". }
-          iIntros (???)"_". wp_pures. iApply "Hpost". iFrame "Hproph".
-          iModIntro. by iLeft.
-        * exfalso. clear -Def_pvs Hpvs' Hprf. apply process_proph_case2 in Def_pvs.
-          destruct Hpvs' as [v1 Hpvs']. destruct Def_pvs as ([x Hi] & Htakei).
-          destruct (decide (length prf < i)) as [Hiprf | Hiprf]; last first.
-          { rewrite Hpvs' /= in Hi. rewrite Nat.nlt_ge Nat.le_lteq in Hiprf. 
-            destruct Hiprf as [Hiprf | ->]. 
-            rewrite lookup_app_l in Hi; try done.
-            rewrite Forall_lookup in Hprf.
-            pose proof Hprf i (x, #tid) Hi as [? H']. try done.
-            rewrite list_lookup_middle in Hi. by inversion Hi. done. }
-          assert (take i pvs !! (length prf) = Some ((v1, #true)%V, #())) as H'.
-          { rewrite lookup_take; try done. 
-            rewrite Hpvs' list_lookup_middle; try done. }
-          apply (Forall_lookup_1 _ _ _ _ Htakei) in H'.
-          destruct H' as [H' _]. apply H'; rewrite /is_snd /=. by exists v1.
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> Φ #true ∗ dsRepI γ_r (abs s0'))%I 
+          with "[Hpost Hmatch Hproph Ds]" as ">(HΦ & Ds)".
+        { destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
+            last (destruct o as [j | ]).
+          - iMod "Hmatch" as (a)"[DsR [_ H']]".
+            iCombine "DsR Ds" as "H''".
+            iAssert (⌜a = abs s0⌝)%I as %->. 
+            { iPoseProof (own_valid with "[$H'']") as "%H'".
+              rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
+            iEval (rewrite <-frac_agree_op) in "H''".
+            iEval (rewrite Qp.half_half) in "H''".
+            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
+              with "[$H'']") as "H''".
+            { apply cmra_update_exclusive. 
+              rewrite /valid /cmra_valid /= /prod_valid_instance.
+              split; simpl; try done. }
+            iEval (rewrite -Qp.half_half) in "H''".
+            iEval (rewrite frac_agree_op) in "H''".
+            iDestruct "H''" as "(Ds & DsR)".
+            iSpecialize ("H'" $! (abs s0') true).
+            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
+            iFrame "Ds". iApply "Hpost". iFrame "Hproph".
+            iPureIntro. clear -Hpvs' Hprf Def_pvs. destruct Hpvs' as [v1 Hpvs']. 
+            apply (process_proph_case1_rec _ (prf ++ [((v1, #true)%V, #())])).
+            rewrite -app_assoc. by rewrite -Hpvs'. apply Forall_app. split.
+            rewrite Forall_lookup. rewrite Forall_lookup in Hprf.
+            intros i' x' H'%Hprf. destruct H' as [v1' ->]. done. 
+            rewrite Forall_singleton. done.
+          - iMod "Hmatch" as (a)"[DsR [_ H']]".
+            iCombine "DsR Ds" as "H''".
+            iAssert (⌜a = abs s0⌝)%I as %->. 
+            { iPoseProof (own_valid with "[$H'']") as "%H'".
+              rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
+            iEval (rewrite <-frac_agree_op) in "H''".
+            iEval (rewrite Qp.half_half) in "H''".
+            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
+              with "[$H'']") as "H''".
+            { apply cmra_update_exclusive. 
+              rewrite /valid /cmra_valid /= /prod_valid_instance.
+              split; simpl; try done. }
+            iEval (rewrite -Qp.half_half) in "H''".
+            iEval (rewrite frac_agree_op) in "H''".
+            iDestruct "H''" as "(Ds & DsR)".
+            iSpecialize ("H'" $! (abs s0') true).
+            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
+            iFrame "Ds". iApply "Hpost". iFrame "Hproph".
+            iModIntro. by iLeft.
+          - exfalso. clear -Def_pvs Hpvs' Hprf. apply process_proph_case2 in Def_pvs.
+            destruct Hpvs' as [v1 Hpvs']. destruct Def_pvs as ([x Hi] & Htakei).
+            destruct (decide (length prf < i)) as [Hiprf | Hiprf]; last first.
+            { rewrite Hpvs' /= in Hi. rewrite Nat.nlt_ge Nat.le_lteq in Hiprf. 
+              destruct Hiprf as [Hiprf | ->]. 
+              rewrite lookup_app_l in Hi; try done.
+              rewrite Forall_lookup in Hprf.
+              pose proof Hprf i (x, #tid) Hi as [? H']. try done.
+              rewrite list_lookup_middle in Hi. by inversion Hi. done. }
+            assert (take i pvs !! (length prf) = Some ((v1, #true)%V, #())) as H'.
+            { rewrite lookup_take; try done. 
+              rewrite Hpvs' list_lookup_middle; try done. }
+            apply (Forall_lookup_1 _ _ _ _ Htakei) in H'.
+            destruct H' as [H' _]. apply H'; rewrite /is_snd /=. by exists v1. }
+
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
+          helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
+          "[Help Ds]" as ">(Help & Ds)".
+        { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
+          iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
+          apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
+        iModIntro. iSplitR "Hpreds Hsuccs HΦ".
+        { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". iPureIntro.
+          by rewrite lookup_total_insert. }
+        wp_pures. 
+        wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); 
+          try done.
+        { iFrame "Hpreds". iSplitL "Hsuccs". admit.
+          repeat (try iSplit; first by iPureIntro).
+          iSplit. iPureIntro; clear -HL; lia.
+          repeat (try iSplit; first by iPureIntro).
+          iIntros (j) "%Hj". 
+          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". }
+        iIntros (???)"_". wp_pures. done.
       + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> Def_pvs]].
         iDestruct "Htr" as "(_&Htr)". 
         iDestruct "Htr" as (s)"(Past_s & %H')".
@@ -925,33 +909,29 @@ Module SKIPLIST1_SPEC_DELETE.
           rewrite Nat.add_1_r. done. }
         iAssert (past_lin_witness γ_m (deleteOp k) false t0) as "#PastW".
         { iExists (M0 !!! S t). iFrame "#". iPureIntro. clear -Hk'; set_solver. } 
-        destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
-          last (destruct o as [j | ]).
-        * assert (process_proph tid pvs' = None) as Hpvs'.
-          { clear -Hpvs Hprf Def_pvs. apply (process_proph_case1_rec _ prf).
-            by rewrite -Def_pvs. rewrite Forall_lookup. 
-            rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
-            destruct H' as [v1' ->]. done. }
-          iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
-          { iNext. iExists M0, T0, s0. iFrame "∗%". 
-            rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
-          wp_pures. iApply "Hpost". iFrame "Hproph". by iPureIntro.
-        * assert (∃ i' j', process_proph tid pvs' = Some (i', Some j')) 
-            as [i' [j' Hpvs']]. 
-          { clear -Hpvs Hprf Def_pvs. apply (process_proph_case3_rec _ prf _ i j).
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> Φ #false)%I 
+          with "[Hpost Hmatch Hproph]" as ">HΦ".
+        { destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
+            last (destruct o as [j | ]).
+          - assert (process_proph tid pvs' = None) as Hpvs'.
+            { clear -Hpvs Hprf Def_pvs. apply (process_proph_case1_rec _ prf).
+              by rewrite -Def_pvs. rewrite Forall_lookup. 
+              rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
+              destruct H' as [v1' ->]. done. }
+            iApply "Hpost". iFrame "Hproph". by iPureIntro.
+          - assert (∃ i' j', process_proph tid pvs' = Some (i', Some j')) 
+              as [i' [j' Hpvs']]. 
+            { clear -Hpvs Hprf Def_pvs. apply (process_proph_case3_rec _ prf _ i j).
             by rewrite -Def_pvs. rewrite Forall_lookup. 
             rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
             destruct H' as [v1' ->]. rewrite /is_snd /=.
             split; try done. intros [v Hv]. inversion Hv. }
-          iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
-          { iNext. iExists M0, T0, s0. iFrame "∗%". 
-            rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
-          wp_pures. iApply "Hpost". iFrame "Hproph". iModIntro. iRight.
-          iPureIntro. by exists i', j'.
-        * iModIntro. iSplitR "Hpreds Hsuccs Hproph Hpost".
-          { iNext. iExists M0, T0, s0. iFrame "∗%". 
-            rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
-          wp_pures. iApply "Hpost". iFrame "Hproph #". done.
+            iApply "Hpost". iFrame "Hproph". iRight. iPureIntro. by exists i', j'.
+          - iApply "Hpost". iFrame "Hproph #". done. }
+        iModIntro. iSplitR "Hpreds Hsuccs HΦ".
+        { iNext. iExists M0, T0, s0. iFrame "∗%". 
+          rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
+        by wp_pures.
     - iAssert (past_lin_witness γ_m (deleteOp k) false t0)%I as "#PastW".
       { iDestruct "Htr" as "(_ & Htr)". 
         iDestruct "Htr" as (s)"(#Past_s & %k_notin_s & _)".
