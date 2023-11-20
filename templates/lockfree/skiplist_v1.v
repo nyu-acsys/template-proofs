@@ -33,43 +33,37 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition traverse_i : val :=
     rec: "tri" "i" "pred" "curr" "k" :=
       let: "fn_curr" := findNext "curr" "i" in
-      if: Fst "fn_curr" then
-        match: Snd "fn_curr" with
-          NONE => ""
-        | SOME "succ" =>
-            match: changeNext "pred" "curr" "succ" "i" with
-              NONE => NONE
-            | SOME "_" => 
-              "tri" "i" "pred" "succ" "k" end end  
+      let: "m" := Fst "fn_curr" in
+      let: "succ" := Snd "fn_curr" in
+      if: "m" then
+        match: changeNext "pred" "curr" "succ" "i" with
+          NONE => NONE
+        | SOME "_" => 
+          "tri" "i" "pred" "succ" "k" end 
       else
-        match: Snd "fn_curr" with
-          NONE => SOME ("pred", "curr", #false)
-        | SOME "succ" => 
-          let: "res" := compareKey "curr" "k" in
-          if: "res" = #0 then 
-            "tri" "i" "curr" "succ" "k"
-          else if: "res" = #1 then
-            SOME ("pred", "curr", #true)
-          else
-            SOME ("pred", "curr", #false) end.
+        let: "res" := compareKey "curr" "k" in
+        if: "res" = #0 then 
+          "tri" "i" "curr" "succ" "k"
+        else if: "res" = #1 then
+          SOME ("pred", "curr", #true)
+        else
+          SOME ("pred", "curr", #false).
 
   Definition traverse_pop : val :=
     λ: "trec" "k" "preds" "succs" "i",
       let: "pred" := ! ("preds" +ₗ ("i" + #1)) in
       let: "fn_pred" := findNext "pred" "i" in
-      match: Snd "fn_pred" with
-        NONE => ""
-      | SOME "curr" =>
-        let: "ores" := traverse_i "i" "pred" "curr" "k" in
-        match: "ores" with
-          NONE => NONE
-        | SOME "pred_succ_res" =>
-          let: "pred" := Fst (Fst "pred_succ_res") in
-          let: "succ" := Snd (Fst "pred_succ_res") in
-          let: "res" := Snd "pred_succ_res" in
-          "preds" +ₗ "i" <- "pred";;
-          "succs" +ₗ "i" <- "succ";;
-          SOME ("preds", "succs", "res") end end.
+      let: "curr" := Snd "fn_pred" in
+      let: "ores" := traverse_i "i" "pred" "curr" "k" in
+      match: "ores" with
+        NONE => NONE
+      | SOME "pred_succ_res" =>
+        let: "pred" := Fst (Fst "pred_succ_res") in
+        let: "succ" := Snd (Fst "pred_succ_res") in
+        let: "res" := Snd "pred_succ_res" in
+        "preds" +ₗ "i" <- "pred";;
+        "succs" +ₗ "i" <- "succ";;
+        SOME ("preds", "succs", "res") end.
 
   Definition traverse_rec : val :=
     rec: "trec" "k" "preds" "succs" "i" :=
@@ -86,7 +80,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     λ: "h" "t" "k",
       let: "preds" := AllocN #L "h" in
       let: "succs" := AllocN #L "t" in
-      traverse_rec "k" "preds" "succs" #(L-2)%nat.     
+      traverse_rec "k" "preds" "succs" #(L-2)%nat.  
 
   Definition search : val :=
     λ: "h" "t" "k",
@@ -161,8 +155,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
           NONE => "ins" "h" "t" "k" "p"
         | SOME "_" => 
           maintenanceOp_insert "k" "preds" "succs" "new_node";;
-          #true end.
-         
+          #true end.         
 
   Definition dsOp : val :=
     λ: "OP" "r",
@@ -173,7 +166,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       else if: "op" = #1 
       then insert "r" "k"
       else delete "r" "k".
-
       
   Inductive Opp := 
     searchOp : nat → Opp | insertOp : nat → Opp | deleteOp : nat → Opp.

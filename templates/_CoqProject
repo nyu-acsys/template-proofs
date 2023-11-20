@@ -21,10 +21,12 @@ flows/bool_ra.v
 
 util/one_shot_proph.v
 util/typed_proph.v
+util/gset_seq.v
 
 hindsight/hindsight.v
+hindsight/hindsight_proof.v
 
-#lockfree/skiplist_v1.v
-#lockfree/skiplist_v1_util.v
+lockfree/skiplist_v1.v
+lockfree/skiplist_v1_util.v
 #lockfree/skiplist_v1_traverse.v
 
