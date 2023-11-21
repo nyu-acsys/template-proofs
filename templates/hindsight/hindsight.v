@@ -204,16 +204,180 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
     - right; intros [v1 H']; try done.
   Qed.
 
-  Definition process_proph (tid: proph_id) (pvs : list (val * val)) 
-    : option (nat * option nat) :=
+  Inductive proph_case := contra | upd | no_upd.
+
+  Definition process_proph (tid: proph_id) (pvs : list (val * val)) : proph_case :=
     match list_find (λ x, x.2 = #tid) pvs with
-      None => None
+      None => contra
     | Some (i, _) => 
       let ls := take i pvs in
       match list_find (is_snd true) ls with
-        None => Some (i, None)
-      | Some (j, _) => Some (i, Some j) end end.
-  
+        None => no_upd
+      | Some (j, _) => upd end end.
+
+  Lemma process_proph_contra tid pvs :
+    process_proph tid pvs = contra → Forall (λ x, x.2 ≠ #tid) pvs.
+  Proof. 
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'.
+    { destruct p. destruct (list_find (is_snd true)); try destruct p0; try done. }
+    intros _. by apply list_find_None in H'.  
+  Qed.
+
+  Lemma process_proph_no_upd tid pvs :
+    process_proph tid pvs = no_upd → 
+      ∃ i x, pvs !! i = Some (x, #tid)
+            ∧ Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) (take i pvs).
+  Proof. 
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
+    destruct p as [i x]. destruct (list_find (is_snd true) _) eqn: H''. 
+    { destruct p. try done. }
+    intros [=]. apply list_find_None in H''. apply list_find_Some in H'.
+    destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
+    subst x2. exists i, x1. split; try done. apply List.Forall_and; try done.
+    rewrite Forall_lookup. apply mk_is_Some, lookup_lt_is_Some in Hi.
+    intros i' x' Hx'. assert (i' < i). apply mk_is_Some, lookup_lt_is_Some in Hx'.
+    rewrite take_length in Hx'. lia.
+    apply (Hj i' x'); try done. rewrite lookup_take in Hx'; try done.
+  Qed.
+
+  Lemma process_proph_upd tid pvs :
+    process_proph tid pvs = upd →
+      ∃ i x j,
+        (j < i) ∧ pvs !! i = Some (x, #tid) ∧ (is_snd true (pvs !!! j))
+      ∧ Forall (λ x, x.2 ≠ #tid) (take i pvs)
+      ∧ Forall (λ x, ¬ is_snd true x) (take j pvs).
+  Proof. 
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
+    destruct p as [i x]. destruct (list_find (is_snd true) _) eqn: H''; last done.
+    destruct p as [j y]. intros _.
+    apply list_find_Some in H''. apply list_find_Some in H'.
+    destruct x as [x1 x2]. rewrite /= in H'. destruct H' as [Hi [Hx2 Hj]].
+    destruct H'' as [Hy [Hy' Hj']]. subst x2. 
+    assert (j < i) as j_lt_i. { apply mk_is_Some, lookup_lt_is_Some in Hy.
+      apply mk_is_Some, lookup_lt_is_Some in Hi. rewrite take_length in Hy. lia. }
+    assert (is_Some (pvs !! j)) as [[xj1 xj2] Hpvsj]. 
+    { rewrite lookup_lt_is_Some. apply mk_is_Some, lookup_lt_is_Some in Hi. lia. }
+    exists i, x1, j. split; last split; last split; last split; try done.
+    - rewrite lookup_take in Hy; try done. apply list_lookup_total_correct in Hy.
+      by rewrite Hy.
+    - rewrite Forall_lookup. intros i' x' Hx'. 
+      assert (i' < i). apply mk_is_Some, lookup_lt_is_Some in Hx'.
+      rewrite take_length in Hx'. lia.
+      apply (Hj i' x'). rewrite lookup_take in Hx'. all: done.
+    - rewrite Forall_lookup. intros i' x' Hx'. 
+      assert (i' < i). apply mk_is_Some, lookup_lt_is_Some in Hx'.
+      rewrite take_length in Hx'. lia.
+      assert (i' < j). apply mk_is_Some, lookup_lt_is_Some in Hx'.
+      rewrite take_length in Hx'. lia.
+      assert (take i pvs !! i' = take j pvs !! i') as H'. 
+      rewrite !lookup_take; try done. rewrite -H' in Hx'.
+      pose proof (Hj' i' x' Hx' H0) as H''. done.
+  Qed.
+
+  Lemma process_proph_contra_rec tid prf pvs :
+    process_proph tid (prf ++ pvs) = contra →
+    Forall (λ x, x.2 ≠ #tid) prf →
+        process_proph tid pvs = contra.
+  Proof.
+    intros Hp Hprf. apply process_proph_contra in Hp. 
+    rewrite /process_proph. destruct (list_find _ pvs) eqn: H'; try done.
+    destruct p as [i x]. apply list_find_Some in H'.
+    apply Forall_app in Hp. destruct Hp as [_ Hp].
+    destruct H' as [H' [H'' _]]. rewrite Forall_lookup in Hp.
+    pose proof Hp i x H' as H1'. by exfalso.
+  Qed.
+
+  Lemma process_proph_no_upd_rec tid prf pvs :
+    process_proph tid (prf ++ pvs) = no_upd →
+    Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf →
+        process_proph tid pvs = no_upd.
+  Proof. 
+    intros Hp Hprf. apply process_proph_no_upd in Hp.
+    destruct Hp as [i [x [Hxtid Htake]]]. apply Forall_and in Htake.
+    destruct Htake as [Htake1 Htake2]. rewrite /process_proph.
+    assert (prf !! i = None) as Prf_i.
+    { destruct (prf !! i) eqn: H'; try done. exfalso.
+      rewrite (lookup_app_l_Some prf pvs _ _ H') in Hxtid. inversion Hxtid.
+      subst p. rewrite Forall_lookup in Hprf.
+      pose proof Hprf _ _ H' as H''. destruct H'' as [_ H'']. done. }
+    assert (pvs !! (i - length prf) = Some (x, #tid)) as Pvs_i'.
+    { by rewrite lookup_app Prf_i in Hxtid. }
+    destruct (list_find _ pvs) eqn: H'; try done; last first.
+    { exfalso. apply list_find_None in H'. rewrite Forall_lookup in H'.
+      pose proof H' _ _ Pvs_i' as H''. done. }
+    destruct p as [i' x']. apply list_find_Some in H'.
+    destruct H' as (Def_x' & Hx' & Hjtid).
+    assert (i' = i - length prf) as ->.
+    { assert (not (i - length prf < i')).
+      { intros H'. pose proof Hjtid _ _ Pvs_i' H' as H''. done. }
+      assert (not (i' < i - length prf)).
+      { intros H'. assert (i' + length prf < i) as H'' by lia.
+        assert (take i (prf ++ pvs) !! (i' + length prf) = Some x') as H1''.
+        rewrite lookup_take; try done. rewrite lookup_app_r; last by lia.
+        by assert (i' + length prf - length prf = i') as -> by lia.
+        rewrite Forall_lookup in Htake2. pose proof Htake2 _ _ H1'' as H2'. done. }
+      lia. }
+    destruct (list_find _ _) eqn: H'; try done. destruct p as [i' y']. 
+    exfalso. apply list_find_Some in H'. destruct H' as [Hi' [Hy' _]].
+    apply lookup_take_Some in Hi'. destruct Hi' as [Hi' H'].
+    assert (i' + length prf < i) as H'' by lia.
+    assert (take i (prf ++ pvs) !! (i' + length prf) = Some y') as H1''.
+    rewrite lookup_take; try done. rewrite lookup_app_r; last by lia.
+    by assert (i' + length prf - length prf = i') as -> by lia.
+    rewrite Forall_lookup in Htake1. pose proof Htake1 _ _ H1'' as H2'. done. 
+  Qed.
+
+  Lemma process_proph_upd_rec tid prf pvs :
+    process_proph tid (prf ++ pvs) = upd →
+    Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf →
+        process_proph tid pvs = upd.
+  Proof. 
+    intros Hp Hprf. apply process_proph_upd in Hp.
+    destruct Hp as [i [x [j [Hji [Hxtid [Hj [Htakei Htakej]]]]]]].
+    rewrite Forall_and in Hprf. destruct Hprf as [Hprf1 Hprf2].
+    rewrite /process_proph.
+    assert (prf !! i = None) as Prf_i.
+    { destruct (prf !! i) eqn: H'; try done. exfalso.
+      rewrite (lookup_app_l_Some prf pvs _ _ H') in Hxtid. inversion Hxtid.
+      subst p. rewrite Forall_lookup in Hprf2.
+      pose proof Hprf2 _ _ H' as H''. done. }
+    assert (pvs !! (i - length prf) = Some (x, #tid)) as Pvs_i'.
+    { by rewrite lookup_app Prf_i in Hxtid. }
+    assert (prf !! j = None) as Prf_j.
+    { destruct (prf !! j) eqn: H'; try done. exfalso.
+      pose proof (lookup_app_l_Some prf pvs _ _ H') as H''.
+      rewrite Forall_lookup in Hprf1. pose proof Hprf1 _ _ H' as Hprf.
+      rewrite list_lookup_total_alt H'' /= in Hj. done. }
+    assert (is_Some((prf ++ pvs) !! j)) as [y Hy].
+    { rewrite lookup_lt_is_Some. apply mk_is_Some in Hxtid.
+      rewrite lookup_lt_is_Some in Hxtid. lia. }
+    assert ((prf ++ pvs) !! j = pvs !! (j - length prf)) as Pvs_j.
+    { by rewrite lookup_app Prf_j. }
+    destruct (list_find _ pvs) eqn: H'; try done; last first.
+    { exfalso. apply list_find_None in H'. rewrite Forall_lookup in H'.
+      pose proof H' _ _ Pvs_i' as H''. done. }
+    destruct p as [i' x']. apply list_find_Some in H'.
+    destruct H' as (Def_x' & Hx' & Hjtid).
+    assert (i' = i - length prf) as ->.
+    { assert (not (i - length prf < i')).
+      { intros H'. pose proof Hjtid _ _ Pvs_i' H' as H''. done. }
+      assert (not (i' < i - length prf)).
+      { intros H'. assert (i' + length prf < i) as H'' by lia.
+        assert (take i (prf ++ pvs) !! (i' + length prf) = Some x') as H1''.
+        rewrite lookup_take; try done. rewrite lookup_app_r; last by lia.
+        by assert (i' + length prf - length prf = i') as -> by lia.
+        rewrite Forall_lookup in Htakei. pose proof Htakei _ _ H1'' as H2'. done. }
+      lia. }
+    destruct (list_find _ _) eqn: H'; first by (destruct p).
+    exfalso. apply list_find_None in H'. rewrite Forall_lookup in H'.
+    assert (take (i - length prf) pvs !! (j - length prf) = Some y) as H''.
+    { rewrite lookup_take. by rewrite lookup_app Prf_j in Hy. 
+      apply lookup_ge_None in Prf_j. lia. }
+    rewrite list_lookup_total_alt Hy /= in Hj.
+    pose proof H' _ _ H'' as H1'. done.
+  Qed.
+
+(*
   Lemma process_proph_case1 tid pvs :
     process_proph tid pvs = None → Forall (λ x, x.2 ≠ #tid) pvs.
   Proof.
@@ -394,6 +558,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
       pose proof Hj'' _ _ H1' H' as H2'. done. }
     lia.
   Qed.
+
+*)
 
 End HINDSIGHT_DEFS.
 

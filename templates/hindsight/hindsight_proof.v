@@ -21,17 +21,17 @@ Module Type HINDSIGHT_SPEC (DS : DATA_STRUCTURE).
           □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗
             {{{ proph p pvs ∗ 
                 (match process_proph tid pvs with
-                  None => au N γ_r op Q
-                | Some (i, None) => True
-                | Some (i, Some j) => au N γ_r op Q end) }}}
+                  contra => au N γ_r op Q
+                | no_upd => True
+                | upd => au N γ_r op Q end) }}}
                   dsOp (Op_to_val op) #r #p @ ⊤
-            {{{ (res: resT) pvs', RET #res;
-                proph p pvs' ∗
+            {{{ (res: resT) prf pvs', RET #res;
+                proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
                 (match process_proph tid pvs with
-                  None => ⌜process_proph tid pvs' = None⌝ 
-                | Some (i, None) => past_lin_witness γ_m op res t0
-                | Some (i, Some j) => Q #res ∨ 
-                    ⌜∃ i' j', process_proph tid pvs' = Some(i', Some (j'))⌝ end) }}}.
+                  contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
+                | no_upd => past_lin_witness γ_m op res t0
+                | upd => Q #res ∨ 
+                    ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
   
 End HINDSIGHT_SPEC.
 
@@ -205,7 +205,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
 
     set pres := process_proph tid pvs.
     assert (process_proph tid pvs = pres) as Def_pres by done.
-    destruct pres as [[i o] | ]; last first; last (destruct o as [j |]).
+    destruct pres.
 
     - iModIntro. iSplitR "AU Hproph1 Hproph2". iNext. 
       iExists M0, T0, s0. iFrame "∗%".
@@ -216,11 +216,13 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
 
       wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
-      iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
-      iDestruct "Hmatch" as %Hpvs'. 
+      iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
+      wp_pures. iDestruct "Hmatch" as %Hprf. 
       wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
-      iIntros (pvs'')"(%Def_pvs' & Hproph1)". exfalso. 
-      apply process_proph_case1 in Hpvs'. rewrite Forall_lookup in Hpvs'.
+      iIntros (pvs'')"(%Def_pvs' & Hproph1)". exfalso.
+      assert (process_proph tid pvs' = contra) as Hpvs'.
+      { rewrite Def_pvs in Def_pres. by apply process_proph_contra_rec in Def_pres. }
+      apply process_proph_contra in Hpvs'. rewrite Forall_lookup in Hpvs'.
       assert (pvs' !! 0 = Some (#(), #tid)) as H'. rewrite Def_pvs'. set_solver.
       pose proof Hpvs' 0 _ H' as H''. by simpl in H''.
     
@@ -233,17 +235,19 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
 
       wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
-      iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
-      wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
+      iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
+      wp_pures. wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
       iIntros (pvs'')"(%Def_pvs' & Hproph1)". wp_pures.
-      iDestruct "Hmatch" as "[HΦ | %H']"; last first.
-      { exfalso. destruct H' as [i' [j' H']].
+      iDestruct "Hmatch" as "[HΦ | %Hprf]"; last first.
+      { exfalso. assert (process_proph tid pvs' = upd) as Hpvs'.
+        rewrite Def_pvs in Def_pres. by apply process_proph_upd_rec in Def_pres.
+        apply process_proph_upd in Hpvs'. 
+        destruct Hpvs' as [i [x [j [j_lt_i [Pvs_i' [Pvs_j' [Htake1 Htake2]]]]]]].
         assert (pvs' !! 0 = Some (#(), #tid)) as Hp0. rewrite Def_pvs'; set_solver.
-        apply process_proph_case3 in H'. destruct H' as (Hji'&Hi'&_&Htakei'&_).
-        destruct (decide (i' = 0)) as [-> | Hi0]; try (done || lia).
-        assert (0 < i') as H'' by lia. assert (take i' pvs' !! 0 = pvs' !! 0) as H1'.
-        rewrite lookup_take; try done. rewrite Hp0 in H1'.
-        rewrite Forall_lookup in Htakei'. pose proof Htakei' 0 _ H1' as H1''. done. }
+        destruct (decide (i = 0)) as [-> | Hi0]; try (done || lia).
+        assert (0 < i) as H' by lia. assert (take i pvs' !! 0 = pvs' !! 0) as H''.
+        rewrite lookup_take; try done. rewrite Hp0 in H''.
+        rewrite Forall_lookup in Htake1. pose proof Htake1 0 _ H'' as ?. done. }
       
       wp_apply (typed_proph_wp_resolve1 resTTypedProph with "Hproph2"); try done.
       { rewrite /typed_proph_from_val /=. by rewrite resT_proph_resolve. }
@@ -311,8 +315,8 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       iModIntro. wp_apply (dsOp_spec with "[] [] [] [Hproph1]"); try done.
       { iFrame "Hproph1". by rewrite Def_pres. }
 
-      iIntros (res pvs')"(Hproph1 & Hmatch)". rewrite Def_pres. wp_pures.
-      wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
+      iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
+      wp_pures. wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
       iIntros (pvs'')"(%Def_pvs' & Hproph1)". wp_pures.
       
       iDestruct "Hmatch" as "#PastW". wp_pures. 

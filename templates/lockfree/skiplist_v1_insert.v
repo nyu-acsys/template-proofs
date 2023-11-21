@@ -117,17 +117,17 @@ Module SKIPLIST1_SPEC_INSERT.
        ⌜1 < L ∧ 0 < k < W⌝ -∗
          {{{ proph pr pvs ∗ 
              (match process_proph tid pvs with
-               None => au N γ_r (insertOp k) Q
-             | Some (i, None) => True
-             | Some (i, Some j) => au N γ_r (insertOp k) Q end) }}}
-              insert #hd #tl #k #pr @ ⊤
-         {{{ (res: resT) pvs', RET #res;
-             proph pr pvs' ∗
+              | contra => au N γ_r (insertOp k) Q
+              | no_upd => True
+              | upd => au N γ_r (insertOp k) Q end) }}}
+            insert #hd #tl #k #pr @ ⊤
+         {{{ (res: resT) prf pvs', RET #res;
+             proph pr pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
              (match process_proph tid pvs with
-               None => ⌜process_proph tid pvs' = None⌝ 
-             | Some (i, None) => past_lin_witness γ_m (insertOp k) res t0
-             | Some (i, Some j) => Q #res ∨ 
-                 ⌜∃ i' j', process_proph tid pvs' = Some(i', Some (j'))⌝ end) }}}.
+              | contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
+              | no_upd => past_lin_witness γ_m (insertOp k) res t0
+              | upd => Q #res ∨ 
+                      ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
   Proof.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (pvs).
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
@@ -139,11 +139,11 @@ Module SKIPLIST1_SPEC_INSERT.
       { iDestruct "Htr" as "(_ & Htr)". 
         iDestruct "Htr" as (s)"(#Past_s & %k_in_s & _)".
         iExists s. iFrame "#". iPureIntro. set_solver. }
-      destruct (process_proph tid pvs) as [[i o] | ] eqn: Hpvs; last first;
-        last (destruct o as [j | ]).
-      + iApply "Hpost". iFrame "Hproph". by iPureIntro.
-      + iApply "Hpost". iFrame "Hproph". iRight. iPureIntro. by exists i, j.
-      + iApply "Hpost". iFrame "Hproph #". done.
+      destruct (process_proph tid pvs) eqn: Hpvs.
+      + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". by iPureIntro.
+      + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
+        iRight. by iPureIntro.
+      + iApply ("Hpost" $! false [] pvs). iFrame "Hproph #". done.
     - wp_apply (createNode_spec _ ss with "[Hsuccs]"); try done.
       { iFrame. by iPureIntro. }
       iIntros (n h mark next) "(Hsuccs & Node_n & %Range_h & %Dom_mark 
@@ -208,33 +208,47 @@ Module SKIPLIST1_SPEC_INSERT.
         { iNext. iExists M0, T0, s0. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. 
-        destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
-          last (destruct o as [j | ]).
-        * assert (process_proph tid pvs' = None) as Hpvs'.
-          { clear -Hpvs Hprf Def_pvs. apply (process_proph_case1_rec _ prf).
+        destruct (process_proph tid pvs) eqn: Def_pvs.
+        * assert (process_proph tid pvs' = contra) as Hpvs'.
+          { clear -Hpvs Hprf Def_pvs. apply (process_proph_contra_rec _ prf).
             by rewrite -Hpvs. rewrite Forall_lookup. 
             rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
             destruct H' as [v1' ->]. done. }
           iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
-          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
-        * assert (∃ i' j', process_proph tid pvs' = Some (i', Some j')) 
-            as [i' [j' Hpvs']]. 
-          { clear -Hpvs Hprf Def_pvs. apply (process_proph_case3_rec _ prf _ i j).
+          iApply ("IH" with "[$Hproph $Hmatch]"). iNext. 
+          iIntros (res prf' pvs'') "(Hproph & %Def_pvs' & %Hprf')".
+          iApply ("Hpost" $! _ (prf ++ prf') pvs''). iFrame "Hproph". 
+          iPureIntro. rewrite Def_pvs' in Hpvs. split. rewrite Hpvs. 
+          by rewrite assoc. rewrite Forall_app. split; try done.
+          apply (Forall_impl _ _ _ Hprf). intros [x1 x2]. intros [v' [=]]. 
+          by subst x2.
+        * assert (process_proph tid pvs' = upd) as Hpvs'. 
+          { clear -Hpvs Hprf Def_pvs. apply (process_proph_upd_rec _ prf).
             by rewrite -Hpvs. rewrite Forall_lookup. 
             rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
             destruct H' as [v1' ->]. rewrite /is_snd /=.
             split; try done. intros [v Hv]. inversion Hv. }
           iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
-          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
-        * assert (∃ i', process_proph tid pvs' = Some (i', None)) 
-            as [i' Hpvs']. 
-          { clear -Hpvs Hprf Def_pvs. apply (process_proph_case2_rec _ prf _ i).
+          iApply ("IH" with "[$Hproph $Hmatch]"). iNext. 
+          iIntros (res prf' pvs'') "(Hproph & %Def_pvs' & Hor)".
+          iApply ("Hpost" $! _ (prf ++ prf') pvs''). iFrame "Hproph". iSplitR. 
+          iPureIntro. rewrite Def_pvs' in Hpvs. rewrite Hpvs. 
+          by rewrite assoc. iDestruct "Hor" as "[HQ | %Hprf']". by iLeft.
+          iRight. rewrite Forall_app. iPureIntro. split; try done.
+          apply (Forall_impl _ _ _ Hprf). intros [x1 x2]. intros [v' [=]]. 
+          subst x1 x2. split; try done. rewrite /is_snd /=. intros [? [=]].
+        * assert (process_proph tid pvs' = no_upd) as Hpvs'. 
+          { clear -Hpvs Hprf Def_pvs. apply (process_proph_no_upd_rec _ prf).
             by rewrite -Hpvs. rewrite Forall_lookup. 
             rewrite Forall_lookup in Hprf. intros i' x' H'%Hprf. 
             destruct H' as [v1' ->]. rewrite /is_snd /=.
             split; try done. intros [v Hv]. inversion Hv. }
           iSpecialize ("IH" $! pvs'). rewrite Hpvs'.
-          iApply ("IH" with "[$Hproph $Hmatch]"); try done.
+          iApply ("IH" with "[$Hproph $Hmatch]"); try done. iNext. 
+          iIntros (res prf' pvs'') "(Hproph & %Def_pvs' & #PastW)".
+          iApply ("Hpost" $! _ (prf ++ prf') pvs''). iFrame "Hproph #".
+          iPureIntro. rewrite Def_pvs' in Hpvs. rewrite Hpvs. 
+          by rewrite assoc. 
       + iDestruct "Hif" as %(Next_p0 & Mark_p0 & Def_next' & Hpvs').
         iAssert (∀ i, ⌜i < L⌝ → ⌜(ss !!! i) ∈ FP s0⌝ ∗ ⌜i < Height s0 (ss !!! i)⌝)%I 
           as %Hss.
@@ -1442,17 +1456,16 @@ Module SKIPLIST1_SPEC_INSERT.
 
         iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> Φ #true ∗ dsRepI γ_r (abs s0'))%I 
           with "[Hpost Hmatch Hproph Ds]" as ">(HΦ & Ds)".
-        { destruct (process_proph tid pvs) as [[i o] | ] eqn: Def_pvs; last first;
-            last (destruct o as [j | ]).
+        { destruct Hpvs' as [v1 Hpvs']. destruct (process_proph tid pvs) eqn: H'.
           - iMod "Hmatch" as (a)"[DsR [_ H']]".
             iCombine "DsR Ds" as "H''".
             iAssert (⌜a = abs s0⌝)%I as %->. 
-            { iPoseProof (own_valid with "[$H'']") as "%H'".
-              rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
+            { iPoseProof (own_valid with "[$H'']") as "%H''".
+              rewrite frac_agree_op_valid_L in H''. iPureIntro; apply H''. }
             iEval (rewrite <-frac_agree_op) in "H''".
             iEval (rewrite Qp.half_half) in "H''".
-            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
-              with "[$H'']") as "H''".
+            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) 
+              (to_frac_agree 1 (abs s0'))) with "[$H'']") as "H''".
             { apply cmra_update_exclusive. 
               rewrite /valid /cmra_valid /= /prod_valid_instance.
               split; simpl; try done. }
@@ -1460,23 +1473,22 @@ Module SKIPLIST1_SPEC_INSERT.
             iEval (rewrite frac_agree_op) in "H''".
             iDestruct "H''" as "(Ds & DsR)".
             iSpecialize ("H'" $! (abs s0') true).
-            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
-            iFrame "Ds". iApply "Hpost". iFrame "Hproph".
-            iPureIntro. clear -Hpvs' Hprf Def_pvs. destruct Hpvs' as [v1 Hpvs']. 
-            apply (process_proph_case1_rec _ (prf ++ [((v1, #true)%V, #())])).
-            rewrite -app_assoc. by rewrite -Hpvs'. apply Forall_app. split.
-            rewrite Forall_lookup. rewrite Forall_lookup in Hprf.
-            intros i' x' H'%Hprf. destruct H' as [v1' ->]. done. 
-            rewrite Forall_singleton. done.
+            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. } iFrame "Ds". 
+            iApply ("Hpost" $! true (prf ++ [((v1, #true)%V, #())]) pvs'). 
+            iFrame "Hproph". iModIntro. iPureIntro.
+            clear -Hpvs' Hprf. split; try done.
+            rewrite Hpvs'. by rewrite assoc. rewrite Forall_app. split.
+            apply (Forall_impl _ _ _ Hprf). intros [x1 x2]. intros [v1' [=]].
+            by subst x2. by rewrite Forall_singleton.
           - iMod "Hmatch" as (a)"[DsR [_ H']]".
             iCombine "DsR Ds" as "H''".
             iAssert (⌜a = abs s0⌝)%I as %->. 
-            { iPoseProof (own_valid with "[$H'']") as "%H'".
-              rewrite frac_agree_op_valid_L in H'. iPureIntro; apply H'. }
+            { iPoseProof (own_valid with "[$H'']") as "%H''".
+              rewrite frac_agree_op_valid_L in H''. iPureIntro; apply H''. }
             iEval (rewrite <-frac_agree_op) in "H''".
             iEval (rewrite Qp.half_half) in "H''".
-            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) (to_frac_agree 1 (abs s0'))) 
-              with "[$H'']") as "H''".
+            iMod ((own_update γ_r (to_frac_agree 1 (abs s0)) 
+              (to_frac_agree 1 (abs s0'))) with "[$H'']") as "H''".
             { apply cmra_update_exclusive. 
               rewrite /valid /cmra_valid /= /prod_valid_instance.
               split; simpl; try done. }
@@ -1484,11 +1496,12 @@ Module SKIPLIST1_SPEC_INSERT.
             iEval (rewrite frac_agree_op) in "H''".
             iDestruct "H''" as "(Ds & DsR)".
             iSpecialize ("H'" $! (abs s0') true).
-            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. }
-            iFrame "Ds". iApply "Hpost". iFrame "Hproph".
-            iModIntro. by iLeft.
-          - exfalso. clear -Def_pvs Hpvs' Hprf. apply process_proph_case2 in Def_pvs.
-            destruct Hpvs' as [v1 Hpvs']. destruct Def_pvs as ([x Hi] & Htakei).
+            iMod ("H'" with "[$DsR]") as "HQ". { by iPureIntro. } iFrame "Ds". 
+            iApply ("Hpost" $! true (prf ++ [((v1, #true)%V, #())]) pvs'). 
+            iFrame "Hproph". iModIntro. iSplitR; last by iLeft.
+            iPureIntro. rewrite Hpvs'. by rewrite assoc.
+          - exfalso. clear -Hpvs' Hprf H'. apply process_proph_no_upd in H'.
+            destruct H' as [i [x [Hi Htake]]].
             destruct (decide (length prf < i)) as [Hiprf | Hiprf]; last first.
             { rewrite Hpvs' /= in Hi. rewrite Nat.nlt_ge Nat.le_lteq in Hiprf. 
               destruct Hiprf as [Hiprf | ->]. 
@@ -1499,7 +1512,7 @@ Module SKIPLIST1_SPEC_INSERT.
             assert (take i pvs !! (length prf) = Some ((v1, #true)%V, #())) as H'.
             { rewrite lookup_take; try done. 
               rewrite Hpvs' list_lookup_middle; try done. }
-            apply (Forall_lookup_1 _ _ _ _ Htakei) in H'.
+            apply (Forall_lookup_1 _ _ _ _ Htake) in H'.
             destruct H' as [H' _]. apply H'; rewrite /is_snd /=. by exists v1. }
         
         iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
