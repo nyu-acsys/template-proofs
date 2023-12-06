@@ -305,6 +305,14 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Parameter (hd tl: Node).
   Notation iProp := (iProp Σ).
 
+  (*
+  Parameter node : ∀ Σ, Node → nat → MarkT → NextT → nat → iProp Σ.
+  Parameter node_timeless_proof : ∀ Σ n h mark next k, 
+    Timeless (node Σ n h mark next k).
+  Global Instance node_timeless Σ n h mark next k: Timeless (node Σ n h mark next k).
+  Proof. apply node_timeless_proof. Qed.
+  *)
+
   Parameter node : Node → nat → MarkT → NextT → nat → iProp.
   Parameter node_timeless_proof : ∀ n h mark next k, 
     Timeless (node n h mark next k).
@@ -415,6 +423,27 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (∀ n, n ∈ FP s → Height s' n = Height s n)
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
+  
+  (*
+  Definition resources (Σ: gFunctors) (H': dsGG Σ) γ_ks s : iProp Σ :=
+      own γ_ks (● prodKS (KS, abs s))
+    ∗ ([∗ set] n ∈ FP s, node Σ n (Height s n) (Mark s n) (Next s n) (Key s n))
+    ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
+
+  Definition ds_inv (Σ: gFunctors) (H': dsGG Σ) (M: gmap nat snapshot) 
+    (T: nat) (s: snapshot) : iProp Σ :=
+      ⌜snapshot_constraints s⌝
+    ∗ resources Σ _ γ_ks s
+    ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝
+    ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
+
+  Global Instance ds_inv_timeless Σ (H': dsGG Σ) M T s : 
+    Timeless (ds_inv Σ _ M T s).
+  Proof.
+    try apply _.
+  Qed.
+  
+  *)
 
   Definition resources γ_ks s : iProp :=
       own γ_ks (● prodKS (KS, abs s))
@@ -427,7 +456,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∗ resources γ_ks s
     ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
-    
+
   Global Instance ds_inv_timeless M T s : 
     Timeless (ds_inv M T s).
   Proof.
@@ -435,7 +464,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Qed.
 
     (** Helper functions specs *)
-        
+       
   Definition is_array (array : loc) (xs : list Node) : iProp :=
     let vs := (fun n => # (LitLoc n)) <$> xs
     in array ↦∗ vs.
@@ -452,7 +481,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     rewrite (list_fmap_insert ((λ b : nat, #b) : nat → val) xs i v).
     iAssumption.
   Qed.
-
+  
   Lemma array_repeat (b : nat) (n : nat) :
     {{{ ⌜0 < n⌝ }}} AllocN #n #b 
     {{{ arr, RET #arr; is_array arr (replicate n b) }}}.
@@ -468,11 +497,12 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Qed.
   *)
 
+  
   Definition dsG0 : dsG Σ.
     unfold dsG.
     try apply _.
   Qed.
-    
+  
     
 End SKIPLIST1.
   

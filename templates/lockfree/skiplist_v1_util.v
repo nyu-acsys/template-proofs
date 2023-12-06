@@ -752,7 +752,7 @@ Module SKIPLIST1_UTIL.
       apply IHS; try done.
   Qed. 
 
-  Lemma keyset_disjoint_subset γ_ks (S: gset Node) (fks fc : Node → gset nat) :
+  Lemma keyset_disjoint_subset Σ (_: dsGG Σ) γ_ks (S: gset Node) (fks fc : Node → gset nat) :
     ([∗ set] n ∈ S, own γ_ks (◯ prodKS (fks n, fc n))) -∗
         ⌜∀ n1 n2, n1 ∈ S → n2 ∈ S → n1 ≠ n2 → fks n1 ## fks n2⌝
       ∗ ⌜∀ n, n ∈ S → fc n ⊆ fks n⌝.
@@ -778,7 +778,7 @@ Module SKIPLIST1_UTIL.
       exists y; set_solver. 
   Qed.
 
-  Lemma keyset_summary γ_ks (S: gset Node) fks fc (C: gset nat):
+  Lemma keyset_summary Σ (_: dsGG Σ) γ_ks (S: gset Node) fks fc (C: gset nat):
     own γ_ks (● prodKS (KS, C)) -∗
     ([∗ set] n ∈ S, own γ_ks (◯ prodKS (fks n, fc n))) -∗
       ⌜∀ n k, n ∈ S → k ∈ fks n → (k ∈ C ↔ k ∈ fc n)⌝.

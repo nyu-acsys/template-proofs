@@ -33,10 +33,10 @@ Module SKIPLIST1_SPEC_INSERT.
             changeNext #n #m #m' #i @ ∅
       <<{ ∃∃ (success: bool) next',
               node n h mark next' k
-            ∗ (match success with true => ⌜next !! i = Some m 
+            ∗ (match success with true => ⌜next !!! i = m 
                                             ∧ mark !!! i = false
                                             ∧ next' = <[i := m']> next⌝
-                                | false => ⌜(next !! i ≠ Some m ∨ 
+                                | false => ⌜(next !!! i ≠ m ∨ 
                                               mark !!! i = true)
                                             ∧ next' = next⌝ end) |
               RET (match success with true => SOMEV #() 
@@ -51,11 +51,11 @@ Module SKIPLIST1_SPEC_INSERT.
             ∗ proph p pvs'
             ∗ ⌜Forall (λ x, ∃ v1, x = ((v1, #false)%V, #())) prf⌝
             ∗ (match success with 
-                true => ⌜next !! 0 = Some m 
+                true => ⌜next !!! 0 = m 
                         ∧ mark !!! 0 = false
                         ∧ next' = <[0 := m']> next
                         ∧ (∃ v1, pvs = prf ++ [((v1, #true)%V, #())] ++ pvs')⌝
-              | false => ⌜(next !! 0 ≠ Some m ∨ mark !!! 0 = true)
+              | false => ⌜(next !!! 0 ≠ m ∨ mark !!! 0 = true)
                           ∧ next' = next
                           ∧ pvs = prf ++ pvs'⌝ end) |
               RET (match success with true => SOMEV #() 
@@ -249,7 +249,7 @@ Module SKIPLIST1_SPEC_INSERT.
           iApply ("Hpost" $! _ (prf ++ prf') pvs''). iFrame "Hproph #".
           iPureIntro. rewrite Def_pvs' in Hpvs. rewrite Hpvs. 
           by rewrite assoc. 
-      + iDestruct "Hif" as %(Next_p0 & Mark_p0 & Def_next' & Hpvs').
+      + iDestruct "Hif" as %(Next_p0' & Mark_p0 & Def_next' & Hpvs').
         iAssert (∀ i, ⌜i < L⌝ → ⌜(ss !!! i) ∈ FP s0⌝ ∗ ⌜i < Height s0 (ss !!! i)⌝)%I 
           as %Hss.
         { iIntros (i)"#Hi". iDestruct "Htr" as "(Htr&_)". 
@@ -328,6 +328,13 @@ Module SKIPLIST1_SPEC_INSERT.
                               outR := <<[c := out_pc]>> ∅ |}.
           assert (∀ x, I0 !!! x = FI s0 x) as I0_eq_s0.
           { intros x. rewrite Hs0; unfold FI. try done. }
+          assert (p ≠ tl) as p_neq_tl.
+          { intros ->. destruct PT_s0 as ((_&_&H''&_)&_).
+            clear -H'' Key_pn Range_k. lia. }
+          assert (Next s0 p !! 0 = Some c) as Next_p0.
+          { rewrite lookup_lookup_total. by rewrite Next_p0'. rewrite -elem_of_dom.
+            apply PT_s0 in FP_p0. destruct FP_p0 as (_&H'&_). rewrite H'; try done.
+            rewrite elem_of_gset_seq. lia. }
           assert (Key s0 p < Key s0 c) as Key_pc.
           { destruct PT_s0 as (_&_&_&_&PT&_). rewrite /Nexti in PT.
             by pose proof PT p c Next_p0. }
@@ -1163,8 +1170,7 @@ Module SKIPLIST1_SPEC_INSERT.
               by rewrite II_n /I0' lookup_total_insert in n_in_II. }
             { intros x' k'. apply (Out_x' _ x' k') in n_in_II.
               by rewrite II_n /I0' lookup_total_insert in n_in_II. }
-          - intros ->. destruct PT_s0 as ((_&_&H'&_)&_). rewrite H' in Key_p0.
-            clear -Key_p0; lia. }
+          - done. }
         set s0' := (FP0 ∪ {[n]}, C0 ∪ {[k]}, Ht0', Mk0', Nx0', Ky0', I): snapshot.
         set M0' := <[T0+1 := s0']> M0.
         assert (abs s0 = C0) as Habs0'.
@@ -1216,7 +1222,7 @@ Module SKIPLIST1_SPEC_INSERT.
         { intros ->. destruct PT_s0 as (PT&_). 
           destruct PT as (H'&_). clear -H' n_notin_s0. set_solver. }
 
-          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources γ_ks s0' ∗ ⌜k ∉ abs s0⌝)%I 
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources γ_ks s0' ∗ ⌜k ∉ abs s0⌝)%I 
           with "[GKS Nodes_KS Node_n Node_p Nodes_rest]" as ">(Res & %k_notin_s0)".
         { rewrite (big_sepS_delete _ _ nk); last first. 
           { apply Hflupd. }
@@ -1535,7 +1541,7 @@ Module SKIPLIST1_SPEC_INSERT.
         iIntros (??)"_". by wp_pures.
   Admitted. 
 
-
+End SKIPLIST1_SPEC_INSERT.
     
 
   

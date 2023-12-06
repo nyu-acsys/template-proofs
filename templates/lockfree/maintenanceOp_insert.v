@@ -34,10 +34,10 @@ Module MAINTENANCEOP_INSERT.
             changeNext #n #m #m' #i @ ∅
       <<{ ∃∃ (success: bool) next',
               node n h mark next' k
-            ∗ (match success with true => ⌜next !! i = Some m 
+            ∗ (match success with true => ⌜next !!! i = m 
                                             ∧ mark !!! i = false
                                             ∧ next' = <[i := m']> next⌝
-                                | false => ⌜(next !! i ≠ Some m ∨ 
+                                | false => ⌜(next !!! i ≠ m ∨ 
                                               mark !!! i = true)
                                             ∧ next' = next⌝ end) |
               RET (match success with true => SOMEV #() 
@@ -156,6 +156,19 @@ Module MAINTENANCEOP_INSERT.
         rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
       iIntros (success next')"(Node_p & Hif)".
       iApply (lc_fupd_add_later with "Hc"). iNext.
+
+      iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
+      { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
+      iAssert (⌜Key s0 p < W⌝)%I as %Key_pW. 
+      { iDestruct "Htr'" as "(Htr'&_)". 
+        iDestruct"Htr'" as (s)"(Past_s & %FP_ps & %Key_ps & _)".
+        apply leibniz_equiv in Habs0. rewrite -Habs0.
+        iPoseProof (key_eq_2 p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+          try done. iPureIntro. clear -Key_ps Range_k. lia. }
+      assert (p ≠ tl) as p_neq_tl. 
+      { intros ->. destruct PT_s0 as ((_&_&H'&_)&_).
+        rewrite H' in Key_pW. clear -Key_pW. lia. }
+
       destruct success; last first; 
         last destruct (decide (n = c)) as [<- | n_neq_c].
       + iDestruct "Hif" as %[H' ->]. 
@@ -175,10 +188,14 @@ Module MAINTENANCEOP_INSERT.
           & %HpsL' & %HssL' & #Htr'' & _)". wp_pures.
         iSpecialize ("IH" $! i ps' ss').
         iApply ("IH" with "[-Hpost]"); try done. iFrame "Hperm # %". admit.
-      + iDestruct "Hif" as %[Next_p0 [Mark_p0 Def_next']].
+      + iDestruct "Hif" as %[Next_p0' [Mark_p0 Def_next']].
+        assert (Next s0 p !! idx = Some n) as Next_p0.
+        { rewrite lookup_lookup_total. by rewrite Next_p0'. rewrite -elem_of_dom.
+          apply PT_s0 in FP_p0. destruct FP_p0 as (_&H'&_). rewrite H'; try done.
+          rewrite elem_of_gset_seq. lia. }
         assert (next' = Next s0 p) as Hnext'. 
         { rewrite Def_next'. apply map_eq. intros i'. 
-          destruct (decide (i' = idx)) as [-> | Hi]. 
+          destruct (decide (i' = idx)) as [-> | Hi].
           by rewrite lookup_insert Next_p0. by rewrite lookup_insert_ne. }
         rewrite Hnext'.
         iModIntro. iSplitR "Hpost Hperm Hsuccs Hpreds".
@@ -193,15 +210,17 @@ Module MAINTENANCEOP_INSERT.
           iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
           iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
           by iPureIntro. }
-      + iDestruct "Hif" as %[Next_p0 [Mark_p0 Def_next']].
+      + iDestruct "Hif" as %[Next_p0' [Mark_p0 Def_next']].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
             [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
         set Nx0' := <[p := next']> Nx0.
         set s0' := (FP0, C0, Ht0, Mk0, Nx0', Ky0, I0): snapshot.
         set M0' := <[T0 + 1 := s0']> M0.
         
-        iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
-        { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
+        assert (Next s0 p !! idx = Some c) as Next_p0.
+        { rewrite lookup_lookup_total. by rewrite Next_p0'. rewrite -elem_of_dom.
+          apply PT_s0 in FP_p0. destruct FP_p0 as (_&H'&_). rewrite H'; try done.
+          rewrite elem_of_gset_seq. lia. }
 
         assert (FP s0' = FP s0) as FP_s0'.
         { by rewrite /FP /s0' Hs0. }
@@ -246,15 +265,6 @@ Module MAINTENANCEOP_INSERT.
           assert (Content s0' x = Content s0 x) as ->.
           rewrite /Content HK /Marki HM. done. done. }
         
-        iAssert (⌜Key s0 p < W⌝)%I as %Key_pW. 
-        { iDestruct "Htr'" as "(Htr'&_)". 
-          iDestruct"Htr'" as (s)"(Past_s & %FP_ps & %Key_ps & _)".
-          apply leibniz_equiv in Habs0. rewrite -Habs0.
-          iPoseProof (key_eq_2 p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
-            try done. iPureIntro. clear -Key_ps Range_k. lia. }
-        assert (p ≠ tl) as p_neq_tl. 
-        { intros ->. destruct PT_s0 as ((_&_&H'&_)&_).
-          rewrite H' in Key_pW. clear -Key_pW. lia. }
         iAssert (⌜n ∈ FP s0⌝)%I as %FP_n0.
         { apply leibniz_equiv in Habs0. rewrite -Habs0. 
           iDestruct "FP_n" as (s)"(Past_s & %H' & _)".

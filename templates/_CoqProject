@@ -28,5 +28,8 @@ hindsight/hindsight_proof.v
 
 lockfree/skiplist_v1.v
 lockfree/skiplist_v1_util.v
-#lockfree/skiplist_v1_traverse.v
-
+lockfree/skiplist_v1_traverse.v
+lockfree/maintenanceOp_insert.v
+lockfree/skiplist_v1_insert.v
+lockfree/maintenanceOp_delete.v
+lockfree/skiplist_v1_delete.v
