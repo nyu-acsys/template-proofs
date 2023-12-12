@@ -1167,7 +1167,7 @@ Proof.
       set_solver. rewrite Hout.
       unfold ccmunit, ccm_unit. simpl. unfold lift_unit.
       intros H'. rewrite nzmap_eq in H'.
-      Search not empty. apply set_choose_L in HS.
+      apply set_choose_L in HS.
       destruct HS as [k HS].
       pose proof H' k as H'.
       rewrite nzmap_lookup_empty in H'.

@@ -9,39 +9,43 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Require Export hindsight flows.
 
-Module Type HINDSIGHT_SPEC (DS : DATA_STRUCTURE).
+Module Type HINDSIGHT_SPEC.
+  Declare Module DS : DATA_STRUCTURE.
   Module DEFS := HINDSIGHT_DEFS DS.
-  Import DS DEFS.
-
+  Export DS DEFS.
   
-  Parameter dsOp_spec: ∀ N γ_t γ_r γ_m γ_mt γ_msy op r (p: proph_id) pvs 
-     tid t0 Q,
-          main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
-          thread_start γ_t γ_mt tid t0 -∗
-          □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗
+  Parameter dsOp_spec: ∀ (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q,
+          main_inv Σ H' H'' H''' N γ_t γ_r γ_m γ_mt γ_msy r -∗
+          thread_start Σ H' H'' H''' γ_t γ_mt tid t0 -∗
+          □ update_helping_protocol Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy -∗
+          ⌜local_pre op⌝ -∗
             {{{ proph p pvs ∗ 
                 (match process_proph tid pvs with
-                  contra => au N γ_r op Q
+                  contra => au Σ H' H'' H''' N γ_r op Q
                 | no_upd => True
-                | upd => au N γ_r op Q end) }}}
-                  dsOp (Op_to_val op) #r #p @ ⊤
+                | upd => au Σ H' H'' H''' N γ_r op Q end) }}}
+                  dsOp (Op_to_val op) #p #r @ ⊤
             {{{ (res: resT) prf pvs', RET #res;
                 proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
                 (match process_proph tid pvs with
                   contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
-                | no_upd => past_lin_witness γ_m op res t0
+                | no_upd => past_lin_witness Σ H' H'' H''' γ_m op res t0
                 | upd => Q #res ∨ 
                     ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
   
 End HINDSIGHT_SPEC.
 
-Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
-  Import DS HS.DEFS HS.
-    
+Module CLIENT_SPEC (SPEC : HINDSIGHT_SPEC).
+  Export SPEC.DS SPEC.DEFS SPEC.
+
+  (* Context `{!heapGS Σ, !hsG Σ}. *)
+  (* Context (H' : dsG Σ). *)
+  
   (** Proofs *)
     
-  Lemma history_sync γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) 
-    (s: snapshot) t: 
+  Lemma history_sync (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
+    γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) (s: snapshot) t: 
     own γ_m (● M) -∗ own γ_m (◯ {[t := to_agree s]}) -∗
       ⌜M !! t ≡ Some (to_agree s)⌝.
   Proof.
@@ -71,20 +75,22 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       let: "t_id" := NewProph in
       let: "p_upd" := NewProph in
       let: "p" := NewProph in
-      let: "v" := dsOp "OP" "r" "p_upd" in
+      let: "v" := dsOp "OP" "p_upd" "r" in
       resolve_proph: "p_upd" to: "t_id";;
       resolve_proph: "p" to: "v";;
       "v".
 
 
-  Lemma dsOp'_spec N γ_t γ_r γ_m γ_mt γ_msy op (r: loc) :
-          main_inv N γ_t γ_r γ_m γ_mt γ_msy -∗
-              <<{ ∀∀ a, dsRep γ_r a }>> 
+  Lemma dsOp'_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
+    N γ_t γ_r γ_m γ_mt γ_msy r op :
+          main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+          ⌜local_pre op⌝ -∗
+              <<{ ∀∀ a, dsRep Σ Hg1 Hg2 Hg3 γ_r a }>> 
                      dsOp' (Op_to_val op) #r @ ↑N
-              <<{ ∃∃ a' res, dsRep γ_r a' ∗ ⌜seq_spec op a a' res⌝ 
+              <<{ ∃∃ a' res, dsRep Σ Hg1 Hg2 Hg3 γ_r a' ∗ ⌜seq_spec op a a' res⌝ 
                   | RET #res }>>.
   Proof.
-    iIntros "#HInv" (Φ) "AU". wp_lam. 
+    iIntros "#HInv %Local" (Φ) "AU". wp_lam. 
     wp_pure credit:"Hc". wp_pure credit:"Hc'". wp_pures.
     wp_apply wp_new_proph1; try done.
     iIntros (tid vtid)"Htid". wp_pures.
@@ -93,15 +99,15 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
     wp_apply (typed_proph_wp_new_proph1 resTTypedProph); first done.
     iIntros (vp p2) "Hproph2". wp_pures.
     
-    iAssert (update_helping_protocol N γ_t γ_r γ_mt γ_msy)%I 
+    iAssert (update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy)%I 
         as "Upd_help". 
     { iIntros (M T s)"%Dom_M Ds Prot".
       iDestruct "Prot" as (Mt Msy)"(HMt & HMsy & %Domm_Mt & Hstar_t & Hstar_sy)".
       set R := dom Msy.
-      iAssert (dsRep γ_r (abs s) -∗
-        ([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_mt γ_msy t_id M) ={⊤ ∖ ↑cntrN N}=∗
-        (([∗ set] t_id ∈ R, Reg N γ_t γ_r γ_mt γ_msy t_id (<[T+1:=s]> M))
-        ∗ dsRep γ_r (abs s)))%I as "H'".
+      iAssert (dsRep Σ Hg1 Hg2 Hg3 γ_r (abs s) -∗
+        ([∗ set] t_id ∈ R, Reg Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy t_id M) ={⊤ ∖ ↑cntrN N}=∗
+        (([∗ set] t_id ∈ R, Reg Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy t_id (<[T+1:=s]> M))
+        ∗ dsRep Σ Hg1 Hg2 Hg3 γ_r (abs s)))%I as "H'".
       { iIntros "Ds". 
         iInduction R as [|tid' R' tid_notin_R IH] "HInd" using set_ind_L; 
           auto using big_sepS_empty'.
@@ -111,7 +117,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
         iIntros "(Htid & Hbigstar)". 
         iMod ("HInd" with "[$Ds] Hbigstar") as "(H' & Ds)". iFrame "H'". 
         iDestruct "Htid" as (γ_tk' γ_sy' Q' op' vp' t0')
-          "(#Hthst & #Hthsy & Hsy & #HthInv)".
+          "(#Hthst & #Hthsy & Hsy & #HthInv)". 
         iInv "HthInv" as (M'' T'')"Hstate".
         iDestruct "Hstate" as "(>Hsy' & >%Dom_M'' & >%Ht0 & Hstate)".
         iAssert (⌜M'' = M⌝)%I as %->.
@@ -198,9 +204,9 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
     iPoseProof (own_update _ (● MaxNat T0) (● MaxNat T0 ⋅ ◯ MaxNat T0) 
       with "H'") as ">(H' & Thd_st'')".
     { apply (auth_update_alloc _ _ (MaxNat T0)), max_nat_local_update. lia. }
-    iAssert (hist γ_t γ_m M0 T0) with "[H' H'']" as "Hist".
+    iAssert (hist Σ Hg1 Hg2 Hg3 γ_t γ_m M0 T0) with "[H' H'']" as "Hist".
     { iExists M0'. iFrame. } clear M0'.
-    iAssert (thread_start γ_t γ_mt tid T0) with "[Thd_st'' Thd_st']" as "#Thd_st".
+    iAssert (thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid T0) with "[Thd_st'' Thd_st']" as "#Thd_st".
     { iFrame. } iClear "Thd_st' Thd_st''".
 
     set pres := process_proph tid pvs.
@@ -213,8 +219,8 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       rewrite dom_insert_L. clear -Domm_Mt0; set_solver. rewrite dom_insert_L.
       rewrite big_sepS_union. iFrame. rewrite big_sepS_singleton. by iExists vtid.
       set_solver. iModIntro.
-
-      wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
+      
+      wp_apply (dsOp_spec with "[] [] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
       iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
       wp_pures. iDestruct "Hmatch" as %Hprf. 
@@ -233,7 +239,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       rewrite big_sepS_union. iFrame. rewrite big_sepS_singleton. by iExists vtid.
       set_solver. iModIntro.
 
-      wp_apply (dsOp_spec with "[] [] [] [AU Hproph1]"); try done.
+      wp_apply (dsOp_spec with "[] [] [] [] [AU Hproph1]"); try done.
       { iFrame "Hproph1". rewrite Def_pres. iFrame "AU". }
       iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
       wp_pures. wp_apply (wp_resolve_proph with "[Hproph1]"); try done.
@@ -270,8 +276,8 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       iAssert (⌜dom M0 = gset_seq 0 T0⌝)%I as %Dom_M0. 
       { by iDestruct "Hist" as (M0') "(_&_&%&_)". }
 
-      iAssert (|={⊤ ∖ ↑cntrN N}=> dsRepI γ_r (abs s0) ∗ 
-        (inv (threadN N) (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0)))%I
+      iAssert (|={⊤ ∖ ↑cntrN N}=> dsRepI Σ Hg1 Hg2 Hg3 γ_r (abs s0) ∗ 
+        (inv (threadN N) (∃ M T, State Σ Hg1 Hg2 Hg3 γ_sy γ_tk (au Σ Hg1 Hg2 Hg3 N γ_r op Φ) Φ M T op vp T0)))%I
         with "[Ds AU Hc' Hreg_sy1]" as "H'".
       { destruct (decide (seq_spec op (abs (M0 !!! T0)) (abs (M0 !!! T0)) vp))
           as [Hss | Hss].
@@ -286,17 +292,17 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
           { iFrame. apply leibniz_equiv in Habs0. 
             rewrite Habs0 in Hss. by iPureIntro. }
         
-          iAssert (past_lin M0 T0 op vp T0)%I as "Hpast".
+          iAssert (past_lin Σ Hg1 Hg2 Hg3 M0 T0 op vp T0)%I as "Hpast".
           { iPureIntro. exists T0. split; try done. }
           
           iMod (inv_alloc (threadN N) _ 
-            (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0) 
+            (∃ M T, State Σ Hg1 Hg2 Hg3 γ_sy γ_tk (au Σ Hg1 Hg2 Hg3 N γ_r op Φ) Φ M T op vp T0) 
             with "[HΦ Hreg_sy1]") as "#HthInv".
           { iNext. iExists M0, T0. iFrame "∗%". iSplitR. by iPureIntro.
             iRight. iSplitL. by iLeft. iFrame "#". }
           iModIntro; iFrame "∗#".
         - iMod (inv_alloc (threadN N) _ 
-           (∃ M T, State γ_sy γ_tk (au N γ_r op Φ) Φ M T op vp T0) 
+           (∃ M T, State Σ Hg1 Hg2 Hg3 γ_sy γ_tk (au Σ Hg1 Hg2 Hg3 N γ_r op Φ) Φ M T op vp T0) 
             with "[AU Hc' Hreg_sy1]") as "#HthInv".
           { iNext. iExists M0, T0. iFrame "∗%". iSplitR. by iPureIntro.
             iLeft. iFrame "AU Hc'". iPureIntro. intros [t [Ht Hss']].
@@ -312,7 +318,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
       iFrame. iSplitL "Htid". by iExists vtid.
       iExists γ_tk, γ_sy, Φ, op, vp, T0. iFrame "∗#". set_solver. set_solver.
       
-      iModIntro. wp_apply (dsOp_spec with "[] [] [] [Hproph1]"); try done.
+      iModIntro. wp_apply (dsOp_spec with "[] [] [] [] [Hproph1]"); try done.
       { iFrame "Hproph1". by rewrite Def_pres. }
 
       iIntros (res prf pvs')"(Hproph1 & %Def_pvs & Hmatch)". rewrite Def_pres. 
@@ -360,7 +366,7 @@ Module CLIENT_SPEC (DS : DATA_STRUCTURE) (HS: HINDSIGHT_SPEC DS).
         iDestruct "PastW" as (s) "(#PastW & %Hseq)".
         iDestruct "PastW" as (t)"(%T0_le_t & Ht)".
         iDestruct "Hist" as (M1') "(H'&H''&H''')".
-        iPoseProof (history_sync with "[$H''] [$Ht]") as "%H'".
+        iPoseProof (history_sync Σ Hg1 Hg2 Hg3 with "[$H''] [$Ht]") as "%H'".
         iDestruct "H'''" as "(_&%H''&_)". apply H'' in H'.
         iPureIntro. apply HPending. exists t. split. split; try done.
         apply elem_of_dom_2 in H'. rewrite Dom_M1 elem_of_gset_seq in H'. lia.

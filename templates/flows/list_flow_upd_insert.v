@@ -1117,7 +1117,7 @@ Section list_flow_upd_insert.
           rewrite /FI /I0' lookup_total_insert_ne; try done.
           rewrite /II lookup_total_insert /In'.
           rewrite (Nx_dom n n1 Insets_n_ne Hnx_n). apply set_eq_subseteq.
-          split; intros n' Hn'. Search outflow_map_set dom.
+          split; intros n' Hn'.
           apply flowint_outflow_map_set_dom in Hn'.
           rewrite /In Dom_out in Hn'. rewrite (Nx_dom n n1 Insets_n_ne Hnx_n) in Hn'.
           clear -Hn'; set_solver. done.
@@ -1463,7 +1463,7 @@ Section list_flow_upd_insert.
     { rewrite /In0. unfold outflow_delete_set, outflow_map_set.
       simpl. apply leibniz_equiv. rewrite nzmap_dom_insert_nonzero.
       unfold FI. rewrite (Nx_dom n0 n1 Insets_n0_ne Hnx_n0).
-      clear; set_solver. Search strict subseteq.
+      clear; set_solver.
       assert (∃ k, k ∈ outset nat (FI I n0) n1 ∧ k ∉ S) as H'.
       { clear -Outset_S. apply non_empty_difference in Outset_S.
         apply set_choose in Outset_S. set_solver. }

@@ -1,4 +1,4 @@
-From stdpp Require Export gmap pmap.
+From stdpp Require Export gmap.
 From Coq Require Import PArith.
 Require Import Coq.Setoids.Setoid.
 

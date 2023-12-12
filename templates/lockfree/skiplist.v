@@ -12,25 +12,17 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Export multiset_flows keyset_ra2 bool_ra.
-From flows Require Export hindsight.
+From flows Require Export hindsight node_module.
 
-Module SKIPLIST1 <: DATA_STRUCTURE.
-
-  Parameter inContents : val.
-  Parameter findNext : val.
-  Parameter changeNext : val.
-  Parameter markNode : val.
-  Parameter compareKey : val.
-  Parameter createNode : val.
-  Parameter getHeight : val.
-  Parameter permute_levels : val.
+Module SKIPLIST (NODE : NODE_IMPL) <: DATA_STRUCTURE.
+  Export NODE.
   
   Parameter L : nat. (* Maxlevels *)
   Parameter W : nat. (* Keyspace *)
 
   (* Template Algorithms *)
 
-  Definition traverse_i : val :=
+  Definition traverse_i : heap_lang.val :=
     rec: "tri" "i" "pred" "curr" "k" :=
       let: "fn_curr" := findNext "curr" "i" in
       let: "m" := Fst "fn_curr" in
@@ -49,8 +41,8 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         else
           SOME ("pred", "curr", #false).
 
-  Definition traverse_pop : val :=
-    λ: "trec" "k" "preds" "succs" "i",
+  Definition traverse_pop : heap_lang.val :=
+    λ: "k" "preds" "succs" "i",
       let: "pred" := ! ("preds" +ₗ ("i" + #1)) in
       let: "fn_pred" := findNext "pred" "i" in
       let: "curr" := Snd "fn_pred" in
@@ -65,9 +57,9 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         "succs" +ₗ "i" <- "succ";;
         SOME ("preds", "succs", "res") end.
 
-  Definition traverse_rec : val :=
+  Definition traverse_rec : heap_lang.val :=
     rec: "trec" "k" "preds" "succs" "i" :=
-      let: "ores" := traverse_pop "trec" "k" "preds" "succs" "i" in
+      let: "ores" := traverse_pop "k" "preds" "succs" "i" in
       match: "ores" with 
         NONE => "trec" "k" "preds" "succs" #(L-2)%nat
       | SOME "res" => 
@@ -76,19 +68,19 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         else
           "trec" "k" "preds" "succs" ("i" - #1) end.
   
-  Definition traverse : val :=
+  Definition traverse : heap_lang.val :=
     λ: "h" "t" "k",
       let: "preds" := AllocN #L "h" in
       let: "succs" := AllocN #L "t" in
       traverse_rec "k" "preds" "succs" #(L-2)%nat.  
 
-  Definition search : val :=
+  Definition search : heap_lang.val :=
     λ: "h" "t" "k",
       let: "preds_succs_res" := traverse "h" "t" "k" in
       let: "res" := Snd "preds_succs_res" in
       "res".
   
-  Definition maintenanceOp_delete_rec : val :=
+  Definition maintenanceOp_delete_rec : heap_lang.val :=
     rec: "mOp" "i" "h" "perm" "curr" :=
       if: "i" < ("h" - #1) then
         let: "idx" := ! ("perm" +ₗ "i") in
@@ -97,14 +89,14 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       else
         #().
   
-  Definition maintenanceOp_delete : val :=
+  Definition maintenanceOp_delete : heap_lang.val :=
     λ: "curr",
       let: "h" := getHeight "curr" in
       let: "perm" := permute_levels "h" in
       maintenanceOp_delete_rec #0%nat "h" "perm" "curr".
   
-  Definition delete : val :=
-    λ: "h" "t" "k" "p",
+  Definition delete : heap_lang.val :=
+    λ: "p" "h" "t" "k",
       let: "preds_succs_res" := traverse "h" "t" "k" in
       let: "preds" := Fst (Fst "preds_succs_res") in
       let: "succs" := Snd (Fst "preds_succs_res") in
@@ -118,7 +110,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
           NONE => #false
         | SOME "_" => traverse_rec "k" "preds" "succs" #(L-2)%nat;; #true end.
 
-  Definition maintenanceOp_insert_rec : val :=
+  Definition maintenanceOp_insert_rec : heap_lang.val :=
     rec: "mOp" "i" "k" "h" "perm" "preds" "succs" "new_node" :=
       if: "i" < ("h" - #1) then
         let: "idx" := ! ("perm" +ₗ "i") in
@@ -133,14 +125,14 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
       else
         #().
 
-  Definition maintenanceOp_insert : val :=
+  Definition maintenanceOp_insert : heap_lang.val :=
     λ: "k" "preds" "succs" "new_node",
       let: "h" := getHeight "new_node" in
       let: "perm" := permute_levels "h" in
       maintenanceOp_insert_rec #0%nat "k" "h" "perm" "preds" "succs" "new_node".
   
-  Definition insert : val :=
-    rec: "ins" "h" "t" "k" "p" :=
+  Definition insert : heap_lang.val :=
+    rec: "ins" "p" "h" "t" "k" :=
       let: "preds_succs_res" := traverse "h" "t" "k" in
       let: "preds" := Fst (Fst "preds_succs_res") in
       let: "succs" := Snd (Fst "preds_succs_res") in
@@ -152,26 +144,29 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
         let: "pred" := ! ("preds" +ₗ #0%nat) in
         let: "curr" := ! ("succs" +ₗ #0%nat) in
         match: changeNext "pred" "curr" "new_node" "p" with
-          NONE => "ins" "h" "t" "k" "p"
+          NONE => "ins" "p" "h" "t" "k"
         | SOME "_" => 
           maintenanceOp_insert "k" "preds" "succs" "new_node";;
           #true end.         
 
-  Definition dsOp : val :=
-    λ: "OP" "r",
+  Definition dsOp : heap_lang.val :=
+    λ: "OP" "p" "r",
+      let: "ht" := ! "r" in
+      let: "h" := Fst "ht" in
+      let: "t" := Snd "ht" in
       let: "op" := Fst "OP" in
       let: "k" := Snd "OP" in     
       if: "op" = #0 
-      then search "r" "k"
+      then search "h" "t" "k"
       else if: "op" = #1 
-      then insert "r" "k"
-      else delete "r" "k".
+      then insert "p" "h" "t" "k"
+      else delete "p" "h" "t" "k".
       
   Inductive Opp := 
     searchOp : nat → Opp | insertOp : nat → Opp | deleteOp : nat → Opp.
   Definition Op := Opp.
 
-  Definition Op_to_val (op: Op) : val :=
+  Definition Op_to_val (op: Op) : heap_lang.val :=
     match op with
     | searchOp k => (#0, #k)
     | insertOp k => (#1, #k)
@@ -184,12 +179,12 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition resT := bool.
   Definition resT_to_base_lit (b: resT) : base_lit := LitBool b.
   Coercion resT_to_base_lit : resT >-> base_lit.
-  Definition resT_from_val (v : val) : option resT :=
+  Definition resT_from_val (v : heap_lang.val) : option resT :=
     match v with
     | LitV(LitBool b) => Some b
     | _               => None
     end.
-  Definition resT_to_val (b : resT) : val := LitV(LitBool b).
+  Definition resT_to_val (b : resT) : heap_lang.val := LitV(LitBool b).
   
   Lemma resT_inj_prop : ∀ (b : resT), resT_from_val (resT_to_val b) = Some b.
   Proof. done. Qed.
@@ -213,22 +208,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     intros op c c' res. unfold seq_spec. 
     destruct op; try apply and_dec; try destruct res; try apply _.
   Qed.
-
-  (*
-  Definition updater_thread (op: Op) (res: resT) : bool := 
-    match op, res with
-    | searchOp _, _ => false
-    | _, false => false
-    | _, _ => true
-    end.
-
-  Global Instance updater_thread_dec: ∀ op res b, 
-    Decision (updater_thread op res = b).
-  Proof.
-    intros op res b. unfold updater_thread.
-    destruct op; destruct res; try apply _.
-  Qed.  
-  *)
   
   Global Instance Op_inhabited : Inhabited Op := populate (searchOp 0).
   Global Instance absTUR_discrete : CmraDiscrete absTUR.
@@ -256,8 +235,6 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Definition contentsUR := gsetUR natUR.
   Definition set_NodesUR := gsetUR Node.
   
-  Definition MarkT := gmap nat bool.
-  Definition NextT := gmap nat Node.
 
   Definition MarkUR := gmapUR Node $ gmapUR nat $ boolUR.
   Definition NextUR := gmapUR Node $ gmapUR nat $ locUR. 
@@ -300,26 +277,10 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
   Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsGG Σ.
   Proof. solve_inG. Qed.
   
-  Context `{!heapGS Σ, !dsGG Σ}.
+  (* Context `{!heapGS Σ, !dsGG Σ}. *)
+  (* Notation iProp := (iProp Σ). *)
   Parameter γ_ks: gname. 
-  Parameter (hd tl: Node).
-  Notation iProp := (iProp Σ).
-
-  (*
-  Parameter node : ∀ Σ, Node → nat → MarkT → NextT → nat → iProp Σ.
-  Parameter node_timeless_proof : ∀ Σ n h mark next k, 
-    Timeless (node Σ n h mark next k).
-  Global Instance node_timeless Σ n h mark next k: Timeless (node Σ n h mark next k).
-  Proof. apply node_timeless_proof. Qed.
-  *)
-
-  Parameter node : Node → nat → MarkT → NextT → nat → iProp.
-  Parameter node_timeless_proof : ∀ n h mark next k, 
-    Timeless (node n h mark next k).
-  Global Instance node_timeless n h mark next k: Timeless (node n h mark next k).
-  Proof. apply node_timeless_proof. Qed.
-  Parameter node_sep_star: ∀ n h mark next k h' mark' next' k',
-    node n h mark next k -∗ node n h' mark' next' k' -∗ False.
+  (* Parameter (hd tl: Node). *)
   
   Definition FP (s: snapshot) : gset Node :=
     match s with (N, _, _, _, _, _, _) => N end.
@@ -384,7 +345,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (∀ k, inf In n !!! k ≤ 1)
     ∧ (∀ n' k, out In n' !!! k ≤ 1).
 
-  Definition node_inv_pure n h (mark: gmap nat bool) (next: gmap nat Node) 
+  Definition node_inv_pure hd tl n h (mark: gmap nat bool) (next: gmap nat Node) 
     k In : Prop :=
       ((∃ i, mark !!! i = false) → mark !!! 0 = false)
     ∧ (n ≠ tl → dom next = gset_seq 0 (h-1)) 
@@ -393,7 +354,7 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (0 ≤ k ≤ W)
     ∧ (flow_constraints_I n In (mark !!! 0) (next !! 0) k).
     
-  Definition hd_tl_inv (fp: gset Node) ht_hd ht_tl (mhd mtl: gmap nat bool)
+  Definition hd_tl_inv hd tl (fp: gset Node) ht_hd ht_tl (mhd mtl: gmap nat bool)
     (nhd ntl: gmap nat Node) k_hd k_tl : Prop :=
       {[hd; tl]} ⊆ fp
     ∧ (k_hd = 0)
@@ -405,13 +366,13 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ ht_hd = L
     ∧ ht_tl = L.
 
-  Definition per_tick_inv s : Prop := 
-      hd_tl_inv (FP s) (Height s hd) (Height s tl) (Mark s hd) (Mark s tl)
+  Definition per_tick_inv hd tl s : Prop := 
+      hd_tl_inv hd tl (FP s) (Height s hd) (Height s tl) (Mark s hd) (Mark s tl)
         (Next s hd) (Next s tl) (Key s hd) (Key s tl)
     ∧ ✓ GFI s
     ∧ (∀ n k, n ∈ FP s → k ∈ keyset (FI s n) → (k ∈ abs s ↔ k ∈ Content s n))
     ∧ (∀ n, n ∈ (FP s) → 
-        node_inv_pure n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
+        node_inv_pure hd tl n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
     ∧ (∀ n1 n2, Nexti s n1 0 = Some n2 → Key s n1 < Key s n2)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → n2 ∈ FP s)
     ∧ (∀ n1 n2 i, Nexti s n1 i = Some n2 → i < Height s n2).
@@ -424,85 +385,38 @@ Module SKIPLIST1 <: DATA_STRUCTURE.
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
   
-  (*
   Definition resources (Σ: gFunctors) (H': dsGG Σ) γ_ks s : iProp Σ :=
       own γ_ks (● prodKS (KS, abs s))
     ∗ ([∗ set] n ∈ FP s, node Σ n (Height s n) (Mark s n) (Next s n) (Key s n))
     ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
 
-  Definition ds_inv (Σ: gFunctors) (H': dsGG Σ) (M: gmap nat snapshot) 
+  Definition ds_inv Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r (M: gmap nat snapshot) 
     (T: nat) (s: snapshot) : iProp Σ :=
-      ⌜snapshot_constraints s⌝
+    ∃ (hd tl: Node), 
+      r ↦□ (#hd, #tl)
+    ∗ ⌜snapshot_constraints s⌝ 
     ∗ resources Σ _ γ_ks s
-    ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝
+    ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv hd tl (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
 
-  Global Instance ds_inv_timeless Σ (H': dsGG Σ) M T s : 
-    Timeless (ds_inv Σ _ M T s).
+  Global Instance ds_inv_timeless Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r M T s : 
+    Timeless (ds_inv Σ _ _ r M T s).
   Proof.
     try apply _.
   Qed.
   
-  *)
-
-  Definition resources γ_ks s : iProp :=
-      own γ_ks (● prodKS (KS, abs s))
-    ∗ ([∗ set] n ∈ FP s, node n (Height s n) (Mark s n) (Next s n) (Key s n))
-    ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
-
-  Definition ds_inv (M: gmap nat snapshot) 
-    (T: nat) (s: snapshot) : iProp :=
-      ⌜snapshot_constraints s⌝
-    ∗ resources γ_ks s
-    ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝
-    ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
-
-  Global Instance ds_inv_timeless M T s : 
-    Timeless (ds_inv M T s).
-  Proof.
-    try apply _.
-  Qed.
-
-    (** Helper functions specs *)
-       
-  Definition is_array (array : loc) (xs : list Node) : iProp :=
-    let vs := (fun n => # (LitLoc n)) <$> xs
-    in array ↦∗ vs.
-  (*
-  Lemma array_store E (i : nat) (v : Node) arr (xs : list Node) :
-    {{{ ⌜i < length xs⌝ ∗ ▷ is_array arr xs }}}
-      #(arr +ₗ i) <- #v @ E 
-    {{{ RET #(); is_array arr (<[i:=v]>xs) }}}.
-  Proof.
-    iIntros (ϕ) "[% isArr] Post".
-    unfold is_array.
-    iApply (wp_store_offset with "isArr").
-    { apply lookup_lt_is_Some_2. by rewrite fmap_length. }
-    rewrite (list_fmap_insert ((λ b : nat, #b) : nat → val) xs i v).
-    iAssumption.
-  Qed.
+  Definition local_pre (op : Op) :=
+    match op with
+    | searchOp k => 1 < L ∧ 0 < k < W 
+    | insertOp k => 1 < L ∧ 0 < k < W  
+    | deleteOp k => 1 < L ∧ 0 < k < W end.
   
-  Lemma array_repeat (b : nat) (n : nat) :
-    {{{ ⌜0 < n⌝ }}} AllocN #n #b 
-    {{{ arr, RET #arr; is_array arr (replicate n b) }}}.
-  Proof.
-    iIntros (ϕ ?%inj_lt) "Post".
-    iApply wp_allocN; try done.
-    iNext. iIntros (l) "[lPts _]".
-    iApply "Post".
-    unfold is_array.
-    rewrite Nat2Z.id.
-    rewrite -> fmap_replicate.
-    iAssumption.
-  Qed.
-  *)
-
-  
-  Definition dsG0 : dsG Σ.
-    unfold dsG.
-    try apply _.
-  Qed.
-  
+  Parameter permute_levels_spec : ∀ Σ (Hg1: heapGS Σ) (L: nat),
+      {{{ True }}}
+          permute_levels #L
+      {{{ (perm: loc) (vs: list heap_lang.val) (xs: list nat), RET #perm;
+            perm ↦∗ vs
+          ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
+          ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}.
     
-End SKIPLIST1.
-  
+End SKIPLIST.

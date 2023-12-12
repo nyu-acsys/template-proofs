@@ -9,12 +9,13 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export skiplist_v1 flows_big_op.
+From flows Require Export skiplist flows_big_op.
 
-Module SKIPLIST1_UTIL.
-  Module DEFS := HINDSIGHT_DEFS SKIPLIST1.
-  Import SKIPLIST1 DEFS.
-  
+Declare Module NODE : NODE_IMPL.
+Module SK := SKIPLIST NODE.
+Module DEFS := HINDSIGHT_DEFS SK.
+Export SK DEFS.
+
   Definition intf_merge (II I: gmap Node (multiset_flowint_ur nat)) :=
     let f := λ m1 m2,
               match m1, m2 with 
@@ -117,8 +118,8 @@ Module SKIPLIST1_UTIL.
     by rewrite -Heq.
   Qed.
 
-  Lemma history_sync γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) 
-    (s: snapshot) t: 
+  Lemma history_sync (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
+    γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) (s: snapshot) t: 
     own γ_m (● M) -∗ own γ_m (◯ {[t := to_agree s]}) -∗
       ⌜M !! t ≡ Some (to_agree s)⌝.
   Proof.
@@ -188,9 +189,10 @@ Module SKIPLIST1_UTIL.
       try apply _.
   Qed.
 
-  Lemma in_FP n M T γ_t γ_m s ts t:
+  Lemma in_FP (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
+    n M T γ_t γ_m s ts t:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
     own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜ts ≤ t ≤ T⌝ -∗
@@ -202,7 +204,7 @@ Module SKIPLIST1_UTIL.
     by destruct Ht' as (_&_&_&_&_&H'). }
     pose proof temporal_interpolation_fp _ _ H' as H''.
     iDestruct "Hist" as (M') "(H'&H''&H''')".
-    iDestruct (history_sync with "[$H''] [$Past_s]") as "%M_ts".
+    iDestruct (history_sync with "[$H''] [$Past_s]") as "%M_ts"; try done.
     iDestruct "H'''" as "(%H1'&%H1''&_)".
     apply H1'' in M_ts. assert (M_ts' := M_ts). 
     apply lookup_total_correct in M_ts.
@@ -210,10 +212,11 @@ Module SKIPLIST1_UTIL.
     rewrite lookup_total_alt. by rewrite M_ts'.
   Qed.
 
-  Lemma in_FP_2 n M T γ_t γ_m s t0:
+  Lemma in_FP_2 (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
+    n M T γ_t γ_m s t0:
   ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-  hist γ_t γ_m M T -∗
-  past_state γ_m t0 s -∗ 
+  hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+  past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
   ⌜n ∈ FP s⌝ -∗ 
     ⌜n ∈ FP (M !!! T)⌝.
   Proof.
@@ -221,16 +224,16 @@ Module SKIPLIST1_UTIL.
     iDestruct "Past_s" as (ts)"(%Hts & Hs)".
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
       iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (in_FP with "[%] [$Hist] [$Hs] [%]"); try done.
   Qed.
 
-  Lemma key_eq n M T γ_t γ_m s ts t:
+  Lemma key_eq Σ Hg1 Hg2 Hg3 n M T γ_t γ_m s ts t:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
     own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜ts ≤ t ≤ T⌝ -∗
@@ -238,7 +241,7 @@ Module SKIPLIST1_UTIL.
   Proof.
     iIntros "%Trans Hist #Past_s %n_in_s %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
+    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts"; try done.
     iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
@@ -259,10 +262,10 @@ Module SKIPLIST1_UTIL.
     repeat (split; try done).
   Qed.
 
-  Lemma key_eq_2 n M T γ_t γ_m s t0:
+  Lemma key_eq_2 Σ Hg1 Hg2 Hg3 n M T γ_t γ_m s t0:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
-    past_state γ_m t0 s -∗ 
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+    past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
     ⌜n ∈ FP s⌝ -∗
       ⌜Key (M !!! T) n = Key s n⌝.
   Proof.
@@ -270,16 +273,16 @@ Module SKIPLIST1_UTIL.
     iDestruct "Past_s" as (ts)"(%Hts & Hs)".
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
       iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (key_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
   Qed.
 
-  Lemma height_eq n M T γ_t γ_m s ts t:
+  Lemma height_eq Σ Hg1 Hg2 Hg3 n M T γ_t γ_m s ts t:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
     own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜ts ≤ t ≤ T⌝ -∗
@@ -287,7 +290,7 @@ Module SKIPLIST1_UTIL.
   Proof.
     iIntros "%Trans Hist #Past_s %n_in_s %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
+    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts"; try done.
     iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
@@ -308,10 +311,10 @@ Module SKIPLIST1_UTIL.
     repeat (split; try done).
   Qed.
 
-  Lemma height_eq_2 n M T γ_t γ_m s t0:
+  Lemma height_eq_2 Σ Hg1 Hg2 Hg3 n M T γ_t γ_m s t0:
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
-    past_state γ_m t0 s -∗ 
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+    past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
     ⌜n ∈ FP s⌝ -∗
       ⌜Height (M !!! T) n = Height s n⌝.
   Proof.
@@ -319,16 +322,16 @@ Module SKIPLIST1_UTIL.
     iDestruct "Past_s" as (ts)"(%Hts & Hs)".
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
       iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (height_eq with "[%] [$Hist] [$Hs] [%]"); try done.  
   Qed.
 
-  Lemma marking_mono n i M T γ_t γ_m s ts t :
+  Lemma marking_mono Σ Hg1 Hg2 Hg3 n i M T γ_t γ_m s ts t :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
     own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜Marki s n i = true⌝ -∗
@@ -337,7 +340,7 @@ Module SKIPLIST1_UTIL.
   Proof.
     iIntros "%Trans Hist #Past_s %n_in_s Mark_n %Ht".
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts".
+    iDestruct (history_sync with "[$H1''] [$Past_s]") as "%M_ts"; try done.
     iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. 
     assert (ts ∈ dom M) as ts_in_M.
@@ -373,10 +376,10 @@ Module SKIPLIST1_UTIL.
     rewrite -/a in Hm'. destruct a; try (done || lia).
   Qed.
 
-  Lemma marking_mono_2 n i M T γ_t γ_m s t0 :
+  Lemma marking_mono_2 Σ Hg1 Hg2 Hg3 n i M T γ_t γ_m s t0 :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
-    past_state γ_m t0 s -∗ 
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+    past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
     ⌜n ∈ FP s⌝ -∗
     ⌜Marki s n i = true⌝ -∗
       ⌜Marki (M !!! T) n i = true⌝.
@@ -385,7 +388,7 @@ Module SKIPLIST1_UTIL.
     iDestruct "Past_s" as (ts)"(%Hts & Hs)".
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
       iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
@@ -444,9 +447,9 @@ Module SKIPLIST1_UTIL.
   Qed.
 
 
-  Lemma marking_witness n i M T γ_t γ_m ts s :
+  Lemma marking_witness Σ Hg1 Hg2 Hg3 n i M T γ_t γ_m ts s :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
     own γ_m (◯ {[ts := to_agree s]}) -∗
     ⌜n ∈ FP s⌝ -∗
     ⌜Marki s n i = false⌝ -∗
@@ -455,7 +458,7 @@ Module SKIPLIST1_UTIL.
   Proof.
     iIntros "%Trans Hist #Hts %n_in_s %Mark_n %Mark_n'".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-    iDestruct (history_sync with "[$HM'] [$Hts]") as "%M_ts".
+    iDestruct (history_sync with "[$HM'] [$Hts]") as "%M_ts"; try done.
     apply M_eq in M_ts. assert (ts ∈ dom M) as ts_in_M.
     { rewrite elem_of_dom. by rewrite M_ts. }
     apply lookup_total_correct in M_ts.
@@ -494,16 +497,16 @@ Module SKIPLIST1_UTIL.
       rewrite Htrans. apply IHt. all: lia.
   Qed.
 
-  Lemma next_unchanged n i M T γ_t γ_m t0 s :
+  Lemma next_unchanged Σ Hg1 Hg2 Hg3 n i M T γ_t γ_m t0 s :
     ⌜∀ t, 0 <= t < T → transition_inv (M !!! t) (M !!! (t + 1)%nat)⌝ -∗
-    hist γ_t γ_m M T -∗
-    past_state γ_m t0 s -∗ 
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+    past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
     ⌜n ∈ FP s⌝ -∗
     ⌜Marki s n i = true⌝ -∗
       ⌜Nexti (M !!! T) n i = Nexti s n i⌝.
   Proof.
     iIntros "%Trans Hist #Past_s %n_in_s %Mark_n".
-    iAssert (past_state γ_m t0 s) with "Past_s" as "H'".
+    iAssert (past_state Σ Hg1 Hg2 Hg3 γ_m t0 s) with "Past_s" as "H'".
     iDestruct "H'" as (ts)"(%Hts & Hs)".
     iAssert (∀ t, ⌜ts ≤ t < T⌝ → 
       ⌜Nexti (M !!! S t) n i = Nexti (M !!! t) n i⌝)%I as %Htrans.
@@ -517,7 +520,7 @@ Module SKIPLIST1_UTIL.
       apply H'; try done. }
     iAssert (⌜ts ≤ T⌝)%I as %ts_le_T.
     { iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+      iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
       iDestruct "H1'''" as "(%H2'&%H2''&_)".
       apply H2'' in M_ts. apply elem_of_dom_2 in M_ts. 
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
@@ -526,14 +529,14 @@ Module SKIPLIST1_UTIL.
       (λ s, Nexti s n i) Htrans H' as H''. rewrite /= in H''.
     
     iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
-    iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts".
+    iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
     iDestruct "H1'''" as "(%H2'&%H2''&_)".
     apply H2'' in M_ts. apply lookup_total_correct in M_ts.
     rewrite M_ts in H''. by iPureIntro.
   Qed.
 
-  Lemma history_dom t γ_t γ_m M T :
-    hist γ_t γ_m M T -∗
+  Lemma history_dom Σ Hg1 Hg2 Hg3 t γ_t γ_m M T :
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
       ⌜t ∈ dom M ↔ 0 ≤ t ≤ T⌝.
   Proof.
     iIntros "Hist".
@@ -541,38 +544,38 @@ Module SKIPLIST1_UTIL.
     by rewrite Dom_M elem_of_gset_seq.
   Qed. 
 
-  Lemma per_tick_current γ_t γ_m M T s :
+  Lemma per_tick_current Σ Hg1 Hg2 Hg3 γ_t γ_m M T s hd tl :
     ⌜M !!! T ≡ s⌝ -∗ 
-    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝ -∗
-    hist γ_t γ_m M T -∗ 
-      ⌜per_tick_inv s⌝.
+    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv hd tl (M !!! t)⌝ -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
+      ⌜per_tick_inv hd tl s⌝.
   Proof.
     iIntros "%Habs %PT Hist". iDestruct "Hist" as (M')"(_&_&%H'&_)". iPureIntro.
     apply leibniz_equiv in Habs. rewrite <-Habs. apply PT. lia.
   Qed.
 
-  Lemma per_tick_past γ_t γ_m M T s t0:
-    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv (M !!! t)⌝ -∗
-    hist γ_t γ_m M T -∗ 
-    past_state γ_m t0 s -∗
-      ⌜per_tick_inv s⌝.
+  Lemma per_tick_past Σ Hg1 Hg2 Hg3 γ_t γ_m M T s t0 hd tl:
+    ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv hd tl (M !!! t)⌝ -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
+    past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗
+      ⌜per_tick_inv hd tl s⌝.
   Proof.
     iIntros "%PT Hist #Past_s".
     iDestruct "Past_s" as (ts)"(_&Hts)".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-    iPoseProof (history_sync with "HM' Hts") as "%H'".
+    iPoseProof (history_sync with "HM' Hts") as "%H'"; try done.
     assert (H'' := H'). apply M_eq, elem_of_dom_2 in H''.
     rewrite Dom_M elem_of_gset_seq in H''.
     apply PT in H''. apply M_eq, lookup_total_correct in H'. by rewrite -H'.
   Qed.
 
-  Lemma snapshot_create t t0 γ_t γ_m M T:
+  Lemma snapshot_create Σ Hg1 Hg2 Hg3 t t0 γ_t γ_m M T:
     ⌜t0 ≤ t ≤ T⌝ -∗ 
-    hist γ_t γ_m M T -∗ 
-      |==> past_state γ_m t0 (M !!! t) ∗ hist γ_t γ_m M T.
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
+      |==> past_state Σ Hg1 Hg2 Hg3 γ_m t0 (M !!! t) ∗ hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T.
   Proof.
     iIntros "%Ht Hist".
-    iPoseProof (history_dom t with "Hist") as "%Hdom".
+    iPoseProof (history_dom Σ Hg1 Hg2 Hg3 t with "Hist") as "%Hdom".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
     assert (0 ≤ t ≤ T) as Dom_t by lia. apply Hdom in Dom_t.
     apply elem_of_dom in Dom_t. destruct Dom_t as [s Dom_t].
@@ -590,11 +593,11 @@ Module SKIPLIST1_UTIL.
     rewrite Dom_t. iFrame "%#". iPureIntro; lia. iExists M'. iFrame "∗%".
   Qed.
 
-  Lemma snapshot_current γ_t γ_m γ_mt M T s tid t0:
+  Lemma snapshot_current Σ Hg1 Hg2 Hg3 γ_t γ_m γ_mt M T s tid t0:
     ⌜M !!! T ≡ s⌝ -∗ 
-    thread_start γ_t γ_mt tid t0 -∗
-    hist γ_t γ_m M T -∗ 
-      |==> past_state γ_m t0 s ∗ hist γ_t γ_m M T.
+    thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
+      |==> past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T.
   Proof.
     iIntros "%Habs #(_&Ht0) Hist".
     iAssert (⌜t0 ≤ T⌝)%I as "%H'".
@@ -606,11 +609,11 @@ Module SKIPLIST1_UTIL.
     iPoseProof (snapshot_create with "[%] [$Hist]") as "H'"; try done.
   Qed.
 
-  Lemma hist_upd γ_t γ_m M T s s':
+  Lemma hist_upd Σ Hg1 Hg2 Hg3 γ_t γ_m M T s s':
   ⌜M !!! T ≡ s⌝ -∗
   ⌜s ≠ s'⌝ -∗ 
-  hist γ_t γ_m M T -∗
-    |==> hist γ_t γ_m (<[T+1:=s']> M) (T+1).
+  hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
+    |==> hist Σ Hg1 Hg2 Hg3 γ_t γ_m (<[T+1:=s']> M) (T+1).
   Proof.
     iIntros "%Habs %Hs Hist".
     iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
@@ -649,8 +652,8 @@ Module SKIPLIST1_UTIL.
       + intros ?; rewrite !lookup_total_insert_ne; try lia. apply M_neq. lia.
   Qed.
 
-  Lemma in_keyset s p c k :
-    per_tick_inv s → 
+  Lemma in_keyset hd tl s p c k :
+    per_tick_inv hd tl s → 
     p ∈ FP s → 
     c ∈ FP s → 
     Marki s p 0 = false → 
@@ -812,5 +815,3 @@ Module SKIPLIST1_UTIL.
       { apply leibniz_equiv. by rewrite (big_opS_delete _ S n). }
       rewrite H'' in Def_C. clear -Def_C Hc; set_solver.
   Qed.
-
-End SKIPLIST1_UTIL.

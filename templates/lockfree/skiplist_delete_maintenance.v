@@ -1,5 +1,3 @@
-(* Herlihy Skiplist with a single level : Delete *)
-
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -11,50 +9,23 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_v1_util list_flow_upd_marking.
+(* Require Import list_flow_upd_marking. *)
+Require Export skiplist_traverse.
 
-Module MAINTENANCEOP_DELETE.
-  Import SKIPLIST1 SKIPLIST1_UTIL.DEFS SKIPLIST1_UTIL.
-
-  Parameter markNode_spec : ∀ (n: Node) (i: nat),
-    ⊢  <<{ ∀∀ h mark next k, node n h mark next k ∗ ⌜i < h⌝ }>>
-            markNode #n #i @ ∅
-      <<{ ∃∃ (success: bool) mark',
-              node n h mark' next k
-            ∗ (match success with true => ⌜mark !!! i = false
-                                            ∧ mark' = <[i := true]> mark⌝
-                                | false => ⌜mark !!! i = true
-                                            ∧ mark' = mark⌝ end) |
-              RET (match success with true => SOMEV #() 
-                                    | false => NONEV end) }>>.
-
-  Parameter getHeight_spec : ∀ (n: Node) (i: nat),
-    ⊢ <<{ ∀∀ h mark next k, node n h mark next k }>>
-          getHeight #n @ ∅
-      <<{ node n h mark next k | RET #h }>>.
-
-  Parameter permute_levels_spec : ∀ (L: nat),
-        {{{ True }}}
-           permute_levels #L
-        {{{ (perm: loc) (vs: list val) (xs: list nat), RET #perm;
-              perm ↦∗ vs
-            ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
-            ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}.
-
-  Lemma maintenanceOp_delete_rec_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 c
-    perm vs xs i h:
-    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
-    thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
+  Lemma maintenanceOp_delete_rec_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 c
+    perm vs xs i h (hd tl : Node):
+    main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+    thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
         {{{   perm ↦∗ vs
             ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
             ∗ ⌜xs ≡ₚ seq 1 (h-1)⌝
-            ∗ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
+            ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
                     ∗ ⌜∀ j, j < i → Marki s c (xs !!! j) = true⌝)
             ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete_rec #i #h #perm #c @ ⊤
         {{{ RET #();
-              (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
+              (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
                     ∗ ⌜∀ j, j < h-1 → Marki s c (xs !!! j) = true⌝)
             ∗ perm ↦∗ vs }}}.
   Proof.
@@ -73,7 +44,8 @@ Module MAINTENANCEOP_DELETE.
       iIntros "Hperm". wp_pures.
       awp_apply markNode_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
       { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -84,24 +56,24 @@ Module MAINTENANCEOP_DELETE.
       iAssert (⌜Height s0 c = h⌝)%I as %Ht_c0. 
       { apply leibniz_equiv in Habs0. rewrite -Habs0.
         iDestruct "Hmark" as (s)"(Past_s & % & -> & _)".
-        iPoseProof (height_eq_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+        iPoseProof (height_eq_2 _ _ _ _ c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
         try done. }
       assert (idx < h) as idx_lt_h. 
       { assert (idx ∈ seq 1 (h-1)) as H'. 
         { rewrite -Perm_xs elem_of_list_lookup. exists i; try done. }
         rewrite elem_of_seq in H'. clear -H'; lia. }
-      iAssert ((node c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+      iAssert ((node Σ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
         ∗ ⌜idx < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
       { rewrite Ht_c0. iFrame "Node_c". by iPureIntro. }
       iAaccIntro with "Hpre".
       { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost Hc Hperm".
-        iNext; iExists M0, T0, s0. iFrame "∗%#". 
+        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
         rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
       iAssert (∀ j, ⌜j < i⌝ → ⌜Marki s0 c (xs !!! j) = true⌝)%I as %Hj0.
       { iIntros (j)"%Hj". 
         iDestruct "Hmark" as (s) "(Past_s & %FP_c' & %Ht_c & %Hj')".
         apply Hj' in Hj. apply leibniz_equiv in Habs0. rewrite -Habs0.
-        iPoseProof (marking_mono_2 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
+        iPoseProof (marking_mono_2 _ _ _ _ c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
             try done. }
       iAssert (⌜dom M0 = gset_seq 0 T0⌝)%I as %Dom_M0. 
       { by iDestruct "Hist" as (M0'') "(_&_&%&_)". }
@@ -117,13 +89,13 @@ Module MAINTENANCEOP_DELETE.
         set Mk0' := <[c := mark']> Mk0.
         set s0' := (FP0, C0, Ht0, Mk0', Nx0, Ky0, I0): snapshot.
         set M0' := <[T0 + 1 := s0']> M0.
-        iAssert (⌜per_tick_inv s0⌝)%I as %PT_s0.
+        iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
         { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
         assert (FP s0' = FP s0) as FP_s0'.
         { by rewrite /FP /s0' Hs0. }
         assert (abs s0' = abs s0) as Habs'.
         { by rewrite /abs /s0' Hs0. }
-        iAssert (dsRepI γ_r (abs s0'))%I with "[Ds]" as "Ds".
+        iAssert (dsRepI _ _ _ _ γ_r (abs s0'))%I with "[Ds]" as "Ds".
         { by rewrite Habs'. }
         iAssert (own γ_ks (● prodKS (KS, abs s0')))%I with "[GKS]" as "GKS".
         { by rewrite Habs'. }
@@ -152,7 +124,7 @@ Module MAINTENANCEOP_DELETE.
           assert (c ∈ dom Mk0). 
           { rewrite Hs0 in FP_c0. rewrite Dom_Mk0. by unfold FP in FP_c0. }
           clear -H Dom_Mk0. set_solver. }
-        assert (per_tick_inv s0') as PT_s0'.
+        assert (per_tick_inv hd tl s0') as PT_s0'.
         { destruct PT_s0 as (PT1&PT2&PT3&PT4&PT5&PT6&PT7).
           split; last split; last split; last split; last split; last split.
           - rewrite FP_s0' !HK !HN !HT !HM; try done.
@@ -195,7 +167,7 @@ Module MAINTENANCEOP_DELETE.
             rewrite /Marki HM; try done.
             intros Hn1 Hn2. rewrite Hn1 in Hn2. clear -Hn2; done.
           - intros n i'. rewrite /Nexti HN. clear; try done. }
-        iAssert (resources γ_ks s0')%I 
+        iAssert (resources _ _ γ_ks s0')%I 
           with "[GKS Nodes_KS Node_c Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s0'. iSplitR "Nodes_KS".
           rewrite (big_opS_delete _ (FP s0) c).
@@ -209,14 +181,14 @@ Module MAINTENANCEOP_DELETE.
           rewrite /Content HK. destruct (decide (x = c)) as [-> | Hxc].
           rewrite /Marki HMc lookup_total_insert_ne; try done.
           rewrite /Marki HM; try done. done. }
-        iAssert (|==> hist γ_t γ_m M0' (T0+1))%I with "[Hist]" as ">Hist".
-        { iPoseProof (hist_upd _ _ _ _ _ s0' with "[%] [%] [$Hist]") as ">H'".
+        iAssert (|==> hist _ _ _ _ γ_t γ_m M0' (T0+1))%I with "[Hist]" as ">Hist".
+        { iPoseProof (hist_upd _ _ _ _ _ _ _ _ _ s0' with "[%] [%] [$Hist]") as ">H'".
           apply Habs0. intros <-. rewrite map_eq_iff in HMc.
           pose proof HMc idx as HMc. rewrite lookup_insert in HMc.
           apply lookup_total_correct in HMc. by rewrite Mark_c0 in HMc.
           by rewrite /M0'. }
         iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
-          helping_inv N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep γ_r (abs s0'))%I with
+          helping_inv _ _ _ _ N γ_t γ_r γ_mt γ_msy M0' ∗ dsRep _ _ _ _ γ_r (abs s0'))%I with
           "[Help Ds]" as ">(Help & Ds)".
         { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
           iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
@@ -224,7 +196,7 @@ Module MAINTENANCEOP_DELETE.
         iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
           as ">(#Past_s0'&Hist)"; try done.
         iEval (rewrite /M0' lookup_total_insert) in "Past_s0'".
-        iAssert (∃ s : snapshot, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
+        iAssert (∃ s : snapshot, past_state _ _ _ _ γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
           ∗ ⌜∀ j : nat, j < i + 1 → Marki s c (xs !!! j) = true⌝)%I as "#Hmark'".
         { iDestruct "Hmark" as (s) "(Hpast_s & %FP_c' & %Ht_c & %Hj)".
           iAssert (⌜Marki s0' c (xs !!! i) = true⌝)%I as %Hi.
@@ -247,8 +219,9 @@ Module MAINTENANCEOP_DELETE.
 
         iModIntro. iSplitR "Hperm Hpost".
         { iNext. iExists M0', (T0+1), s0'. iFrame "∗#%".
-          iPureIntro; rewrite /M0'; split; last split.
-          - by rewrite lookup_total_insert.
+          iSplitR. iPureIntro. by rewrite lookup_total_insert.
+          iExists hd, tl. iFrame.
+          iPureIntro; rewrite /M0'; split.
           - intros t Ht. destruct (decide (t = T0+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
             + rewrite lookup_total_insert_ne; try done. apply PT0.
@@ -264,7 +237,7 @@ Module MAINTENANCEOP_DELETE.
         iEval (rewrite H') in "IH". iApply ("IH" with "[Hperm]"); try done.
         iFrame "Hperm Hmark' %".
       + iDestruct "Hif" as %[Mark_c0 ->].
-        iAssert (∃ s : snapshot, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
+        iAssert (∃ s : snapshot, past_state _ _ _ _ γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
           ∗ ⌜∀ j : nat, j < i + 1 → Marki s c (xs !!! j) = true⌝)%I as "#Hmark'".
         { iAssert (⌜Marki s0 c (xs !!! i) = true⌝)%I as %Hi.
           { iPureIntro. rewrite list_lookup_total_alt Hidx /=. done. }
@@ -273,7 +246,7 @@ Module MAINTENANCEOP_DELETE.
           intros j Hj. destruct (decide (j = i)) as [-> | Hji]; try done.
           apply Hj0. lia. }
         iModIntro. iSplitR "Hperm Hpost".
-        { iNext. iExists M0, T0, s0. iFrame "∗#%".
+        { iNext. iExists M0, T0, s0. iFrame "∗#%". iExists hd, tl. iFrame "∗#%".
           rewrite (big_opS_delete _ (FP s0) c); try done.
           iFrame "Nodes_rest". iFrame. }
         wp_pures.
@@ -288,21 +261,22 @@ Module MAINTENANCEOP_DELETE.
       intros j Hj'. apply Hj. lia.
   Admitted.
 
-    
-  Lemma maintenanceOp_delete_spec N γ_t γ_r γ_m γ_mt γ_msy tid t0 c:
-    main_inv N γ_t γ_r γ_m γ_mt γ_msy  -∗
-    thread_start γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol N γ_t γ_r γ_mt γ_msy -∗ 
-      {{{ (∃ s, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝) ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
+
+  Lemma maintenanceOp_delete_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 c hd tl:
+    main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+    thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
+      {{{ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝) ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete #c @ ⊤
         {{{ RET #();
-              (∃ s h, past_state γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
+              (∃ s h, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
                     ∗ ⌜∀ i, 1 ≤ i < h → Marki s c i = true⌝) }}}.
   Proof.
     iIntros "#HInv #Thd_st #Upd". iIntros (Φ) "!# (#FP_c&%c_neq_hd&%c_neq_tl) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done. 
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as "(SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
     { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -312,13 +286,13 @@ Module MAINTENANCEOP_DELETE.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
     iAaccIntro with "Node_c".
     { iIntros "Node_c". iModIntro. iFrame "Hpost".
-      iNext; iExists M0, T0, s0. iFrame "∗%#". 
+      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
     iIntros "Node_c". 
     iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
       as ">(#Past_s0&Hist)"; try done.
     iSplitR " Hpost".
-    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". 
+    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }  
     iModIntro. wp_pures. set h := Height s0 c. 
     wp_apply permute_levels_spec; try done.
@@ -335,6 +309,4 @@ Module MAINTENANCEOP_DELETE.
       by rewrite Perm_xs seq_length in Hjxs. 
       by rewrite list_lookup_total_alt Hjxs. }
     apply H1'; try done.
-  Qed.
-
-End MAINTENANCEOP_DELETE.
+  Admitted.

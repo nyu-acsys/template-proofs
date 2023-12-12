@@ -935,7 +935,7 @@ Section list_flow_upd_marking.
           rewrite /FI /I0' lookup_total_insert_ne; try done.
           rewrite /II lookup_total_insert /In'.
           rewrite (Nx_dom n n1 Insets_n_ne Hnx_n). apply set_eq_subseteq.
-          split; intros n' Hn'. Search outflow_map_set dom.
+          split; intros n' Hn'.
           apply flowint_outflow_map_set_dom in Hn'. rewrite /In Dom_out in Hn'. 
           rewrite (Nx_dom n n1 Insets_n_ne Hnx_n) in Hn'.
           clear -Hn'; set_solver. done. rewrite elem_of_singleton in Hn'. subst n'.

@@ -22,14 +22,18 @@ flows/bool_ra.v
 util/one_shot_proph.v
 util/typed_proph.v
 util/gset_seq.v
+util/array_util.v
 
 hindsight/hindsight.v
 hindsight/hindsight_proof.v
 
-lockfree/skiplist_v1.v
-lockfree/skiplist_v1_util.v
-lockfree/skiplist_v1_traverse.v
-lockfree/maintenanceOp_insert.v
-lockfree/skiplist_v1_insert.v
-lockfree/maintenanceOp_delete.v
-lockfree/skiplist_v1_delete.v
+lockfree/node_module.v
+lockfree/skiplist.v
+lockfree/skiplist_util.v
+lockfree/skiplist_traverse.v
+lockfree/skiplist_delete_maintenance.v
+lockfree/skiplist_delete.v
+lockfree/skiplist_insert_maintenance.v
+lockfree/skiplist_insert.v
+lockfree/skiplist_search.v
+lockfree/skiplist_spec.v

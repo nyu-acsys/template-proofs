@@ -47,16 +47,18 @@ Module Type DATA_STRUCTURE.
   #[global] Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   #[global] Declare Instance snapshot_inhabited : Inhabited snapshot.
   
-  (* Parameter dsG : gFunctors → Set. *)
+  Parameter dsG : gFunctors → Set.
   (* Parameter test : heapGS dsΣ. *)
   (* Print heapGS_gen. *)
   (* Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ. *)
 
 
-  Context `{!heapGS Σ, !dsG Σ}.
+  (* Context `{!heapGS Σ, !dsG Σ}. *)
    
-  (* Parameter ds_inv : ∀ Σ, dsG Σ → gmap nat snapshot -> nat -> snapshot -> iProp Σ. *)
-  Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ.
+  Parameter ds_inv : ∀ Σ, heapGS Σ → dsG Σ → loc → gmap nat snapshot -> nat -> snapshot -> iProp Σ.
+  (* Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ. *)
+
+  Parameter local_pre : Op -> Prop.
 
 End DATA_STRUCTURE.
 
@@ -104,94 +106,112 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
   (* Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → hsG Σ.
   Proof. Admitted. *)
   
-  Context `{!heapGS Σ, !hsG Σ}.
+  (* Context `{!heapGS Σ, !hsG Σ}. *)
   (* Context (H' : dsG Σ). *)
-  Notation iProp := (iProp Σ).
+  (* Notation iProp := (iProp Σ). *)
   Implicit Types M : gmap nat snapshot.
   Implicit Types T : nat.
   
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
   
-  Definition hist γ_t γ_m M T : iProp :=
+  Definition hist (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ) 
+    γ_t γ_m M T : iProp Σ :=
     ∃ (M': gmap nat (agreeR (_))),
       own γ_t (● MaxNat T) ∗ own γ_m (● M')
     ∗ ⌜dom M = gset_seq 0 T⌝
     ∗ ⌜∀ t s, M' !! t ≡ Some (to_agree s) ↔ M !! t = Some s⌝
     ∗ ⌜∀ t, t < T → (M !!! t) ≠ (M !!! (t+1)%nat)⌝.
 
-  Definition dsRep γ_r (a: absTUR) : iProp := 
+  Definition dsRep (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_r (a: absTUR) : iProp Σ := 
     own γ_r (to_frac_agree (1/2) a).
 
-  Definition dsRepI γ_r (a: absTUR) : iProp := 
+  Definition dsRepI (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+  γ_r (a: absTUR) : iProp Σ := 
     own γ_r (to_frac_agree (1/2) a).
     
   (** Helping Inv **)
   
-  Definition au N γ_r op (Q : val → iProp) := 
-    (AU <{ ∃∃ a, dsRep γ_r a }> 
+  Definition au (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    N γ_r op (Q : val → iProp Σ) := 
+    (AU <{ ∃∃ a, dsRep Σ H' H'' H''' γ_r a }> 
           @ ⊤ ∖ (↑N), ∅
-        <{ ∀∀ a' res, dsRep γ_r a' 
+        <{ ∀∀ a' res, dsRep Σ H' H'' H''' γ_r a' 
           ∗ ⌜seq_spec op a a' res⌝, COMM Q #res }>)%I.
 
-  Definition past_lin M T op res t0 : iProp :=
+  Definition past_lin (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    M T op res t0 : iProp Σ :=
     ⌜∃ t, t0 ≤ t ≤ T ∧ seq_spec op (abs (M !!! t)) (abs (M !!! t)) res⌝.
 
-  Definition past_state γ_m (t0: nat) (s: snapshot) : iProp :=
+  Definition past_state (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_m (t0: nat) (s: snapshot) : iProp Σ :=
     ∃ t, ⌜t0 ≤ t⌝ ∗ own γ_m (◯ {[t := to_agree s]}).
   
-  Definition past_lin_witness γ_m op res t0 : iProp :=
-    ∃ s, past_state γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝.
+  Definition past_lin_witness (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_m op res t0 : iProp Σ :=
+    ∃ s, past_state Σ H' H'' H''' γ_m t0 s ∗ ⌜seq_spec op (abs s) (abs s) res⌝.
 
-  Definition Token γ := own γ (Excl ()).
+  Definition Token (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ) 
+    γ : iProp Σ := own γ (Excl ()).
   
-  Definition Pending P M T op vp t0 : iProp := 
-      P ∗ £1 ∗ ¬ past_lin M T op vp t0.
+  Definition Pending (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    (P: iProp Σ) M T op vp t0 : iProp Σ := 
+      P ∗ £1 ∗ ¬ past_lin Σ H' H'' H''' M T op vp t0.
 
-  Definition Done γ_tk (Q: val → iProp) M T op (vp: resT) t0 : iProp := 
-    (Q #vp ∨ Token γ_tk) ∗ past_lin M T op vp t0.
+  Definition Done (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_tk (Q: val → iProp Σ) M T op (vp: resT) t0 : iProp Σ := 
+    (Q #vp ∨ Token Σ H' H'' H''' γ_tk) ∗ past_lin Σ H' H'' H''' M T op vp t0.
   
-  Definition State γ_sy γ_tk P Q M T op vp t0: iProp :=
+  Definition State (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_sy γ_tk P Q M T op vp t0 : iProp Σ :=
         own γ_sy (to_frac_agree (1/2) M)
       ∗ ⌜dom M = gset_seq 0 T⌝ ∗ ⌜t0 ≤ T⌝
-      ∗ (Pending P M T op vp t0 ∨ Done γ_tk Q M T op vp t0).
+      ∗ (Pending Σ H' H'' H''' P M T op vp t0 ∨ Done Σ H' H'' H''' γ_tk Q M T op vp t0).
 
-  Definition thread_start γ_t γ_mt t_id t0 : iProp := 
+  Definition thread_start (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_t γ_mt t_id t0 : iProp Σ := 
     own γ_mt (◯ {[t_id := to_agree t0]}) ∗ own γ_t (◯ MaxNat t0).
 
-  Definition thread_sync γ_msy t_id γ_sy : iProp := 
+  Definition thread_sync (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    γ_msy t_id γ_sy : iProp Σ := 
       own γ_msy (◯ {[t_id := to_agree γ_sy]}).
   
-  Definition Reg N γ_t γ_r γ_mt γ_msy t_id M : iProp :=
+  Definition Reg (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ) 
+    N γ_t γ_r γ_mt γ_msy t_id M : iProp Σ :=
     ∃ γ_tk γ_sy Q op vp t0, 
-        thread_start γ_t γ_mt t_id t0
+        thread_start Σ H' H'' H''' γ_t γ_mt t_id t0
       ∗ own γ_msy (◯ {[t_id := to_agree γ_sy]})
       ∗ own (γ_sy) (to_frac_agree (1/2) M)
       ∗ inv (threadN N) 
-        (∃ M T, State γ_sy γ_tk (au N γ_r op Q) Q M T op vp t0).
+        (∃ M T, State Σ H' H'' H''' γ_sy γ_tk (au Σ H' H'' H''' N γ_r op Q) Q M T op vp t0).
     
-  Definition helping_inv (N: namespace) γ_t γ_r γ_mt γ_msy M : iProp :=
+  Definition helping_inv (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    (N: namespace) γ_t γ_r γ_mt γ_msy M : iProp Σ :=
     ∃ (Mt: gmap proph_id (agreeR nat)) (Msy: gmap proph_id (agreeR gname)),
         own γ_mt (● Mt) 
       ∗ own γ_msy (● Msy) 
       ∗ ⌜dom Msy ⊆ dom Mt⌝ 
       ∗ ([∗ set] t_id ∈ dom Mt, ∃ vtid, proph1 t_id vtid)
-      ∗ ([∗ set] t_id ∈ dom Msy, Reg N γ_t γ_r γ_mt γ_msy t_id M).
+      ∗ ([∗ set] t_id ∈ dom Msy, Reg Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy t_id M).
 
-  Definition main_inv N γ_t γ_r γ_m γ_mt γ_msy : iProp :=
+  Definition main_inv (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    N γ_t γ_r γ_m γ_mt γ_msy (r: loc) : iProp Σ :=
     inv (cntrN N)
     (∃ M T (s: snapshot),
-      dsRepI γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
-    ∗ hist γ_t γ_m M T
-    ∗ helping_inv N γ_t γ_r γ_mt γ_msy M
-    ∗ ds_inv M T s).
+      dsRepI Σ H' H'' H''' γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
+    ∗ hist Σ H' H'' H''' γ_t γ_m M T
+    ∗ helping_inv Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy M
+    ∗ ds_inv Σ H' H'' r M T s).
 
-  Definition update_helping_protocol N γ_t γ_r γ_mt γ_msy : iProp :=
+  Definition update_helping_protocol (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
+    N γ_t γ_r γ_mt γ_msy: iProp Σ :=
     ∀ M T s, 
     ⌜dom M = gset_seq 0 T⌝ -∗   
-    dsRep γ_r (abs s) -∗
-    helping_inv N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
-        helping_inv N γ_t γ_r γ_mt γ_msy (<[T+1 := s]> M) ∗ dsRep γ_r (abs s).
+    dsRep Σ H' H'' H''' γ_r (abs s) -∗
+    helping_inv Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy M ={⊤ ∖ ↑cntrN N}=∗
+        helping_inv Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy (<[T+1 := s]> M) 
+        ∗ dsRep Σ H' H'' H''' γ_r (abs s).
 
   Definition is_snd (b: bool) (x : val * val) := ∃ v, x.1 = (v, #b)%V.  
 
@@ -382,3 +402,8 @@ Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
 
 End HINDSIGHT_DEFS.
 
+(*
+Module Hindsight_Defs (DS: DATA_STRUCTURE).
+  Include HINDSIGHT_DEFS with Module DS := DS.
+End Hindsight_Defs.
+*)
