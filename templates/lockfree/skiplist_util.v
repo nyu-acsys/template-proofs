@@ -11,10 +11,10 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Export skiplist flows_big_op.
 
-Declare Module NODE : NODE_IMPL.
-Module SK := SKIPLIST NODE.
+Declare Module TR : TRAVERSE.
+Module SK := SKIPLIST TR.
 Module DEFS := HINDSIGHT_DEFS SK.
-Export SK DEFS.
+Export TR.NODE SK DEFS.
 
   Definition intf_merge (II I: gmap Node (multiset_flowint_ur nat)) :=
     let f := λ m1 m2,
@@ -815,3 +815,151 @@ Export SK DEFS.
       { apply leibniz_equiv. by rewrite (big_opS_delete _ S n). }
       rewrite H'' in Def_C. clear -Def_C Hc; set_solver.
   Qed.
+
+  Lemma nzmap_lookup_big_op `{Countable A, Countable K} (f : A → nzmap K nat) 
+    (S : gset A) (k: K) :
+    ([^+ set] x ∈ S, f x) !!! k = ([^+ set] x ∈ S, (f x) !!! k).
+  Proof. 
+    induction S as [| s S] using set_ind_L; try done.
+    - rewrite !ccm_big_opS_empty. rewrite nzmap_lookup_empty. done.
+    - rewrite !ccm_big_opS_union. all : try set_solver.
+      rewrite !ccm_big_opS_singleton. rewrite lookup_total_lifting IHS. done.
+  Qed.
+
+  Lemma nat_nonzero_big_op `{Countable A} (f : A → nat) (S : gset A) :
+    1 ≤ ([^+ set] x ∈ S, f x) → ∃ x, x ∈ S ∧ 1 ≤ f x.
+  Proof. 
+    induction S as [| s S] using set_ind_L; try done.
+    - rewrite ccm_big_opS_empty /ccm_unit /= /nat_unit. lia.
+    - rewrite ccm_big_opS_union; last by set_solver.
+      rewrite ccm_big_opS_singleton /ccmop /ccm_op /= /nat_op.
+      destruct (decide (1 ≤ f s)). 
+      + intros _. exists s. split. set_solver. done.
+      + assert (f s = 0) as ->. lia. rewrite left_id.
+        intros H'%IHS. destruct H' as [x [Hxs H'']].
+        exists x. split. set_solver. done. 
+  Qed.
+
+  Lemma outflow_eq_inflow hd tl s p n :
+    per_tick_inv hd tl s →
+    p ∈ FP s → n ∈ FP s →
+    insets (FI s p) ≠ ∅ →
+    Nexti s p 0 = Some n → 
+      inf (FI s n) n = out (FI s p) n.
+  Proof.
+    intros PT FP_p FP_n Insets_p Next_p. 
+    assert (Hp := FP_p). apply PT in Hp.
+    assert (Hn := FP_n). apply PT in Hn.
+    assert (Hfp := Hp). destruct Hfp as (_&_&_&_&_&Hfp).
+    assert (Hfn := Hn). destruct Hfn as (_&_&_&_&_&Hfn).
+    destruct Hfp as (Hfp1&Hfp2&Hfp3&Hfp4&Hfp5&Hfp6&Hfp7).
+    destruct Hfn as (Hfn1&Hfn2&Hfn3&Hfn4&Hfn5&Hfn6&Hfn7).
+    apply nzmap_eq. intros k. 
+    assert (inf (FI s n) n !!! k = 0 ∨ inf (FI s n) n !!! k = 1) as H'. 
+    { pose proof Hfn6 k as Hfn6. lia. }
+    assert (out (FI s p) n !!! k = 0 ∨ out (FI s p) n !!! k = 1) as H''. 
+    { pose proof Hfp7 n k as Hfp7. lia. }
+    assert (n ≠ p) as n_neq_p. 
+    { destruct PT as (_&_&_&_&PT&_). apply PT in Next_p. intros ->. lia. }
+    destruct H' as [Hinf | Hinf]; destruct H'' as [Hout | Hout]; 
+      try (rewrite Hinf Hout; lia). 
+    - exfalso. assert (✓ ((FI s p) ⋅ (FI s n))) as VI. 
+      { destruct PT as (_&PT&_). clear -PT FP_p FP_n n_neq_p. 
+        assert ({[p; n]} ⊆ FP s) as Hsub.
+        { clear -FP_p FP_n. set_solver. }
+        pose proof (flow_big_op_valid _ _ {[p; n]} Hsub PT) as VI'.
+        rewrite big_opS_union in VI'.
+        rewrite !big_opS_singleton in VI'. done. set_solver. }
+      assert (n ∈ dom (FI s n)) as Dom_n. rewrite Hfn1. clear; set_solver.
+      pose proof intComp_unfold_inf_2 _ _ VI n Dom_n as H'.
+      rewrite /ccmop /ccm_op /= /lift_op /ccmop /ccm_op /= in H'. 
+      rewrite nzmap_eq in H'. pose proof H' k as H'.
+      rewrite nzmap_lookup_merge /nat_op Hinf Hout in H'. lia.
+    - exfalso. 
+      assert (∃ p', p' ∈ FP s ∧ out (FI s p') n !!! k = 1) as [p' [FP_p' Out_p']].
+      { destruct PT as (Hdtl&PT&_&Hpure&Hkey&_). assert (n ∈ dom (FI s n)) as H1'.
+        { rewrite Hfn1. clear; set_solver. }
+        pose proof flow_big_op_inf _ _ n n PT FP_n H1' as H'.
+        assert (n ≠ hd) as n_neq_hd. 
+        { apply Hkey in Next_p. intros ->. destruct Hdtl as (_&H''&_).
+          rewrite H'' in Next_p. lia. }
+        assert (inf (GFI s) n = 0%CCM) as GFI_n. admit.
+        rewrite GFI_n in H'. rewrite nzmap_eq in H'. pose proof H' k as H'.
+        rewrite nzmap_lookup_empty /ccmunit /= /ccmop_inv /ccm_opinv /= in H'.
+        rewrite lookup_total_lifting_inv /ccmop_inv /ccm_opinv /= in H'.
+        rewrite /nat_unit /nat_opinv in H'. rewrite Hinf in H'. 
+        assert (1 ≤ ([^+ set] x ∈ (FP s ∖ {[n]}), out (FI s x) n) !!! k) as H''.
+        { clear -H'. set a := ([^+ set] x ∈ (FP s ∖ {[n]}), out (FI s x) n) !!! k.
+          rewrite -/a in H'. lia. }
+        rewrite nzmap_lookup_big_op in H''.
+        apply nat_nonzero_big_op in H''. destruct H'' as [p' [FP_p'' Out_p']].
+        exists p'. assert (p' ∈ FP s) as FP_p'. { clear -FP_p''; set_solver. }
+        split; try done. apply Hpure in FP_p'. destruct FP_p' as (_&_&_&_&_&H'').
+        destruct H'' as (_&_&_&_&_&_&H''). pose proof H'' n k as H''.
+        set a := out (FI s p') n !!! k. rewrite -/a in H'' Out_p'. lia. }
+      assert (Hfp' := FP_p'). apply PT in Hfp'. destruct Hfp' as (_&_&_&_&_&Hfp').
+      destruct Hfp' as (Hfp1'&Hfp2'&Hfp3'&Hfp4'&Hfp5'&Hfp6'&Hfp7').
+      assert (k ∈ outsets (FI s p')) as Outsets_k.
+      { apply (outset_in_outsets _ n). rewrite /outset nzmap_elem_of_dom_total.
+        rewrite Out_p' /ccmunit /= /nat_unit. lia. }
+      assert (insets (FI s p') ≠ ∅) as Hinsets. 
+      { apply Hfp3' in Outsets_k. clear -Outsets_k; set_solver. }
+      assert (∀ n, insets (FI s n) ≠ ∅ → W ∈ insets (FI s n)) as HW. { admit. }
+      assert (Domout_p' := Hinsets). apply Hfp2' in Domout_p'.
+      destruct (Next s p' !! 0) eqn: Next_p'; last first.
+      { rewrite Next_p' in Domout_p'. rewrite /outsets Domout_p' in Outsets_k.
+        rewrite big_opS_empty in Outsets_k. clear -Outsets_k; set_solver. }
+      rewrite Next_p' in Domout_p'.
+      assert (n0 = n) as ->. 
+      { assert (n ∈ dom (out_map (FI s p'))) as H'.
+        rewrite nzmap_elem_of_dom_total nzmap_eq. intros H'.
+        pose proof H' k as H'. rewrite /ccmunit /ccm_unit /= /lift_unit 
+          nzmap_lookup_empty /ccmunit /= /nat_unit in H'.
+        rewrite Out_p' in H'. lia. rewrite Domout_p' in H'. set_solver. }
+      assert (W ∈ outsets (FI s p')) as HWp'.
+      { apply HW in Hinsets. destruct (Mark s p' !!! 0).
+        clear -Hinsets Hfp4' Hfp3'. set_solver.
+        destruct Hfp4' as [_ <-]. rewrite elem_of_gset_seq. split; try lia.
+        destruct Hn as (_&_&_&_&Hn&_). destruct PT as (_&_&_&_&PT&_).
+        apply PT in Next_p'. clear -Next_p' Hn. lia. }
+      rewrite /outsets Domout_p' big_opS_singleton in HWp'.
+      assert (W ∈ outsets (FI s p)) as HWp.
+      { apply HW in Insets_p. destruct (Mark s p !!! 0).
+        clear -Insets_p Hfp4 Hfp3. set_solver.
+        destruct Hfp4 as [_ <-]. rewrite elem_of_gset_seq. split; try lia.
+        destruct Hn as (_&_&_&_&Hn&_). destruct PT as (_&_&_&_&PT&_).
+        apply PT in Next_p. clear -Next_p Hn. lia. }
+      apply Hfp2 in Insets_p. rewrite /Nexti in Next_p. rewrite Next_p in Insets_p.
+      rewrite /outsets Insets_p big_opS_singleton in HWp.
+      assert (n ≠ p') as n_neq_p'.
+      { destruct PT as (_&_&_&_&PT&_). rewrite /Nexti in PT. 
+        apply PT in Next_p'. intros ->. lia. }
+      assert (p ≠ p') as p_neq_p'.
+      { intros <-. rewrite Out_p' in Hout. done. }
+      assert (✓ (((FI s p) ⋅ (FI s p')) ⋅ (FI s n))) as VI.
+      { destruct PT as (_&PT&_). clear -PT FP_p FP_n FP_p' n_neq_p n_neq_p' p_neq_p'. 
+        assert ({[p; p'; n]} ⊆ FP s) as Hsub.
+        { clear -FP_p FP_p' FP_n. set_solver. }
+        pose proof (flow_big_op_valid _ _ {[p; p'; n]} Hsub PT) as VI'.
+        rewrite !big_opS_union in VI'.
+        rewrite !big_opS_singleton in VI'. done. all : set_solver. }
+      assert (n ∈ dom (FI s n)) as Dom_n. rewrite Hfn1. clear; set_solver.
+      pose proof intComp_unfold_inf_2 ((FI s p) ⋅ (FI s p')) (FI s n) VI n Dom_n as H'.
+      rewrite nzmap_eq in H'. pose proof H' W as H'.
+      rewrite /ccmop /ccm_op /= lookup_total_lifting /ccmop /ccm_op /= /nat_op in H'.
+      assert (✓ ((FI s p) ⋅ (FI s p'))) as VI'. by apply cmra_valid_op_l in VI.
+      assert (n ∉ dom ((FI s p) ⋅ (FI s p'))) as Dom_n'.
+      { rewrite intComp_dom; try done. rewrite Hfp1 Hfp1'. 
+        clear -n_neq_p n_neq_p'. set_solver. }
+      pose proof intComp_unfold_out _ _ VI' n Dom_n' as H''.
+      rewrite nzmap_eq in H''. pose proof H'' W as H''.
+      rewrite /ccmop /ccm_op /= lookup_total_lifting /ccmop /ccm_op /= /nat_op in H''.
+      rewrite H'' in H'. clear -Hfn6 HWp HWp' H'. 
+      rewrite /outset nzmap_elem_of_dom_total /ccmunit /ccm_unit /= /nat_unit in HWp.
+      rewrite /outset nzmap_elem_of_dom_total /ccmunit /ccm_unit /= /nat_unit in HWp'.
+      pose proof Hfn6 W as H''. 
+      set a := inf (FI s n) n !!! W.
+      set b := out (FI s p) n !!! W.
+      set c := out (FI s p') n !!! W.
+      rewrite -/a -/b -/c in H'' H' HWp HWp'. lia.
+  Admitted.

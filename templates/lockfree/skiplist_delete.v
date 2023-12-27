@@ -11,7 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Import list_flow_upd_marking.
+Require Import list_flow_upd_marking skiplist_util.
 Require Export skiplist_delete_maintenance.
 
   Lemma deleteOp_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
@@ -210,10 +210,10 @@ Require Export skiplist_delete_maintenance.
           { intros n. rewrite lookup_total_alt. by rewrite Def_Mk'. }
           assert (dom Nx ⊆ dom Nx0) as Dom_Nx.
           { intros n. rewrite !elem_of_dom. rewrite Def_Nx.
-              rewrite Hs0. unfold Nexti, Next.
-              destruct (Nx0 !! n) eqn: H'; try done.
-              rewrite H'. rewrite lookup_empty. 
-              intros [? H'']; try done. }
+            rewrite Hs0. unfold Nexti, Next.
+            destruct (Nx0 !! n) eqn: H'; try done.
+            rewrite H'. rewrite lookup_empty. 
+            intros [? H'']; try done. }
           assert (dom Mk = dom Mk0) as Dom_Mk.
           { apply set_eq_subseteq; split.
             - intros n. rewrite !elem_of_dom. rewrite Def_Mk'.

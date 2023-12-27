@@ -11,7 +11,9 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_traverse.
+Require Export traverse_spec_module flows.
+  
+  Export skiplist_util.TR.NODE skiplist_util.SK skiplist_util.DEFS.
 
   Lemma searchOp_spec (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) pvs tid t0 Q k (hd tl: Node) :
@@ -35,7 +37,7 @@ Require Export skiplist_traverse.
   Proof. 
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". 
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
-    wp_lam. wp_pures. 
+    wp_lam. wp_pures.
     wp_apply (traverse_spec Σ H' H'' H'''); try done.
     iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & %Len_ps 
       & %Len_ss & %HpsL & %HssL & #Htr)".  
