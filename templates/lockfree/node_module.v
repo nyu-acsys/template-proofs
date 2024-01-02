@@ -27,6 +27,7 @@ Module Type NODE_IMPL.
   Parameter changeNext : val.
   Parameter markNode : val.
   Parameter compareKey : val.
+  Parameter getKey : val.
   Parameter createNode : val.
   Parameter getHeight : val.
   Parameter permute_levels : val.
@@ -92,7 +93,12 @@ Module Type NODE_IMPL.
              else if decide (res = 1) then k = k'
              else k > k'⌝ |
          RET #res }>>.
-  
+
+  Parameter getKey_spec : ∀ Σ (H' : heapGS Σ) (n: Node),
+    ⊢ <<{ ∀∀ h mark next k, node Σ n h mark next k }>>
+           getKey #n @ ∅
+     <<{ node Σ n h mark next k | RET #k }>>.
+
   Parameter markNode_spec : ∀ Σ (n: Node) (H' : heapGS Σ) (i: nat),
     ⊢ <<{ ∀∀ h mark next k, node Σ n h mark next k ∗ ⌜i < h⌝ }>>
             markNode #n #i @ ∅

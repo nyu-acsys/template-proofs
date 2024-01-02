@@ -19,7 +19,8 @@ Require Import skiplist_util.
     perm vs xs i h (hd tl : Node):
     main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
+    □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
+    r ↦□ (#hd, #tl) -∗ 
         {{{   perm ↦∗ vs
             ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
             ∗ ⌜xs ≡ₚ seq 1 (h-1)⌝
@@ -32,7 +33,7 @@ Require Import skiplist_util.
                     ∗ ⌜∀ j, j < h-1 → Marki s c (xs !!! j) = true⌝)
             ∗ perm ↦∗ vs }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd". iLöb as "IH" forall (i).
+    iIntros "#HInv #Thd_st #Upd #HR'". iLöb as "IH" forall (i).
     iIntros (Φ) "!# (Hperm&%Def_vs&%Perm_xs&#Hmark&%c_neq_hd&%c_neq_tl) Hpost". 
     wp_lam. wp_pure credit: "Hc". wp_pures.
     destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures.
@@ -48,7 +49,8 @@ Require Import skiplist_util.
       awp_apply markNode_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+      { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
       { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -262,24 +264,27 @@ Require Import skiplist_util.
       iDestruct "Hmark" as (s) "(Hpast_s & %FP_c' & %HT_c & %Hj)".
       iModIntro. iExists s. iFrame "#%". iPureIntro.
       intros j Hj'. apply Hj. lia.
-  Admitted.
+  Qed.
 
 
-  Lemma maintenanceOp_delete_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 c hd tl:
+  Lemma maintenanceOp_delete_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid 
+    t0 c (hd tl: Node):
     main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
+    r ↦□ (#hd, #tl) -∗
       {{{ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝) ∗ ⌜c ≠ hd⌝ ∗ ⌜c ≠ tl⌝ }}}
            maintenanceOp_delete #c @ ⊤
         {{{ RET #();
               (∃ s h, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s⌝ ∗ ⌜h = Height s c⌝
                     ∗ ⌜∀ i, 1 ≤ i < h → Marki s c i = true⌝) }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd". iIntros (Φ) "!# (#FP_c&%c_neq_hd&%c_neq_tl) Hpost".
+    iIntros "#HInv #Thd_st #Upd #HR'". iIntros (Φ) "!# (#FP_c&%c_neq_hd&%c_neq_tl) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done. 
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+    { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
     { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -300,7 +305,7 @@ Require Import skiplist_util.
     iModIntro. wp_pures. set h := Height s0 c. 
     wp_apply permute_levels_spec; try done.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
-    wp_apply (maintenanceOp_delete_rec_spec with "[] [] [] [Hperm]"); try done.
+    wp_apply (maintenanceOp_delete_rec_spec with "[] [] [] [] [Hperm]"); try done.
     { iFrame "Hperm %". iExists s0. iFrame "Past_s0".
       iPureIntro. repeat split; try done. lia. }
     iIntros "(Hs & Hperm)". iDestruct "Hs" as (s)"(Hs & %H' & %H'' & %H1')".
@@ -312,4 +317,4 @@ Require Import skiplist_util.
       by rewrite Perm_xs seq_length in Hjxs. 
       by rewrite list_lookup_total_alt Hjxs. }
     apply H1'; try done.
-  Admitted.
+  Qed.

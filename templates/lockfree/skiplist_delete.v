@@ -20,6 +20,7 @@ Require Export skiplist_delete_maintenance.
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
     ⌜local_pre (deleteOp k)⌝ -∗
+    r ↦□ (#hd, #tl) -∗
       {{{ proph p pvs ∗ 
           (match process_proph tid pvs with
             contra => au Σ Hg1 Hg2 Hg3 N γ_r (deleteOp k) Q
@@ -34,7 +35,7 @@ Require Export skiplist_delete_maintenance.
           | upd => Q #res ∨ 
               ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". 
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". 
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
     wp_lam. wp_pures.
     wp_apply (traverse_spec Σ Hg1 Hg2 Hg3); try done.
@@ -50,12 +51,20 @@ Require Export skiplist_delete_maintenance.
       iApply fupd_wp.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+      { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iPoseProof (per_tick_current with "[%] [%] [$Hist]") as "%PT_s0"; try done.
       iAssert (⌜Key s0 c = k⌝)%I as %Hk.
       { apply list_lookup_total_correct in Hss0. rewrite Hss0.
-        iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s&_&%H'&%H''&_)".
+        iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s&%H'&%H''&%H''')".
+        iAssert (⌜Marki s c 0 = false⌝)%I as %Marki_cs. 
+        { iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
+          apply PT_s in H'. destruct H' as (_&_&_&_&_&H').
+          destruct H' as (_&_&_&H'&_). rewrite /Marki. 
+          destruct (Mark s c !!! 0); try done. rewrite H' in H''. clear -H''; set_solver. }
+        rewrite /Content Marki_cs in H'''. 
+        assert (k = Key s c) as Hk. clear -H'''; set_solver. 
         apply leibniz_equiv in Habs0. rewrite -Habs0.
         iPoseProof (key_eq_2 with "[%] [$] [$Past_s] [%]") as "->"; try done. }
       assert (c ≠ hd) as c_neq_hd.
@@ -63,10 +72,10 @@ Require Export skiplist_delete_maintenance.
       assert (c ≠ tl) as c_neq_tl. 
       { destruct PT_s0 as ((_&_&H'&_)&_). intros ->. lia. }      
       iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
-      as ">(#HtrL & Hist)"; try done.
+        as ">(#HtrL & Hist)"; try done.
       iModIntro. iSplitR "Hpost Hpreds Hsuccs Hmatch Hproph".
       { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
-      clear Hk PT_s0 Trans_M0 PT0 Habs0 M0 T0 s0. iModIntro.
+      clear Hk s0 PT_s0 Trans_M0 PT0 Habs0 M0 T0. iModIntro.
       wp_apply (maintenanceOp_delete_spec with "[]"); try done.
       { iFrame "%". iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
         iDestruct "Htr" as "(Htr & _)". 
@@ -78,7 +87,8 @@ Require Export skiplist_delete_maintenance.
       awp_apply (markNode_proph_spec with "Hproph"); try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+      { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
       { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -119,10 +129,19 @@ Require Export skiplist_delete_maintenance.
           intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
         iAssert (⌜Key s0 c = k⌝)%I as %Key_c. 
         { iDestruct "Htr" as "(_ & Htr)". iDestruct "Htr" as (s)"(Past_s & %H')".
-          destruct H' as (_&H'&H''&_). apply list_lookup_total_correct in Hss0.
-          rewrite H' Hss0. apply leibniz_equiv in Habs0. rewrite -Habs0.
+          apply list_lookup_total_correct in Hss0. rewrite Hss0 in H'.
+          destruct H' as (H'&H''&H'''). 
+          iAssert (⌜Marki s c 0 = false⌝)%I as %Marki_cs. 
+          { iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
+            apply PT_s in H'. destruct H' as (_&_&_&_&_&H').
+            destruct H' as (_&_&_&H'&_). rewrite /Marki. 
+            destruct (Mark s c !!! 0); try done. rewrite H' in H''. 
+            clear -H''; set_solver. }
+          assert (k = Key s c) as Hk.
+          { rewrite /Content Marki_cs in H'''. clear -H'''; set_solver. }
+            apply leibniz_equiv in Habs0. rewrite -Habs0.
           iPoseProof (key_eq_2 _ _ _ _ c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
-            try done. rewrite Hss0 in H''. done. }
+            try done.  }
         iAssert (⌜∃ cn, Nexti s0 c 0 = Some cn⌝)%I as %[cn Def_cn].
         { destruct PT_s0 as ((_&_&Hk&_)&_&_&H'&_). apply H' in FP_c0.
           destruct FP_c0 as (_&H''&_). iPureIntro.
@@ -138,7 +157,7 @@ Require Export skiplist_delete_maintenance.
         assert (∀ k', k' ∈ S → k' ≤ k) as HSk.
         { rewrite Hs0 /FP in FP_c0. rewrite {1}Hs0 /FP in Hflow.
           apply Hflow in FP_c0. rewrite /Marki Mark_c0 in FP_c0.
-          destruct FP_c0 as (_&_&_&H1'&H2'&_&_).
+          destruct FP_c0 as (_&_&_&H1'&_&H2'&_&_).
           rewrite /S I0_eq_s0. intros k' Hk'. 
           rewrite /keyset elem_of_difference in Hk'.
           destruct Hk' as [Hk1' Hk2']. destruct H1' as [H1' H1''].
@@ -164,76 +183,22 @@ Require Export skiplist_delete_maintenance.
                 ∧ (flow_constraints_I c (I !!! c) (true) 
                                         (Next s0 c !! 0) (Key s0 c))⌝)%I 
           as %[I [nk Hflupd]].
-        { assert (∃ (Nx: gmap Node Node), ∀ x, Nx !! x = Next s0 x !! 0)
-            as [Nx Def_Nx].
-          { set f_Nx := λ (n: Node) (nx: gmap nat Node) (res: gmap Node Node), 
-                        match nx !! 0 with None => res 
-                                        | Some n' => <[n := n']> res end.
-            set Nx : gmap Node Node := map_fold f_Nx ∅ Nx0.
-            exists Nx. rewrite Hs0. unfold Nexti, Next.
-            set P := λ (res: gmap Node Node) (m: gmap Node (gmap nat Node)),
-                (∀ x: Node, res !! x = 
-                  (match m !! x with Some mn => mn | None => ∅ end) !! 0).
-            apply (map_fold_ind P); try done.
-            intros n Nx_n m res Hmn HP. unfold P. unfold P in HP.
-            intros n'. unfold f_Nx. 
-            destruct (decide (n' = n)) as [-> | Hn'].
-            - destruct (Nx_n !! 0) as [Nx_n0 | ] eqn:Hn0.
-              + rewrite !lookup_insert. by rewrite Hn0.
-              + rewrite lookup_insert. rewrite Hn0.
-                by rewrite (HP n) Hmn.
-            - destruct (Nx_n !! 0) as [Nx_n0 | ] eqn:Hn0.
-              + rewrite !lookup_insert_ne; try done.
-              + rewrite (HP n'). by rewrite lookup_insert_ne. }  
-          assert (∃ (Mk: gmap Node bool), ∀ (x: Node), Mk !! x = Mark s0 x !! 0)
-            as [Mk Def_Mk'].
-          { set f_Mk := λ (n: Node) (nx: gmap nat bool) (res: gmap Node bool), 
-                        match nx !! 0 with None => res 
-                                        | Some n' => <[n := n']> res end.
-            set Mk : gmap Node bool := map_fold f_Mk ∅ Mk0.
-            exists Mk. rewrite Hs0. unfold Mark.
-            set P := λ (res: gmap Node bool) (m: gmap Node (gmap nat bool)),
-              ∀ x: Node, res !! x = 
-                (match m !! x with Some mn => mn | None => ∅ end) !! 0.
-            apply (map_fold_ind P); try done.
-            intros n Mk_n m res Hmn HP. unfold P. unfold P in HP.
-            intros n'. unfold f_Mk. 
-            destruct (decide (n' = n)) as [-> | Hn'].
-            - destruct (Mk_n !! 0) as [Mk_n0 | ] eqn:Hn0.
-              + rewrite !lookup_insert. by rewrite Hn0.
-              + rewrite lookup_insert. rewrite Hn0. 
-                by rewrite (HP n) Hmn.
-            - destruct (Mk_n !! 0) as [Mk_n0 | ] eqn:Hn0.
-              + rewrite !lookup_insert_ne; try done. 
-              + rewrite (HP n'). by rewrite lookup_insert_ne. }
-          assert (∀ x, Mk !!! x = Mark s0 x !!! 0) as Def_Mk.
-          { intros n. rewrite lookup_total_alt. by rewrite Def_Mk'. }
-          assert (dom Nx ⊆ dom Nx0) as Dom_Nx.
-          { intros n. rewrite !elem_of_dom. rewrite Def_Nx.
-            rewrite Hs0. unfold Nexti, Next.
-            destruct (Nx0 !! n) eqn: H'; try done.
-            rewrite H'. rewrite lookup_empty. 
-            intros [? H'']; try done. }
-          assert (dom Mk = dom Mk0) as Dom_Mk.
-          { apply set_eq_subseteq; split.
-            - intros n. rewrite !elem_of_dom. rewrite Def_Mk'.
-              rewrite Hs0. unfold Mark.
-              destruct (Mk0 !! n) eqn: H'; try done.
-              rewrite H'. rewrite lookup_empty. 
-              intros [? H'']; try done.
-            - intros n. rewrite !elem_of_dom. rewrite Def_Mk'.
-              rewrite Hs0. unfold Mark.
-              destruct (Mk0 !! n) eqn: H'; try done.
-              rewrite H'. intros _.
-              assert (H1' := H'). 
-              apply elem_of_dom_2 in H'.
-              rewrite Dom_Mk0 in H'.
-              destruct PT_s0 as (_&_&_&PT&_).
-              rewrite {1}Hs0 in PT. unfold FP in PT.
-              apply PT in H'. destruct H' as (_&_&H'&_).
-              rewrite Hs0 /Mark H1' in H'.
-              rewrite -elem_of_dom H' elem_of_gset_seq. clear; lia.
-              intros [? H'']; try done. }
+        { 
+          assert (∃ (Nx: gmap Node Node), (∀ x, Nx !! x = Next s0 x !! 0) 
+            ∧ (dom Nx ⊆ dom Nx0)) as [Nx [Def_Nx Dom_Nx]].
+          { pose proof make_next_map Nx0 as [Nx [H' H'']]. exists Nx.
+            split. rewrite Hs0 /=. apply H'. done. }
+          
+          assert (∃ (Mk: gmap Node bool), (∀ x, Mk !!! x = Mark s0 x !!! 0) 
+            ∧ (dom Mk = dom Mk0)) as [Mk [Def_Mk Dom_Mk]].
+          { assert (∀ x, x ∈ dom Mk0 → 0 ∈ dom (Mk0 !!! x)) as H'.
+            { intros x Hx. rewrite Dom_Mk0 in Hx.
+              destruct PT_s0 as (_&_&_&PT&_). rewrite {1}Hs0 /FP in PT.
+              apply PT in Hx. destruct Hx as (_&_&H'&_).
+              rewrite Hs0 /Mark in H'. rewrite H' elem_of_gset_seq. clear; lia. }
+            pose proof make_mark_map Mk0 H' as [Mk [H1' [H1'' H1''']]].
+            exists Mk. split. rewrite Hs0 /=. apply H1''. done. }
+          
           assert (∀ x, Ky0 !!! x = Key s0 x) as Def_Ky0.
           { rewrite Hs0. unfold Key. try done. }
           
@@ -262,7 +227,7 @@ Require Export skiplist_delete_maintenance.
                 rewrite elem_of_gset_seq. clear; lia. }
           assert (✓ ([^op set] x ∈ dom I0, (I0 !!! x: multiset_flowint_ur nat))) 
             as VI.
-          { destruct PT_s0 as (_&H'&_).
+          { destruct PT_s0 as (_&(H'&_)&_).
             unfold GFI in H'. rewrite Dom_I0.
             rewrite {2}Hs0 in H'. unfold FP in H'.
             assert (([^op set] x ∈ FP0, I0 !!! x) = 
@@ -324,11 +289,11 @@ Require Export skiplist_delete_maintenance.
             clear -H' KS_x Hk1'; set_solver. }
           assert (∀ x k, x ∈ dom I0 → 
             inf ((I0 !!! x):multiset_flowint_ur _) x !!! k ≤ 1) as Inf_x.
-          { intros x k' Hx%Hflow. destruct Hx as (_&_&_&_&_&H'&_).
+          { intros x k' Hx%Hflow. destruct Hx as (_&_&_&_&_&_&H'&_).
             rewrite I0_eq_s0. apply H'. }
           assert (∀ x x' k, x ∈ dom I0 → 
             out ((I0 !!! x):multiset_flowint_ur _) x' !!! k ≤ 1) as Out_x.
-          { intros x x' k' Hx%Hflow. destruct Hx as (_&_&_&_&_&_&H').
+          { intros x x' k' Hx%Hflow. destruct Hx as (_&_&_&_&_&_&_&H').
             rewrite I0_eq_s0. apply H'. }
           assert (∀ x, x ∈ dom I0 → outsets (I0 !!! x) ⊆ insets (I0 !!! x))
             as Out_In.
@@ -381,7 +346,7 @@ Require Export skiplist_delete_maintenance.
           - by rewrite Hs0 Heq.
           - intros x Hx Hxc. assert (Hx' := Hx).
             apply Dom_II_sub_I0 in Hx. apply Hflow in Hx.
-            destruct Hx as (Hx1&Hx2&Hx3&Hx4&Hx5&Hx6&Hx7).
+            destruct Hx as (Hx1&Hx2&Hx3&Hx4&Hx5&Hx6&Hx7&Hx8).
             destruct (decide (x = nk)) as [-> | Hxnk].
             + repeat split. 
               * by apply Domm_II.
@@ -393,9 +358,12 @@ Require Export skiplist_delete_maintenance.
                 rewrite II_nk inflow_insert_set_outsets inflow_insert_set_insets.
                 destruct Hx4 as [Hx4 Hx4']. rewrite I0_eq_s0. split; try done.
                 clear -Hx4; set_solver. 
+              * rewrite II_nk inflow_insert_set_insets. intros _.
+                rewrite elem_of_union. left. rewrite I0_eq_s0. apply Hx5.
+                rewrite -I0_eq_s0. by apply Insets_ne.
               * rewrite II_nk inflow_insert_set_insets I0_eq_s0.
                 intros k'; rewrite elem_of_union.
-                intros [Hk' | Hk']. apply Hx5; try done.
+                intros [Hk' | Hk']. apply Hx6; try done.
                 apply HSk in Hk'. clear -Hk' Range_k; lia.
               * intros k'; by apply Inf_x'.
               * intros n' k'; by apply Out_x'.
@@ -407,25 +375,32 @@ Require Export skiplist_delete_maintenance.
               * intros H'. rewrite -Hx2 -I0_eq_s0. apply Dom_out; try done.
                 apply Insets_ne; try done.
               * by apply Out_In'.
-              * apply Mk_x in Hx1''. rewrite Def_Mk' in Hx1''.
-                apply lookup_total_correct in Hx1''. rewrite Hx1''.
-                rewrite Hx1'' in Hx4. rewrite KS_x; try done. 
+              * apply Mk_x in Hx1''. 
+                assert (Mk !!! x = true) as H'.
+                { by rewrite lookup_total_alt Hx1'' /=. }
+                rewrite Def_Mk in H'. rewrite H'.
+                rewrite H' in Hx4. rewrite KS_x; try done. 
                 by rewrite I0_eq_s0. clear -Hx' Hxnk Hxc; set_solver.
+              * rewrite II_x; try done. rewrite outflow_insert_set_insets. 
+                rewrite inflow_insert_set_insets. intros _.
+                rewrite elem_of_union. left. rewrite I0_eq_s0. apply Hx5.
+                rewrite -I0_eq_s0. by apply Insets_ne.
               * rewrite II_x; try done.
                 rewrite outflow_insert_set_insets.
                 rewrite inflow_insert_set_insets.
                 rewrite I0_eq_s0. intros k'; rewrite elem_of_union.
-                intros [Hk' | Hk']. apply Hx5; try done.
+                intros [Hk' | Hk']. apply Hx6; try done.
                 apply HSk in Hk'. clear -Hk' Range_k; lia.
               * intros k'; by apply Inf_x'.
               * intros n' k'; by apply Out_x'.
           - apply Hflow in c_in_I0. 
-            destruct c_in_I0 as (Hx1&Hx2&Hx3&Hx4&Hx5&Hx6&Hx7). repeat split.
+            destruct c_in_I0 as (Hx1&Hx2&Hx3&Hx4&Hx5&Hx6&Hx7&Hx8). repeat split.
             + by apply Domm_II.  
             + intros H'. rewrite -Hx2 -I0_eq_s0. apply Dom_out; try done.
               apply Insets_ne; try done.
             + by apply Out_In'.
             + rewrite KS_c. subst S. clear; set_solver.
+            + rewrite II_c outflow_insert_set_insets I0_eq_s0; try done. 
             + rewrite II_c outflow_insert_set_insets I0_eq_s0; try done. 
             + intros k'; by apply Inf_x'. 
             + intros n' k'; by apply Out_x'. }
@@ -768,21 +743,27 @@ Require Export skiplist_delete_maintenance.
           iSplitR. iPureIntro. by rewrite lookup_total_insert. 
           iExists hd, tl. iFrame "∗#%". }
         wp_pures. 
-        wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); 
+        wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
           try done.
         { iFrame "Hpreds Hsuccs".
           repeat (try iSplit; first by iPureIntro).
           iSplit. iPureIntro; clear -HL; lia.
           repeat (try iSplit; first by iPureIntro).
           iIntros (j) "%Hj". 
-          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". }
+          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". admit. }
         iIntros (???)"_". wp_pures. done.
       + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> Def_pvs]].
         iDestruct "Htr" as "(_&Htr)". 
         iDestruct "Htr" as (s)"(Past_s & %H')".
-        iDestruct "Past_s" as (ts)"(%Ht0_ts & #Hts)". 
         apply list_lookup_total_correct in Hss0. rewrite Hss0 in H'.
-        assert (Mark s c !!! 0 = false) as Mark_cs. { apply H'. }
+        iAssert (⌜Mark s c !!! 0 = false⌝)%I as %Mark_cs. 
+        { destruct H' as (H'&H''&H''').
+          iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
+          apply PT_s in H'. destruct H' as (_&_&_&_&_&H').
+          destruct H' as (_&_&_&H'&_). rewrite /Marki. 
+          destruct (Mark s c !!! 0); try done. rewrite H' in H''. 
+          clear -H''; set_solver. }
+        iDestruct "Past_s" as (ts)"(%Ht0_ts & #Hts)". 
         assert (c ∈ FP s) as FP_cs. { apply H'. }
         iPoseProof (marking_witness _ _ _ _ c 0 with "[%] [$Hist] [$Hts] [%] [%] [%]") 
           as "%H''"; try done. apply leibniz_equiv in Habs0. by rewrite Habs0.
@@ -792,7 +773,9 @@ Require Export skiplist_delete_maintenance.
         iPoseProof (snapshot_create _ _ _ _ (t) t0 with "[%] [$Hist]") 
           as ">(#Past_t&Hist)"; try (done || lia).
         iAssert (⌜Key (M0 !!! t) c = k⌝)%I as %Hk.
-        { destruct H' as (_&H'&_). rewrite H'.
+        { assert (k = Key s c) as ->. 
+          { destruct H' as (H'&H''&H'''). rewrite /Content /Marki Mark_cs in H'''.
+            clear -H'''; set_solver. }
           iPoseProof (key_eq _ _ _ _ c with "[%] [$Hist] [$Hts] [%]") as "->"; 
             try done. lia. }
         assert (k ∉ abs (M0 !!! S t)) as Hk'.
@@ -817,13 +800,25 @@ Require Export skiplist_delete_maintenance.
         { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". 
           rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
         by wp_pures.
-    - iAssert (past_lin_witness _ _ _ _ γ_m (deleteOp k) false t0)%I as "#PastW".
+    - iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
+      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+      { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
+      iAssert (past_lin_witness _ _ _ _ γ_m (deleteOp k) false t0)%I as "#PastW".
       { iDestruct "Htr" as "(_ & Htr)". 
-        iDestruct "Htr" as (s)"(#Past_s & %k_notin_s & _)".
+        iDestruct "Htr" as (s)"(#Past_s & %H')". 
+        set c := ss !!! 0. rewrite -/c in H'.
+        iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
+        assert (k ∉ abs s) as k_notin_s.
+        { destruct H' as (H' & H'' & H'''). destruct PT_s as (_&_&PT&_).
+          pose proof PT c k H' H'' as H1'. set_solver. }
         iExists s. iFrame "#". iPureIntro. set_solver. }
+      iModIntro. iSplitR "Hproph Hmatch Hpost".
+      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
       destruct (process_proph tid pvs) eqn: Hpvs.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
         iRight. by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph #". done.
+      Unshelve. try done.
   Admitted.

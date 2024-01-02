@@ -21,6 +21,7 @@ Require Import skiplist_util.
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
+    r ↦□ (#hd, #tl) -∗
       {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
           ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
           ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝ ∗ ⌜h < L⌝
@@ -37,7 +38,7 @@ Require Import skiplist_util.
           ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss')
           ∗ perm ↦∗ vs }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iLöb as "IH" forall (i ps ss). 
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". iLöb as "IH" forall (i ps ss). 
     iIntros (Φ) "!# Hpre Hpost".
     iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HhL 
       & %HpsL & %HssL & #FP_n & #Htr & Hperm & %Def_vs & %Perm_xs)".
@@ -70,7 +71,8 @@ Require Import skiplist_util.
       awp_apply changeNext_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+      iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+      { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iAssert (traversal_inv _ _ _ _ γ_m t0 idx k p c) as "#Htr'".
       { apply list_lookup_total_correct in Hp. 
@@ -86,7 +88,7 @@ Require Import skiplist_util.
       iAssert (⌜idx < Height s0 p⌝)%I as %Height_p0.
       { apply leibniz_equiv in Habs0. rewrite -Habs0.
         iDestruct "Htr'" as "(H'&_)". iDestruct "H'" as (s)"(Past_s & %Htr_sc)".
-        destruct Htr_sc as (H'&_&_&H''&_).
+        destruct Htr_sc as (H'&H''&_).
         iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
           try done. }
       iAssert ((node Σ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
@@ -103,7 +105,7 @@ Require Import skiplist_util.
       { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
       iAssert (⌜Key s0 p < W⌝)%I as %Key_pW. 
       { iDestruct "Htr'" as "(Htr'&_)". 
-        iDestruct"Htr'" as (s)"(Past_s & %FP_ps & %Key_ps & _)".
+        iDestruct"Htr'" as (s)"(Past_s & %FP_ps & _ & %Key_ps)".
         apply leibniz_equiv in Habs0. rewrite -Habs0.
         iPoseProof (key_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
           try done. iPureIntro. clear -Key_ps Range_k. lia. }
@@ -118,7 +120,7 @@ Require Import skiplist_util.
         { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. 
-        wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); 
+        wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
           try done.
         { iFrame "Hpreds Hsuccs".
           iSplitL. iPureIntro. apply Len_ps.
@@ -315,6 +317,7 @@ Require Import skiplist_util.
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
+    r ↦□ (#hd, #tl) -∗
         {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
             ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
             ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜n ∈ FP s⌝)
@@ -328,13 +331,14 @@ Require Import skiplist_util.
               preds ↦∗ ((λ n0 : loc, #n0) <$> ps')
             ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss') }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". 
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". 
     iIntros (Φ) "!# (Hpreds & Hsuccs & #FP_n & %n_neq_hd & %n_neq_tl & 
       %Len_ps & %Len_ss & %HpsL & %HssL & #Htr) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+    { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
     iAssert (⌜n ∈ FP s0⌝)%I as %FP_n0.
     { apply leibniz_equiv in Habs0. rewrite -Habs0.
@@ -360,12 +364,12 @@ Require Import skiplist_util.
     iModIntro. wp_pures. 
     wp_apply permute_levels_spec; try done.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
-    wp_apply (maintenanceOp_insert_rec_spec with "[] [] [] [] 
+    wp_apply (maintenanceOp_insert_rec_spec with "[] [] [] [] [HR']
       [$Hperm $Hpreds $Hsuccs]"); try done.
     { iFrame "#%". iExists s0. iFrame "#". by iPureIntro. }
     iIntros (ps' ss')"(Hpreds & Hsuccs & Hperm)". 
     iApply "Hpost". iFrame.
-  Admitted.
+  Qed.
 
 
   

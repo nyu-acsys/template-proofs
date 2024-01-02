@@ -14,8 +14,8 @@ Module Type TRAVERSE_SPEC.
   Export TR.NODE SK DEFS.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k p c : iProp Σ :=
-    (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜p ∈ FP s ∧ Key s p < k ∧ 
-      Marki s p 0 = false ∧ i < Height s p ∧ (i = 0 → Nexti s p i = Some c)⌝)
+    (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
+        ∗ ⌜p ∈ FP s ∧ i < Height s p ∧ Key s p < k⌝)
   ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜c ∈ FP s ∧ i < Height s c⌝).
 
   Lemma traversal_inv_hd_tl Σ Hg1 Hg2 Hg3 γ_m γ_t γ_mt hd tl M T s tid t0 k:
@@ -33,20 +33,24 @@ Module Type TRAVERSE_SPEC.
     destruct PT as ((H1'&H2'&H3'&H4'&H5'&H6'&H7'&H8'&H9')&_).
     iModIntro. iFrame. iSplit; iExists s; iFrame "Past_s".
     - iPureIntro; repeat split; try (done || lia).
-      set_solver. apply H4'. lia.
+      set_solver.
     - iPureIntro; repeat split; try (done || lia). set_solver.
   Qed. 
 
   Parameter traverse_rec_spec : ∀ Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid 
-    t0 k preds succs ps0 ss0 (i: nat) hd tl,
+    t0 k preds succs ps0 ss0 (i: nat) (hd tl: Node),
     main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
     thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
+    r ↦□ (#hd, #tl) -∗
       {{{ is_array Σ Hg1 preds ps0 ∗ is_array Σ Hg1 succs ss0
           ∗ ⌜length ps0 = L⌝ ∗ ⌜length ss0 = L⌝ ∗ ⌜i+1 < L⌝
           ∗ ⌜ps0 !!! (L-1) = hd⌝ ∗ ⌜ss0 !!! (L-1) = tl⌝
-          ∗ (∀ j, ⌜i < j < L⌝ → traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 j k (ps0 !!! j) (ss0 !!! j)) }}}
+          ∗ (∀ j, ⌜i < j < L⌝ → 
+              traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 j k (ps0 !!! j) (ss0 !!! j)
+            ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
+                        ∗ ⌜(ps0 !!! j) ∈ FP s ∧ Marki s (ps0 !!! j) 0 = false⌝)) }}}
         traverse_rec #k #preds #succs #i @ ⊤
       {{{ (ps ss: list Node) (res: bool), 
             RET (#preds, #succs, #res);
@@ -55,18 +59,16 @@ Module Type TRAVERSE_SPEC.
           ∗ ⌜ps !!! (L-1) = hd⌝ ∗ ⌜ss !!! (L-1) = tl⌝
           ∗ (∀ i, ⌜i < L⌝ → traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k (ps !!! i) (ss !!! i))
           ∗ (let c := ss !!! 0 in 
-                ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗
-                    ⌜if res then 
-                      k ∈ abs s ∧ k = Key s c ∧ c ∈ FP s ∧ Marki s c 0 = false
-                    else 
-                      k ∉ abs s ∧ k < Key s c ∧ c ∈ FP s⌝) }}}.
+              ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗
+                ⌜c ∈ FP s ∧ k ∈ keyset (FI s c) ∧ (res ↔ k ∈ Content s c)⌝) }}}.
+
   
-  Lemma traverse_spec (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
-    N γ_t γ_r γ_m γ_mt γ_msy r tid t0 k (hd tl: Node):
-    main_inv Σ H' H'' H''' N γ_t γ_r γ_m γ_mt γ_msy r -∗
-    thread_start Σ H' H'' H''' γ_t γ_mt tid t0 -∗
-    □ update_helping_protocol Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy -∗ 
+  Lemma traverse_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 k (hd tl: Node):
+    main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+    thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+    □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
+    r ↦□ (#hd, #tl) -∗
       {{{ True }}}
           traverse #hd #tl #k @ ⊤
       {{{ (preds succs: loc) (ps ss: list Node) (res: bool), 
@@ -75,15 +77,12 @@ Module Type TRAVERSE_SPEC.
           ∗ (succs ↦∗ ((fun n => # (LitLoc n)) <$> ss))
           ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
           ∗ ⌜ps !!! (L-1) = hd⌝ ∗ ⌜ss !!! (L-1) = tl⌝
-          ∗ (∀ i, ⌜i < L⌝ → traversal_inv Σ H' H'' H''' γ_m t0 i k (ps !!! i) (ss !!! i))
+          ∗ (∀ i, ⌜i < L⌝ → traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k (ps !!! i) (ss !!! i))
           ∗ (let c := ss !!! 0 in 
-                ∃ s, past_state Σ H' H'' H''' γ_m t0 s ∗
-                    ⌜if res then 
-                      k ∈ abs s ∧ k = Key s c ∧ c ∈ FP s ∧ Marki s c 0 = false
-                    else 
-                      k ∉ abs s ∧ k < Key s c ∧ c ∈ FP s⌝) }}}.
+                ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗
+                    ⌜c ∈ FP s ∧ k ∈ keyset (FI s c) ∧ (res ↔ k ∈ Content s c)⌝) }}}.
   Proof.
-    iIntros "#HInv #Thd_st #Upd [%HL %Range_k]". iIntros (Φ) "!# _ Hpost".
+    iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". iIntros (Φ) "!# _ Hpost".
     wp_lam. wp_pures. wp_bind (AllocN _ _)%E. 
     iApply array_repeat. iPureIntro; lia.
     iNext. iIntros (preds) "Hpreds".
@@ -92,15 +91,22 @@ Module Type TRAVERSE_SPEC.
     iNext. iIntros (succs) "Hsuccs". wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
     iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
-    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I as %[-> ->]. admit.
+    iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
+    { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
     { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
       as ">(#HtrL & Hist)"; try done.
+    iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
+      as ">(#Past_s0&Hist)"; try done.
+    iAssert (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗
+      ⌜hd ∈ FP s ∧ Marki s hd 0 = false⌝)%I as "Marked_hd".
+    { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (PT&_).
+      destruct PT as (H'&_&_&H''&_). split. set_solver. apply H''. lia. }
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
     { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
-    iModIntro.      
-    wp_apply (traverse_rec_spec with "[] [] [] [] [Hpreds Hsuccs]"); try done.
+    iModIntro.    
+    wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs".
     iSplitR. iPureIntro. by rewrite replicate_length.
     iSplitR. iPureIntro. by rewrite replicate_length.
@@ -109,8 +115,8 @@ Module Type TRAVERSE_SPEC.
     iSplitR. iPureIntro. rewrite lookup_total_replicate_2. done. lia.
     iIntros (j) "%Hj". 
     assert (j = L-1) as -> by lia. rewrite !lookup_total_replicate_2.
-    all : try lia. iFrame "HtrL".
-  Admitted.  
+    all : try lia. iFrame "HtrL Marked_hd".
+  Qed.
 
 End TRAVERSE_SPEC.
 

@@ -652,6 +652,42 @@ Export TR.NODE SK DEFS.
       + intros ?; rewrite !lookup_total_insert_ne; try lia. apply M_neq. lia.
   Qed.
 
+  Lemma in_insets hd tl s p c k :
+    per_tick_inv hd tl s → 
+    p ∈ FP s → 
+    Marki s p 0 = false → 
+    Nexti s p 0 = Some c → 
+    Key s p < k < W →  
+      k ∈ insets (FI s c).
+  Proof.
+    intros PT FP_p Marki_p Nexti_p Key_pk.
+    destruct PT as (PT1&PT2&PT3&PT4&PT5&PT6&PT7).
+    assert (c ∈ FP s) as FP_c.
+    { by apply (PT6 p c 0). }
+    assert (p ≠ c) as p_neq_c.
+    { intros ->. pose proof PT5 c c Nexti_p as H'. lia. }
+    apply (inset_in_insets _ c). apply (flowint_inset_step (FI s p)).
+    destruct PT2 as (H'&_). rewrite /GFI in H'.
+    assert ({[p; c]} ⊆ FP s) as Hsub.
+    { clear -FP_c FP_p. set_solver. }
+    pose proof (flow_big_op_valid _ _ {[p; c]} Hsub H') as H''.
+    rewrite big_opS_union in H''. rewrite !big_opS_singleton in H''. done.
+    clear -p_neq_c. set_solver. apply PT4 in FP_c. destruct FP_c as (_&_&_&_&_&Hf).
+    destruct Hf as (->&_). clear; set_solver.
+    apply PT4 in FP_p. destruct FP_p as (_&_&_&_&_&Hf).
+    rewrite /Marki in Marki_p. rewrite Marki_p in Hf.
+    rewrite /Nexti in Nexti_p. rewrite Nexti_p in Hf.
+    destruct Hf as (_&H'&_&H''&_). 
+    assert (insets (FI s p) ≠ ∅) as Insets_p. 
+    { assert (k ∈ insets (FI s p)) as H1'.
+      destruct H'' as (H''&_). apply H''. rewrite elem_of_gset_seq. lia.
+      set_solver. }
+    apply H' in Insets_p. destruct H'' as (_&H''). rewrite /outsets Insets_p in H''.
+    rewrite -leibniz_equiv_iff big_opS_singleton in H''. 
+    rewrite -H'' elem_of_gset_seq. lia.
+  Qed.
+  
+
   Lemma in_keyset hd tl s p c k :
     per_tick_inv hd tl s → 
     p ∈ FP s → 
@@ -681,7 +717,7 @@ Export TR.NODE SK DEFS.
     { rewrite -Hc4' elem_of_gset_seq. lia. }
     assert (p ≠ c) as p_neq_c. { intros ->; clear -Hk; lia. }
     assert (✓ (FI s p ⋅ FI s c)) as VI.
-    { destruct PT as (_&VI&_). rewrite /GFI in VI.
+    { destruct PT as (_&(VI&_)&_). rewrite /GFI in VI.
       assert ({[p; c]} ⊆ FP s) as Hsub.
       { clear -FP_p FP_c. set_solver. }
       pose proof (flow_big_op_valid _ _ {[p; c]} Hsub VI) as VI'.
@@ -852,19 +888,19 @@ Export TR.NODE SK DEFS.
     assert (Hn := FP_n). apply PT in Hn.
     assert (Hfp := Hp). destruct Hfp as (_&_&_&_&_&Hfp).
     assert (Hfn := Hn). destruct Hfn as (_&_&_&_&_&Hfn).
-    destruct Hfp as (Hfp1&Hfp2&Hfp3&Hfp4&Hfp5&Hfp6&Hfp7).
-    destruct Hfn as (Hfn1&Hfn2&Hfn3&Hfn4&Hfn5&Hfn6&Hfn7).
+    destruct Hfp as (Hfp1&Hfp2&Hfp3&Hfp4&Hfp5&Hfp6&Hfp7&Hfp8).
+    destruct Hfn as (Hfn1&Hfn2&Hfn3&Hfn4&Hfn5&Hfn6&Hfn7&Hfn8).
     apply nzmap_eq. intros k. 
     assert (inf (FI s n) n !!! k = 0 ∨ inf (FI s n) n !!! k = 1) as H'. 
-    { pose proof Hfn6 k as Hfn6. lia. }
+    { pose proof Hfn7 k as Hfn7. lia. }
     assert (out (FI s p) n !!! k = 0 ∨ out (FI s p) n !!! k = 1) as H''. 
-    { pose proof Hfp7 n k as Hfp7. lia. }
+    { pose proof Hfp8 n k as Hfp8. lia. }
     assert (n ≠ p) as n_neq_p. 
     { destruct PT as (_&_&_&_&PT&_). apply PT in Next_p. intros ->. lia. }
     destruct H' as [Hinf | Hinf]; destruct H'' as [Hout | Hout]; 
       try (rewrite Hinf Hout; lia). 
     - exfalso. assert (✓ ((FI s p) ⋅ (FI s n))) as VI. 
-      { destruct PT as (_&PT&_). clear -PT FP_p FP_n n_neq_p. 
+      { destruct PT as (_&(PT&_)&_). clear -PT FP_p FP_n n_neq_p. 
         assert ({[p; n]} ⊆ FP s) as Hsub.
         { clear -FP_p FP_n. set_solver. }
         pose proof (flow_big_op_valid _ _ {[p; n]} Hsub PT) as VI'.
@@ -877,13 +913,14 @@ Export TR.NODE SK DEFS.
       rewrite nzmap_lookup_merge /nat_op Hinf Hout in H'. lia.
     - exfalso. 
       assert (∃ p', p' ∈ FP s ∧ out (FI s p') n !!! k = 1) as [p' [FP_p' Out_p']].
-      { destruct PT as (Hdtl&PT&_&Hpure&Hkey&_). assert (n ∈ dom (FI s n)) as H1'.
+      { destruct PT as (Hdtl&(PT&PT')&_&Hpure&Hkey&_). assert (n ∈ dom (FI s n)) as H1'.
         { rewrite Hfn1. clear; set_solver. }
         pose proof flow_big_op_inf _ _ n n PT FP_n H1' as H'.
         assert (n ≠ hd) as n_neq_hd. 
         { apply Hkey in Next_p. intros ->. destruct Hdtl as (_&H''&_).
           rewrite H'' in Next_p. lia. }
-        assert (inf (GFI s) n = 0%CCM) as GFI_n. admit.
+        assert (inf (GFI s) n = 0%CCM) as GFI_n. 
+        { by apply PT'. }
         rewrite GFI_n in H'. rewrite nzmap_eq in H'. pose proof H' k as H'.
         rewrite nzmap_lookup_empty /ccmunit /= /ccmop_inv /ccm_opinv /= in H'.
         rewrite lookup_total_lifting_inv /ccmop_inv /ccm_opinv /= in H'.
@@ -895,16 +932,15 @@ Export TR.NODE SK DEFS.
         apply nat_nonzero_big_op in H''. destruct H'' as [p' [FP_p'' Out_p']].
         exists p'. assert (p' ∈ FP s) as FP_p'. { clear -FP_p''; set_solver. }
         split; try done. apply Hpure in FP_p'. destruct FP_p' as (_&_&_&_&_&H'').
-        destruct H'' as (_&_&_&_&_&_&H''). pose proof H'' n k as H''.
+        destruct H'' as (_&_&_&_&_&_&_&H''). pose proof H'' n k as H''.
         set a := out (FI s p') n !!! k. rewrite -/a in H'' Out_p'. lia. }
       assert (Hfp' := FP_p'). apply PT in Hfp'. destruct Hfp' as (_&_&_&_&_&Hfp').
-      destruct Hfp' as (Hfp1'&Hfp2'&Hfp3'&Hfp4'&Hfp5'&Hfp6'&Hfp7').
+      destruct Hfp' as (Hfp1'&Hfp2'&Hfp3'&Hfp4'&Hfp5'&Hfp6'&Hfp7'&Hfp8').
       assert (k ∈ outsets (FI s p')) as Outsets_k.
       { apply (outset_in_outsets _ n). rewrite /outset nzmap_elem_of_dom_total.
         rewrite Out_p' /ccmunit /= /nat_unit. lia. }
       assert (insets (FI s p') ≠ ∅) as Hinsets. 
       { apply Hfp3' in Outsets_k. clear -Outsets_k; set_solver. }
-      assert (∀ n, insets (FI s n) ≠ ∅ → W ∈ insets (FI s n)) as HW. { admit. }
       assert (Domout_p' := Hinsets). apply Hfp2' in Domout_p'.
       destruct (Next s p' !! 0) eqn: Next_p'; last first.
       { rewrite Next_p' in Domout_p'. rewrite /outsets Domout_p' in Outsets_k.
@@ -917,14 +953,14 @@ Export TR.NODE SK DEFS.
           nzmap_lookup_empty /ccmunit /= /nat_unit in H'.
         rewrite Out_p' in H'. lia. rewrite Domout_p' in H'. set_solver. }
       assert (W ∈ outsets (FI s p')) as HWp'.
-      { apply HW in Hinsets. destruct (Mark s p' !!! 0).
+      { apply Hfp5' in Hinsets. destruct (Mark s p' !!! 0).
         clear -Hinsets Hfp4' Hfp3'. set_solver.
         destruct Hfp4' as [_ <-]. rewrite elem_of_gset_seq. split; try lia.
         destruct Hn as (_&_&_&_&Hn&_). destruct PT as (_&_&_&_&PT&_).
         apply PT in Next_p'. clear -Next_p' Hn. lia. }
       rewrite /outsets Domout_p' big_opS_singleton in HWp'.
       assert (W ∈ outsets (FI s p)) as HWp.
-      { apply HW in Insets_p. destruct (Mark s p !!! 0).
+      { apply Hfp5 in Insets_p. destruct (Mark s p !!! 0).
         clear -Insets_p Hfp4 Hfp3. set_solver.
         destruct Hfp4 as [_ <-]. rewrite elem_of_gset_seq. split; try lia.
         destruct Hn as (_&_&_&_&Hn&_). destruct PT as (_&_&_&_&PT&_).
@@ -937,7 +973,8 @@ Export TR.NODE SK DEFS.
       assert (p ≠ p') as p_neq_p'.
       { intros <-. rewrite Out_p' in Hout. done. }
       assert (✓ (((FI s p) ⋅ (FI s p')) ⋅ (FI s n))) as VI.
-      { destruct PT as (_&PT&_). clear -PT FP_p FP_n FP_p' n_neq_p n_neq_p' p_neq_p'. 
+      { destruct PT as (_&(PT&_)&_). 
+        clear -PT FP_p FP_n FP_p' n_neq_p n_neq_p' p_neq_p'. 
         assert ({[p; p'; n]} ⊆ FP s) as Hsub.
         { clear -FP_p FP_p' FP_n. set_solver. }
         pose proof (flow_big_op_valid _ _ {[p; p'; n]} Hsub PT) as VI'.
@@ -954,12 +991,85 @@ Export TR.NODE SK DEFS.
       pose proof intComp_unfold_out _ _ VI' n Dom_n' as H''.
       rewrite nzmap_eq in H''. pose proof H'' W as H''.
       rewrite /ccmop /ccm_op /= lookup_total_lifting /ccmop /ccm_op /= /nat_op in H''.
-      rewrite H'' in H'. clear -Hfn6 HWp HWp' H'. 
+      rewrite H'' in H'. clear -Hfn7 HWp HWp' H'. 
       rewrite /outset nzmap_elem_of_dom_total /ccmunit /ccm_unit /= /nat_unit in HWp.
       rewrite /outset nzmap_elem_of_dom_total /ccmunit /ccm_unit /= /nat_unit in HWp'.
-      pose proof Hfn6 W as H''. 
+      pose proof Hfn7 W as H''. 
       set a := inf (FI s n) n !!! W.
       set b := out (FI s p) n !!! W.
       set c := out (FI s p') n !!! W.
       rewrite -/a -/b -/c in H'' H' HWp HWp'. lia.
-  Admitted.
+  Qed.
+
+  Lemma make_next_map (Nx : gmap Node (gmap nat Node)) :
+      ∃ (N: gmap Node Node), 
+          (∀ x, N !! x = (Nx !!! x) !! 0)
+        ∧ (dom N ⊆ dom Nx).
+  Proof.
+    set f := λ (n: Node) (nx: gmap nat Node) (res: gmap Node Node), 
+      match nx !! 0 with None => res | Some n' => <[n := n']> res end.
+    set N : gmap Node Node := map_fold f ∅ Nx.
+    exists N. 
+    assert (∀ x : Node, N !! x = (Nx !!! x) !! 0) as Lookup_N.
+    { set P := λ (res: gmap Node Node) (m: gmap Node (gmap nat Node)),
+        (∀ x: Node, res !! x = 
+              (match m !! x with Some mn => mn | None => ∅ end) !! 0).
+      apply (map_fold_ind P); try done.
+      intros n Nx_n m res Hmn HP. unfold P. unfold P in HP.
+      intros n'. unfold f. 
+      destruct (decide (n' = n)) as [-> | Hn'].
+      - destruct (Nx_n !! 0) as [Nx_n0 | ] eqn:Hn0.
+        + rewrite !lookup_insert. by rewrite Hn0.
+        + rewrite lookup_insert. rewrite Hn0.
+          by rewrite (HP n) Hmn.
+      - destruct (Nx_n !! 0) as [Nx_n0 | ] eqn:Hn0.
+        + rewrite !lookup_insert_ne; try done.
+        + rewrite (HP n'). by rewrite lookup_insert_ne. }
+    assert (dom N ⊆ dom Nx) as Dom_N.
+    { intros n. rewrite !elem_of_dom. rewrite Lookup_N. 
+      destruct (Nx !! n) eqn: H'; try done.
+      rewrite lookup_total_alt H' /= lookup_empty. intros [? H'']; try done. }
+    done.
+  Qed.
+  
+  Lemma make_mark_map (Mk : gmap Node (gmap nat bool)) :
+    (∀ x, x ∈ dom Mk → 0 ∈ dom (Mk !!! x)) →
+      ∃ (M: gmap Node bool), 
+          (∀ x, M !! x = (Mk !!! x) !! 0)
+        ∧ (∀ x, M !!! x = (Mk !!! x) !!! 0)
+        ∧ (dom M = dom Mk).
+  Proof.
+    intros Dom_Mk.
+    set f := λ (n: Node) (mk: gmap nat bool) (res: gmap Node bool), 
+      match mk !! 0 with None => res | Some n' => <[n := n']> res end.
+    set M : gmap Node bool := map_fold f ∅ Mk.
+    exists M. 
+    assert (∀ x, M !! x = (Mk !!! x) !! 0) as Lookup_M.
+    { set P := λ (res: gmap Node bool) (m: gmap Node (gmap nat bool)),
+        ∀ x: Node, res !! x = 
+          (match m !! x with Some mn => mn | None => ∅ end) !! 0.
+      apply (map_fold_ind P); try done.
+      intros n Mk_n m res Hmn HP. unfold P. unfold P in HP.
+      intros n'. unfold f. 
+      destruct (decide (n' = n)) as [-> | Hn'].
+      - destruct (Mk_n !! 0) as [Mk_n0 | ] eqn:Hn0.
+        + rewrite !lookup_insert. by rewrite Hn0.
+        + rewrite lookup_insert. rewrite Hn0. 
+          by rewrite (HP n) Hmn.
+      - destruct (Mk_n !! 0) as [Mk_n0 | ] eqn:Hn0.
+        + rewrite !lookup_insert_ne; try done. 
+        + rewrite (HP n'). by rewrite lookup_insert_ne. }
+    assert (∀ x, M !!! x = (Mk !!! x) !!! 0) as LookupT_M.
+    { intros n. rewrite lookup_total_alt. by rewrite Lookup_M. }
+    assert (dom M = dom Mk) as Dom_M.
+    { apply set_eq_subseteq; split.
+      - intros n. rewrite !elem_of_dom Lookup_M.
+        destruct (Mk !! n) eqn: H'; try done.
+        rewrite lookup_total_alt H' lookup_empty. intros [? H'']; try done.
+      - intros n. rewrite !elem_of_dom Lookup_M.
+        destruct (Mk !! n) eqn: H'; try done. intros _.
+        assert (H1' := H'). apply (elem_of_dom_2 Mk) in H'.
+        apply Dom_Mk in H'. by rewrite elem_of_dom in H'.
+        intros [? H'']; try done. }
+    done.
+  Qed.

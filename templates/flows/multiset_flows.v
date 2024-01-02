@@ -1257,18 +1257,6 @@ Proof.
       set_solver.
 Qed.
 
-(*
-Lemma inflow_delete_set_insets I n S: 
-           insets (inflow_delete_set I n S) = insets I ∖ S.
-Proof.
-Admitted.
-
-Lemma outflow_delete_set_outsets I n S: 
-           outsets (outflow_delete_set I n S) = outsets I ∖ S.
-Proof.
-Admitted.
-*)
-
 Lemma inflow_delete_set_outsets I n S: 
            outsets (inflow_delete_set I n S) = outsets I.
 Proof.

@@ -12,7 +12,7 @@ Section keyset_ra.
   Context `{Countable K}.
 
   (* The keyspace is some arbitrary finite subset of K. *)
-  Parameter KS : gset K.
+  (* Parameter KS : gset K. *)
 
   Inductive ksRAT :=
     prodKS : gset K*gset K → ksRAT
@@ -317,7 +317,7 @@ Section keyset_ra.
     inversion Hincl. set_solver.
   Qed.
   
-  Lemma auth_ks_local_update_insert K1 C Cn k:
+  Lemma auth_ks_local_update_insert KS K1 C Cn k:
     ✓ prodKS (KS, C) → ✓ prodKS (K1, Cn) → 
     k ∈ K1 → k ∉ Cn → k ∈ KS →
       (prodKS (KS, C), prodKS (K1, Cn)) ~l~>  
@@ -346,7 +346,7 @@ Section keyset_ra.
     - inversion HKS. apply f_equal. apply f_equal2; set_solver.
   Qed.  
   
-  Lemma auth_ks_local_update_delete K1 C Cn k:
+  Lemma auth_ks_local_update_delete KS K1 C Cn k:
     ✓ prodKS (KS, C) → ✓ prodKS (K1, Cn) → 
     k ∈ K1 → k ∈ Cn →
       (prodKS (KS, C), prodKS (K1, Cn)) ~l~>  

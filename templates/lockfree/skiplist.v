@@ -389,6 +389,8 @@ Module SKIPLIST (TR : TRAVERSE) <: DATA_STRUCTURE.
       (Ky: gmap Node nat) (I: gmap Node (multiset_flowint_ur nat)),
       s = (N, C, H, Mk, Nx, Ky, I) ∧ dom H = N ∧ dom Mk = N ∧ dom Nx = N 
       ∧ dom Ky = N ∧ dom I = N.
+  
+  Definition KS := gset_seq 0 W.
         
   Definition flow_constraints_I n In (m: bool) (on: option Node) (k: nat) : Prop := 
       (dom In = {[n]})
@@ -397,6 +399,7 @@ Module SKIPLIST (TR : TRAVERSE) <: DATA_STRUCTURE.
     ∧ (outsets In ⊆ insets In)
     ∧ (if m then keyset In = ∅ 
         else gset_seq k W ⊆ insets In ∧ gset_seq (k+1) W = outsets In)
+    ∧ (insets In ≠ ∅ → W ∈ insets In)
     ∧ (∀ k, k ∈ insets In → k ≤ W)
     ∧ (∀ k, inf In n !!! k ≤ 1)
     ∧ (∀ n' k, out In n' !!! k ≤ 1).
@@ -425,7 +428,7 @@ Module SKIPLIST (TR : TRAVERSE) <: DATA_STRUCTURE.
   Definition per_tick_inv hd tl s : Prop := 
       hd_tl_inv hd tl (FP s) (Height s hd) (Height s tl) (Mark s hd) (Mark s tl)
         (Next s hd) (Next s tl) (Key s hd) (Key s tl)
-    ∧ ✓ GFI s
+    ∧ (✓ (GFI s) ∧ (∀ n, n ≠ hd → inf (GFI s) n = 0%CCM))
     ∧ (∀ n k, n ∈ FP s → k ∈ keyset (FI s n) → (k ∈ abs s ↔ k ∈ Content s n))
     ∧ (∀ n, n ∈ (FP s) → 
         node_inv_pure hd tl n (Height s n) (Mark s n) (Next s n) (Key s n) (FI s n))
@@ -447,7 +450,7 @@ Module SKIPLIST (TR : TRAVERSE) <: DATA_STRUCTURE.
     ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
 
   Definition ds_inv Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r (M: gmap nat snapshot) 
-    (T: nat) (s: snapshot) : iProp Σ :=
+    (T: nat) (s: snapshot) : iProp Σ := 
     ∃ (hd tl: Node), 
       r ↦□ (#hd, #tl)
     ∗ ⌜snapshot_constraints s⌝ 

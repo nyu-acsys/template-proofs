@@ -46,9 +46,9 @@ Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
     wp_load. iModIntro. iSplitR "Hpre Hpost".
     { iExists M0, T0, s0. iNext. iFrame "%#∗". iExists hd, tl. iFrame "%#". }
     wp_pures. unfold Op_to_val; destruct op as [k|k|k]; wp_pures.
-    - wp_apply (searchOp_spec with "[] [] [] [] [Hpre]"); try done.
-    - wp_apply (insertOp_spec with "[] [] [] [] [Hpre]"); try done.
-    - wp_apply (deleteOp_spec with "[] [] [] [] [Hpre]"); try done.
+    - wp_apply (searchOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    - wp_apply (insertOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    - wp_apply (deleteOp_spec with "[] [] [] [] [] [Hpre]"); try done.
   Qed.
 
 End SKIPLIST_SPEC.

@@ -468,6 +468,67 @@ Section list_flow_upd_insert.
           as Hpose. 
   Qed.
 
+  Lemma list_flow_upd_insert_insets Key n R Nx Mk S I I' II' nk n0:
+    let FI := λ I x, I !!! x in 
+    (nx_key_rel Nx Key) →
+    (nx_mk_closed Nx Mk (dom I)) →
+    (∀ x, x ∈ dom I → dom (FI I x) = {[x]}) →
+    (∀ x k, x ∈ dom I → inf (FI I x) x !!! k ≤ 1) →
+    (n ∈ dom I') → (dom I' ⊆ dom I) →
+    (∀ x, x ∈ dom I' → Key !!! x ≤ Key !!! n) →
+    (∀ x, x ∈ dom I' ∖ {[n0]} → insets (FI I' x) = insets (FI I x) ∖ S) →
+    list_flow_upd_rec f_decr n R Nx Mk S I I' = Some (II', nk) →
+      (∀ x, x ∈ dom II' ∖ {[n0]} → insets (FI II' x) = insets (FI I x) ∖ S).
+  Proof.
+    intros FI. apply list_flow_upd_rec_ind; try done; last first.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n.
+      intros Nx_key Hcl Domm_I Inf_x n_in_I0 Dom_I0_in_I Key_I0 IS_x [= -> ->].
+      done.
+    - clear n R Nx Mk S I I'.
+      intros n R Nx Mk S I I0 n_in_R Hmk_n n1 Hnx_n In In' In1 In1' II I0'.
+      intros HInd Nx_key Hcl Domm_I Inf_x n_in_I0 Dom_I0_in_I Key_I0 IS_x Hflow.
+      assert (n1 ∉ dom I0) as n1_notin_I0.
+      { pose proof Nx_key n n1 Hnx_n as H'.
+        intros n1_in_I0. apply Key_I0 in n1_in_I0.
+        clear -H' n1_in_I0. lia. }
+      assert (dom I0' = dom I0 ∪ {[ n1 ]}) as Dom_I0'.
+      { rewrite /I0' /II.
+        repeat rewrite dom_insert_L.
+        clear -n_in_I0 n1_notin_I0.
+        set_solver. }
+      assert (n1 ∈ dom I) as n1_in_I.
+      { destruct Hcl as (_&_&Hcl&_).
+        by pose proof Hcl n n1 Hnx_n as H'. }
+      apply HInd; try done.
+      + rewrite Dom_I0'. clear; set_solver.
+      + rewrite Dom_I0'. clear -Dom_I0_in_I n1_in_I. set_solver.
+      + pose proof Nx_key n n1 Hnx_n as H'. 
+        rewrite Dom_I0'. intros x; rewrite elem_of_union.
+        intros [Hx | Hx].
+        * apply Key_I0 in Hx. clear -Hx H'. lia.
+        * assert (x = n1) as -> by (clear -Hx; set_solver).
+          clear; try done.
+      + intros x Hx; rewrite Dom_I0' elem_of_difference elem_of_union 
+          !elem_of_singleton in Hx. destruct Hx as [Hx1 Hx2].
+        destruct Hx1 as [Hx1 | ->]; last first.
+        * rewrite {1}/FI /I0' lookup_total_insert /In1'.
+          rewrite /insets flowint_inflow_map_set_dom Domm_I; try done.
+          assert ({[n1;n1]} = {[n1]}) as -> by (clear; set_solver).
+          apply leibniz_equiv. rewrite !big_opS_singleton.
+          rewrite inflow_delete_set_inset; try done.
+          intros k Hk. by apply Inf_x.
+        * destruct (decide (x = n)) as [-> | Hxn]; last first.
+          { rewrite /I0' /FI /II !lookup_total_insert_ne; try done. 
+            apply IS_x. clear -Hx1 Hx2 Hxn; set_solver. 
+            clear -Hx1 n1_notin_I0; set_solver. }
+          rewrite /I0' /FI lookup_total_insert_ne; try done.
+          rewrite /II lookup_total_insert /In' /In.
+          rewrite outflow_delete_set_insets. apply IS_x. 
+          clear -Hx1 Hx2; set_solver. clear -n1_notin_I0 n_in_I0; set_solver.
+  Qed.
+
+
   Lemma list_flow_upd_insert_KS Key n R Nx Mk S I I' II' nk n0:
     let FI := λ I x, I !!! x in 
     (nx_key_rel Nx Key) →
@@ -1354,7 +1415,8 @@ Section list_flow_upd_insert.
       ∧ (keyset (FI II n0) = keyset (FI I n0) ∪ S)
       ∧ (keyset (FI II nk) = keyset (FI I nk) ∖ S)
       ∧ (∀ x, x ∈ dom II ∖ {[ n0; nk ]} → keyset (FI II x) = keyset (FI I x))
-      ∧ (S ⊆ keyset (FI I nk)).
+      ∧ (S ⊆ keyset (FI I nk))
+      ∧ (∀ x, x ∈ dom II ∖ {[n0]} → insets (FI II x) = insets (FI I x) ∖ S).
   Proof.
     intros FI Nx_key Hcl KS_Mk Disj_insets Nx_dom Out_In Hnx_n0 VI Domm_I 
       n0_in_I Insets_S Outset_S Inf_x Out_x Hflow.
@@ -1601,6 +1663,16 @@ Section list_flow_upd_insert.
     assert (∀ x, x ∈ dom I' → insets (FI I x) ≠ ∅) as Insets_ne.
     { intros x. rewrite Dom_I' elem_of_union. intros [Hx | Hx].
       all: (rewrite elem_of_singleton in Hx; subst x; try done). }
+    assert (∀ x, x ∈ dom I' ∖ {[n0]} → 
+      insets (I' !!! x) = insets (I !!! x) ∖ S) as IS_x.
+    { intros x. rewrite Dom_I' elem_of_difference elem_of_union !elem_of_singleton.
+      intros [Hx Hxn0]. destruct Hx as [Hx | ->]; try done.
+      rewrite /I' lookup_total_insert /In1.
+      rewrite /insets flowint_inflow_map_set_dom Domm_I; try done.
+      assert ({[n1;n1]} = {[n1]}) as -> by (clear; set_solver).
+      apply leibniz_equiv. rewrite !big_opS_singleton.
+      rewrite inflow_delete_set_inset; try done.
+      intros k Hk. by apply Inf_x. }
 
     set R := dom I ∖ {[n0]}.
     
@@ -1629,6 +1701,7 @@ Section list_flow_upd_insert.
     - by apply (list_flow_upd_insert_KS_nk Key n1 R Nx Mk S I I' II nk).
     - by apply (list_flow_upd_insert_KS Key n1 R Nx Mk S I I' II nk n0).
     - by apply (list_flow_upd_insert_S_in_nk Key n1 R Nx Mk S I I' II nk n0).
+    - by apply (list_flow_upd_insert_insets Key n1 R Nx Mk S I I' II nk n0). 
   Qed.
 
 End list_flow_upd_insert.
