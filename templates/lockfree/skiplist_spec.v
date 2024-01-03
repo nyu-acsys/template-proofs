@@ -11,12 +11,16 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_search skiplist_delete skiplist_insert hindsight_proof.
+Require Export skiplist_search skiplist_insert skiplist_delete hindsight_proof.
 
 Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
-  Module DS := skiplist_util.SK.
-  Module DEFS := skiplist_util.DEFS.
-  Export DS DEFS.
+  Declare Module TR_SPEC : TRAVERSE_SPEC.
+  Declare Module SK_SEARCH : SKIPLIST_SEARCH with Module TR_SPEC := TR_SPEC.
+  Declare Module SK_INSERT : SKIPLIST_INSERT with Module TR_SPEC := TR_SPEC.
+  Declare Module SK_DELETE : SKIPLIST_DELETE with Module TR_SPEC := TR_SPEC.
+  Module DEFS := TR_SPEC.SK_UTIL.DEFS.
+  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
+  Export TR_SPEC.SK_UTIL.SK.TR.NODE TR_SPEC.SK_UTIL.SK.TR.
   
   Lemma dsOp_spec (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q :
@@ -46,9 +50,9 @@ Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
     wp_load. iModIntro. iSplitR "Hpre Hpost".
     { iExists M0, T0, s0. iNext. iFrame "%#∗". iExists hd, tl. iFrame "%#". }
     wp_pures. unfold Op_to_val; destruct op as [k|k|k]; wp_pures.
-    - wp_apply (searchOp_spec with "[] [] [] [] [] [Hpre]"); try done.
-    - wp_apply (insertOp_spec with "[] [] [] [] [] [Hpre]"); try done.
-    - wp_apply (deleteOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    - wp_apply (SK_SEARCH.searchOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    - wp_apply (SK_INSERT.insertOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    - wp_apply (SK_DELETE.deleteOp_spec with "[] [] [] [] [] [Hpre]"); try done.
   Qed.
 
 End SKIPLIST_SPEC.

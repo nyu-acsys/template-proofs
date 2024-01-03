@@ -63,7 +63,8 @@ Module Type DATA_STRUCTURE.
 End DATA_STRUCTURE.
 
 
-Module HINDSIGHT_DEFS (DS : DATA_STRUCTURE).
+Module Type HINDSIGHT_DEFS.
+  Declare Module DS : DATA_STRUCTURE.
   Import DS.
     
   (* RAs used in proof *)

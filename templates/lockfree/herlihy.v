@@ -13,6 +13,7 @@ From flows Require Import traverse_module traverse_spec_module skiplist_util.
 
 Module HERLIHY <: TRAVERSE.
   Declare Module NODE : NODE_IMPL.
+  Export NODE.
 
   Definition traverse_i : heap_lang.val :=
     rec: "tri" "i" "pred" "curr" "k" :=
@@ -68,8 +69,9 @@ Module HERLIHY <: TRAVERSE.
 End HERLIHY.
 
 Module HERLIHY_SPEC <: TRAVERSE_SPEC.
-  Module TR := HERLIHY.
-  Import HERLIHY.
+  Declare Module SK : SKIPLIST with Module TR := HERLIHY.
+  Declare Module SK_UTIL : SKIPLIST_UTIL with Module SK := SK.
+  Export SK_UTIL.SK.TR.NODE SK_UTIL.SK.TR SK_UTIL.SK SK_UTIL.DEFS SK_UTIL.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k p c : iProp Σ :=
     (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 

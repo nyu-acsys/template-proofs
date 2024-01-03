@@ -10,9 +10,8 @@ From iris.bi.lib Require Import fractional.
 Require Export hindsight flows.
 
 Module Type HINDSIGHT_SPEC.
-  Declare Module DS : DATA_STRUCTURE.
-  Module DEFS := HINDSIGHT_DEFS DS.
-  Export DS DEFS.
+  Declare Module DEFS : HINDSIGHT_DEFS.
+  Export DEFS.DS DEFS.
   
   Parameter dsOp_spec: ∀ (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q,
@@ -36,8 +35,9 @@ Module Type HINDSIGHT_SPEC.
   
 End HINDSIGHT_SPEC.
 
-Module CLIENT_SPEC (SPEC : HINDSIGHT_SPEC).
-  Export SPEC.DS SPEC.DEFS SPEC.
+Module CLIENT_SPEC.
+  Declare Module SPEC : HINDSIGHT_SPEC.
+  Export SPEC.DEFS.DS SPEC.DEFS SPEC.
 
   (* Context `{!heapGS Σ, !hsG Σ}. *)
   (* Context (H' : dsG Σ). *)

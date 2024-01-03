@@ -14,122 +14,14 @@ From iris.bi.lib Require Import fractional.
 From flows Require Export multiset_flows keyset_ra2 bool_ra.
 From flows Require Export hindsight traverse_module.
 
-Module SKIPLIST (TR : TRAVERSE) <: DATA_STRUCTURE.
+Module Type SKIPLIST <: DATA_STRUCTURE.
+  Declare Module TR : TRAVERSE.
   Export TR.NODE TR.
   
   (* Parameter L : nat. (* Maxlevels *) *)
   Parameter W : nat. (* Keyspace *)
 
   (* Template Algorithms *)
-(*
-  Definition traverse_i : heap_lang.val :=
-    rec: "tri" "i" "pred" "predn" "curr" "k" :=
-      let: "fn_curr" := findNext "curr" "i" in
-      let: "m" := Fst "fn_curr" in
-      let: "succ" := Snd "fn_curr" in
-      if: "m" then
-        "tri" "i" "pred" "predn" "succ" "k"
-      else
-        let: "res" := compareKey "curr" "k" in
-          if: "res" = #0 then 
-          "tri" "i" "curr" "succ" "succ" "k"
-          else
-            match: changeNext "pred" "predn" "curr" "i" with
-              NONE => NONE
-            | SOME "_" => 
-              if: "res" = #1 then
-                SOME ("pred", "curr", #true)
-              else
-                SOME ("pred", "curr", #false).
-
-  Definition traverse_pop : heap_lang.val :=
-    λ: "k" "preds" "succs" "i",
-      let: "pred" := ! ("preds" +ₗ ("i" + #1)) in
-      let: "fn_pred" := findNext "pred" "i" in
-      let: "curr" := Snd "fn_pred" in
-      let: "ores" := traverse_i "i" "pred" "pred" "curr" "k" in
-      match: "ores" with
-        NONE => NONE
-      | SOME "pred_succ_res" =>
-        let: "pred" := Fst (Fst "pred_succ_res") in
-        let: "succ" := Snd (Fst "pred_succ_res") in
-        let: "res" := Snd "pred_succ_res" in
-        "preds" +ₗ "i" <- "pred";;
-        "succs" +ₗ "i" <- "succ";;
-        SOME ("preds", "succs", "res") end.
-
-  Definition traverse_rec : heap_lang.val :=
-    rec: "trec" "k" "preds" "succs" "i" :=
-      let: "ores" := traverse_pop "k" "preds" "succs" "i" in
-      match: "ores" with 
-        NONE => "trec" "k" "preds" "succs" #(L-2)%nat
-      | SOME "res" => 
-        if: "i" = #0 then
-          "res"
-        else
-          "trec" "k" "preds" "succs" ("i" - #1) end.
-  
-  Definition traverse : heap_lang.val :=
-    λ: "h" "t" "k",
-      let: "preds" := AllocN #L "h" in
-      let: "succs" := AllocN #L "t" in
-      traverse_rec "k" "preds" "succs" #(L-2)%nat.  
-*)
-
-(*
-  Definition traverse_i : heap_lang.val :=
-    rec: "tri" "i" "pred" "curr" "k" :=
-      let: "fn_curr" := findNext "curr" "i" in
-      let: "m" := Fst "fn_curr" in
-      let: "succ" := Snd "fn_curr" in
-      if: "m" then
-        match: changeNext "pred" "curr" "succ" "i" with
-          NONE => NONE
-        | SOME "_" => 
-          "tri" "i" "pred" "succ" "k" end 
-      else
-        let: "res" := compareKey "curr" "k" in
-        if: "res" = #0 then 
-          "tri" "i" "curr" "succ" "k"
-        else if: "res" = #1 then
-          SOME ("pred", "curr", #true)
-        else
-          SOME ("pred", "curr", #false).
-
-  Definition traverse_pop : heap_lang.val :=
-    λ: "k" "preds" "succs" "i",
-      let: "pred" := ! ("preds" +ₗ ("i" + #1)) in
-      let: "fn_pred" := findNext "pred" "i" in
-      let: "curr" := Snd "fn_pred" in
-      let: "ores" := traverse_i "i" "pred" "curr" "k" in
-      match: "ores" with
-        NONE => NONE
-      | SOME "pred_succ_res" =>
-        let: "pred" := Fst (Fst "pred_succ_res") in
-        let: "succ" := Snd (Fst "pred_succ_res") in
-        let: "res" := Snd "pred_succ_res" in
-        "preds" +ₗ "i" <- "pred";;
-        "succs" +ₗ "i" <- "succ";;
-        SOME ("preds", "succs", "res") end.
-
-  Definition traverse_rec : heap_lang.val :=
-    rec: "trec" "k" "preds" "succs" "i" :=
-      let: "ores" := traverse_pop "k" "preds" "succs" "i" in
-      match: "ores" with 
-        NONE => "trec" "k" "preds" "succs" #(L-2)%nat
-      | SOME "res" => 
-        if: "i" = #0 then
-          "res"
-        else
-          "trec" "k" "preds" "succs" ("i" - #1) end.
-  
-  Definition traverse : heap_lang.val :=
-    λ: "h" "t" "k",
-      let: "preds" := AllocN #L "h" in
-      let: "succs" := AllocN #L "t" in
-      traverse_rec "k" "preds" "succs" #(L-2)%nat.  
-*)
-
   Definition search : heap_lang.val :=
     λ: "h" "t" "k",
       let: "preds_succs_res" := traverse "h" "t" "k" in

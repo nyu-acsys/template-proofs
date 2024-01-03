@@ -10,8 +10,9 @@ From flows Require Import array_util skiplist_util.
 Set Default Proof Using "All".
 
 Module Type TRAVERSE_SPEC.
-  Declare Module TR : TRAVERSE.
-  Export TR.NODE SK DEFS.
+  Declare Module SK_UTIL : SKIPLIST_UTIL.
+  Export SK_UTIL. Export SK DEFS.
+  Export TR.NODE TR.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k p c : iProp Σ :=
     (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
@@ -119,6 +120,3 @@ Module Type TRAVERSE_SPEC.
   Qed.
 
 End TRAVERSE_SPEC.
-
-Declare Module TR_SPEC : TRAVERSE_SPEC.
-Export TR_SPEC.

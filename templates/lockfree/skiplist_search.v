@@ -11,10 +11,14 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Import skiplist_util.
+(* Require Import skiplist_util. *)
 Require Export traverse_spec_module flows.
-  
-  Export skiplist_util.TR.NODE skiplist_util.SK skiplist_util.DEFS.
+
+
+Module Type SKIPLIST_SEARCH.
+  Declare Module TR_SPEC : TRAVERSE_SPEC.
+  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
+  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
 
   Lemma searchOp_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) 
     pvs tid t0 Q k (hd tl: Node) :
@@ -64,3 +68,35 @@ Require Export traverse_spec_module flows.
       iRight. by iPureIntro.
     - iApply ("Hpost" $! res [] pvs). iFrame "Hproph #". done.
   Qed.
+
+End SKIPLIST_SEARCH.
+
+(*
+Module SKIPLIST_INSERT (TR_SPEC : TRAVERSE_SPEC).
+  Include TR_SPEC.
+
+  Lemma insertOp_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) 
+    pvs tid t0 Q k (hd tl: Node) :
+      main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+      thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+      □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
+      ⌜local_pre (insertOp k)⌝ -∗
+      r ↦□ (#hd, #tl) -∗
+        {{{ proph p pvs ∗ 
+            (match process_proph tid pvs with
+              contra => au Σ Hg1 Hg2 Hg3 N γ_r (insertOp k) Q
+            | no_upd => True
+            | upd => au Σ Hg1 Hg2 Hg3 N γ_r (insertOp k) Q end) }}}
+              insert #p #hd #tl #k @ ⊤
+        {{{ (res: resT) prf pvs', RET #res;
+            proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
+            (match process_proph tid pvs with
+              contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
+            | no_upd => past_lin_witness Σ Hg1 Hg2 Hg3 γ_m (insertOp k) res t0
+            | upd => Q #res ∨ 
+                ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
+  Proof. 
+  Admitted.
+
+End SKIPLIST_INSERT.
+*)

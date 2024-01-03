@@ -14,6 +14,12 @@ From iris.bi.lib Require Import fractional.
 Require Import list_flow_upd_insert skiplist_util.
 Require Export skiplist_insert_maintenance.
 
+Module Type SKIPLIST_INSERT.
+  Declare Module TR_SPEC : TRAVERSE_SPEC.
+  Declare Module SK_INS_MNT : SKIPLIST_INSERT_MAINTENANCE with Module TR_SPEC := TR_SPEC.
+  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.DEFS TR_SPEC.SK_UTIL.SK.
+  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
+
   Lemma insertOp_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r (pr: proph_id) pvs tid t0 Q k (hd tl: Node) :
     main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
@@ -1479,7 +1485,7 @@ Require Export skiplist_insert_maintenance.
           iSplitR. iPureIntro. by rewrite lookup_total_insert. 
           iExists hd, tl. iFrame "∗#%". }
         wp_pures. 
-        wp_apply (maintenanceOp_insert_spec _ _ _ _ ps ss with 
+        wp_apply (SK_INS_MNT.maintenanceOp_insert_spec _ _ _ _ ps ss with 
           "[] [] [] [] [] [Hpreds Hsuccs]"); try done. 
         { iFrame "Hpreds Hsuccs".
           iSplitR. iExists s0'. iFrame "Past_s0'". iPureIntro.
@@ -1490,3 +1496,4 @@ Require Export skiplist_insert_maintenance.
         Unshelve. try done.
   Qed. 
 
+End SKIPLIST_INSERT.

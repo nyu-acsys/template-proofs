@@ -10,10 +10,13 @@ From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 (* Require Import list_flow_upd_marking. *)
-Require Export traverse_spec_module flows.
 Require Import skiplist_util.
+Require Export traverse_spec_module flows.
 
-  Export TR.NODE SK DEFS.
+Module Type SKIPLIST_DELETE_MAINTENANCE.
+  Declare Module TR_SPEC : TRAVERSE_SPEC.
+  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
+  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
 
   Lemma maintenanceOp_delete_rec_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 c
     perm vs xs i h (hd tl : Node):
@@ -318,3 +321,5 @@ Require Import skiplist_util.
       by rewrite list_lookup_total_alt Hjxs. }
     apply H1'; try done.
   Qed.
+
+End SKIPLIST_DELETE_MAINTENANCE.

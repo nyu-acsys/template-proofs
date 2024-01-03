@@ -14,6 +14,12 @@ From iris.bi.lib Require Import fractional.
 Require Import list_flow_upd_marking skiplist_util.
 Require Export skiplist_delete_maintenance.
 
+Module Type SKIPLIST_DELETE.
+  Declare Module TR_SPEC : TRAVERSE_SPEC.
+  Declare Module SK_DEL_MNT : SKIPLIST_DELETE_MAINTENANCE with Module TR_SPEC := TR_SPEC.
+  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.DEFS TR_SPEC.SK_UTIL.SK.
+  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
+
   Lemma deleteOp_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) pvs tid t0 Q k (hd tl: Node) :
     main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
@@ -76,7 +82,7 @@ Require Export skiplist_delete_maintenance.
       iModIntro. iSplitR "Hpost Hpreds Hsuccs Hmatch Hproph".
       { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
       clear Hk s0 PT_s0 Trans_M0 PT0 Habs0 M0 T0. iModIntro.
-      wp_apply (maintenanceOp_delete_spec with "[]"); try done.
+      wp_apply (SK_DEL_MNT.maintenanceOp_delete_spec with "[]"); try done.
       { iFrame "%". iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
         iDestruct "Htr" as "(Htr & _)". 
         iPoseProof ("Htr" with "H'") as "(_&H'')".  
@@ -822,3 +828,5 @@ Require Export skiplist_delete_maintenance.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph #". done.
       Unshelve. try done.
   Admitted.
+
+End SKIPLIST_DELETE.

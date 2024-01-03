@@ -14,6 +14,7 @@ From flows Require Import traverse_module traverse_spec_module skiplist_util.
 
 Module HARRIS <: TRAVERSE.
   Declare Module NODE : NODE_IMPL.
+  Export NODE.
   
   Definition traverse_i : heap_lang.val :=
     rec: "tri" "i" "pred" "predn" "curr" "k" :=
@@ -78,8 +79,9 @@ Module HARRIS <: TRAVERSE.
 End HARRIS.
 
 Module HARRIS_SPEC <: TRAVERSE_SPEC.
-  Module TR := HARRIS.
-  Import HARRIS.
+  Declare Module SK : SKIPLIST with Module TR := HARRIS.
+  Declare Module SK_UTIL : SKIPLIST_UTIL with Module SK := SK.
+  Export SK_UTIL.SK.TR.NODE SK_UTIL.SK.TR SK_UTIL.SK SK_UTIL.DEFS SK_UTIL.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k p c : iProp Σ :=
     (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
@@ -250,79 +252,6 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       rewrite bool_decide_eq_true in Hbool. clear -Hbool; set_solver.
       rewrite bool_decide_eq_false in Hbool. clear -Hbool; set_solver. }
 
-    (*
-    iAssert (⌜pn = c⌝ -∗ 
-              ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s
-            ∗ ⌜p ∈ FP s⌝
-            ∗ ⌜Key s p < k⌝
-            ∗ ⌜Marki s p 0 = false⌝
-            ∗ ⌜i < Height s p⌝
-            ∗ ⌜i = 0 → Nexti s p i = Some c⌝
-            ∗ ⌜per_tick_inv hd tl s⌝
-            ∗ ⌜c ∈ FP s → Mark s0 c !!! i = false → Mark s c !!! i = false⌝
-            ∗ ⌜c ∈ FP s → Key s c = Key s0 c⌝
-            ∗ ⌜∀ k, c ∈ FP s → k ∈ keyset (FI s c) → k ∈ abs s ↔ k ∈ Content s c⌝)%I
-      with "[Hist]" as "#Htr'".
-    { iIntros "%". subst pn. iDestruct "Htr" as "(Htrp & Htrc)".
-      iDestruct "Htrp" as (s)"(Past_s & %FP_ps & %Key_ps & %Marki_ps & 
-        %Height_ps & %Nexti_ps)".
-      iAssert (⌜per_tick_inv hd tl s⌝)%I as %PT_s.
-      { iPoseProof (per_tick_past with "[%] Hist Past_s") as "%"; try done. }
-      iAssert (⌜c ∈ FP s⌝ → ⌜Mark s0 c !!! i = false⌝ 
-        → ⌜Mark s c !!! i = false⌝)%I as %HM.
-      { iIntros "%FP_cs %Hm". destruct (decide (Mark s c !!! i = false)); try done.
-        iExFalso. rewrite not_false_iff_true in n.
-        iAssert (⌜Marki s0 c i = Marki s c i⌝)%I as %H'.
-        { apply leibniz_equiv in Habs0. rewrite -Habs0.
-          iPoseProof (marking_mono_2 Σ Hg1 Hg2 Hg3 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
-            try done. }
-        rewrite /Marki Hm n in H'. done. } 
-      iAssert (⌜c ∈ FP s⌝ → ⌜Key s c = Key s0 c⌝)%I as %Key_eq. 
-      { iIntros "%FP_cs". 
-        apply leibniz_equiv in Habs0. rewrite -Habs0.
-        iPoseProof (key_eq_2 Σ Hg1 Hg2 Hg3 c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
-          try done. }
-      assert (∀ k, c ∈ FP s →  k ∈ keyset (FI s c) → 
-        (k ∈ abs s ↔ k ∈ Content s c)) as Hks.
-      { destruct PT_s as (_&_&H'&_). intros k'; apply H'. }
-      iExists s. iFrame "#%". }
-    iAssert (⌜pn = c⌝ -∗ ⌜i = 0⌝ → ⌜Mark s0 c !!! i = false⌝ → ⌜k < Key s0 c⌝ → 
-      ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
-          ∗ ⌜k ∉ abs s ∧ k < Key s c ∧ c ∈ FP s⌝)%I as "Hcase1".
-    { iIntros "%Hpnc %Hi %Mark_c0' %Key_c0".
-      iDestruct ("Htr'" with "[%]") as (s)"(#Past_s & %FP_ps & %Key_ps & %Marki_ps 
-        & %Height_ps & %Nexti_ps & %PT_s & %HM & %Key_eq & %Hks)"; try done.  
-      pose proof Nexti_ps Hi as Nexti_ps'.
-      subst i. iExists s. iFrame "Past_s". clear Nexti_ps.
-      assert (c ∈ FP s) as FP_cs. 
-      { destruct PT_s as (_&_&_&_&_&H'&_). apply (H' p c 0); try done. }
-      apply HM in Mark_c0'; try done. rename Mark_c0' into Mark_cs. 
-      rewrite -Key_eq in Key_c0; try done.
-      assert (k ∈ keyset (FI s c)) as k_in_ksc.
-      { apply (in_keyset hd tl s p c k); try done. lia. }
-      assert (k ∉ Content s c) as k_notin_cntc.
-      { rewrite /Content /Marki Mark_cs elem_of_singleton. lia. }
-      apply Hks in k_in_ksc; try done. iPureIntro. repeat split; try done.
-      intros H'%k_in_ksc. by apply k_notin_cntc. }
-    iAssert (⌜pn = c⌝ -∗ ⌜i = 0⌝ → ⌜Mark s0 c !!! i = false⌝ → ⌜k = Key s0 c⌝ → 
-      ∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
-          ∗ ⌜k ∈ abs s ∧ k = Key s c ∧ c ∈ FP s ∧ Marki s c 0 = false⌝)%I as "Hcase2".
-    { iIntros "%Hpnc %Hi %Mark_c0' %Key_c0".
-      iDestruct ("Htr'" with "[%]") as (s)"(#Past_s & %FP_ps & %Key_ps & %Marki_ps 
-        & %Height_ps & %Nexti_ps & %PT_s & %HM & %Key_eq & %Hks)"; try done.
-      pose proof Nexti_ps Hi as Nexti_ps'.
-      subst i. iExists s. iFrame "Past_s". clear Nexti_ps. 
-      assert (c ∈ FP s) as FP_cs. 
-      { destruct PT_s as (_&_&_&_&_&H'&_). apply (H' p c 0); try done. }
-      apply HM in Mark_c0'; try done. rename Mark_c0' into Mark_cs. 
-      rewrite -Key_eq in Key_c0; try done.
-      assert (k ∈ keyset (FI s c)) as k_in_ksc.
-      { apply (in_keyset hd tl s p c k); try done. lia. }
-      assert (k ∈ Content s c) as k_in_cntc.
-      { rewrite /Content /Marki Mark_cs elem_of_singleton. lia. }
-      apply Hks in k_in_ksc; try done. iPureIntro. repeat split; try done.
-      by apply k_in_ksc. }
-    *)
     assert (m = true → c ≠ tl) as H1'.
     { intros ->. destruct PT_s0 as ((_&_&_&_&H'&_)&_).
       assert (i < L) as H'' by lia. pose proof H' i H'' as H1'.

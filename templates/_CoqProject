@@ -33,10 +33,11 @@ lockfree/traverse_module.v
 lockfree/skiplist.v
 lockfree/skiplist_util.v
 lockfree/traverse_spec_module.v
-#lockfree/skiplist_traverse.v
 lockfree/skiplist_delete_maintenance.v
 lockfree/skiplist_delete.v
 lockfree/skiplist_insert_maintenance.v
 lockfree/skiplist_insert.v
 lockfree/skiplist_search.v
 lockfree/skiplist_spec.v
+lockfree/herlihy.v
+lockfree/harris.v
