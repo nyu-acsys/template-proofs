@@ -94,7 +94,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
         destruct Htr_sc as (H'&H''&_).
         iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
           try done. }
-      iAssert ((node Σ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
+      iAssert ((node Σ _ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
         ∗ ⌜idx < Height s0 p⌝)%I with "[Node_p]" as "Hpre".
       { iFrame "∗%". }
       iAaccIntro with "Hpre".
@@ -199,7 +199,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
           { rewrite Hs0 in FP_p0. rewrite Dom_Nx0. by unfold FP in FP_p0. }
           clear -H Dom_Nx0. set_solver. }
 
-        iAssert (resources _ _ γ_ks s0')%I 
+        iAssert (resources _ _ _ γ_ks s0')%I 
           with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s0'. iSplitR "Nodes_KS".
           rewrite (big_opS_delete _ (FP s0) p); try done.

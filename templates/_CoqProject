@@ -41,3 +41,4 @@ lockfree/skiplist_search.v
 lockfree/skiplist_spec.v
 lockfree/herlihy.v
 lockfree/harris.v
+lockfree/node_impl.v

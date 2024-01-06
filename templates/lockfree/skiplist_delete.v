@@ -17,8 +17,9 @@ Require Export skiplist_delete_maintenance.
 Module Type SKIPLIST_DELETE.
   Declare Module TR_SPEC : TRAVERSE_SPEC.
   Declare Module SK_DEL_MNT : SKIPLIST_DELETE_MAINTENANCE with Module TR_SPEC := TR_SPEC.
-  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.DEFS TR_SPEC.SK_UTIL.SK.
-  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
+  Export SK_DEL_MNT SK_DEL_MNT.TR_SPEC. 
+  Export SK_UTIL.DEFS SK_UTIL.DEFS.DS.
+  Export TR TR.NODE.
 
   Lemma deleteOp_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) pvs tid t0 Q k (hd tl: Node) :
@@ -82,7 +83,7 @@ Module Type SKIPLIST_DELETE.
       iModIntro. iSplitR "Hpost Hpreds Hsuccs Hmatch Hproph".
       { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
       clear Hk s0 PT_s0 Trans_M0 PT0 Habs0 M0 T0. iModIntro.
-      wp_apply (SK_DEL_MNT.maintenanceOp_delete_spec with "[]"); try done.
+      wp_apply (maintenanceOp_delete_spec with "[]"); try done.
       { iFrame "%". iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
         iDestruct "Htr" as "(Htr & _)". 
         iPoseProof ("Htr" with "H'") as "(_&H'')".  
@@ -104,7 +105,7 @@ Module Type SKIPLIST_DELETE.
       iDestruct "Nodes" as "(Node_c & Nodes_rest)".
       iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
       { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
-      iAssert ((node Σ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+      iAssert ((node Σ _ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
         ∗ ⌜0 < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
       { iFrame. iPureIntro. apply PT_s0 in FP_c0. by apply FP_c0. }
       iAaccIntro with "Hpre".
@@ -124,7 +125,7 @@ Module Type SKIPLIST_DELETE.
             try done. }
         rewrite Ht' -Ht_c in Hi. apply Hj in Hi. rewrite -Habs0.
         iPoseProof (marking_mono_2 _ _ _ _ c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
-            try done. }
+            try done. } 
       destruct success.
       + iDestruct "Hif" as %(Mark_c0 & Def_mark' & Hpvs').
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
@@ -450,7 +451,7 @@ Module Type SKIPLIST_DELETE.
         assert (FP s0 = dom I0) as FP_I0.
         { by rewrite Hs0 /FP. }
 
-        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources _ _ γ_ks s0' ∗ ⌜k ∈ abs s0⌝)%I 
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources _ _ _ γ_ks s0' ∗ ⌜k ∈ abs s0⌝)%I 
           with "[GKS Nodes_KS Node_c Nodes_rest]" as ">(Res & %k_in_s0)".
         { rewrite (big_sepS_delete _ _ c); try done.
           rewrite (big_sepS_delete _ _ nk); last first. 

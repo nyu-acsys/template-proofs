@@ -20,6 +20,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
   
   (* Parameter L : nat. (* Maxlevels *) *)
   Parameter W : nat. (* Keyspace *)
+  Parameter permute_levels : heap_lang.val.
 
   (* Template Algorithms *)
   Definition search : heap_lang.val :=
@@ -54,7 +55,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
       else 
         let: "curr" := ! ("succs" +ₗ #0%nat) in 
         maintenanceOp_delete "curr";;
-        match: markNode "curr" "p"  with
+        match: markNode' "curr" "p"  with
           NONE => #false
         | SOME "_" => traverse_rec "k" "preds" "succs" #(L-2)%nat;; #true end.
 
@@ -91,7 +92,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
         let: "new_node" := createNode "k" "succs" in
         let: "pred" := ! ("preds" +ₗ #0%nat) in
         let: "curr" := ! ("succs" +ₗ #0%nat) in
-        match: changeNext "pred" "curr" "new_node" "p" with
+        match: changeNext' "pred" "curr" "new_node" "p" with
           NONE => "ins" "p" "h" "t" "k"
         | SOME "_" => 
           maintenanceOp_insert "k" "preds" "succs" "new_node";;
@@ -336,9 +337,9 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
     ∧ (∀ n, n ∈ FP s → Key s' n = Key s n)
     ∧ (FP s ⊆ FP s').
   
-  Definition resources (Σ: gFunctors) (H': dsGG Σ) γ_ks s : iProp Σ :=
+  Definition resources (Σ: gFunctors) (Hg1: heapGS Σ) (Hg2: dsGG Σ) γ_ks s : iProp Σ :=
       own γ_ks (● prodKS (KS, abs s))
-    ∗ ([∗ set] n ∈ FP s, node Σ n (Height s n) (Mark s n) (Next s n) (Key s n))
+    ∗ ([∗ set] n ∈ FP s, node Σ Hg1 n (Height s n) (Mark s n) (Next s n) (Key s n))
     ∗ ([∗ set] n ∈ FP s, own γ_ks (◯ prodKS (keyset (FI s n), Content s n))).
 
   Definition ds_inv Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r (M: gmap nat snapshot) 
@@ -346,7 +347,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
     ∃ (hd tl: Node), 
       r ↦□ (#hd, #tl)
     ∗ ⌜snapshot_constraints s⌝ 
-    ∗ resources Σ _ γ_ks s
+    ∗ resources Σ _ _ γ_ks s
     ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv hd tl (M !!! t)⌝
     ∗ ⌜∀ t, 0 ≤ t < T → transition_inv (M !!! t) (M !!! (t+1)%nat)⌝.
 

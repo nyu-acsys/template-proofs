@@ -15,8 +15,8 @@ Require Export traverse_spec_module flows.
 
 Module Type SKIPLIST_DELETE_MAINTENANCE.
   Declare Module TR_SPEC : TRAVERSE_SPEC.
-  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
-  Export TR_SPEC.SK_UTIL.SK.TR TR_SPEC.SK_UTIL.SK.TR.NODE.
+  Export TR_SPEC TR_SPEC.SK_UTIL. Export DEFS DEFS.DS.
+  Export TR TR.NODE.
 
   Lemma maintenanceOp_delete_rec_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r tid t0 c
     perm vs xs i h (hd tl : Node):
@@ -70,7 +70,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
       { assert (idx ∈ seq 1 (h-1)) as H'. 
         { rewrite -Perm_xs elem_of_list_lookup. exists i; try done. }
         rewrite elem_of_seq in H'. clear -H'; lia. }
-      iAssert ((node Σ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+      iAssert ((node Σ _ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
         ∗ ⌜idx < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
       { rewrite Ht_c0. iFrame "Node_c". by iPureIntro. }
       iAaccIntro with "Hpre".
@@ -175,7 +175,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
             rewrite /Marki HM; try done.
             intros Hn1 Hn2. rewrite Hn1 in Hn2. clear -Hn2; done.
           - intros n i'. rewrite /Nexti HN. clear; try done. }
-        iAssert (resources _ _ γ_ks s0')%I 
+        iAssert (resources _ _ _ γ_ks s0')%I 
           with "[GKS Nodes_KS Node_c Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s0'. iSplitR "Nodes_KS".
           rewrite (big_opS_delete _ (FP s0) c).

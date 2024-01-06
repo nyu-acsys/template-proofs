@@ -11,8 +11,8 @@ Set Default Proof Using "All".
 
 Module Type TRAVERSE_SPEC.
   Declare Module SK_UTIL : SKIPLIST_UTIL.
-  Export SK_UTIL. Export SK DEFS.
-  Export TR.NODE TR.
+  Export SK_UTIL SK_UTIL.DEFS SK_UTIL.DEFS.DS.
+  Export TR TR.NODE.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k p c : iProp Σ :=
     (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 

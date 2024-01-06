@@ -147,7 +147,7 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
       destruct Htr_sc as (H'&H'').
       iPoseProof (height_eq_2 Σ Hg1 Hg2 Hg3 c with "[%] [$] [$Past_s] [%]") as "->"; 
         try done. }
-    iAssert ((node Σ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+    iAssert ((node Σ _ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
       ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
     { iFrame "Node_c %". }
     iAaccIntro with "Hpre".
@@ -244,7 +244,7 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
         destruct Htr_sp as (H'&H''&_). 
         iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
           try done. }
-      iAssert ((node _ p (Height s1 p) (Mark s1 p) (Next s1 p) (Key s1 p)) 
+      iAssert ((node _ _ p (Height s1 p) (Mark s1 p) (Next s1 p) (Key s1 p)) 
         ∗ ⌜i < Height s1 p⌝)%I with "[Node_p]" as "Hpre".
       { iFrame "Node_p %". }
       iAaccIntro with "Hpre".
@@ -594,7 +594,7 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
             apply PT_s1 in FP_cn1. apply FP_cn1; try done.
             intros [=->]. destruct PT_s1 as ((_&H'&_)&_).
             rewrite H' in Key_ccn. clear -Key_ccn; lia. }
-          iAssert (resources _ _ γ_ks s1')%I 
+          iAssert (resources _ _ _ γ_ks s1')%I 
             with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
           { iFrame "GKS". rewrite FP_s1'. iSplitR "Nodes_KS".
             rewrite (big_opS_delete _ (FP s1) p); try done.
@@ -809,7 +809,7 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
             { rewrite Hs1 in FP_p1. rewrite Dom_Nx1. by unfold FP in FP_p1. }
             clear -H Dom_Nx1. set_solver. }
 
-          iAssert (resources _ _ γ_ks s1')%I 
+          iAssert (resources _ _ _ γ_ks s1')%I 
             with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
           { iFrame "GKS". rewrite FP_s1'. iSplitR "Nodes_KS".
             rewrite (big_opS_delete _ (FP s1) p); try done.
@@ -1046,7 +1046,7 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
       destruct Htr_sp as (H''&H'&_).
       iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
         try done. iPureIntro. clear -H'; lia. }
-    iAssert ((node Σ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
+    iAssert ((node Σ _ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
       ∗ ⌜i < Height s0 p⌝)%I with "[Hj Node_p]" as "Hpre".
     { iFrame "Node_p %". }
     iAaccIntro with "Hpre".    

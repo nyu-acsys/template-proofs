@@ -109,7 +109,7 @@ Module Type SKIPLIST_INSERT.
       iDestruct "Nodes" as "(Node_p & Nodes_rest)".
       iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
       { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
-      iAssert ((node Σ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
+      iAssert ((node Σ _ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
         ∗ ⌜0 < Height s0 p⌝)%I with "[Node_p]" as "Hpre".
       { iFrame "Node_p". iPureIntro. 
         destruct (decide (p = hd)) as [-> | Hphd].
@@ -1173,7 +1173,7 @@ Module Type SKIPLIST_INSERT.
         { intros ->. destruct PT_s0 as (PT&_). 
           destruct PT as (H'&_). clear -H' n_notin_s0. set_solver. }
 
-        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources _ _ γ_ks s0' ∗ ⌜k ∉ abs s0⌝)%I 
+        iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> resources _ _ _ γ_ks s0' ∗ ⌜k ∉ abs s0⌝)%I 
           with "[GKS Nodes_KS Node_n Node_p Nodes_rest]" as ">(Res & %k_notin_s0)".
         { rewrite (big_sepS_delete _ _ nk); last first. 
           { apply Hflupd. }

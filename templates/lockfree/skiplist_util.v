@@ -11,17 +11,10 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Export skiplist flows_big_op.
 
-(*
-Declare Module TR : TRAVERSE.
-Module SK := SKIPLIST TR.
-Module DEFS := HINDSIGHT_DEFS SK.
-Export TR.NODE SK DEFS.
-*)
-
 Module Type SKIPLIST_UTIL.
   Declare Module SK : SKIPLIST.
   Declare Module DEFS : HINDSIGHT_DEFS with Module DS := SK.
-  Export SK.TR.NODE SK.TR SK DEFS.
+  Export DEFS DEFS.DS DEFS.DS.TR DEFS.DS.TR.NODE.
 
   Definition intf_merge (II I: gmap Node (multiset_flowint_ur nat)) :=
     let f := λ m1 m2,

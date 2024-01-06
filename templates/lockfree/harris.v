@@ -176,7 +176,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       iDestruct "FP_c" as (s)"(Past_s & %FP_c & %Ht_c)".
       iPoseProof (height_eq_2 Σ Hg1 Hg2 Hg3 c with "[%] [$] [$Past_s] [%]") as "->"; 
         try done. }
-    iAssert ((node Σ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
+    iAssert ((node Σ _ c (Height s0 c) (Mark s0 c) (Next s0 c) (Key s0 c)) 
       ∗ ⌜i < Height s0 c⌝)%I with "[Node_c]" as "Hpre".
     { iFrame "Node_c %". }
     iAaccIntro with "Hpre".
@@ -388,7 +388,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         destruct Htr_sp as (H'&H''&_). 
         iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
           try done. }
-      iAssert ((node _ p (Height s2 p) (Mark s2 p) (Next s2 p) (Key s2 p)) 
+      iAssert ((node _ _ p (Height s2 p) (Mark s2 p) (Next s2 p) (Key s2 p)) 
         ∗ ⌜i < Height s2 p⌝)%I with "[Node_p]" as "Hpre".
       { iFrame "Node_p %". }
       iAaccIntro with "Hpre".
@@ -787,7 +787,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         { by rewrite Habs'. }
         iAssert (own γ_ks (● prodKS (KS, abs s2')))%I with "[GKS]" as "GKS".
         { by rewrite Habs'. }
-        iAssert (resources _ _ γ_ks s2')%I 
+        iAssert (resources _ _ _ γ_ks s2')%I 
           with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s2'. iSplitR "Nodes_KS".
           rewrite (big_opS_delete _ (FP s2) p); try done.
@@ -967,7 +967,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
           iDestruct "FP_c" as (s)"(Past_s & %FP_c & %Ht_c)".
           iPoseProof (height_eq_2 Σ Hg1 Hg2 Hg3 c with "[%] [$] [$Past_s] [%]") as "->"; 
             try done. }
-        iAssert ((node Σ c (Height s3 c) (Mark s3 c) (Next s3 c) (Key s3 c)) 
+        iAssert ((node Σ _ c (Height s3 c) (Mark s3 c) (Next s3 c) (Key s3 c)) 
           ∗ ⌜0 < Height s3 c⌝)%I with "[Node_c]" as "Hpre".
         { iFrame "Node_c %". }
         iAaccIntro with "Hpre".
@@ -1041,7 +1041,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
           { rewrite Hs2 in FP_p2. rewrite Dom_Nx2. by unfold FP in FP_p2. }
           clear -H Dom_Nx2. set_solver. }
         
-        iAssert (resources _ _ γ_ks s2')%I 
+        iAssert (resources _ _ _ γ_ks s2')%I 
           with "[GKS Nodes_KS Node_p Nodes_rest]" as "Res".
         { iFrame "GKS". rewrite FP_s2'. iSplitR "Nodes_KS".
           rewrite (big_opS_delete _ (FP s2) p); try done.
@@ -1160,7 +1160,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
           iDestruct "FP_c" as (s)"(Past_s & %FP_c & %Ht_c)".
           iPoseProof (height_eq_2 Σ Hg1 Hg2 Hg3 c with "[%] [$] [$Past_s] [%]") as "->"; 
             try done. }
-        iAssert ((node Σ c (Height s3 c) (Mark s3 c) (Next s3 c) (Key s3 c)) 
+        iAssert ((node Σ _ c (Height s3 c) (Mark s3 c) (Next s3 c) (Key s3 c)) 
           ∗ ⌜i < Height s3 c⌝)%I with "[Node_c]" as "Hpre".
         { iFrame "Node_c %". }
         iAaccIntro with "Hpre".
@@ -1261,7 +1261,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       destruct Htr_sp as (H''&H'&_).
       iPoseProof (height_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
         try done. iPureIntro. clear -H'; lia. }
-    iAssert ((node Σ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
+    iAssert ((node Σ _ p (Height s0 p) (Mark s0 p) (Next s0 p) (Key s0 p)) 
       ∗ ⌜i < Height s0 p⌝)%I with "[Hj Node_p]" as "Hpre".
     { iFrame "Node_p %". }
     iAaccIntro with "Hpre".    
