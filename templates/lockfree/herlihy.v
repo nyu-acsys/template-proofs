@@ -712,8 +712,8 @@ Module HERLIHY_SPEC <: TRAVERSE_SPEC.
             apply  Habs1. intros <-. rewrite map_eq_iff in HNp.
             pose proof HNp 0 as HNp. rewrite Next_p1 lookup_insert in HNp.
             inversion HNp; try done. by rewrite /M1'. }
-          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> 
-            helping_inv _ _ _ _ N γ_t γ_r γ_mt γ_msy M1' ∗ dsRep _ _ _ _ γ_r (abs s1'))%I with
+          iAssert (|={⊤ ∖ ∅ ∖ ↑cntrN N}=> helping_inv _ _ _ _ N γ_t γ_r γ_mt γ_msy M1' 
+            ∗ dsRep _ _ _ _ γ_r (abs s1'))%I with
             "[Help Ds]" as ">(Help & Ds)".
           { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
             iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.

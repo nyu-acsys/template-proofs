@@ -118,44 +118,6 @@ Module Type SKIPLIST_UTIL.
     by rewrite -Heq.
   Qed.
 
-  Lemma history_sync (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
-    γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) (s: snapshot) t: 
-    own γ_m (● M) -∗ own γ_m (◯ {[t := to_agree s]}) -∗
-      ⌜M !! t ≡ Some (to_agree s)⌝.
-  Proof.
-  Admitted.
-  
-
-  Lemma temporal_interpolation_refl_trans `{R: relation A}
-    (M : gmap nat snapshot) (t0 T: nat) (F: snapshot → A) :
-      Reflexive R → Transitive R → 
-      (∀ t, t0 ≤ t < T → R (F (M !!! t)) (F (M !!! (t+1)%nat))) →
-        (∀ t1 t2, t0 ≤ t1 ≤ t2 ≤ T → R (F (M !!! t1)) (F (M !!! t2))).
-  Proof.
-    intros R_refl R_trans Hcons. induction t1.
-    - induction t2.
-      + intros; try done.
-      + intros Ht2.
-        assert (R (F (M !!! 0)) (F (M !!! t2))) as H'.
-        { apply IHt2. lia. }
-        assert (R (F (M !!! t2)) (F (M !!! S t2))) as H''.
-        { assert (t2 + 1 = S t2) as <- by lia.
-          apply Hcons. lia. }
-        apply (R_trans _ _ _ H' H''); try done.
-    - induction t2.
-      + intros H'. exfalso; lia.
-      + intros Ht1.
-        destruct (decide (S t1 <= t2)).
-        * assert (R (F (M !!! S t1)) (F (M !!! t2))) as H'.
-          { apply IHt2; try lia. }
-          assert (R (F (M !!! t2)) (F (M !!! S t2))) as H''.
-          { assert (t2 + 1 = S t2) as <- by lia. 
-            apply Hcons. split; try lia. }
-          apply (R_trans _ _ _ H' H''); try done.
-        * assert (t1 = t2) as -> by lia.
-          apply R_refl.
-  Qed.
-
   Lemma temporal_interpolation_fp (M : gmap nat snapshot) (T: nat) :
       (∀ t, 0 ≤ t < T → FP (M !!! t) ⊆ FP (M !!! (t+1)%nat)) →
         (∀ t1 t2, 0 ≤ t1 ≤ t2 ≤ T → FP (M !!! t1) ⊆ FP (M !!! t2)).
@@ -535,15 +497,6 @@ Module Type SKIPLIST_UTIL.
     rewrite M_ts in H''. by iPureIntro.
   Qed.
 
-  Lemma history_dom Σ Hg1 Hg2 Hg3 t γ_t γ_m M T :
-    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
-      ⌜t ∈ dom M ↔ 0 ≤ t ≤ T⌝.
-  Proof.
-    iIntros "Hist".
-    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-    by rewrite Dom_M elem_of_gset_seq.
-  Qed. 
-
   Lemma per_tick_current Σ Hg1 Hg2 Hg3 γ_t γ_m M T s hd tl :
     ⌜M !!! T ≡ s⌝ -∗ 
     ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv hd tl (M !!! t)⌝ -∗
@@ -567,89 +520,6 @@ Module Type SKIPLIST_UTIL.
     assert (H'' := H'). apply M_eq, elem_of_dom_2 in H''.
     rewrite Dom_M elem_of_gset_seq in H''.
     apply PT in H''. apply M_eq, lookup_total_correct in H'. by rewrite -H'.
-  Qed.
-
-  Lemma snapshot_create Σ Hg1 Hg2 Hg3 t t0 γ_t γ_m M T:
-    ⌜t0 ≤ t ≤ T⌝ -∗ 
-    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
-      |==> past_state Σ Hg1 Hg2 Hg3 γ_m t0 (M !!! t) ∗ hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T.
-  Proof.
-    iIntros "%Ht Hist".
-    iPoseProof (history_dom Σ Hg1 Hg2 Hg3 t with "Hist") as "%Hdom".
-    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-    assert (0 ≤ t ≤ T) as Dom_t by lia. apply Hdom in Dom_t.
-    apply elem_of_dom in Dom_t. destruct Dom_t as [s Dom_t].
-    apply M_eq in Dom_t. 
-    iPoseProof (own_update _ (● M') (● M' ⋅ ◯ {[t := to_agree s]}) with "HM'") 
-      as ">(HM' & #Ht)". 
-    { apply auth_update_alloc, local_update_unital_discrete. 
-      intros z Hm Hz. split; try done. rewrite left_id in Hz. rewrite -Hz.
-      apply map_equiv_iff. intros x. destruct (decide (x = t)) as [-> | Hxz].
-      - rewrite lookup_op Dom_t lookup_insert. rewrite /op /cmra_op /=.
-        by rewrite agree_idemp.
-      - rewrite lookup_op lookup_insert_ne; try done. rewrite lookup_empty.
-        rewrite /op /cmra_op /=. destruct (M' !! x) eqn:H'; rewrite H'; try done. }
-    iModIntro. iFrame. iSplitR. iExists t. apply M_eq, lookup_total_correct in Dom_t.
-    rewrite Dom_t. iFrame "%#". iPureIntro; lia. iExists M'. iFrame "∗%".
-  Qed.
-
-  Lemma snapshot_current Σ Hg1 Hg2 Hg3 γ_t γ_m γ_mt M T s tid t0:
-    ⌜M !!! T ≡ s⌝ -∗ 
-    thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
-    hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗ 
-      |==> past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T.
-  Proof.
-    iIntros "%Habs #(_&Ht0) Hist".
-    iAssert (⌜t0 ≤ T⌝)%I as "%H'".
-    { iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-      iPoseProof (own_valid_2 with "HT Ht0") as "%Hv".
-      rewrite auth_both_valid_discrete max_nat_included /= in Hv.
-      iPureIntro. apply Hv. }
-    apply leibniz_equiv in Habs. rewrite -Habs.
-    iPoseProof (snapshot_create with "[%] [$Hist]") as "H'"; try done.
-  Qed.
-
-  Lemma hist_upd Σ Hg1 Hg2 Hg3 γ_t γ_m M T s s':
-  ⌜M !!! T ≡ s⌝ -∗
-  ⌜s ≠ s'⌝ -∗ 
-  hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T -∗
-    |==> hist Σ Hg1 Hg2 Hg3 γ_t γ_m (<[T+1:=s']> M) (T+1).
-  Proof.
-    iIntros "%Habs %Hs Hist".
-    iDestruct "Hist" as (M')"(HT&HM'&%Dom_M&%M_eq&%M_neq)".
-    iPoseProof (own_update _ (● MaxNat T) (● MaxNat (T+1)) with "HT") 
-      as ">HT".
-    { apply (auth_update_auth _ _ (MaxNat (T+1))), max_nat_local_update.
-      simpl. lia. } 
-    iPoseProof (own_update _ (● M') (● (<[T+1:= to_agree s']> M')) with "HM'") 
-      as ">HM'". 
-    { apply (auth_update_auth _ _ {[T+1 := to_agree s']}). 
-      apply local_update_unital_discrete. intros z Hm Hz. rewrite left_id in Hz. 
-      rewrite -Hz. split. 
-      - apply insert_valid; try done.
-      - assert (M' !! (T+1) = None) as Hmt. 
-        { assert (T+1 ∉ dom M) as H'. rewrite Dom_M elem_of_gset_seq. lia.
-          assert (T+1 ∉ dom M') as H''. intros H''. rewrite elem_of_dom in H''.
-          destruct H'' as [x H'']. assert (M' !! (T+1) ≡ Some x) as H1'.
-          rewrite H''. done. pose proof lookup_valid_Some _ _ _ Hm H1' as H1''.
-          apply to_agree_uninj in H1''. destruct H1'' as [s'' H1''].
-          rewrite -H1'' in H1'. apply M_eq in H1'. apply elem_of_dom_2 in H1'.
-          set_solver. by rewrite not_elem_of_dom in H''. }
-        apply map_equiv_iff. intros x. destruct (decide (x = T+1)) as [-> | Hxz].
-        + rewrite lookup_op Hmt !lookup_insert /=. try done.
-        + rewrite lookup_op !lookup_insert_ne; try done. rewrite lookup_empty.
-          rewrite /op /cmra_op /=. destruct (M' !! x) eqn:H'; rewrite H'; try done. }
-    iModIntro. iExists (<[T+1:= to_agree s']> M'). iFrame. iPureIntro. split; last split.
-    - rewrite dom_insert_L Dom_M. rewrite gset_seq_union. clear; set_solver.
-    - intros t s0. destruct (decide (t = T+1)) as [-> | Ht].
-      + rewrite !lookup_insert. split. intros H'. inversion H'.
-        apply to_agree_inj in H1. apply leibniz_equiv in H1. by rewrite H1.
-        intros [=]. by subst s0.
-      + rewrite !lookup_insert_ne; try done.
-    - intros t. destruct (decide (t = T)) as [-> | Ht].
-      + rewrite lookup_total_insert_ne. rewrite lookup_total_insert.
-        apply leibniz_equiv in Habs. rewrite Habs. done. lia.
-      + intros ?; rewrite !lookup_total_insert_ne; try lia. apply M_neq. lia.
   Qed.
 
   Lemma in_insets hd tl s p c k :
@@ -687,49 +557,6 @@ Module Type SKIPLIST_UTIL.
     rewrite -H'' elem_of_gset_seq. lia.
   Qed.
   
-
-  Lemma in_keyset hd tl s p c k :
-    per_tick_inv hd tl s → 
-    p ∈ FP s → 
-    c ∈ FP s → 
-    Marki s p 0 = false → 
-    Marki s c 0 = false →
-    Nexti s p 0 = Some c → 
-    Key s p < k ≤ Key s c → 
-    0 < k < W → 
-        k ∈ keyset (FI s c).
-  Proof.
-    intros PT FP_p FP_c Mark_p Mark_c Next_p Hk Range_k.
-    assert (flow_constraints_I p (FI s p) false (Some c) (Key s p)) as Hp.
-    { apply PT in FP_p. destruct FP_p as (_&_&_&_&_&H'). 
-      by rewrite -Mark_p -Next_p. }
-    assert (flow_constraints_I c (FI s c) false (Next s c !! 0) (Key s c)) as Hc.
-    { apply PT in FP_c. destruct FP_c as (_&_&_&_&_&H'). by rewrite -Mark_c. }
-    destruct Hp as (Hp1&Hp2&Hp3&(Hp4&Hp4')&Hp5&Hp6&Hp7).
-    destruct Hc as (Hc1&Hc2&Hc3&(Hc4&Hc4')&Hc5&Hc6&Hc7).
-    assert (k ∈ outsets (FI s p)) as k_in_outsp.
-    { rewrite -Hp4' elem_of_gset_seq. lia. }
-    assert (insets (FI s p) ≠ ∅) as Domout_p%Hp2.
-    { clear -Hp3 k_in_outsp. set_solver. }
-    assert (k ∈ outset _ (FI s p) c) as k_in_outp.
-    { by rewrite /outsets Domout_p big_opS_singleton in k_in_outsp. }
-    assert (k ∉ outsets (FI s c)) as k_notin_outc.
-    { rewrite -Hc4' elem_of_gset_seq. lia. }
-    assert (p ≠ c) as p_neq_c. { intros ->; clear -Hk; lia. }
-    assert (✓ (FI s p ⋅ FI s c)) as VI.
-    { destruct PT as (_&(VI&_)&_). rewrite /GFI in VI.
-      assert ({[p; c]} ⊆ FP s) as Hsub.
-      { clear -FP_p FP_c. set_solver. }
-      pose proof (flow_big_op_valid _ _ {[p; c]} Hsub VI) as VI'.
-      rewrite big_opS_union in VI'.
-      by rewrite !big_opS_singleton in VI'. clear -p_neq_c; set_solver. }
-    assert (k ∈ insets (FI s c)) as k_in_infc.
-    { apply (inset_in_insets _ c).  
-      apply (flowint_inset_step (FI s p) (FI s c) k); try done.
-      by rewrite Hc1 elem_of_singleton. }
-    clear -k_in_infc k_notin_outc. set_solver.
-  Qed.
-
   Lemma keyset_big_op_auth (S: gset Node) (fks fc : Node → gset nat) :
     ([^op set] x ∈ S, ◯ prodKS (fks x, fc x)) ≡
       ◯ ([^op set] x ∈ S, prodKS (fks x, fc x)).

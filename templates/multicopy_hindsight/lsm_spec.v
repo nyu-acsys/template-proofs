@@ -11,17 +11,15 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Export skiplist_search skiplist_insert skiplist_delete hindsight_proof.
+Require Export lsm_search lsm_upsert hindsight_proof.
 
-Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
-  Declare Module TR_SPEC : TRAVERSE_SPEC.
-  Declare Module SK_SEARCH : SKIPLIST_SEARCH with Module TR_SPEC := TR_SPEC.
-  Declare Module SK_INSERT : SKIPLIST_INSERT with Module TR_SPEC := TR_SPEC.
-  Declare Module SK_DELETE : SKIPLIST_DELETE with Module TR_SPEC := TR_SPEC.
-  Module DEFS := TR_SPEC.SK_UTIL.DEFS.
-  Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
-  Export TR_SPEC.SK_UTIL.SK.TR.NODE TR_SPEC.SK_UTIL.SK.TR.
-  
+Module LSM_SPEC : HINDSIGHT_SPEC.
+  Declare Module UTIL : LSM_UTIL.
+  Declare Module SEARCH : LSM_SEARCH with Module UTIL := UTIL.
+  Declare Module UPSERT : LSM_UPSERT with Module UTIL := UTIL.
+  Module DEFS := UTIL.DEFS.
+  Export UTIL.DEFS UTIL.DEFS.DS UTIL.DEFS.DS.NODE. 
+
   Lemma dsOp_spec (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q :
           main_inv Σ H' H'' H''' N γ_t γ_r γ_m γ_mt γ_msy r -∗
@@ -44,17 +42,9 @@ Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
   Proof.
     iIntros "#HInv #Thd #HUpd %Local". unfold dsOp. 
     iIntros (Φ) "!# Hpre Hpost". 
-    wp_lam. wp_pures. wp_bind (! _)%E.
-    iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd tl)"(#HR & SShot0 & Res & %PT0 & %Trans_M0)".
-    wp_load. iModIntro. iSplitR "Hpre Hpost".
-    { iExists M0, T0, s0. iNext. iFrame "%#∗". iExists hd, tl. iFrame "%#". }
-    wp_pures. unfold Op_to_val; destruct op as [k|k|k]; wp_pures.
-    - wp_apply (SK_SEARCH.searchOp_spec with "[] [] [] [] [] [Hpre]"); try done.
-    - wp_apply (SK_INSERT.insertOp_spec with "[] [] [] [] [] [Hpre]"); try done.
-    - wp_apply (SK_DELETE.deleteOp_spec with "[] [] [] [] [] [Hpre]"); try done.
+    wp_lam. wp_pures. unfold Op_to_val. destruct op as [k|k v]; wp_pures.
+    - wp_apply (SEARCH.searchOp_spec with "[] [] [] [] [Hpre]"); try done.
+    - wp_apply (UPSERT.upsertOp_spec with "[] [] [] [] [Hpre]"); try done.
   Qed.
 
-End SKIPLIST_SPEC.
-
-
+End LSM_SPEC.

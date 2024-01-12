@@ -44,32 +44,6 @@ Module CLIENT_SPEC.
   
   (** Proofs *)
     
-  Lemma history_sync (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
-    γ_m (M: gmap nat (agreeR (ucmra_ofeO snapshotUR))) (s: snapshot) t: 
-    own γ_m (● M) -∗ own γ_m (◯ {[t := to_agree s]}) -∗
-      ⌜M !! t ≡ Some (to_agree s)⌝.
-  Proof.
-    iIntros "HM Hs". iCombine "HM" "Hs" as "H'".
-    iPoseProof (own_valid with "H'") as "Hv".
-    iDestruct "Hv" as %Hv.
-    rewrite auth_both_valid_discrete in Hv.
-    destruct Hv as [H' Hv].
-    rewrite lookup_included in H'.
-    pose proof H' t as H'.
-    rewrite lookup_insert in H'.
-    unfold included in H'.
-    iPureIntro.
-    destruct H' as [z H'].
-    destruct z as [z | ].
-    - rewrite /op /cmra_op /= in H'. 
-      pose proof lookup_valid_Some M t (to_agree s ⋅ z) Hv H' as H''.
-      apply agree_op_inv in H''.
-      rewrite <-H'' in H'.
-      by rewrite agree_idemp in H'.
-    - by rewrite /op /cmra_op /= in H'. 
-  Qed.
-  
-
   Definition dsOp' : val :=
     λ: "OP" "r",     
       let: "t_id" := NewProph in
