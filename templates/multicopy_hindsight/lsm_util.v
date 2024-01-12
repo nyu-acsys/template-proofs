@@ -23,6 +23,14 @@ Module Type LSM_UTIL.
     apply temporal_interpolation_refl_trans; try apply _.
   Qed.
 
+  Lemma temporal_interpolation_inset (M : gmap nat snapshot) (T: nat) n :
+    let F := λ s, inset _ (FJ s n) n in
+      (∀ t, 0 ≤ t < T → F (M !!! t) ⊆ F (M !!! (t+1)%nat)) →
+        (∀ t1 t2, 0 ≤ t1 ≤ t2 ≤ T → F (M !!! t1) ⊆ F (M !!! t2)).
+  Proof.
+    apply temporal_interpolation_refl_trans; try apply _.
+  Qed.
+
   Lemma in_FP (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
     n r M T γ_t γ_m s ts t:
     ⌜transition_inv r M T⌝ -∗
@@ -63,6 +71,29 @@ Module Type LSM_UTIL.
       rewrite H2' elem_of_gset_seq in M_ts. iPureIntro. lia. }
     iApply (in_FP with "[%] [$Hist] [$Hs] [%]"); try done.
   Qed.
+
+  Lemma in_inset (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ)
+    n r M T0 γ_t γ_m s t0 k :
+  ⌜transition_inv r M T0⌝ -∗
+  hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T0 -∗
+  past_state Σ Hg1 Hg2 Hg3 γ_m t0 s -∗ 
+  ⌜k ∈ inset _ (FJ s n) n⌝ -∗ 
+    ⌜k ∈ inset _ (FJ (M !!! T0) n) n⌝.
+  Proof.
+    set F := λ s, inset _ (FJ s n) n.
+    iIntros "%Trans Hist #Past_s %n_in_s".
+    assert (∀ t, 0 ≤ t < T0 → F (M !!! t) ⊆ F (M !!! (t+1)%nat)) as H'.
+    { intros t' Ht'. apply Trans in Ht'. apply Ht'. }
+    pose proof temporal_interpolation_inset _ _ _ H' as H''.
+    iDestruct "Past_s" as (ts)"(%Hts & Hs)".
+    iDestruct "Hist" as (M') "(H1'&H1''&H1''')".
+    iDestruct (history_sync with "[$H1''] [$Hs]") as "%M_ts"; try done.
+    iDestruct "H1'''" as "(%H2'&%H2''&_)".
+    apply H2'' in M_ts. assert (M_ts' := M_ts). apply elem_of_dom_2 in M_ts. 
+    rewrite H2' elem_of_gset_seq in M_ts. iPureIntro.
+    apply (H'' ts T0). lia. rewrite lookup_total_alt M_ts' /=. done. 
+  Qed.
+
 
   Lemma per_tick_current Σ Hg1 Hg2 Hg3 γ_t γ_m r M T s :
     ⌜M !!! T ≡ s⌝ -∗ 
@@ -179,6 +210,26 @@ Module Type LSM_UTIL.
       with "[%] [$Hist] [$Past_s] [%]") as "%H'"; try done.
     apply H' in Ht. iPureIntro. destruct Ht as [Ht | Ht]; try done.
     rewrite Ht. done. lia.
+  Qed.
+
+  Lemma ghost_heap_sync Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) γ_gh γn γn' n : 
+    own γ_gh (◯ {[n := to_agree γn]}) -∗
+    own γ_gh (◯ {[n := to_agree γn']}) -∗
+      ⌜γn = γn'⌝.
+  Proof.
+    iIntros "H' H''". iCombine "H' H''" as "H'". 
+    iPoseProof (own_valid with "H'") as "%H'". iPureIntro. 
+    rewrite auth_frag_valid singleton_valid in H'. by apply to_agree_op_inv_L in H'.
+  Qed.
+
+  Lemma frac_sync Σ Hg1 Hg2 γn es Vn es' Vn' : 
+    lock_frac Σ Hg1 Hg2 γn es Vn -∗
+    lock_frac Σ Hg1 Hg2 γn es' Vn' -∗
+      ⌜es = es' ∧ Vn = Vn'⌝.
+  Proof.
+    iIntros "H' H''". unfold lock_frac. iCombine "H' H''" as "H'". 
+    iPoseProof (own_valid with "H'") as "%H'". iPureIntro.
+    apply dfrac_agree_op_valid_L in H'. destruct H' as [_ H']. by inversion H'.
   Qed.
 
 End LSM_UTIL.

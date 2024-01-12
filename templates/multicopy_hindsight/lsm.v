@@ -153,7 +153,10 @@ Module Type LSM_TREE <: DATA_STRUCTURE.
   Global Instance snapshot_inhabited : Inhabited snapshot.
   Proof. try apply _. Qed. 
 
-  Class dsGG (Σ : gFunctors) := ds { }.
+  Class dsGG Σ := ds { 
+                    ds_fracG :: inG Σ (dfrac_agreeR $ prodUR esTUR V_contentsUR);
+                    ds_heapG :: inG Σ (authR $ gmapUR Node $ agreeR gnameO)
+                  }.
   
   Definition dsG := dsGG.
 
@@ -270,15 +273,25 @@ Module Type LSM_TREE <: DATA_STRUCTURE.
   ∧ (∀ t, 0 ≤ t < T → 
       let s := M !!! t in let s' := (M !!! (t+1)%nat) in 
       (FP s ⊆ FP s')
-    ∧ (∀ n k, BN s n !!! k = BN s' n !!! k ∨ (BN s n !!! k).2 < (BN s' n !!! k).2)).
+    ∧ (∀ n k, BN s n !!! k = BN s' n !!! k ∨ (BN s n !!! k).2 < (BN s' n !!! k).2)
+    ∧ (∀ n, inset _ (FJ s n) n ⊆ inset _ (FJ s' n) n)).
+  
+  Definition lock_frac (Σ: gFunctors) (Hg1: heapGS Σ) (Hg2 : dsGG Σ) γ es Vn :=
+      own γ (to_frac_agree (1/2) (es, Vn)).
 
-  Definition resources (Σ: gFunctors) (Hg1: heapGS Σ) r s : iProp Σ :=
-      ([∗ set] n ∈ FP s, ∃ b, lockR _ _ b n (node Σ Hg1 r n (ES s n) (VN s n))).
+  Parameter γ_gh: gname. 
+
+  Definition resources (Σ: gFunctors) (Hg1: heapGS Σ) (Hg2 : dsGG Σ) r s : iProp Σ :=
+      ([∗ set] n ∈ FP s, ∃ b γ,
+          own γ_gh (◯ {[n := to_agree γ]})
+        ∗ lock_frac _ _ _ γ (ES s n) (VN s n)
+        ∗ lockR _ _ b n (node Σ Hg1 r n (ES s n) (VN s n) 
+                        ∗ lock_frac _ _ _ γ (ES s n) (VN s n))).
 
   Definition ds_inv Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r (M: gmap nat snapshot) 
     (T: nat) (s: snapshot) : iProp Σ := 
       ⌜snapshot_constraints s⌝
-    ∗ resources Σ _ r s
+    ∗ resources Σ _ _ r s
     ∗ ⌜∀ t, 0 ≤ t ≤ T → per_tick_inv r (M !!! t)⌝
     ∗ ⌜transition_inv r M T⌝.
 
@@ -287,7 +300,8 @@ Module Type LSM_TREE <: DATA_STRUCTURE.
   Proof.
     rewrite /ds_inv. repeat apply bi.sep_timeless; try apply _.
     rewrite /resources. apply big_sepS_timeless. intros. 
-    apply bi.exist_timeless. intros. rewrite /lockR.
+    apply bi.exist_timeless. intros. apply bi.exist_timeless. intros. 
+    apply bi.sep_timeless; try apply _. rewrite /lock_frac. 
     apply bi.sep_timeless; try apply _. destruct x0; try apply _.
   Qed.
   

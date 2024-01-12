@@ -47,17 +47,18 @@ Module Type LSM_UPSERT.
     iAssert (⌜r ∈ FP s0⌝)%I as %FP_r0.
     { iPureIntro. apply PT_s0.  }
     rewrite /resources. rewrite (big_sepS_delete _ (FP s0) r); last by eauto.
-    iDestruct "Res" as "(Lock_r & Res_rest)".
-    iDestruct "Lock_r" as (b) "Lock_r".
+    iDestruct "Res" as "(Res_r & Res_rest)".
+    iDestruct "Res_r" as (b γr) "(#Hghr & Hlf & Lock_r)".
     iAaccIntro with "Lock_r".
-    { iIntros "Lock_r". iModIntro. iFrame "Hpost ∗". iNext. iExists M0, T0, s0.
+    { iIntros "Lock_r". iModIntro. iFrame "∗". iNext. iExists M0, T0, s0.
       iFrame "∗%". rewrite /resources. 
       rewrite (big_sepS_delete _ (FP s0) r); last by eauto. iFrame.
-      by iExists b. }
-    iIntros "(Lock_r & Node_r)".
-    iModIntro. iSplitR "Hproph Hmatch Hpost Node_r". 
+      iExists b, γr. iFrame "Hghr ∗".  }
+    iIntros "(Lock_r & (Node_r & Hlff))".
+    iModIntro. iSplitR "Hproph Hmatch Hpost Node_r Hlff". 
     { iNext. iExists M0, T0, s0. iFrame "∗%". rewrite /resources. 
-      rewrite (big_sepS_delete _ (FP s0) r); last by eauto. iFrame. by iExists true. }
+      rewrite (big_sepS_delete _ (FP s0) r); last by eauto. iFrame. 
+      iExists true, γr. iFrame "Hghr ∗". }
     clear b. wp_pures. wp_apply (addContents_spec with "[Node_r]"). 
     { iFrame "Node_r". by iPureIntro. }
     iIntros (succ Vn')"(Node_r & Hsucc)". wp_pures. destruct succ; last first.
@@ -69,29 +70,30 @@ Module Type LSM_UPSERT.
       iAssert (⌜r ∈ FP s1⌝)%I as %FP_r1.
       { iPureIntro. apply PT_s1. }
       rewrite /resources. rewrite (big_sepS_delete _ (FP s1) r); last by eauto.
-      iDestruct "Res" as "(Lock_r & Res_rest)".
-      iDestruct "Lock_r" as (b) "Lock_r".
-      iAssert (⌜b = true⌝)%I as %->.
-      { destruct b; try done. iExFalso. iDestruct "Lock_r" as "(H' & H'')".
+      iDestruct "Res" as "(Res_r & Res_rest)".
+      iDestruct "Res_r" as (b γr') "(#Hghr' & Hlf & Lock_r)".
+      iAssert (⌜γr' = γr⌝)%I as %->. 
+      { iPoseProof (ghost_heap_sync with "Hghr Hghr'") as "%"; try done. } 
+      iClear "Hghr'". iAssert (⌜b = true⌝)%I as %->.
+      { destruct b; try done. iExFalso. iDestruct "Lock_r" as "(H' & H'' & _)".
         iApply (node_sep_star with "[Node_r H'']"). iFrame. }
-      assert (ES s1 r = ES s0 r) as ES_01. admit.
-      assert (VN s1 r = VN s0 r) as VN_01. admit. 
-      iAssert (lockR Σ Hg1 true r (node Σ Hg1 r r (ES s1 r) (VN s1 r)) ∗ 
-        node Σ Hg1 r r (ES s1 r) (VN s1 r))%I with "[Node_r Lock_r]" as "H'".
-      { rewrite ES_01 VN_01. iFrame. }
+      iAssert (⌜ES s1 r = ES s0 r ∧ VN s1 r = VN s0 r⌝)%I as %[ES_01 VN_01]. 
+      { iPoseProof (frac_sync with "Hlf Hlff") as "%"; try done. }
+      iCombine "Lock_r Node_r Hlff" as "H'". iEval (rewrite ES_01 VN_01) in "H'".
       iAaccIntro with "H'".
-      { iIntros "(Lock_r & Node_r)". iModIntro. rewrite ES_01 VN_01. 
-        iFrame "Hpost Hproph Hmatch Node_r". iNext. iExists M1, T1, s1. iFrame "∗%". 
-        rewrite /resources. rewrite (big_sepS_delete _ (FP s1) r); last by eauto. 
-        iFrame. by iExists true. }
-      iIntros "Lock_r". iModIntro. iSplitR "Hpost Hmatch Hproph".
+      { iIntros "(Lock_r & Node_r & Hlff)". iModIntro. iFrame "∗". iNext. 
+        iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
+        rewrite (big_sepS_delete _ (FP s1) r); last by eauto. 
+        iFrame. iExists true, γr. iFrame "Hghr ∗". }
+      iIntros "Lock_r". iModIntro. iSplitR "Hpost Hmatch Hproph". 
       { iNext. iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
         rewrite (big_sepS_delete _ (FP s1) r); last by eauto. iFrame. 
-        by iExists false. }
+        iExists false, γr. iFrame "Hghr ∗". rewrite ES_01 VN_01. done. }
       wp_pures. iApply ("IH" with "[$Hmatch $Hproph]"); try done.
     - wp_pure credit: "Hc". iDestruct "Hsucc" as %Def_Vn'. 
       wp_apply (wp_resolve with "Hproph"). rewrite /=. done.
-      wp_pures. iModIntro. iIntros (pvs')"%Def_pvs Hproph". wp_pures. 
+      wp_pures. iModIntro. iIntros (pvs')"%Def_pvs Hproph". wp_pures.
+      
       awp_apply unlockNode_spec.
       iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
       iDestruct "Templ" as "(SShot1 & Res & %PT1 & %Trans_M1)". 
@@ -100,23 +102,27 @@ Module Type LSM_UPSERT.
       iAssert (⌜r ∈ FP s1⌝)%I as %FP_r1.
       { iPureIntro. apply PT_s1. }
       rewrite /resources. rewrite (big_sepS_delete _ (FP s1) r); last by eauto.
-      iDestruct "Res" as "(Lock_r & Res_rest)".
-      iDestruct "Lock_r" as (b) "Lock_r".
-      iAssert (⌜b = true⌝)%I as %->.
-      { destruct b; try done. iExFalso. iDestruct "Lock_r" as "(H' & H'')".
+      iDestruct "Res" as "(Res_r & Res_rest)".
+      iDestruct "Res_r" as (b γr') "(#Hghr' & Hlf & Lock_r)".
+      iAssert (⌜γr' = γr⌝)%I as %->. 
+      { iPoseProof (ghost_heap_sync with "Hghr Hghr'") as "%"; try done. } 
+      iClear "Hghr'". iAssert (⌜b = true⌝)%I as %->.
+      { destruct b; try done. iExFalso. iDestruct "Lock_r" as "(H' & H'' & _)".
         iApply (node_sep_star with "[Node_r H'']"). iFrame. }
-      assert (ES s1 r = ES s0 r) as ES_01. admit.
-      assert (VN s1 r = VN s0 r) as VN_01. admit. 
-      (* assert (TN s1 r = VN s0 r) as VN_01. admit.  *)
-      iAssert (lockR Σ Hg1 true r (node Σ Hg1 r r (ES s1 r) (Vn')) ∗ 
-        node Σ Hg1 r r (ES s1 r) (Vn'))%I with "[Node_r Lock_r]" as "H'".
-      { rewrite ES_01. iFrame. }
+      iAssert (⌜ES s1 r = ES s0 r ∧ VN s1 r = VN s0 r⌝)%I as %[ES_01 VN_01]. 
+      { iPoseProof (frac_sync with "Hlf Hlff") as "%"; try done. }
+
+      iAssert (lockR Σ Hg1 true r (node Σ Hg1 r r (ES s1 r) (Vn') 
+                      ∗ lock_frac Σ Hg1 Hg2 γr (ES s1 r) (VN s1 r)) 
+                ∗ node Σ Hg1 r r (ES s1 r) (Vn')
+                ∗ lock_frac Σ Hg1 Hg2 γr (ES s1 r) (VN s1 r))%I with "[Node_r Lock_r Hlff]" as "H'".
+      { rewrite ES_01. rewrite VN_01. iFrame. }
       iAaccIntro with "H'".
-      { iIntros "(Lock_r & Node_r)". iModIntro. rewrite ES_01. 
-        iFrame "Hpost Hproph Hmatch Node_r Hc". iNext. iExists M1, T1, s1. 
-        iFrame "∗%". rewrite /resources. 
+      { iIntros "(Lock_r & Node_r & Hlff)". iModIntro. rewrite ES_01 VN_01. 
+        iFrame "∗". iNext. iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
         rewrite (big_sepS_delete _ (FP s1) r); last by eauto. 
-        iFrame. by iExists true. }
+        iFrame. iExists true, γr. rewrite ES_01 VN_01. iFrame "Hghr ∗". }
+
       iIntros "Lock_r". iApply (lc_fupd_add_later with "Hc"). iNext.
 
       iDestruct "SShot1" as %[FP1 [C1 [ES1 [VN1 [TN1 [QN1 [BN1 [I1 [J1 [Hs1 
@@ -264,7 +270,8 @@ Module Type LSM_UPSERT.
               clear; lia. }
             assert (M1' !!! (T1+1) = s1') as ->. 
             { rewrite /M1' lookup_total_insert. done. }
-            split. rewrite FP_s1'. done. intros n k'.
+            split; last split; last first. intros ?; rewrite HJ. done. 
+            all: try by rewrite FP_s1'. intros n k'.
             destruct (decide (n = r)) as [-> | Hnr].
             * destruct (decide (k' = k)) as [-> | Hk].
               right. rewrite HBNr lookup_total_insert /=. clear -BN_k_le_T1; lia.
@@ -343,16 +350,31 @@ Module Type LSM_UPSERT.
       { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
         iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
         apply leibniz_equiv in Habs1. iMod "H'" as "_". by iModIntro. }
-            
-      iAssert (resources _ _ r s1') with "[Lock_r Res_rest]" as "Res".
+      
+      iDestruct "Lock_r" as "(Hl & Node_r & Hlff)". unfold lock_frac.
+      iCombine "Hlf Hlff" as "H'". iEval (rewrite ES_01 VN_01) in "H'".
+      iEval (rewrite -frac_agree_op Qp.half_half) in "H'".
+      iMod (own_update γr 
+        (to_frac_agree 1 ((ES s0 r: esTUR), (VN s0 r:V_contentsUR))) 
+        (to_frac_agree 1 ((ES s1' r: esTUR), (VN s1' r:V_contentsUR))) 
+        with "[H']") as "H'".
+      { apply cmra_update_exclusive. 
+        rewrite /valid /cmra_valid /=. unfold prod_valid_instance. rewrite /=.
+        split; try done. }
+      { iFrame "H'". }
+      iEval (rewrite -Qp.half_half frac_agree_op) in "H'".
+      iDestruct "H'" as "(Hlf & Hlff)".
+      
+      iAssert (resources _ _ _ r s1') with "[Hl Node_r Hlf Hlff Res_rest]" as "Res".
       { rewrite /resources FP_s1'. 
         rewrite (big_sepS_delete _ (FP s1) r); last by eauto. 
-        iSplitL "Lock_r". iExists false. rewrite HES HVNr Def_Vn' VN_01. iFrame.
+        iSplitR "Res_rest". iExists false, γr. rewrite HES HVNr Def_Vn' VN_01. 
+        iFrame "#". iFrame "∗".
         iApply (big_sepS_mono with "Res_rest"); try done.
         iIntros (x)"%Hx H'". assert (x ≠ r) as Hxr by (clear -Hx; set_solver).
-        iDestruct "H'" as (b)"H'". iExists b. rewrite HES HVN; try done. }
+        iDestruct "H'" as (b γ)"H'". iExists b, γ. rewrite HES HVN; try done. }
       iAssert (⌜snapshot_constraints s1'⌝)%I as "SShot1'".
-      { iPureIntro. exists FP1, C1', ES1, VN1', TN1', QN1, BN1', I1.
+      { iPureIntro. exists FP1, C1', ES1, VN1', TN1', QN1, BN1', I1, J1.
         rewrite Hs1 /= in FP_r1. repeat split; try done.
         rewrite /VN1'. rewrite dom_insert_L. clear -FP_r1 Dom_VN1. set_solver.
         rewrite /TN1'. rewrite dom_insert_L. clear -FP_r1 Dom_TN1. set_solver.
@@ -363,6 +385,6 @@ Module Type LSM_UPSERT.
         destruct (decide (t = T1 + 1)) as [-> | Ht']. rewrite /M1' lookup_total_insert.
         done. rewrite /M1' lookup_total_insert_ne. apply PT1. lia. lia. }
       wp_pures. done. Unshelve. try done.  
-  Admitted.
+  Qed.
 
 End LSM_UPSERT.

@@ -214,22 +214,22 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
   Proof. try apply _. Qed. 
 
   Class dsGG Σ := ds {
-                    ds_auth_keysetG :> inG Σ auth_keysetUR;
+                    ds_auth_keysetG :: inG Σ auth_keysetUR;
                   }.
   
   Definition dsG := dsGG.
                 
-                     
+  (*
   Definition dsΣ : gFunctors :=
     #[ GFunctor auth_keysetUR ].
   
   Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsGG Σ.
   Proof. solve_inG. Qed.
-  
+  *)
+
   (* Context `{!heapGS Σ, !dsGG Σ}. *)
   (* Notation iProp := (iProp Σ). *)
   Parameter γ_ks: gname. 
-  (* Parameter (hd tl: Node). *)
   
   Definition FP (s: snapshot) : gset Node :=
     match s with (N, _, _, _, _, _, _) => N end.
