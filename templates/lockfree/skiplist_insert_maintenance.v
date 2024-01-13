@@ -46,7 +46,8 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
     iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HhL 
       & %HpsL & %HssL & #FP_n & #Htr & Hperm & %Def_vs & %Perm_xs)".
     wp_lam. wp_pure credit: "Hc". wp_pures. 
-    destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures.
+    destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures; last first.
+    - iApply ("Hpost" with "[Hpreds Hsuccs Hperm]"). iFrame.
     - rewrite bool_decide_eq_true in Hbool.
       assert (is_Some (xs !! i)) as [idx Hidx].
       { assert (i < length xs) as H'. rewrite Perm_xs seq_length. lia.
@@ -321,7 +322,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
           iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
           iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
           by iPureIntro. }
-  Admitted.
+  Qed.
 
   Lemma maintenanceOp_insert_spec Σ Hg1 Hg2 Hg3 ps ss N γ_t γ_r γ_m γ_mt γ_msy r 
     tid t0 k (n:Node) preds succs (hd tl: Node):
