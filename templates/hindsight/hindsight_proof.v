@@ -12,26 +12,30 @@ Require Export hindsight flows.
 Module Type HINDSIGHT_SPEC.
   Declare Module DEFS : HINDSIGHT_DEFS.
   Export DEFS.DS DEFS.
+
+  Parameter init_spec: ∀ Σ Hg1 Hg2,
+    {{{ True }}} init #() 
+    {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.
   
-  Parameter dsOp_spec: ∀ (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
-    N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q,
-          main_inv Σ H' H'' H''' N γ_t γ_r γ_m γ_mt γ_msy r -∗
-          thread_start Σ H' H'' H''' γ_t γ_mt tid t0 -∗
-          □ update_helping_protocol Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy -∗
-          ⌜local_pre op⌝ -∗
-            {{{ proph p pvs ∗ 
-                (match process_proph tid pvs with
-                  contra => au Σ H' H'' H''' N γ_r op Q
-                | no_upd => True
-                | upd => au Σ H' H'' H''' N γ_r op Q end) }}}
-                  dsOp (Op_to_val op) #p #r @ ⊤
-            {{{ (res: resT) prf pvs', RET #res;
-                proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
-                (match process_proph tid pvs with
-                  contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
-                | no_upd => past_lin_witness Σ H' H'' H''' γ_m op res t0
-                | upd => Q #res ∨ 
-                    ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
+  Parameter dsOp_spec: ∀ Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r op 
+    (p: proph_id) pvs tid t0 Q,
+      main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+      thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+      □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
+      ⌜local_pre op⌝ -∗
+        {{{ proph p pvs ∗ 
+            (match process_proph tid pvs with
+              contra => au Σ Hg1 Hg2 Hg3 N γ_r op Q
+            | no_upd => True
+            | upd => au Σ Hg1 Hg2 Hg3 N γ_r op Q end) }}}
+              dsOp (Op_to_val op) #p #r @ ⊤
+        {{{ (res: resT) prf pvs', RET #res;
+            proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
+            (match process_proph tid pvs with
+              contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
+            | no_upd => past_lin_witness Σ Hg1 Hg2 Hg3 γ_m op res t0
+            | upd => Q #res ∨ 
+                ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
   
 End HINDSIGHT_SPEC.
 
@@ -54,6 +58,48 @@ Module CLIENT_SPEC.
       resolve_proph: "p" to: "v";;
       "v".
 
+  Lemma init_spec Σ Hg1 Hg2 Hg3 N :
+    {{{ True }}} init #()
+    {{{ (γ_t γ_r γ_m γ_mt γ_msy: gname) (r: Node) (a: absTUR), RET #r; 
+          dsRep Σ Hg1 Hg2 Hg3 γ_r a
+        ∗ main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r }}}.
+  Proof.
+    iIntros (Φ) "_ Hpost". rewrite -wp_fupd.
+    wp_apply init_spec; try done.
+    iIntros (r s)"DS_inv".
+    iMod (own_alloc (to_frac_agree 1%Qp (abs s))) as (γ_r)"DSR"; try done.
+    iEval (rewrite -Qp.half_half frac_agree_op) in "DSR".
+    iDestruct "DSR" as "(DSRep & DSRepI)".
+    set M : gmap nat snapshot := {[0 := s]}. 
+    set M' : gmap nat (agreeR _) := {[0 := to_agree s]}. 
+    iMod (own_alloc (● M')) as (γ_m) "HM'".   
+    { rewrite auth_auth_valid. rewrite /M'. by apply singleton_valid. }
+    iMod (own_alloc (● MaxNat 0)) as (γ_t) "HT".
+    { rewrite auth_auth_valid. try done. }
+    iMod (own_alloc (● (∅ : gmap proph_id (agreeR nat)))) as (γ_mt) "HMT".   
+    { rewrite auth_auth_valid. try done. }
+    iMod (own_alloc (● (∅ : gmap proph_id (agreeR gname)))) as (γ_msy) "HMSy".   
+    { rewrite auth_auth_valid. try done. }
+    iMod (inv_alloc (cntrN N) _ 
+      (∃ M T (s: snapshot),
+        dsRepI Σ Hg1 Hg2 Hg3 γ_r (abs s) ∗ ⌜M !!! T ≡ s⌝
+        ∗ hist Σ Hg1 Hg2 Hg3 γ_t γ_m M T
+        ∗ helping_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy M
+        ∗ ds_inv Σ Hg1 Hg2 r M T s)
+      with "[- Hpost DSRep]") as "#HInv".
+    { iNext. iExists M, 0, s. iFrame. iSplitR. iPureIntro. 
+      by rewrite /M lookup_total_insert. iSplitL "HM'".
+      iExists M'. iFrame. iPureIntro. rewrite /M' /M. repeat split.
+      intros H'. destruct (decide (t = 0)) as [-> | Ht0].
+      rewrite lookup_insert in H'. inversion H'. rewrite lookup_insert.
+      apply to_agree_inj in H1. apply leibniz_equiv in H1. by subst s.
+      rewrite lookup_insert_ne in H'; try done. rewrite lookup_empty in H'. 
+      inversion H'. destruct (decide (t = 0)) as [-> | Ht0].
+      rewrite !lookup_insert. intros [=]. by subst s.
+      rewrite lookup_insert_ne; try done. intros t; lia.
+      iExists ∅, ∅. iFrame. iSplitR. by iPureIntro. rewrite !big_sepS_empty. done. }
+    iModIntro. iApply ("Hpost" $! γ_t γ_r γ_m γ_mt γ_msy). iFrame "∗#".
+  Qed.
 
   Lemma dsOp'_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
     N γ_t γ_r γ_m γ_mt γ_msy r op :

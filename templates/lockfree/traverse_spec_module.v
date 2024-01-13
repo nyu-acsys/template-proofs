@@ -91,7 +91,7 @@ Module Type TRAVERSE_SPEC.
     iApply array_repeat. iPureIntro; lia.
     iNext. iIntros (succs) "Hsuccs". wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
@@ -105,7 +105,7 @@ Module Type TRAVERSE_SPEC.
     { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (PT&_).
       destruct PT as (H'&_&_&H''&_). split. set_solver. apply H''. lia. }
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
     iModIntro.    
     wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs".

@@ -51,7 +51,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
       iIntros "Hperm". wp_pures.
       awp_apply markNode_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -75,7 +75,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
       { rewrite Ht_c0. iFrame "Node_c". by iPureIntro. }
       iAaccIntro with "Hpre".
       { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost Hc Hperm".
-        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
+        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#".
         rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
       iAssert (∀ j, ⌜j < i⌝ → ⌜Marki s0 c (xs !!! j) = true⌝)%I as %Hj0.
       { iIntros (j)"%Hj". 
@@ -228,7 +228,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
         iModIntro. iSplitR "Hperm Hpost".
         { iNext. iExists M0', (T0+1), s0'. iFrame "∗#%".
           iSplitR. iPureIntro. by rewrite lookup_total_insert.
-          iExists hd, tl. iFrame.
+          iExists hd, tl, γ_ks. iFrame.
           iPureIntro; rewrite /M0'; split.
           - intros t Ht. destruct (decide (t = T0+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
@@ -254,7 +254,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
           intros j Hj. destruct (decide (j = i)) as [-> | Hji]; try done.
           apply Hj0. lia. }
         iModIntro. iSplitR "Hperm Hpost".
-        { iNext. iExists M0, T0, s0. iFrame "∗#%". iExists hd, tl. iFrame "∗#%".
+        { iNext. iExists M0, T0, s0. iFrame "∗#%". iExists hd, tl, γ_ks. iFrame "∗#%".
           rewrite (big_opS_delete _ (FP s0) c); try done.
           iFrame "Nodes_rest". iFrame. }
         wp_pures.
@@ -285,7 +285,7 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
     iIntros "#HInv #Thd_st #Upd #HR'". iIntros (Φ) "!# (#FP_c&%c_neq_hd&%c_neq_tl) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done. 
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -297,14 +297,14 @@ Module Type SKIPLIST_DELETE_MAINTENANCE.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
     iAaccIntro with "Node_c".
     { iIntros "Node_c". iModIntro. iFrame "Hpost".
-      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
     iIntros "Node_c". 
     iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
       as ">(#Past_s0&Hist)"; try done.
     iSplitR " Hpost".
-    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
-      rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }  
+    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. 
+      iFrame "∗%#". rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }  
     iModIntro. wp_pures. set h := Height s0 c. 
     wp_apply permute_levels_spec; try done.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 

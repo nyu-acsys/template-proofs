@@ -19,6 +19,8 @@ Module Type LSM_TREE <: DATA_STRUCTURE.
 
   (** Template algorithms *)
 
+  Parameter init : heap_lang.val.
+
   Definition traverse : heap_lang.val :=
     rec: "t_rec" "n" "k" :=
       lockNode "n" ;;

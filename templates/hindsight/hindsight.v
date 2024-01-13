@@ -7,10 +7,11 @@ From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
-From flows Require Export one_shot_proph typed_proph gset_seq.
+From flows Require Export flows one_shot_proph typed_proph gset_seq.
 
 Module Type DATA_STRUCTURE.
   
+  Parameter init : val.
   Parameter dsOp : val.
   Parameter Op : Type.
   Parameter Op_to_val : Op -> val.
@@ -55,8 +56,8 @@ Module Type DATA_STRUCTURE.
 
   (* Context `{!heapGS Σ, !dsG Σ}. *)
    
-  Parameter ds_inv : ∀ Σ, heapGS Σ → dsG Σ → loc → gmap nat snapshot -> nat -> snapshot -> iProp Σ.
-  (* Parameter ds_inv : gmap nat snapshot -> nat -> snapshot -> iProp Σ. *)
+  Parameter ds_inv : ∀ Σ, heapGS Σ → dsG Σ → Node → gmap nat snapshot -> 
+    nat -> snapshot -> iProp Σ.
 
   Parameter local_pre : Op -> Prop.
 

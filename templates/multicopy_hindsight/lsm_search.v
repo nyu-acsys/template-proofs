@@ -19,7 +19,9 @@ Module Type LSM_SEARCH.
 
   Definition traversal_inv Σ Hg1 Hg2 Hg3 γ_m r t0 n k v t : iProp Σ := 
     (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜BN s r !!! k = (v, t)⌝)
-  ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜n ∈ FP s ∧ BN s n !!! k = (v, t)⌝). 
+  ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
+          ∗ ⌜n ∈ FP s ∧ k ∈ inset _ (FJ s n) n ∧ BN s n !!! k = (v, t)⌝). 
+  
 
   Lemma traverse_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) 
     tid t0 k (n: Node) v t :
@@ -42,14 +44,14 @@ Module Type LSM_SEARCH.
       iDestruct "HBN" as (s)"(Past_s & %H' & %H'')".
       iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
     rewrite /resources. rewrite (big_sepS_delete _ (FP s0) n); last by eauto.
-    iDestruct "Res" as "(Lock_n & Res_rest)".
-    iDestruct "Lock_n" as (b) "Lock_n".
+    iDestruct "Res" as "(Res_n & Res_rest)".
+    iDestruct "Res_n" as (b γn) "(#Hghn & Hlf & Lock_n)".
     iAaccIntro with "Lock_n".
     { iIntros "Lock_n". iModIntro. iFrame "Hpost". iNext. iExists M0, T0, s0.
       iFrame "∗%". rewrite /resources. 
       rewrite (big_sepS_delete _ (FP s0) n); last by eauto. iFrame.
-      by iExists b. }
-    iIntros "(Lock_n & Node_n)".
+      iExists b, γn. iFrame "Hghn ∗".  }
+    iIntros "(Lock_n & (Node_n & Hlff))".
     iAssert (⌜per_tick_inv r s0⌝)%I as %PT_s0.
     { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     iPoseProof (snapshot_current with "[%] [#] [$]") 
@@ -57,7 +59,6 @@ Module Type LSM_SEARCH.
     
     set tb := (BN s0 n !!! k).2.
     set sb := M0 !!! tb.
-
     iAssert (⌜T0 ∈ dom M0⌝)%I as %T0_in_M0.
     { iDestruct "Hist" as (M')"(_&_&%H''&_)". iPureIntro.
       rewrite H'' elem_of_gset_seq. clear; lia. }
@@ -89,7 +90,7 @@ Module Type LSM_SEARCH.
     iAssert (∀ v0, ⌜VN s0 n !! k = Some v0⌝ → 
        past_lin_witness Σ Hg1 Hg2 Hg3 γ_m (searchOp k) v0 t0)%I as "#Hcase1".
     { iIntros (v0) "%VN_n0". rewrite /past_lin_witness. 
-      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %BN_ns)".
+      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %Hinset & %BN_ns)".
       iAssert (⌜(BN s n !!! k = BN s0 n !!! k) ∨ 
         ((BN s n !!! k).2 < (BN s0 n !!! k).2)⌝)%I as %HBN'.
       { rewrite leibniz_equiv_iff in Habs0. rewrite -Habs0.
@@ -159,30 +160,30 @@ Module Type LSM_SEARCH.
       assert (Hn := FP_n0). apply PT_s0 in Hn.
       assert (BN s0 n !! k = QN s0 n !! k) as BN_eq_QN.
       { destruct Hn as (Hn & _). apply Hn; try done. by apply not_elem_of_dom. }
-      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %HBN)".
+      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %Hinset & %HBN)".
       iAssert (⌜(BN s n !!! k = BN s0 n !!! k) ∨ 
         ((BN s n !!! k).2 < (BN s0 n !!! k).2)⌝)%I as %HBN'.
       { rewrite leibniz_equiv_iff in Habs0. rewrite -Habs0.
         iPoseProof (BN_le_2 with "[%] [Hist] [$Past_s]") as "%H'"; try done.
         iPureIntro. apply H'; try done. }
-      destruct (decide (k ∈ dom (QN s0 n))) as [k_in_QN | H']; last first.
-      { rewrite not_elem_of_dom in H'. destruct HBN' as [HBN' | HBN'].
-        - admit.
-        - rewrite H' in BN_eq_QN. 
-          rewrite (lookup_total_alt (BN s0 n)) BN_eq_QN /= /ccmunit /= /nat_unit in HBN'.
-          clear -HBN'; lia. }
+      iAssert (⌜k ∈ inset _ (FJ s0 n) n⌝)%I as %Hinset0.
+      { rewrite leibniz_equiv_iff in Habs0. rewrite -Habs0.
+        iPoseProof (in_inset with "[%] [Hist] [$Past_s] [%]") as "%"; try done. }
+      assert (k ∈ dom (QN s0 n)) as k_in_QN.
+      { destruct Hn as (_&_&_&_&Hnf). destruct Hnf as (_&_&_&_&_&_&H'&_).
+        apply H'; try done. by exists n'. }
       apply elem_of_dom in k_in_QN. destruct k_in_QN as [[v' t'] QN_k].
+      assert (n ≠ n') as n_neq_n'.
+      { intros <-. destruct ES_n_empty as [_ H']. rewrite H' in k_in_ES_n0.
+        clear -k_in_ES_n0; set_solver. }
+      assert ({[n; n']} ⊆ FP s0) as Hsub.
+      { clear -FP_n0 FP_n'. set_solver. }
       assert (BN s0 n' !!! k = BN s0 n !!! k) as BN_n'.
       { assert ((k, v', t') ∈ outset _ (FI s0 n) n') as Outset_n.
         { destruct Hn as (_&_&_&_&_&H'). apply H'; try done. }
         assert ((k, v', t') ∈ inset _ (FI s0 n') n') as Inset_n'.
-        { assert (n ≠ n') as n_neq_n'.
-          { intros <-. destruct ES_n_empty as [_ H']. rewrite H' in k_in_ES_n0.
-            clear -k_in_ES_n0; set_solver. }
-          apply (flowint_inset_step (FI s0 n)).
-          destruct PT_s0 as (_&(H'&_)&_). rewrite /GFI in H'.
-          assert ({[n; n']} ⊆ FP s0) as Hsub.
-          { clear -FP_n0 FP_n'. set_solver. }
+        { apply (flowint_inset_step (FI s0 n)).
+          destruct PT_s0 as (_&(H'&_)&_). rewrite /GFI in H'. 
           pose proof (flow_big_op_valid _ _ {[n; n']} Hsub H') as H''.
           rewrite big_opS_union in H''. rewrite !big_opS_singleton in H''. done.
           clear -n_neq_n'. set_solver. apply PT_s0 in FP_n'. 
@@ -190,6 +191,14 @@ Module Type LSM_SEARCH.
         assert (Hn' := FP_n'). apply PT_s0 in Hn'.
         destruct Hn' as (_&_&_&_&(_&_&H'&_)). apply H' in Inset_n'; try done.
         rewrite Inset_n' lookup_total_alt BN_eq_QN QN_k /=. done. }
+      assert (k ∈ inset K (FJ s0 n') n') as Hinset0'.
+      { assert (k ∈ outset _ (FJ s0 n) n') as Outset_n.
+        { destruct Hn as (_&_&_&_&_&H'). apply H'; try done. }
+        apply (flowint_inset_step (FJ s0 n)). destruct PT_s0 as (_&(_ &H'&_)&_). 
+        rewrite /GFJ in H'. pose proof (flow_big_op_valid _ _ {[n; n']} Hsub H') as H''.
+        rewrite big_opS_union in H''. rewrite !big_opS_singleton in H''. done.
+        clear -n_neq_n'. set_solver. apply PT_s0 in FP_n'. 
+        destruct FP_n' as (_&_&_&_&(_&->&_)). clear; set_solver. done. }
       destruct HBN' as [HBN' | HBN'].
       - iSplit. rewrite -HBN' HBN /=. iFrame "Habs".
         rewrite -HBN' HBN /=. iExists s0. iFrame "Past_s0".
@@ -239,7 +248,7 @@ Module Type LSM_SEARCH.
       assert (BN s0 n !! k = None) as BN_n0.
       { destruct Hn as (Hn & _). rewrite -HQN. apply Hn; try done. 
         by apply not_elem_of_dom. }
-      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %HBN)".
+      iDestruct "HBN" as (s)"(Past_s & %FP_ns & %Hinset & %HBN)".
       iAssert (⌜(BN s n !!! k = BN s0 n !!! k) ∨ 
         ((BN s n !!! k).2 < (BN s0 n !!! k).2)⌝)%I as %HBN'.
       { rewrite leibniz_equiv_iff in Habs0. rewrite -Habs0.
@@ -257,10 +266,10 @@ Module Type LSM_SEARCH.
         rewrite HBN' H1' in HBN. rewrite -HBN. rewrite /bot /inhabitant /=. done.
       - rewrite HBN lookup_total_alt BN_n0 /= in HBN'. 
         rewrite /ccmunit /nat_unit in HBN'. exfalso; lia. }
-    iModIntro. iSplitR "Hpost Node_n".
+    iModIntro. iSplitR "Hpost Node_n Hlff".
     { iNext. iExists M0, T0, s0. iFrame "∗%". rewrite /resources. 
       rewrite (big_sepS_delete _ (FP s0) n); last by eauto. iFrame.
-      by iExists true. } clear b.
+      iExists true, γn. iFrame "Hghn ∗". } clear b.
     wp_pures. wp_apply (inContents_spec with "Node_n").
     iIntros (v0)"(Node_n & %VN_k0)". wp_pures.
     (** Case analysis on whether k in contents of n **)
@@ -276,25 +285,25 @@ Module Type LSM_SEARCH.
           iDestruct "HBN" as (s)"(Past_s & %H' & %H'')".
           iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
         rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto.
-        iDestruct "Res" as "(Lock_n & Res_rest)".
-        iDestruct "Lock_n" as (b) "Lock_n".
-        iAssert (⌜b = true⌝)%I as %->.
-        { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'')".
+        iDestruct "Res" as "(Res_n & Res_rest)".
+        iDestruct "Res_n" as (b γn') "(#Hghn' & Hlf & Lock_n)".
+        iAssert (⌜γn' = γn⌝)%I as %->. 
+        { iPoseProof (ghost_heap_sync with "Hghn Hghn'") as "%"; try done. } 
+        iClear "Hghn'". iAssert (⌜b = true⌝)%I as %->.
+        { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'' & _)".
           iApply (node_sep_star with "[Node_n H'']"). iFrame. }
-        assert (ES s1 n = ES s0 n) as ES_01. admit.
-        assert (VN s1 n = VN s0 n) as VN_01. admit. 
-        iAssert (lockR Σ Hg1 true n (node Σ Hg1 r n (ES s1 n) (VN s1 n)) ∗ 
-          node Σ Hg1 r n (ES s1 n) (VN s1 n))%I with "[Node_n Lock_n]" as "H'".
-        { rewrite ES_01 VN_01. iFrame. }
+        iAssert (⌜ES s1 n = ES s0 n ∧ VN s1 n = VN s0 n⌝)%I as %[ES_01 VN_01]. 
+        { iPoseProof (frac_sync with "Hlf Hlff") as "%"; try done. }
+        iCombine "Lock_n Node_n Hlff" as "H'". iEval (rewrite ES_01 VN_01) in "H'".
         iAaccIntro with "H'".
-        { iIntros "(Lock_n & Node_n)". iModIntro. rewrite ES_01 VN_01. 
-          iFrame "Hpost Node_n". iNext. iExists M1, T1, s1. iFrame "∗%". 
+        { iIntros "(Lock_n & Node_n & Hlff)". iModIntro.
+          iFrame "Hpost Node_n Hlff". iNext. iExists M1, T1, s1. iFrame "∗%". 
           rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto. 
-          iFrame. by iExists true. }
+          iFrame. iExists true, γn. iFrame "Hghn ∗". }
         iIntros "Lock_n". iModIntro. iSplitR "Hpost". 
         { iNext. iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
           rewrite (big_sepS_delete _ (FP s1) n); last by eauto. iFrame. 
-          by iExists false. }
+          iExists false, γn. iFrame "Hghn ∗". rewrite ES_01 VN_01. done. }
         wp_pures. iApply "IH"; try done. iApply "Hcase2"; try done.
       + iDestruct "H'" as %k_notin_ES_n0. wp_pures. awp_apply unlockNode_spec.
         iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
@@ -304,25 +313,25 @@ Module Type LSM_SEARCH.
           iDestruct "HBN" as (s)"(Past_s & %H' & %H'')".
           iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
         rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto.
-        iDestruct "Res" as "(Lock_n & Res_rest)".
-        iDestruct "Lock_n" as (b) "Lock_n".
-        iAssert (⌜b = true⌝)%I as %->.
-        { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'')".
+        iDestruct "Res" as "(Res_n & Res_rest)".
+        iDestruct "Res_n" as (b γn') "(#Hghn' & Hlf & Lock_n)".
+        iAssert (⌜γn' = γn⌝)%I as %->. 
+        { iPoseProof (ghost_heap_sync with "Hghn Hghn'") as "%"; try done. } 
+        iClear "Hghn'". iAssert (⌜b = true⌝)%I as %->.
+        { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'' & _)".
           iApply (node_sep_star with "[Node_n H'']"). iFrame. }
-        assert (ES s1 n = ES s0 n) as ES_01. admit.
-        assert (VN s1 n = VN s0 n) as VN_01. admit. 
-        iAssert (lockR Σ Hg1 true n (node Σ Hg1 r n (ES s1 n) (VN s1 n)) ∗ 
-          node Σ Hg1 r n (ES s1 n) (VN s1 n))%I with "[Node_n Lock_n]" as "H'".
-        { rewrite ES_01 VN_01. iFrame. }
+        iAssert (⌜ES s1 n = ES s0 n ∧ VN s1 n = VN s0 n⌝)%I as %[ES_01 VN_01]. 
+        { iPoseProof (frac_sync with "Hlf Hlff") as "%"; try done. }
+        iCombine "Lock_n Node_n Hlff" as "H'". iEval (rewrite ES_01 VN_01) in "H'".
         iAaccIntro with "H'".
-        { iIntros "(Lock_n & Node_n)". iModIntro. rewrite ES_01 VN_01. 
-          iFrame "Hpost Node_n". iNext. iExists M1, T1, s1. iFrame "∗%". 
+        { iIntros "(Lock_n & Node_n & Hlff)". iModIntro.
+          iFrame "Hpost Node_n Hlff". iNext. iExists M1, T1, s1. iFrame "∗%". 
           rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto. 
-          iFrame. by iExists true. }
+          iFrame. iExists true, γn. iFrame "Hghn ∗". }
         iIntros "Lock_n". iModIntro. iSplitR "Hpost". 
         { iNext. iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
           rewrite (big_sepS_delete _ (FP s1) n); last by eauto. iFrame. 
-          by iExists false. }
+          iExists false, γn. iFrame "Hghn ∗". rewrite ES_01 VN_01. done. }
         wp_pures. iApply "Hpost". iApply "Hcase3"; try done. 
     - wp_pures. awp_apply unlockNode_spec.
       iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
@@ -332,27 +341,27 @@ Module Type LSM_SEARCH.
         iDestruct "HBN" as (s)"(Past_s & %H' & %H'')".
         iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
       rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto.
-      iDestruct "Res" as "(Lock_n & Res_rest)".
-      iDestruct "Lock_n" as (b) "Lock_n".
-      iAssert (⌜b = true⌝)%I as %->.
-      { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'')".
+      iDestruct "Res" as "(Res_n & Res_rest)".
+      iDestruct "Res_n" as (b γn') "(#Hghn' & Hlf & Lock_n)".
+      iAssert (⌜γn' = γn⌝)%I as %->. 
+      { iPoseProof (ghost_heap_sync with "Hghn Hghn'") as "%"; try done. } 
+      iClear "Hghn'". iAssert (⌜b = true⌝)%I as %->.
+      { destruct b; try done. iExFalso. iDestruct "Lock_n" as "(H' & H'' & _)".
         iApply (node_sep_star with "[Node_n H'']"). iFrame. }
-      assert (ES s1 n = ES s0 n) as ES_01. admit.
-      assert (VN s1 n = VN s0 n) as VN_01. admit. 
-      iAssert (lockR Σ Hg1 true n (node Σ Hg1 r n (ES s1 n) (VN s1 n)) ∗ 
-        node Σ Hg1 r n (ES s1 n) (VN s1 n))%I with "[Node_n Lock_n]" as "H'".
-      { rewrite ES_01 VN_01. iFrame. }
+      iAssert (⌜ES s1 n = ES s0 n ∧ VN s1 n = VN s0 n⌝)%I as %[ES_01 VN_01]. 
+      { iPoseProof (frac_sync with "Hlf Hlff") as "%"; try done. }
+      iCombine "Lock_n Node_n Hlff" as "H'". iEval (rewrite ES_01 VN_01) in "H'".
       iAaccIntro with "H'".
-      { iIntros "(Lock_n & Node_n)". iModIntro. rewrite ES_01 VN_01. 
-        iFrame "Hpost Node_n". iNext. iExists M1, T1, s1. iFrame "∗%". 
+      { iIntros "(Lock_n & Node_n & Hlff)". iModIntro.
+        iFrame "Hpost Node_n Hlff". iNext. iExists M1, T1, s1. iFrame "∗%". 
         rewrite /resources. rewrite (big_sepS_delete _ (FP s1) n); last by eauto. 
-        iFrame. by iExists true. }
+        iFrame. iExists true, γn. iFrame "Hghn ∗". }
       iIntros "Lock_n". iModIntro. iSplitR "Hpost". 
       { iNext. iExists M1, T1, s1. iFrame "∗%". rewrite /resources. 
         rewrite (big_sepS_delete _ (FP s1) n); last by eauto. iFrame. 
-        by iExists false. }
+        iExists false, γn. iFrame "Hghn ∗". rewrite ES_01 VN_01. done. }
       wp_pures. iApply "Hpost". iApply "Hcase1". done.
-  Admitted.
+  Qed.
 
   Lemma searchOp_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) 
     pvs tid t0 Q k :
@@ -387,7 +396,7 @@ Module Type LSM_SEARCH.
       as "#Htr".
     { iSplit. iExists s0. iFrame "Past_s0". iPureIntro. destruct (BN s0 r !!! k); try done.
       iExists s0. iFrame "Past_s0". iPureIntro. split. apply PT_s0.
-      destruct (BN s0 r !!! k); try done. }
+      destruct (BN s0 r !!! k). split; try done. by destruct PT_s0 as ((_&_&->)&_). }
     iModIntro. iSplitR "Hproph Hmatch Hpost".
     { iNext. iExists M0, T0, s0. iFrame "∗%". }
     iModIntro. wp_apply (traverse_spec); try done.

@@ -18,7 +18,13 @@ Module LSM_SPEC : HINDSIGHT_SPEC.
   Declare Module SEARCH : LSM_SEARCH with Module UTIL := UTIL.
   Declare Module UPSERT : LSM_UPSERT with Module UTIL := UTIL.
   Module DEFS := UTIL.DEFS.
-  Export UTIL.DEFS UTIL.DEFS.DS UTIL.DEFS.DS.NODE. 
+  Export UTIL.DEFS UTIL.DEFS.DS UTIL.DEFS.DS.NODE.
+
+  Lemma init_spec Σ Hg1 Hg2 :
+    {{{ True }}} init #() 
+    {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.
+  Proof.
+  Admitted.
 
   Lemma dsOp_spec (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy r op (p: proph_id) pvs tid t0 Q :

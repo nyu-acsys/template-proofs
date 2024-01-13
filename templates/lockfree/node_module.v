@@ -12,7 +12,10 @@ From flows Require Import array_util bool_ra gset_seq.
 
 Module Type NODE_IMPL.
 
-  Parameter L : nat.
+  Parameter L : nat. (* Maximum Height *)
+  Parameter W : nat. (* Keyspace *)
+  Parameter W_gt_0 : 0 < W.
+  Parameter L_gt_1 : 1 < L.
 
   Definition MarkT := gmap nat bool.
   Definition NextT := gmap nat Node.
@@ -24,17 +27,35 @@ Module Type NODE_IMPL.
   Parameter node_sep_star: ∀ Σ Hg1 n h mark next k h' mark' next' k',
     node Σ Hg1 n h mark next k -∗ node Σ Hg1 n h' mark' next' k' -∗ False.
 
-  (* Parameter inContents : val. *)
   Parameter findNext : val.
   Parameter changeNext : val.
   Parameter changeNext' : val.
   Parameter markNode : val.
   Parameter markNode' : val.
-  (* Parameter compareKey : val. *)
   Parameter getKey : val.
   Parameter createNode : val.
   Parameter getHeight : val.
-  (* Parameter permute_levels : val. *)
+  Parameter createTail : val.
+  Parameter createHead : val.
+
+  Parameter createTail_spec : ∀ Σ Hg1,
+  ⊢  {{{ True }}}
+        createTail #()
+      {{{ (tl: Node) mark,
+        RET #tl;
+          node Σ Hg1 tl L mark ∅ W
+        ∗ ⌜dom mark = gset_seq 0 (L-1)⌝
+        ∗ (⌜∀ i, i < L → mark !! i = Some false⌝) }}}.
+
+  Parameter createHead_spec : ∀ Σ Hg1 (tl : Node),
+  ⊢  {{{ True }}}
+        createHead #tl
+      {{{ (hd: Node) mark next,
+          RET #hd;
+            node Σ Hg1 hd L mark next 0
+          ∗ ⌜dom mark = gset_seq 0 (L-1)⌝ ∗ ⌜dom next = gset_seq 0 (L-1)⌝
+          ∗ (⌜∀ i, i < L → mark !! i = Some false⌝)
+          ∗ (⌜∀ i, i < L → next !! i = Some tl⌝) }}}.
 
   Parameter createNode_spec : ∀ Σ Hg1 (succs: loc) ss (k: nat),
   ⊢  {{{ is_array Σ _ succs ss ∗ ⌜length ss = L⌝ }}}

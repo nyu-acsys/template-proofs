@@ -49,7 +49,7 @@ Module Type SKIPLIST_SEARCH.
       & %Len_ss & %HpsL & %HssL & #Htr)".  
     wp_pures. 
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
     iAssert (past_lin_witness _ _ _ _ γ_m (searchOp k) res t0)%I as "#PastW".
@@ -61,7 +61,7 @@ Module Type SKIPLIST_SEARCH.
       destruct H' as (H' & H'' & H'''). destruct PT_s as (_&_&PT&_).
       pose proof PT c k H' H'' as H1'. destruct res; set_solver. }
     iModIntro. iSplitR "Hproph Hmatch Hpost".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
     destruct (process_proph tid pvs) eqn: Hpvs.
     - iApply ("Hpost" $! res [] pvs). iFrame "Hproph". by iPureIntro.
     - iApply ("Hpost" $! res [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
@@ -70,33 +70,3 @@ Module Type SKIPLIST_SEARCH.
   Qed.
 
 End SKIPLIST_SEARCH.
-
-(*
-Module SKIPLIST_INSERT (TR_SPEC : TRAVERSE_SPEC).
-  Include TR_SPEC.
-
-  Lemma insertOp_spec Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r (p: proph_id) 
-    pvs tid t0 Q k (hd tl: Node) :
-      main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
-      thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
-      □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
-      ⌜local_pre (insertOp k)⌝ -∗
-      r ↦□ (#hd, #tl) -∗
-        {{{ proph p pvs ∗ 
-            (match process_proph tid pvs with
-              contra => au Σ Hg1 Hg2 Hg3 N γ_r (insertOp k) Q
-            | no_upd => True
-            | upd => au Σ Hg1 Hg2 Hg3 N γ_r (insertOp k) Q end) }}}
-              insert #p #hd #tl #k @ ⊤
-        {{{ (res: resT) prf pvs', RET #res;
-            proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
-            (match process_proph tid pvs with
-              contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
-            | no_upd => past_lin_witness Σ Hg1 Hg2 Hg3 γ_m (insertOp k) res t0
-            | upd => Q #res ∨ 
-                ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
-  Proof. 
-  Admitted.
-
-End SKIPLIST_INSERT.
-*)

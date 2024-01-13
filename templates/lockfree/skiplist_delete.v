@@ -57,7 +57,7 @@ Module Type SKIPLIST_DELETE.
       iIntros "Hsuccs". wp_pures.
       iApply fupd_wp.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -81,7 +81,7 @@ Module Type SKIPLIST_DELETE.
       iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
         as ">(#HtrL & Hist)"; try done.
       iModIntro. iSplitR "Hpost Hpreds Hsuccs Hmatch Hproph".
-      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
       clear Hk s0 PT_s0 Trans_M0 PT0 Habs0 M0 T0. iModIntro.
       wp_apply (maintenanceOp_delete_spec with "[]"); try done.
       { iFrame "%". iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
@@ -89,11 +89,11 @@ Module Type SKIPLIST_DELETE.
         iPoseProof ("Htr" with "H'") as "(_&H'')".  
         iDestruct "H''" as (s)"#(Past_c & %FP_c & _)". 
         iExists s; iFrame "#". apply list_lookup_total_correct in Hss0.
-        rewrite Hss0 in FP_c. by iPureIntro. }
+        rewrite Hss0 in FP_c. by iPureIntro. } clear γ_ks.
       iIntros "#Hmnt". wp_pure credit:"Hcred". wp_pures.
       awp_apply (markNode_proph_spec with "Hproph"); try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -111,10 +111,12 @@ Module Type SKIPLIST_DELETE.
       iAaccIntro with "Hpre".
       { iIntros "(Node_c & _)". iModIntro. 
         iSplitR "Hmatch Hcred Hpreds Hsuccs Hpost"; try done.
-        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) c); try done. 
         iFrame. iFrame. }
       iIntros (success mark' prf pvs')"(Node_c & Hproph & %Hprf & Hif)".
+      iPoseProof (snapshot_current with "[%] [#] [$]") 
+        as ">(#Past_s0&Hist)"; try done.
       iApply (lc_fupd_add_later with "Hcred"). iNext.
       iAssert (∀ i, ⌜1 ≤ i < Height s0 c⌝ → ⌜Marki s0 c i = true⌝)%I as %Marki_c.
       { iIntros (i)"%Hi". 
@@ -745,10 +747,15 @@ Module Type SKIPLIST_DELETE.
         { iMod (fupd_mask_subseteq (⊤ ∖ ↑cntrN N)) as "H'". { clear; set_solver. }
           iPoseProof ("Upd" with "[%] [Ds] [Help]") as ">Help"; try done.
           apply leibniz_equiv in Habs0. iMod "H'" as "_". by iModIntro. }
+        iAssert (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
+          ∗ ⌜hd ∈ FP s ∧ Marki s hd 0 = false⌝)%I as "#Past_hd".
+        { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (H'&_).
+          destruct H' as (H'&_&_&H''&_). split. clear -H'; set_solver.
+          rewrite /Marki H''; try done. clear -HL; lia. }
         iModIntro. iSplitR "Hpreds Hsuccs HΦ".
         { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". 
           iSplitR. iPureIntro. by rewrite lookup_total_insert. 
-          iExists hd, tl. iFrame "∗#%". }
+          iExists hd, tl, γ_ks. iFrame "∗#%". }
         wp_pures. 
         wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
           try done.
@@ -757,7 +764,7 @@ Module Type SKIPLIST_DELETE.
           iSplit. iPureIntro; clear -HL; lia.
           repeat (try iSplit; first by iPureIntro).
           iIntros (j) "%Hj". 
-          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL". admit. }
+          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL Past_hd". }
         iIntros (???)"_". wp_pures. done.
       + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> Def_pvs]].
         iDestruct "Htr" as "(_&Htr)". 
@@ -804,11 +811,11 @@ Module Type SKIPLIST_DELETE.
           - iApply ("Hpost" $! false prf pvs'). iFrame "Hproph #".
             by iPureIntro. }
         iModIntro. iSplitR "Hpreds Hsuccs HΦ".
-        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". 
+        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". 
           rewrite (big_sepS_delete _ (FP s0) c); try done. iFrame. }
         by wp_pures.
     - iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
       iAssert (past_lin_witness _ _ _ _ γ_m (deleteOp k) false t0)%I as "#PastW".
@@ -821,13 +828,13 @@ Module Type SKIPLIST_DELETE.
           pose proof PT c k H' H'' as H1'. set_solver. }
         iExists s. iFrame "#". iPureIntro. set_solver. }
       iModIntro. iSplitR "Hproph Hmatch Hpost".
-      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
       destruct (process_proph tid pvs) eqn: Hpvs.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
         iRight. by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph #". done.
       Unshelve. try done.
-  Admitted.
+  Qed.
 
 End SKIPLIST_DELETE.

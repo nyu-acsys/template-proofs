@@ -19,8 +19,15 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
   Export TR.NODE TR.
   
   (* Parameter L : nat. (* Maxlevels *) *)
-  Parameter W : nat. (* Keyspace *)
+  
   Parameter permute_levels : heap_lang.val.
+
+  Definition init : heap_lang.val :=
+    λ: <>,
+      let: "t" := createTail #() in
+      let: "h" := createHead "t" in
+      let: "r" := ref ("h", "t") in
+      "r".
 
   (* Template Algorithms *)
   Definition search : heap_lang.val :=
@@ -229,7 +236,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
 
   (* Context `{!heapGS Σ, !dsGG Σ}. *)
   (* Notation iProp := (iProp Σ). *)
-  Parameter γ_ks: gname. 
+  (* Parameter γ_ks: gname.  *)
   
   Definition FP (s: snapshot) : gset Node :=
     match s with (N, _, _, _, _, _, _) => N end.
@@ -344,7 +351,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
 
   Definition ds_inv Σ (Hg1 : heapGS Σ) (Hg2 : dsGG Σ) r (M: gmap nat snapshot) 
     (T: nat) (s: snapshot) : iProp Σ := 
-    ∃ (hd tl: Node), 
+    ∃ (hd tl: Node) (γ_ks : gname), 
       r ↦□ (#hd, #tl)
     ∗ ⌜snapshot_constraints s⌝ 
     ∗ resources Σ _ _ γ_ks s

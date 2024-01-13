@@ -73,7 +73,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
       iIntros "Hsuccs". wp_pures.
       awp_apply changeNext_spec; try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -99,7 +99,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
       { iFrame "∗%". }
       iAaccIntro with "Hpre".
       { iIntros "(Node_p & _)". iModIntro. iFrame "Hpost Hc Hperm Hpreds Hsuccs".
-        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
       iIntros (success next')"(Node_p & Hif)".
       iApply (lc_fupd_add_later with "Hc"). iNext.
@@ -119,8 +119,18 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
       destruct success; last first; 
         last destruct (decide (n = c)) as [<- | n_neq_c].
       + iDestruct "Hif" as %[H' ->]. 
+        iPoseProof (snapshot_current with "[%] [#] [$]") 
+          as ">(#Past_s0&Hist)"; try done.
+        iAssert (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s 
+          ∗ ⌜hd ∈ FP s ∧ Marki s hd 0 = false⌝)%I as "#Past_hd".
+        { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (H1'&_).
+          destruct H1' as (H1'&_&_&H1''&_). split. clear -H1'; set_solver.
+          rewrite /Marki H1''; try done. clear -HL; lia. }
+        iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
+          as ">(#HtrL & Hist)"; try done.
+
         iModIntro. iSplitR "Hpost Hperm Hpreds Hsuccs".
-        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. 
         wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
@@ -130,7 +140,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
           iSplitL. iPureIntro. apply Len_ss.
           iSplitL. iPureIntro. lia. iSplitL. by iPureIntro. 
           iSplitL. by iPureIntro. iIntros (j)"%Hj".
-          assert (j = L-1) as -> by lia. rewrite HpsL HssL. admit. }
+          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL Past_hd". }
         iIntros (ps' ss' b) "(Hpreds & Hsuccs & %Lep_ps' & %Len_ss' 
           & %HpsL' & %HssL' & #Htr'' & _)". wp_pures.
         iSpecialize ("IH" $! i ps' ss').
@@ -146,7 +156,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
           by rewrite lookup_insert Next_p0. by rewrite lookup_insert_ne. }
         rewrite Hnext'.
         iModIntro. iSplitR "Hpost Hperm Hsuccs Hpreds".
-        { iNext. iExists M0, T0, s0. iFrame "∗#%". iExists hd, tl. iFrame "∗#%".
+        { iNext. iExists M0, T0, s0. iFrame "∗#%". iExists hd, tl, γ_ks. iFrame "∗#%".
           rewrite (big_sepS_delete _ (FP s0) p); try done. iFrame. }
         wp_pures. iSpecialize ("IH" $! (i+1) ps ss).
         assert (Z.add i 1 = (i+1)%nat) as ->. clear; lia.
@@ -291,7 +301,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
         iModIntro. iSplitR "Hpost Hperm Hpreds Hsuccs".
         { iNext. iExists M0', (T0+1), s0'. iFrame "∗#%".
           iSplitR. iPureIntro. by rewrite lookup_total_insert.
-          iExists hd, tl. iFrame.
+          iExists hd, tl, γ_ks. iFrame.
           iPureIntro; rewrite /M0'; split.
           - intros t Ht. destruct (decide (t = T0+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
@@ -312,7 +322,6 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
           iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
           by iPureIntro. }
   Admitted.
-
 
   Lemma maintenanceOp_insert_spec Σ Hg1 Hg2 Hg3 ps ss N γ_t γ_r γ_m γ_mt γ_msy r 
     tid t0 k (n:Node) preds succs (hd tl: Node):
@@ -339,7 +348,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
       %Len_ps & %Len_ss & %HpsL & %HssL & #Htr) Hpost".
     wp_lam. wp_pures. awp_apply getHeight_spec; try done.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -351,7 +360,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
     iDestruct "Nodes" as "(Node_n & Nodes_rest)".
     iAaccIntro with "Node_n".
     { iIntros "Node_n". iModIntro. iFrame.
-      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
+      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#".
       rewrite (big_sepS_delete _ (FP s0) n); try done. iFrame. }
     iIntros "Node_n". 
     set h := Height s0 n. 
@@ -362,8 +371,8 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
     iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
       as ">(#Past_s0&Hist)"; try done.
     iSplitR "Hpreds Hsuccs Hpost".
-    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".  
-      rewrite (big_sepS_delete _ (FP s0) n); try done. iFrame. } 
+    { iModIntro. iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. 
+      iFrame "∗%#". rewrite (big_sepS_delete _ (FP s0) n); try done. iFrame. } 
     iModIntro. wp_pures. 
     wp_apply permute_levels_spec; try done.
     iIntros (perm vs xs)"(Hperm & %Def_vs & %Perm_xs)". wp_pures. 
@@ -375,4 +384,3 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
   Qed.
 
 End SKIPLIST_INSERT_MAINTENANCE.
-  

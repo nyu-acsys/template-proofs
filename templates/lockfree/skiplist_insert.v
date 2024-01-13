@@ -48,7 +48,7 @@ Module Type SKIPLIST_INSERT.
     & %Len_ss & %HpsL & %HssL & #Htr)".
     wp_pures. destruct res; wp_pures.
     - iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
       iAssert (past_lin_witness _ _ _ _ γ_m (insertOp k) false t0)%I as "#PastW".
@@ -61,7 +61,7 @@ Module Type SKIPLIST_INSERT.
           pose proof PT c k H' H'' as H1'. set_solver. }
         iExists s. iFrame "#". iPureIntro. set_solver. }
       iModIntro. iSplitR "Hproph Hmatch Hpost".
-      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+      { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
       destruct (process_proph tid pvs) eqn: Hpvs.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
@@ -88,7 +88,7 @@ Module Type SKIPLIST_INSERT.
       iIntros "Hsuccs". wp_pure credit: "Hc". wp_pures.
       awp_apply (changeNext_proph_spec with "Hproph"); try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
         iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -120,14 +120,14 @@ Module Type SKIPLIST_INSERT.
       iAaccIntro with "Hpre".
       { iIntros "(Node_p&_)". iModIntro. 
         iFrame "Hpost Hmatch Node_n Hpreds Hsuccs Hc".
-        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+        iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
       iIntros (success next' prf pvs')"(Node_p & Hproph & %Hprf & Hif)".
       iApply (lc_fupd_add_later with "Hc"). iNext.
       destruct success; last first.
       + iDestruct "Hif" as %[H' [-> Hpvs]]. 
         iModIntro. iSplitR "Hpost Hproph Hmatch".
-        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+        { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. 
         destruct (process_proph tid pvs) eqn: Def_pvs.
@@ -1483,7 +1483,7 @@ Module Type SKIPLIST_INSERT.
         iModIntro. iSplitR "Hpreds Hsuccs HΦ".
         { iNext. iExists M0', (T0+1)%nat, s0'. iFrame "∗#%". 
           iSplitR. iPureIntro. by rewrite lookup_total_insert. 
-          iExists hd, tl. iFrame "∗#%". }
+          iExists hd, tl, γ_ks. iFrame "∗#%". }
         wp_pures. 
         wp_apply (SK_INS_MNT.maintenanceOp_insert_spec _ _ _ _ ps ss with 
           "[] [] [] [] [] [Hpreds Hsuccs]"); try done. 

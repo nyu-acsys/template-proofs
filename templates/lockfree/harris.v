@@ -161,7 +161,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     wp_lam. wp_pure credit: "Hc". wp_pures. 
     awp_apply findNext_spec.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -181,7 +181,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     { iFrame "Node_c %". }
     iAaccIntro with "Hpre".
     { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost Hc Hls".
-      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto. 
       iFrame "Nodes_rest". iFrame. }
     iIntros (m cn) "(Node_c & %Mark_c0 & %Next_c0)".
@@ -268,7 +268,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       repeat split; try done. apply Next_c0'. by apply H1'. } 
 
     iModIntro. iSplitR "Hpost Hc Hls".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s0) c); last by eauto.
       iFrame "Nodes_rest". iFrame. }
     clear Habs0 PT0 Trans_M0 PT_s0 Next_c0' H1'.
@@ -317,9 +317,9 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
             iApply "Hcase3"; try done. }
       iSpecialize ("IH" $! p pn cn (ls ++ [c])).
       iApply ("IH" with "[Hls]"); try done. iFrame "#". iIntros "%". done. }
-    awp_apply getKey_spec. 
+    awp_apply getKey_spec. clear γ_ks.
     iInv "HInv" as (M1 T1 s1) "(>Ds & >%Habs1 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot1 & Res & %PT1 & %Trans_M1)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot1 & Res & %PT1 & %Trans_M1)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -330,7 +330,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     iDestruct "Nodes" as "(Node_c & Nodes_rest)".
     iAaccIntro with "Node_c".
     { iIntros "Node_c". iModIntro. iFrame "Hpost Hc Hls".
-      iNext; iExists M1, T1, s1. iFrame "∗%#". iExists hd, tl. iFrame "∗%#".
+      iNext; iExists M1, T1, s1. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#".
       rewrite (big_sepS_delete _ (FP s1) c); last by eauto. iFrame. }
     iIntros "Node_c".
     iPoseProof (snapshot_current with "[%] [#] [$Hist]") 
@@ -339,7 +339,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     { apply leibniz_equiv in Habs1. rewrite -Habs1.
       iPoseProof (key_eq_2 with "[%] [$Hist] [$Past_s0] [%]") as "->"; try done. }
     iModIntro. iSplitR "Hpost Hls".
-    { iNext. iExists M1, T1, s1. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+    { iNext. iExists M1, T1, s1. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s1) c); last by eauto.
       iFrame "Nodes_rest". iFrame. }
     clear Habs1 PT1 Trans_M1.
@@ -367,9 +367,9 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         done. rewrite bool_decide_eq_false in Hbool1. rewrite -/kc.
         intros ->. apply Hbool1. done.
     - iClear "Hcase1 FP_cn' Hcase3' Past_s0".
-      wp_pure credit: "Hc". wp_pures. awp_apply changeNext_spec; try done.
+      wp_pure credit: "Hc". wp_pures. awp_apply changeNext_spec; try done. clear γ_ks.
       iInv "HInv" as (M2 T2 s2) "(>Ds & >%Habs2 & >Hist & Help & >Templ)".
-      iDestruct "Templ" as (hd' tl')"(HR & SShot2 & Res & %PT2 & %Trans_M2)".
+      iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot2 & Res & %PT2 & %Trans_M2)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
       { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }  
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -393,14 +393,14 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       { iFrame "Node_p %". }
       iAaccIntro with "Hpre".
       { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost Hc Hls".
-        iNext; iExists M2, T2, s2. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+        iNext; iExists M2, T2, s2. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
         rewrite (big_sepS_delete _ (FP s2) p); last by eauto. iFrame. }
       iIntros (success next') "(Node_p & Hsuccess)".
       iApply (lc_fupd_add_later with "Hc"). iNext. 
       destruct success; last first.
       { iDestruct "Hsuccess" as %(_&->).
         iModIntro. iSplitR "Hpost Hls".
-        { iNext. iExists M2, T2, s2. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+        { iNext. iExists M2, T2, s2. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s2) p); last by eauto.
           iFrame "Nodes_rest". iFrame. }
         wp_pures. iApply ("Hpost" $! None). done. }
@@ -937,7 +937,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         iModIntro. iSplitR "Hpost".
         { iNext. iExists M2', (T2+1), s2'. iFrame "∗#%". 
           iSplitR. iPureIntro. rewrite /M2'. by rewrite lookup_total_insert.
-          iExists hd, tl. iFrame "∗#%".
+          iExists hd, tl, γ_ks. iFrame "∗#%".
           iPureIntro; rewrite /M2'; split.
           - intros t Ht. destruct (decide (t = T2+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
@@ -950,9 +950,9 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
               all: clear -Ht Ht'; lia. }
         wp_pures.
 
-        awp_apply findNext_spec.
+        awp_apply findNext_spec. clear γ_ks.
         iInv "HInv" as (M3 T3 s3) "(>Ds & >%Habs3 & >Hist & Help & >Templ)".
-        iDestruct "Templ" as (hd' tl')"(HR & SShot3 & Res & %PT3 & %Trans_M3)".
+        iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot3 & Res & %PT3 & %Trans_M3)".
         iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
         { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }    
         iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -972,7 +972,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         { iFrame "Node_c %". }
         iAaccIntro with "Hpre".
         { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
-          iNext; iExists M3, T3, s3. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+          iNext; iExists M3, T3, s3. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
           rewrite (big_sepS_delete _ (FP s3) c); last by eauto. 
           iFrame "Nodes_rest". iFrame. }
         iIntros (m' cn') "(Node_c & %Mark_c3 & %Next_c3)".
@@ -988,7 +988,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
           rewrite n /Marki H in H'. exfalso; clear -H'; done. }
     
         iModIntro. iSplitR "Hpost".
-        { iNext. iExists M3, T3, s3. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+        { iNext. iExists M3, T3, s3. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s3) c); last by eauto.
           iFrame "Nodes_rest". iFrame. }
         destruct m'; wp_pures.
@@ -1130,7 +1130,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         iModIntro. iSplitR "Hpost".
         { iNext. iExists M2', (T2+1), s2'. iFrame "∗#%". 
           iSplitR. iPureIntro. rewrite /M2'. by rewrite lookup_total_insert.
-          iExists hd, tl. iFrame "∗#%".
+          iExists hd, tl, γ_ks. iFrame "∗#%".
           iPureIntro; rewrite /M2'; split.
           - intros t Ht. destruct (decide (t = T2+1)) as [-> | Ht'].
             + by rewrite lookup_total_insert.
@@ -1143,9 +1143,9 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
               all: clear -Ht Ht'; lia. }
         wp_pures.
           
-        awp_apply findNext_spec.
+        awp_apply findNext_spec. clear γ_ks.
         iInv "HInv" as (M3 T3 s3) "(>Ds & >%Habs3 & >Hist & Help & >Templ)".
-        iDestruct "Templ" as (hd' tl')"(HR & SShot3 & Res & %PT3 & %Trans_M3)".
+        iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot3 & Res & %PT3 & %Trans_M3)".
         iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
         { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }    
         iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -1165,7 +1165,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         { iFrame "Node_c %". }
         iAaccIntro with "Hpre".
         { iIntros "(Node_c & _)". iModIntro. iFrame "Hpost".
-          iNext; iExists M3, T3, s3. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+          iNext; iExists M3, T3, s3. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
           rewrite (big_sepS_delete _ (FP s3) c); last by eauto. 
           iFrame "Nodes_rest". iFrame. }
         iIntros (m' cn') "(Node_c & %Mark_c3 & %Next_c3)".
@@ -1173,7 +1173,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
         { iApply (per_tick_current with "[%] [%] [$Hist]"); try done. }
     
         iModIntro. iSplitR "Hpost".
-        { iNext. iExists M3, T3, s3. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+        { iNext. iExists M3, T3, s3. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s3) c); last by eauto.
           iFrame "Nodes_rest". iFrame. }
         destruct m'; wp_pures.
@@ -1238,7 +1238,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     wp_pures. wp_bind (findNext _ _)%E. 
     awp_apply findNext_spec.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl') "(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks) "(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
@@ -1266,7 +1266,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     { iFrame "Node_p %". }
     iAaccIntro with "Hpre".    
     { iIntros "(Node_p&_)". iModIntro. iFrame "Hpost Hpreds Hsuccs".
-      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl. iFrame "∗%#". 
+      iNext; iExists M0, T0, s0. iFrame "∗%#". iExists hd, tl, γ_ks. iFrame "∗%#". 
       rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
     iIntros (m c) "(Node_p & %Mark_p0 & %Next_p0)".
     iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
@@ -1367,7 +1367,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       - iModIntro. iFrame. iIntros "%"; try done. }
     
     iModIntro. iSplitR "Hpreds Hsuccs Hpost Hj".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%".
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
       rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
     wp_pures. wp_apply traverse_i_spec; try done.
     { iPureIntro. lia. }
@@ -1436,7 +1436,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
       & %Hps0_L & %Hss0_L & #Hj)".
     wp_lam. wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
@@ -1450,7 +1450,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (PT&_).
       destruct PT as (H'&_&_&H''&_). split. set_solver. apply H''. lia. }
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
     iModIntro.      
     wp_apply (traverse_pop_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs Hj %". iIntros (ores ps ss b)"Hores".
@@ -1508,7 +1508,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     iApply array_repeat. iPureIntro; lia.
     iNext. iIntros (succs) "Hsuccs". wp_pures. iApply fupd_wp.
     iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
-    iDestruct "Templ" as (hd' tl')"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
+    iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
     iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
     { iDestruct (mapsto_agree with "[$HR] [$HR']") as %[=]. by iPureIntro. }
     iAssert (⌜per_tick_inv hd tl s0⌝)%I as %PT_s0.
@@ -1522,7 +1522,7 @@ Module HARRIS_SPEC <: TRAVERSE_SPEC.
     { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (PT&_).
       destruct PT as (H'&_&_&H''&_). split. set_solver. apply H''. lia. }
     iModIntro. iSplitR "Hpreds Hsuccs Hpost".
-    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl. iFrame "∗%". }
+    { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
     iModIntro.    
     wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
     iFrame "Hpreds Hsuccs".
