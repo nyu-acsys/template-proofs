@@ -6,7 +6,7 @@ From iris.program_logic Require Export atomic.
 From iris.proofmode Require Import tactics.
 From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
-From flows Require Export flows array_util node_module bool_ra gset_seq.
+From flows Require Export flows array_util node_module misc_ra gset_seq.
 Set Default Proof Using "All".
 
 Module IMPL2 : NODE_IMPL.

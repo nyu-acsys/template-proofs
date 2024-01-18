@@ -8,7 +8,7 @@ From iris.heap_lang Require Import proofmode par.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Import array_util bool_ra gset_seq.
+From flows Require Import array_util misc_ra gset_seq.
 
 Module Type LSM_NODE_IMPL.
 

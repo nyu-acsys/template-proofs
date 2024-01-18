@@ -17,9 +17,9 @@ flows/list_flow_upd.v
 flows/list_flow_upd_marking.v
 flows/list_flow_upd_insert.v
 flows/list_flow_upd_unlink.v
-flows/keyset_ra2.v
-flows/bool_ra.v
 
+util/keyset_ra.v
+util/misc_ra.v
 util/one_shot_proph.v
 util/typed_proph.v
 util/gset_seq.v
@@ -39,9 +39,9 @@ lockfree/skiplist_insert_maintenance.v
 lockfree/skiplist_insert.v
 lockfree/skiplist_search.v
 lockfree/skiplist_spec.v
-lockfree/herlihy.v
-lockfree/harris.v
-lockfree/node_impl.v
+lockfree/eager.v
+lockfree/lazy.v
+lockfree/node_impl1.v
 lockfree/node_impl2.v
 
 multicopy_hindsight/lsm_node_module.v

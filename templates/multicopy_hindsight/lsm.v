@@ -10,7 +10,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-From flows Require Export multiset_flows keyset_ra2 bool_ra.
+From flows Require Export multiset_flows keyset_ra misc_ra.
 From flows Require Export hindsight lsm_node_module.
 
 Module Type LSM_TREE <: DATA_STRUCTURE.

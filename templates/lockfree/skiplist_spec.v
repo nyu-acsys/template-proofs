@@ -11,7 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Import multiset_flows keyset_ra2.
+Require Import multiset_flows keyset_ra.
 Require Export skiplist_search skiplist_insert skiplist_delete hindsight_proof.
 
 Module SKIPLIST_SPEC : HINDSIGHT_SPEC.

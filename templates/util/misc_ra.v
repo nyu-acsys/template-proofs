@@ -56,7 +56,7 @@ Section loc_ra.
   Qed.
   
   Local Instance loc_unit_instance : Unit loc := {| loc_car := 0 |}.
-  Print discreteR.
+
   Canonical Structure locR : cmra := discreteR loc loc_ra_mixin.
 
   Global Instance loc_cmra_discrete : CmraDiscrete locR.
