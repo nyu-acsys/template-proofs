@@ -1,3 +1,5 @@
+(* Eager Traversal implementation and proof *)
+
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.

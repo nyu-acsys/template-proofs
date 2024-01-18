@@ -31,8 +31,8 @@ files=(
 "templates/flows/list_flow_upd_marking.v"
 "templates/flows/list_flow_upd_insert.v"
 "templates/flows/list_flow_upd_unlink.v"
-"templates/flows/keyset_ra2.v"
-"templates/flows/bool_ra.v"
+"templates/util/keyset_ra.v"
+"templates/util/misc_ra.v"
 "templates/util/one_shot_proph.v"
 "templates/util/typed_proph.v"
 "templates/util/gset_seq.v"
@@ -50,9 +50,9 @@ files=(
 "templates/lockfree/skiplist_insert.v"
 "templates/lockfree/skiplist_search.v"
 "templates/lockfree/skiplist_spec.v"
-"templates/lockfree/herlihy.v"
-"templates/lockfree/harris.v"
-"templates/lockfree/node_impl.v"
+"templates/lockfree/eager.v"
+"templates/lockfree/lazy.v"
+"templates/lockfree/node_impl1.v"
 "templates/lockfree/node_impl2.v"
 "templates/multicopy_hindsight/lsm_node_module.v"
 "templates/multicopy_hindsight/lsm.v"
@@ -72,4 +72,4 @@ cd ..
 
 zip -r ecoop24_artifact.zip ecoop24_artifact/
 
-# rm -rf oopsla21_artifact/
+rm -rf ecoop24_artifact/

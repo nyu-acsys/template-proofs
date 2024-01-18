@@ -1,4 +1,4 @@
-(* LSM Template *)
+(* Multicopy LSM DAG Template *)
 
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.base_logic.lib Require Export invariants.

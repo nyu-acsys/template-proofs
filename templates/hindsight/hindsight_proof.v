@@ -42,9 +42,6 @@ End HINDSIGHT_SPEC.
 Module CLIENT_SPEC.
   Declare Module SPEC : HINDSIGHT_SPEC.
   Export SPEC.DEFS.DS SPEC.DEFS SPEC.
-
-  (* Context `{!heapGS Σ, !hsG Σ}. *)
-  (* Context (H' : dsG Σ). *)
   
   (** Proofs *)
     

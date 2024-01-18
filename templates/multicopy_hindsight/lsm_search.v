@@ -1,4 +1,4 @@
-(* LSM Tree : Search *)
+(* Multicopy LSM DAG Template : Search *)
 
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.

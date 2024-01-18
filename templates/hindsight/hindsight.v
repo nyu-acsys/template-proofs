@@ -105,12 +105,7 @@ Module Type HINDSIGHT_DEFS.
   
   Global Instance subG_hsΣ {Σ} : subG hsΣ Σ → hsG Σ.
   Proof. solve_inG. Qed.
-  (* Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → hsG Σ.
-  Proof. Admitted. *)
-  
-  (* Context `{!heapGS Σ, !hsG Σ}. *)
-  (* Context (H' : dsG Σ). *)
-  (* Notation iProp := (iProp Σ). *)
+
   Implicit Types M : gmap nat snapshot.
   Implicit Types T : nat.
   
@@ -552,9 +547,3 @@ Module Type HINDSIGHT_DEFS.
   Qed.
 
 End HINDSIGHT_DEFS.
-
-(*
-Module Hindsight_Defs (DS: DATA_STRUCTURE).
-  Include HINDSIGHT_DEFS with Module DS := DS.
-End Hindsight_Defs.
-*)

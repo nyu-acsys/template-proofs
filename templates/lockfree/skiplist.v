@@ -1,4 +1,4 @@
-(* Herlihy Skiplist *)
+(* Skiplist Template *)
 
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -225,19 +225,7 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
                   }.
   
   Definition dsG := dsGG.
-                
-  (*
-  Definition dsΣ : gFunctors :=
-    #[ GFunctor auth_keysetUR ].
-  
-  Global Instance subG_dsΣ {Σ} : subG dsΣ Σ → dsGG Σ.
-  Proof. solve_inG. Qed.
-  *)
-
-  (* Context `{!heapGS Σ, !dsGG Σ}. *)
-  (* Notation iProp := (iProp Σ). *)
-  (* Parameter γ_ks: gname.  *)
-  
+                  
   Definition FP (s: snapshot) : gset Node :=
     match s with (N, _, _, _, _, _, _) => N end.
   

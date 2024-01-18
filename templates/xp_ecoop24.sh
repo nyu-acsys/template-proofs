@@ -40,11 +40,20 @@ make clean
 rm -f $loctotalfile $timestotalfile $outputfile
 
 echo -e "% Module\t\t& Code\t& Proof\t& Total\t& Time" >> $outputfile
-run "Flow Library" "flows/gmap_more flows/ccm flows/flows flows/multiset_flows"
-run "Lock Implementation" "util/auth_ext util/lock util/one_shot_proph util/typed_proph"
-run "Client-level Spec" "multicopy/multicopy multicopy/multicopy_util multicopy/multicopy_client_level"
-run "DF Template" "multicopy/multicopy_df multicopy/multicopy_df_search multicopy/multicopy_df_upsert"
-run "LSM DAG Template" "multicopy/multicopy_lsm multicopy/multicopy_lsm_util multicopy/multicopy_lsm_search multicopy/multicopy_lsm_upsert multicopy/multicopy_lsm_compact"
+run "Flow Library" "flows/gmap_more flows/ccm flows/ccm_big_op flows/flows flows/flows_big_op flows/multiset_flows flows/list_flow_upd"
+run "Hindsight" "util/misc_ra util/one_shot_proph util/typed_proph util/gset_seq hindsight/hindsight"
+run "Client-level Spec" "hindsight/hindsight_proof"
+run "Skiplist" "util/keyset_ra lockfree/node_module lockfree/traverse_module lockfree/traverse_spec_module lockfree/skiplist lockfree/skiplist_util"
+run "Skiplist Search" "lockfree/skiplist_search"
+run "Skiplist Insert" "lockfree/skiplist_insert_maintenance flows/list_flow_upd_insert lockfree/skiplist_insert"
+run "Skiplist Delete" "lockfree/skiplist_delete_maintenance flows/list_flow_upd_marking lockfree/skiplist_delete"
+run "Skiplist Init" "lockfree/skiplist_spec"
+run "Node-Impl1" "lockfree/node_impl1"
+run "Node-Impl2" "lockfree/node_impl2"
+run "Eager-traverse" "lockfree/eager"
+run "Lazy-traverse" "flows/list_flow_upd_unlink lockfree/lazy"
+#run "Multicopy Template" "multicopy_hindsight/lsm_node_module multicopy_hindsight/lsm multicopy_hindsight/lsm_util multicopy_hindsight/lsm_search multicopy_hindsight/lsm_upsert"
+
 
 echo -e "\\hline" >> $outputfile
 echo -n -e "Total\t\t" >> $outputfile

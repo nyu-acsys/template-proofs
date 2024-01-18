@@ -8,10 +8,7 @@ Section bool_ra.
   Local Instance bool_pcore_instance : PCore bool := λ x, Some true.
   Local Instance bool_op_instance : Op bool := andb.
   Definition bool_op x y : x ⋅ y = x && y := eq_refl.
-  (*
-  Lemma nat_included (x y : nat) : x ≼ y ↔ x ≤ y.
-  Proof. by rewrite Nat.le_sum. Qed.
-  *)
+
   Lemma bool_ra_mixin : RAMixin bool.
   Proof.
     apply ra_total_mixin; try by eauto.

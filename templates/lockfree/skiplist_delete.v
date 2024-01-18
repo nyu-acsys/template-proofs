@@ -1,4 +1,4 @@
-(* Herlihy Skiplist with a single level : Search *)
+(* Skiplist Template : Delete *)
 
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.

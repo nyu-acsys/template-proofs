@@ -1,37 +1,52 @@
-# We sometimes want to locally override notation (e.g. in proofmode/base.v, bi/embedding.v), and there
-# is no good way to do that with scopes.
+# We sometimes want to locally override notation, and there is no good way to do that with scopes.
 -arg -w -arg -notation-overridden
-# non-canonical projections (https://github.com/coq/coq/pull/10076) do not exist yet in 8.9.
+# Cannot use non-canonical projections as it causes massive unification failures
+# (https://github.com/coq/coq/issues/6294).
 -arg -w -arg -redundant-canonical-projection
-# change_no_check does not exist yet in 8.9.
--arg -w -arg -convert_concl_no_check
-# "Declare Scope" does not exist yet in 8.9.
--arg -w -arg -undeclared-scope
-# We have ambiguous paths and so far it is not even clear what they are (https://gitlab.mpi-sws.org/iris/iris/issues/240).
--arg -w -arg -ambiguous-paths
+
 
 -R . flows
 
-flows/ccm.v
 flows/gmap_more.v
+flows/ccm.v
+flows/ccm_big_op.v
 flows/flows.v
+flows/flows_big_op.v
 flows/multiset_flows.v
+flows/list_flow_upd.v
+flows/list_flow_upd_marking.v
+flows/list_flow_upd_insert.v
+flows/list_flow_upd_unlink.v
 
-util/auth_ext.v
-util/lock.v
+util/keyset_ra.v
+util/misc_ra.v
 util/one_shot_proph.v
 util/typed_proph.v
+util/gset_seq.v
+util/array_util.v
 
-multicopy/multicopy.v
-multicopy/multicopy_util.v
-multicopy/multicopy_client_level.v
-multicopy/multicopy_lsm.v
-multicopy/multicopy_lsm_util.v
-multicopy/multicopy_lsm_search.v
-multicopy/multicopy_lsm_upsert.v
-multicopy/multicopy_lsm_compact.v
-multicopy/multicopy_df.v
-multicopy/multicopy_df_search.v
-multicopy/multicopy_df_upsert.v
+hindsight/hindsight.v
+hindsight/hindsight_proof.v
 
+lockfree/node_module.v
+lockfree/traverse_module.v
+lockfree/skiplist.v
+lockfree/skiplist_util.v
+lockfree/traverse_spec_module.v
+lockfree/skiplist_delete_maintenance.v
+lockfree/skiplist_delete.v
+lockfree/skiplist_insert_maintenance.v
+lockfree/skiplist_insert.v
+lockfree/skiplist_search.v
+lockfree/skiplist_spec.v
+lockfree/eager.v
+lockfree/lazy.v
+lockfree/node_impl1.v
+lockfree/node_impl2.v
 
+multicopy_hindsight/lsm_node_module.v
+multicopy_hindsight/lsm.v
+multicopy_hindsight/lsm_util.v
+multicopy_hindsight/lsm_search.v
+multicopy_hindsight/lsm_upsert.v
+multicopy_hindsight/lsm_spec.v
