@@ -1,3 +1,5 @@
+(* Skiplist Template : Maintenance Operation for delete *)
+
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -9,7 +11,6 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-(* Require Import list_flow_upd_marking. *)
 Require Import skiplist_util.
 Require Export traverse_spec_module flows.
 

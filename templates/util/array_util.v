@@ -4,6 +4,8 @@ From iris.heap_lang Require Import proofmode.
 Set Default Proof Using "All".
 From flows Require Export flows.
 
+(* Some lemmas for manipulating HeapLang arrays *)
+
 Definition is_array Σ (Hg1 : heapGS Σ) (array : loc) (xs : list Node) : iProp Σ :=
   let vs := (fun n => # (LitLoc n)) <$> xs
   in array ↦∗ vs.

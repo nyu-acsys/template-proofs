@@ -23,6 +23,7 @@ Module SKIPLIST_SPEC : HINDSIGHT_SPEC.
   Export TR_SPEC TR_SPEC.SK_UTIL TR_SPEC.SK_UTIL.SK TR_SPEC.SK_UTIL.DEFS.
   Export TR_SPEC.SK_UTIL.SK.TR.NODE TR_SPEC.SK_UTIL.SK.TR.
 
+  (* Proof of initialization of the skiplist template *)
   Lemma init_spec Σ Hg1 Hg2 :
     {{{ True }}} init #() 
     {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.

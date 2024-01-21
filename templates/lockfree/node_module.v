@@ -10,6 +10,9 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Import array_util misc_ra gset_seq.
 
+(* Module for the node interface *)
+(* Includes node predicate and helper function specs *)
+
 Module Type NODE_IMPL.
 
   Parameter L : nat. (* Maximum Height *)
@@ -57,14 +60,13 @@ Module Type NODE_IMPL.
           ∗ (⌜∀ i, i < L → mark !! i = Some false⌝)
           ∗ (⌜∀ i, i < L → next !! i = Some tl⌝) }}}.
 
-  Parameter createNode_spec : ∀ Σ Hg1 (succs: loc) ss (k: nat),
-  ⊢  {{{ is_array Σ _ succs ss ∗ ⌜length ss = L⌝ }}}
-           createNode #k #succs
-        {{{ (n: Node) (h: nat) mark next,
+  Parameter createNode_spec : ∀ Σ Hg1 (succs: loc) ss (k h: nat),
+  ⊢  {{{ is_array Σ _ succs ss ∗ ⌜length ss = L⌝ ∗ ⌜0 < h < L⌝ }}}
+           createNode #k #h #succs
+        {{{ (n: Node) mark next,
             RET #n;
               is_array Σ _ succs ss
             ∗ node Σ Hg1 n h mark next k
-            ∗ ⌜0 < h < L⌝
             ∗ ⌜dom mark = gset_seq 0 (h-1)⌝ ∗ ⌜dom next = gset_seq 0 (h-1)⌝
             ∗ (⌜∀ i, i < h → mark !! i = Some false⌝)
             ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.

@@ -1,3 +1,5 @@
+(* Skiplist Template : Maintenance Operation for insert *)
+
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
 From iris.heap_lang Require Export notation locations lang.
@@ -9,8 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-(* Require Import list_flow_upd_marking. *)
-Require Import skiplist_util.
+Require Import array_util skiplist_util.
 Require Export traverse_spec_module flows.
 
 Module Type SKIPLIST_INSERT_MAINTENANCE.
@@ -25,16 +26,15 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
     □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗ 
     ⌜1 < L ∧ 0 < k < W⌝ -∗
     r ↦□ (#hd, #tl) -∗
-      {{{   preds ↦∗ ((λ n0 : loc, #n0) <$> ps)
-          ∗ succs ↦∗ ((λ n0 : loc, #n0) <$> ss)
-          ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝ ∗ ⌜h < L⌝
-          ∗ ⌜ps !!! (L - 1) = hd⌝ ∗ ⌜ss !!! (L - 1) = tl⌝
+      {{{   is_array Σ Hg1 preds ps ∗ is_array Σ Hg1 succs ss
+          ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
+          ∗ ⌜ps !!! (L-1) = hd⌝ ∗ ⌜ss !!! (L-1) = tl⌝ ∗ ⌜h < L⌝
           ∗ (∃ s, past_state Σ Hg1 Hg2 Hg3 γ_m t0 s ∗ ⌜n ∈ FP s⌝ ∗ ⌜Height s n = h⌝)
           ∗ (∀ i, ⌜i < L⌝ → traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k (ps !!! i) (ss !!! i))
           ∗ perm ↦∗ vs
           ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
           ∗ ⌜xs ≡ₚ seq 1 (h-1)⌝ }}}
-         maintenanceOp_insert_rec #i #k #h #perm #preds #succs #n
+         maintenanceOp_insert_rec #hd #tl #i #k #h #perm #preds #succs #n
       {{{ (ps' ss': list Node),
           RET #();
             preds ↦∗ ((λ n0 : loc, #n0) <$> ps')
@@ -43,8 +43,8 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
   Proof.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". iLöb as "IH" forall (i ps ss). 
     iIntros (Φ) "!# Hpre Hpost".
-    iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HhL 
-      & %HpsL & %HssL & #FP_n & #Htr & Hperm & %Def_vs & %Perm_xs)".
+    iDestruct "Hpre" as "(Hpreds & Hsuccs & %Len_ps & %Len_ss 
+      & %HpsL & %HssL & %HhL & #FP_n & #Htr & Hperm & %Def_vs & %Perm_xs)".
     wp_lam. wp_pure credit: "Hc". wp_pures. 
     destruct (bool_decide (Z.lt i (h - 1)%Z)) eqn: Hbool; wp_pures; last first.
     - iApply ("Hpost" with "[Hpreds Hsuccs Hperm]"). iFrame.
@@ -127,23 +127,16 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
         { iExists s0. iFrame "Past_s0". iPureIntro. destruct PT_s0 as (H1'&_).
           destruct H1' as (H1'&_&_&H1''&_). split. clear -H1'; set_solver.
           rewrite /Marki H1''; try done. clear -HL; lia. }
-        iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
-          as ">(#HtrL & Hist)"; try done.
 
         iModIntro. iSplitR "Hpost Hperm Hpreds Hsuccs".
         { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%".
           rewrite (big_sepS_delete _ (FP s0) p); last by eauto. iFrame. }
         wp_pures. 
-        wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
+        wp_apply (traverse_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
           try done.
-        { iFrame "Hpreds Hsuccs".
-          iSplitL. iPureIntro. apply Len_ps.
-          iSplitL. iPureIntro. apply Len_ss.
-          iSplitL. iPureIntro. lia. iSplitL. by iPureIntro. 
-          iSplitL. by iPureIntro. iIntros (j)"%Hj".
-          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL Past_hd". }
-        iIntros (ps' ss' b) "(Hpreds & Hsuccs & %Lep_ps' & %Len_ss' 
-          & %HpsL' & %HssL' & #Htr'' & _)". wp_pures.
+        { iFrame "Hpreds Hsuccs". iPureIntro; split; try done. }
+        iIntros (p' c' ps' ss' b) "(Hpreds & Hsuccs & %Lep_ps' & %Len_ss' 
+          & %HpsL' & %HssL' & %Hps0' & %Hss0' & #Htr'' & _)". wp_pures.
         iSpecialize ("IH" $! i ps' ss').
         iApply ("IH" with "[-Hpost]"); try done. iFrame "#∗%".
       + iDestruct "Hif" as %[Next_p0' [Mark_p0 Def_next']].
@@ -162,12 +155,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
         wp_pures. iSpecialize ("IH" $! (i+1) ps ss).
         assert (Z.add i 1 = (i+1)%nat) as ->. clear; lia.
         iApply ("IH" with "[-Hpost]"); try done. 
-        { iFrame "Hpreds Hsuccs".
-          iSplitR. iPureIntro. apply Len_ps.
-          iSplitR. iPureIntro. apply Len_ss.
-          iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
-          iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
-          by iPureIntro. }
+        { iFrame "Hpreds Hsuccs Htr Hperm FP_n". iPureIntro. repeat split; try done. } 
       + iDestruct "Hif" as %[Next_p0' [Mark_p0 Def_next']].
         iDestruct "SShot0" as %[FP0 [C0 [Ht0 [Mk0 [Nx0 [Ky0 [I0 
             [Hs0 [Dom_Ht0 [Dom_Mk0 [Dom_Nx0 [Dom_Ky0 Dom_I0]]]]]]]]]]]].
@@ -316,12 +304,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
         wp_pures. iSpecialize ("IH" $! (i+1) ps ss).
         assert (Z.add i 1 = (i+1)%nat) as ->. clear; lia.
         iApply ("IH" with "[-Hpost]"); try done. 
-        { iFrame "Hpreds Hsuccs".
-          iSplitR. iPureIntro. apply Len_ps.
-          iSplitR. iPureIntro. apply Len_ss.
-          iSplitR. iPureIntro. lia. iSplitR. by iPureIntro. 
-          iSplitR. by iPureIntro. iFrame "#". iFrame "Hperm".
-          by iPureIntro. }
+        { iFrame "Hpreds Hsuccs Htr FP_n Hperm". iPureIntro. repeat split; try done. }
   Qed.
 
   Lemma maintenanceOp_insert_spec Σ Hg1 Hg2 Hg3 ps ss N γ_t γ_r γ_m γ_mt γ_msy r 
@@ -338,7 +321,7 @@ Module Type SKIPLIST_INSERT_MAINTENANCE.
             ∗ ⌜length ps = L⌝ ∗ ⌜length ss = L⌝
             ∗ ⌜ps !!! (L - 1) = hd⌝ ∗ ⌜ss !!! (L - 1) = tl⌝
             ∗ (∀ i, ⌜i < L⌝ → traversal_inv Σ Hg1 Hg2 Hg3 γ_m t0 i k (ps !!! i) (ss !!! i)) }}}
-           maintenanceOp_insert #k #preds #succs #n
+           maintenanceOp_insert #hd #tl #k #preds #succs #n
         {{{ (ps' ss': list Node),
             RET #();
               preds ↦∗ ((λ n0 : loc, #n0) <$> ps')

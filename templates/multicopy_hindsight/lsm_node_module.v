@@ -10,6 +10,9 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Import array_util misc_ra gset_seq.
 
+(* Module for the multicopy node interface *)
+(* Includes node predicate and helper function specs from the multicopy template *)
+
 Module Type LSM_NODE_IMPL.
 
   Definition K := Z.

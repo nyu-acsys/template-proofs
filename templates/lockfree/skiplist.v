@@ -14,12 +14,14 @@ From iris.bi.lib Require Import fractional.
 From flows Require Export multiset_flows keyset_ra misc_ra.
 From flows Require Export hindsight traverse_module.
 
+(* Instantiating skiplist as DATA_STRUCTURE for the Hindsight Framework *)
 Module Type SKIPLIST <: DATA_STRUCTURE.
   Declare Module TR : TRAVERSE.
   Export TR.NODE TR.
   
   (* Parameter L : nat. (* Maxlevels *) *)
   
+  Parameter randomNum : heap_lang.val.
   Parameter permute_levels : heap_lang.val.
 
   Definition init : heap_lang.val :=
@@ -32,7 +34,9 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
   (* Template Algorithms *)
   Definition search : heap_lang.val :=
     λ: "h" "t" "k",
-      let: "preds_succs_res" := traverse "h" "t" "k" in
+      let: "preds" := AllocN #L "h" in
+      let: "succs" := AllocN #L "t" in
+      let: "preds_succs_res" := traverse "h" "t" "preds" "succs" "k" in
       let: "res" := Snd "preds_succs_res" in
       "res".
   
@@ -53,56 +57,58 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
   
   Definition delete : heap_lang.val :=
     λ: "p" "h" "t" "k",
-      let: "preds_succs_res" := traverse "h" "t" "k" in
-      let: "preds" := Fst (Fst "preds_succs_res") in
-      let: "succs" := Snd (Fst "preds_succs_res") in
-      let: "res" := Snd "preds_succs_res" in
+      let: "preds" := AllocN #L "h" in
+      let: "succs" := AllocN #L "t" in
+      let: "pred_succ_res" := traverse "h" "t" "preds" "succs" "k" in
+      let: "pred" := Fst (Fst "pred_succ_res") in
+      let: "succ" := Snd (Fst "pred_succ_res") in
+      let: "res" := Snd "pred_succ_res" in
       if: ~ "res" then
         #false
       else 
-        let: "curr" := ! ("succs" +ₗ #0%nat) in 
-        maintenanceOp_delete "curr";;
-        match: markNode' "curr" "p"  with
+        maintenanceOp_delete "succ";;
+        match: markNode' "succ" "p"  with
           NONE => #false
-        | SOME "_" => traverse_rec "k" "preds" "succs" #(L-2)%nat;; #true end.
+        | SOME "_" => traverse "h" "t" "preds" "succs" "k";; #true end.
 
   Definition maintenanceOp_insert_rec : heap_lang.val :=
-    rec: "mOp" "i" "k" "h" "perm" "preds" "succs" "new_node" :=
-      if: "i" < ("h" - #1) then
+    rec: "mOp" "h" "t" "i" "k" "ht" "perm" "preds" "succs" "new_node" :=
+      if: "i" < ("ht" - #1) then
         let: "idx" := ! ("perm" +ₗ "i") in
         let: "pred" := ! ("preds" +ₗ "idx") in
         let: "succ" := ! ("succs" +ₗ "idx") in
         match: changeNext "pred" "succ" "new_node" "idx" with
           NONE =>
-          traverse_rec "k" "preds" "succs" #(L-2)%nat;;
-          "mOp" "i" "k" "h" "perm" "preds" "succs" "new_node"
+          traverse "h" "t" "preds" "succs" "k";;
+          "mOp" "h" "t" "i" "k" "ht" "perm" "preds" "succs" "new_node"
         | SOME "_" => 
-          "mOp" ("i" + #1) "k" "h" "perm" "preds" "succs" "new_node" end
+          "mOp" "h" "t" ("i" + #1) "k" "ht" "perm" "preds" "succs" "new_node" end
       else
         #().
 
   Definition maintenanceOp_insert : heap_lang.val :=
-    λ: "k" "preds" "succs" "new_node",
-      let: "h" := getHeight "new_node" in
-      let: "perm" := permute_levels "h" in
-      maintenanceOp_insert_rec #0%nat "k" "h" "perm" "preds" "succs" "new_node".
+    λ: "h" "t" "k" "preds" "succs" "new_node",
+      let: "ht" := getHeight "new_node" in
+      let: "perm" := permute_levels "ht" in
+      maintenanceOp_insert_rec "h" "t" #0%nat "k" "ht" "perm" "preds" "succs" "new_node".
   
   Definition insert : heap_lang.val :=
     rec: "ins" "p" "h" "t" "k" :=
-      let: "preds_succs_res" := traverse "h" "t" "k" in
-      let: "preds" := Fst (Fst "preds_succs_res") in
-      let: "succs" := Snd (Fst "preds_succs_res") in
-      let: "res" := Snd "preds_succs_res" in
+      let: "preds" := AllocN #L "h" in
+      let: "succs" := AllocN #L "t" in
+      let: "pred_succ_res" := traverse "h" "t" "preds" "succs" "k" in
+      let: "pred" := Fst (Fst "pred_succ_res") in
+      let: "succ" := Snd (Fst "pred_succ_res") in
+      let: "res" := Snd "pred_succ_res" in
       if: "res" then
         #false
       else
-        let: "new_node" := createNode "k" "succs" in
-        let: "pred" := ! ("preds" +ₗ #0%nat) in
-        let: "curr" := ! ("succs" +ₗ #0%nat) in
-        match: changeNext' "pred" "curr" "new_node" "p" with
+        let: "ht" := randomNum #L%nat in
+        let: "new_node" := createNode "k" "ht" "succs" in
+        match: changeNext' "pred" "succ" "new_node" "p" with
           NONE => "ins" "p" "h" "t" "k"
         | SOME "_" => 
-          maintenanceOp_insert "k" "preds" "succs" "new_node";;
+          maintenanceOp_insert "h" "t" "k" "preds" "succs" "new_node";;
           #true end.         
 
   Definition dsOp : heap_lang.val :=
@@ -365,5 +371,8 @@ Module Type SKIPLIST <: DATA_STRUCTURE.
             perm ↦∗ vs
           ∗ ⌜vs = (fun n => # (LitInt (Z.of_nat n))) <$> xs⌝
           ∗ ⌜xs ≡ₚ seq 1 (L-1)⌝ }}}.
-    
+
+  Parameter randomNum_spec : ∀ Σ (Hg1: heapGS Σ) (n: nat),
+  ⊢  {{{ True }}} randomNum #n {{{ (n': nat), RET #n'; ⌜0 < n' < n⌝ }}}.
+
 End SKIPLIST.

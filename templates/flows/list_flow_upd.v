@@ -6,6 +6,8 @@ Set Default Proof Using "All".
 Require Export multiset_flows flows_big_op.
 Require Import Coq.Setoids.Setoid.
 
+(* Unbounded (multiset) flow update over a list *)
+
 Section list_flow_upd.
   Open Scope ccm_scope.
 

@@ -1,4 +1,4 @@
-(* Hindsight spec for skiplist *)
+(* Hindsight spec for the Multicopy LSM DAG Template *)
 
 From iris.algebra Require Import excl auth cmra gmap agree gset numbers.
 From iris.algebra.lib Require Import dfrac_agree.
@@ -20,6 +20,7 @@ Module LSM_SPEC : HINDSIGHT_SPEC.
   Module DEFS := UTIL.DEFS.
   Export UTIL.DEFS UTIL.DEFS.DS UTIL.DEFS.DS.NODE.
 
+  (* No initialization provided in the original paper; see README *)
   Lemma init_spec Σ Hg1 Hg2 :
     {{{ True }}} init #() 
     {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.

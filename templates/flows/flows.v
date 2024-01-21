@@ -1882,7 +1882,8 @@ Proof.
     unfold out in H''.
     by rewrite H''.
 Qed.      
-        
+
+(* Adding an empty node is a contextual extension *)
 Lemma contextualLeq_add_empty_node (I: flowintUR) (n: Node) : 
   let In := int {| infR := {[ n := 0 ]}; outR := ∅ |} in
   ✓ I → 
@@ -1923,6 +1924,7 @@ Proof.
     by rewrite ccm_right_id.
 Qed.      
 
+(* Adding a new node between I1 and n2 with all the flow redirected through the new node *)
 Lemma contextualLeq_insert_node (I1 I2 I1': flowintUR) (n1 n2: Node) :
   let m := out I1 n2 in
   let In1 := int {| infR := {[ n1 := m ]}; outR := <<[ n2 := m ]>> ∅ |} in 

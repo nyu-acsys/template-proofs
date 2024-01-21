@@ -10,17 +10,13 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Import node_module.
 
+(* Module for traverse *)
+
 Module Type TRAVERSE.
   Declare Module NODE : NODE_IMPL.
   Export NODE.
 
-  Parameter traverse_rec : heap_lang.val.
-
-  Definition traverse : heap_lang.val :=
-    λ: "h" "t" "k",
-      let: "preds" := AllocN #L "h" in
-      let: "succs" := AllocN #L "t" in
-      traverse_rec "k" "preds" "succs" #(L-2)%nat.
+  Parameter traverse : heap_lang.val.
 
 End TRAVERSE.
 

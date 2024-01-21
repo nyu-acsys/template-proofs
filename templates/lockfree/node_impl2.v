@@ -9,13 +9,14 @@ From iris.bi.lib Require Import fractional.
 From flows Require Export flows array_util node_module misc_ra gset_seq.
 Set Default Proof Using "All".
 
+(* Node Implementation based on encoding mark bit via indirection *)
+
 Module IMPL2 : NODE_IMPL.
 
   Parameter L : nat. (* Maximum Height *)
   Parameter W : nat. (* Keyspace *)
   Parameter W_gt_0 : 0 < W.
   Parameter L_gt_1 : 1 < L.
-  Parameter randomNum : val.
 
   Definition MarkT := gmap nat bool.
   Definition NextT := gmap nat Node.
@@ -63,8 +64,7 @@ Module IMPL2 : NODE_IMPL.
         "cN" ("i" + #1) "h" "arr" "succs".
 
   Definition createNode : val :=
-    λ: "k" "succs",
-      let: "h" := randomNum #L%nat in
+    λ: "k" "h" "succs",
       let: "n" := AllocN #2%nat ("k", "h") in
       let: "arr" := AllocN "h" "n" in
       ("n" +ₗ #1) <- "arr";;
@@ -141,10 +141,6 @@ Module IMPL2 : NODE_IMPL.
             "chN" "n" "m" "m'" "p"
       end.
 
-  (* Context `{!heapGS Σ}. *)
-  (* Notation iProp := (iProp Σ). *)
-
-
   Definition node Σ (Hg1 : heapGS Σ) (n: Node) (h: nat) (mark: MarkT) (next: NextT) 
     (k: nat) : iProp Σ :=
     ∃ (arr: loc) (vs: list val),
@@ -178,73 +174,6 @@ Module IMPL2 : NODE_IMPL.
     rewrite Def_ls1 array_cons. iDestruct "Harr1" as "(Harr1 & Harr1')".
     iCombine "Harr0 Harr1" as "H'". iPoseProof (mapsto_valid with "H'") as "%".
     exfalso; try done.
-  Qed.
-
-  Parameter randomNum_spec : ∀ Σ (Hg1: heapGS Σ) (n: nat),
-  ⊢  {{{ True }}} randomNum #n {{{ (n': nat), RET #n'; ⌜0 < n' < n⌝ }}}.
-
-  Lemma mark_map (h: nat) :
-    h > 0 →
-      ∃ (m: gmap nat bool), (∀ i, i < h → m !! i = Some false) 
-        ∧ dom m = gset_seq 0 (h-1).
-  Proof.
-    intros Hz.
-    Fixpoint f n (res: gmap nat bool) := 
-      match n with S n' => f n' (<[n' := false]> res) | 0 => res end.
-    set m := f h ∅.
-    assert (∀ n res i, (i < n → f n res !! i = Some false) ∧ 
-                  (¬ i < n → f n res !! i = res !! i)) as H'.
-    { clear. induction n.
-      - intros res i; split; first by lia. intros H'; by simpl.
-      - intros res i. pose proof IHn (<[n:=false]> res) i as H''.
-        split; intros Hi; simpl.
-        + destruct (decide (i = n)) as [-> | Hin].
-          { assert (¬ n < n) as H' by lia. 
-            destruct H'' as [_ H'']. pose proof H'' H' as H''.
-            rewrite H'' lookup_insert. done. }
-          assert (i < n) as H'%H'' by lia. by rewrite H'.
-        + assert (¬ i < n) as H'%H'' by lia. rewrite H'.
-          rewrite lookup_insert_ne; try (done || lia). }
-    exists m. split. apply H'. pose proof H' h ∅ as H'. 
-    rewrite -/m in H'. apply set_eq_subseteq. split.
-    intros j Hj. destruct (decide (j < h)) as [Hj' | Hj']. 
-    rewrite elem_of_gset_seq. lia. apply H' in Hj'. 
-    rewrite lookup_empty -not_elem_of_dom in Hj'. done.
-    intros j Hj. rewrite elem_of_gset_seq in Hj. 
-    assert (j < h) as H'' by lia. apply H' in H''.
-    rewrite elem_of_dom H''. done.    
-  Qed.
-
-  Lemma next_map (h: nat) (ss : list Node) :
-    h > 0 →  
-      (∃ (nx: gmap nat Node), (∀ i, i < h → nx !! i = Some (ss !!! i))
-        ∧ dom nx = gset_seq 0 (h-1)).
-  Proof.
-    intros Hz.
-    Fixpoint f' (l: list Node) n (res: gmap nat Node) := 
-        match n with S n' => f' l n' (<[n':= l !!! n']> res) | 0 => res end.
-      set nx := f' ss h ∅.
-      assert (∀ n res i, (i < n → f' ss n res !! i = Some (ss !!! i)) ∧ 
-                    (¬ i < n → f' ss n res !! i = res !! i)) as H'.
-      { clear. induction n.
-        - intros res i; split; first by lia. intros H'; by simpl.
-        - intros res i. pose proof IHn (<[n:=(ss !!! n)]> res) i as H''.
-          split; intros Hi; simpl.
-          + destruct (decide (i = n)) as [-> | Hin].
-            { assert (¬ n < n) as H' by lia. 
-              destruct H'' as [_ H'']. pose proof H'' H' as H''.
-              rewrite H'' lookup_insert. done. }
-            assert (i < n) as H'%H'' by lia. by rewrite H'.
-          + assert (¬ i < n) as H'%H'' by lia. rewrite H'.
-            rewrite lookup_insert_ne; try (done || lia). }
-      exists nx. split. apply H'. pose proof H' h ∅ as H'. 
-      rewrite -/nx in H'. apply set_eq_subseteq. split.
-      intros j Hj. destruct (decide (j < h)) as [Hj' | Hj']. 
-      rewrite elem_of_gset_seq. lia. apply H' in Hj'. 
-      rewrite lookup_empty -not_elem_of_dom in Hj'. done.
-      intros j Hj. rewrite elem_of_gset_seq in Hj. 
-      assert (j < h) as H'' by lia. apply H' in H''.
-      rewrite elem_of_dom H''. done.
   Qed.
 
   Lemma createTail_rec_spec Σ (Hg1 : heapGS Σ) (arr: loc) (vs: list val) (i: nat) :
@@ -490,21 +419,18 @@ Module IMPL2 : NODE_IMPL.
       iPureIntro; lia.
   Qed.
 
-  Lemma createNode_spec Σ (Hg1 : heapGS Σ) (succs: loc) ss (k: nat) :
-  ⊢  {{{ is_array Σ Hg1 succs ss ∗ ⌜length ss = L⌝ }}}
-           createNode #k #succs
-        {{{ (n: Node) (h: nat) mark next,
+  Lemma createNode_spec Σ (Hg1 : heapGS Σ) (succs: loc) ss (k h: nat) :
+  ⊢  {{{ is_array Σ Hg1 succs ss ∗ ⌜length ss = L⌝ ∗ ⌜0 < h < L⌝}}}
+           createNode #k #h #succs
+        {{{ (n: Node) mark next,
             RET #n;
               is_array Σ Hg1 succs ss
             ∗ node Σ Hg1 n h mark next k
-            ∗ ⌜0 < h < L⌝
             ∗ ⌜dom mark = gset_seq 0 (h-1)⌝ ∗ ⌜dom next = gset_seq 0 (h-1)⌝
             ∗ (⌜∀ i, i < h → mark !! i = Some false⌝)
             ∗ (⌜∀ i, i < h → next !! i = Some (ss !!! i)⌝) }}}.
   Proof.
-    iIntros (Φ) "!> (Hsuccs&%Len_ss) Hpost". wp_lam. wp_pures.
-    wp_apply randomNum_spec; try done.
-    iIntros (h) "%Hn'". wp_pures.  
+    iIntros (Φ) "!> (Hsuccs&%Len_ss&%Range_h) Hpost". wp_lam. wp_pures.
     wp_bind (AllocN _ _)%E. iApply wp_allocN; try done.
     iModIntro. iIntros (n)"(Hn&_)". wp_pures.
     wp_bind (AllocN _ _)%E. iApply wp_allocN; try (done || lia).
@@ -529,7 +455,7 @@ Module IMPL2 : NODE_IMPL.
       ∧ dom nx = gset_seq 0 (h-1)) as 
       [next [Def_next Dom_next]].
     { apply next_map. lia. }
-    wp_pures. iApply ("Hpost" $! n h mark next).
+    wp_pures. iApply ("Hpost" $! n mark next).
     iFrame "Hsuccs". iSplitL; last first.
     { iPureIntro; try done. }  
     iExists arr, vs.
@@ -1052,4 +978,4 @@ Module IMPL2 : NODE_IMPL.
   Qed.
 
 
-End IMPL2.
+End IMPL2. 

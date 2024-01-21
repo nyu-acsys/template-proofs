@@ -11,7 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Import list_flow_upd_insert skiplist_util.
+Require Import array_util list_flow_upd_insert skiplist_util.
 Require Export skiplist_insert_maintenance.
 
 Module Type SKIPLIST_INSERT.
@@ -43,9 +43,14 @@ Module Type SKIPLIST_INSERT.
   Proof.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". iLöb as "IH" forall (pvs).
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
-    wp_lam. wp_pures. wp_apply traverse_spec; try done.
-    iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & %Len_ps 
-    & %Len_ss & %HpsL & %HssL & #Htr)".
+    wp_lam. wp_pures. wp_bind (AllocN _ _)%E. iApply array_repeat. iPureIntro; lia.
+    iNext. iIntros (preds) "Hpreds". wp_pures. wp_bind (AllocN _ _)%E.
+    iApply array_repeat. iPureIntro; lia. iNext. iIntros (succs) "Hsuccs". wp_pures. 
+    wp_apply (traverse_spec Σ Hg1 Hg2 Hg3 with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
+    { iFrame "∗". iPureIntro. rewrite !replicate_length. rewrite !lookup_total_replicate_2.
+      done. all : lia. }
+    iIntros (p c ps ss res) "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HpsL 
+      & %HssL & %Hps0 & %Hss0 & #Htr)".
     wp_pures. destruct res; wp_pures.
     - iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
@@ -54,7 +59,6 @@ Module Type SKIPLIST_INSERT.
       iAssert (past_lin_witness _ _ _ _ γ_m (insertOp k) false t0)%I as "#PastW".
       { iDestruct "Htr" as "(_ & Htr)". 
         iDestruct "Htr" as (s)"(#Past_s & %H')". 
-        set c := ss !!! 0. rewrite -/c in H'.
         iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
         assert (k ∈ abs s) as k_in_s.
         { destruct H' as (H' & H'' & H'''). destruct PT_s as (_&_&PT&_).
@@ -67,25 +71,13 @@ Module Type SKIPLIST_INSERT.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph". iSplitR. by iPureIntro.
         iRight. by iPureIntro.
       + iApply ("Hpost" $! false [] pvs). iFrame "Hproph #". done.
-    - wp_apply (createNode_spec _ _ _ ss with "[Hsuccs]"); try done.
+    - wp_apply randomNum_spec; try done.
+      iIntros (h) "%Range_h". wp_pures.
+      wp_apply (createNode_spec _ _ _ ss with "[Hsuccs]"); try done.
       { iFrame. by iPureIntro. }
-      iIntros (n h mark next) "(Hsuccs & Node_n & %Range_h & %Dom_mark 
+      iIntros (n mark next) "(Hsuccs & Node_n & %Dom_mark 
         & %Dom_next & %Def_mark & %Def_next)".
-      wp_pures. wp_bind (! _)%E.
-      assert (is_Some (ps !! 0)) as [p Hps0].
-      { rewrite lookup_lt_is_Some Len_ps; lia. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn 1) _ ((λ n : loc, #n) <$> ps) #p
-        with "[Hpreds]"); try done.
-      { by rewrite list_lookup_fmap Hps0 /=. }
-      iIntros "Hpreds". wp_pures.
-      wp_bind (! _)%E.
-      iEval (rewrite /array_util.is_array) in "Hsuccs".
-      assert (is_Some(ss !! 0)) as [c Hss0].
-      { rewrite lookup_lt_is_Some Len_ss; lia. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn 1) _ ((λ n : loc, #n) <$> ss) #c
-        with "[Hsuccs]"); try done.
-      { by rewrite list_lookup_fmap Hss0 /=. }
-      iIntros "Hsuccs". wp_pure credit: "Hc". wp_pures.
+      wp_pure credit: "Hc". wp_pures. 
       awp_apply (changeNext_proph_spec with "Hproph"); try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
@@ -95,8 +87,7 @@ Module Type SKIPLIST_INSERT.
       iAssert (⌜p ∈ FP s0⌝)%I as %FP_p0.
       { apply leibniz_equiv in Habs0. rewrite -Habs0. iDestruct "Htr" as "(H'&_)".
         iAssert (⌜0 < L⌝)%I as "H''". { iPureIntro; lia. }
-        iPoseProof ("H'" with "H''") as "Htr". 
-        apply list_lookup_total_correct in Hps0. rewrite Hps0.
+        iPoseProof ("H'" with "H''") as "Htr". rewrite Hps0.
         iDestruct "Htr" as "(Hp&_)". iDestruct "Hp" as (s)"(Past_s & % & _)".
         iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
       iAssert (¬ ⌜n ∈ FP s0⌝)%I as %n_notin_s0. 
@@ -229,21 +220,19 @@ Module Type SKIPLIST_INSERT.
             iDestruct "Htr" as "(Htr&_)".
             iPoseProof ("Htr" with "H'") as "(Htr'&_)".
             iDestruct "Htr'" as (s)"(Past_s & %H' & _ & %H'')".
-            apply list_lookup_total_correct in Hps0. rewrite Hps0 in H' H''.
+            rewrite Hps0 in H' H''.
             iPoseProof (key_eq_2 _ _ _ _ p with "[%] [$Hist] [$Past_s] [%]") as "->"; 
               try done. }
           iAssert (⌜c ∈ FP s0⌝)%I as %FP_c0.
           { apply leibniz_equiv in Habs0. rewrite -Habs0. iDestruct "Htr" as "(H'&_)".
             iAssert (⌜0 < L⌝)%I as "H''". { iPureIntro; lia. }
-            iPoseProof ("H'" with "H''") as "(_&Htr)". 
-            apply list_lookup_total_correct in Hss0. rewrite Hss0.
+            iPoseProof ("H'" with "H''") as "(_&Htr)".  rewrite Hss0.
             iDestruct "Htr" as (s)"(Past_s & % & _)".
             iApply (in_FP_2 with "[%] [$Hist] [$Past_s] [%]"); try done. }
           iAssert (⌜k < Key s0 c⌝)%I as %Key_nc.
           { apply leibniz_equiv in Habs0. rewrite -Habs0.
             iDestruct "Htr" as "(_&Htr)".
-            iDestruct "Htr" as (s)"(Past_s & %H')". 
-            apply list_lookup_total_correct in Hss0. rewrite Hss0 in H'.
+            iDestruct "Htr" as (s)"(Past_s & %H')".
             destruct H' as (H'&H''&H''').
             iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
             iPoseProof (key_eq_2 _ _ _ _ c with "[%] [$Hist] [$Past_s] [%]") as "->"; 
@@ -497,8 +486,7 @@ Module Type SKIPLIST_INSERT.
             by rewrite lookup_insert. }
           assert (Nx !! n = Some c) as Nx_n.
           { rewrite Def_Nx' /Nx0'. rewrite lookup_total_insert (Def_next 0).
-            apply f_equal. rewrite list_lookup_total_alt Hss0 /=. done. 
-            apply Range_h. }
+            apply f_equal. done. apply Range_h. }
           assert (∀ x, x ≠ p → x ≠ n → Nx !! x = Next s0 x !! 0) as Def_Nx.
           { intros x Hxp Hxn. rewrite Def_Nx' /Nx0'. 
             rewrite lookup_total_insert_ne; try done.
@@ -876,7 +864,7 @@ Module Type SKIPLIST_INSERT.
             { rewrite lookup_total_insert /Ky0'. intros H'. assert (H'' := H').
               rewrite Def_next in H'; last first. apply elem_of_dom_2 in H''.
               rewrite Dom_next elem_of_gset_seq in H''. clear -H'' Range_h. lia.
-              inversion H'. apply list_lookup_total_correct in Hss0. rewrite Hss0.
+              inversion H'. rewrite Hss0.
               rewrite lookup_total_insert. rewrite lookup_total_insert_ne; try done.
               rewrite Def_Ky0. done. }
             rewrite lookup_total_insert_ne; try done.
@@ -1314,8 +1302,7 @@ Module Type SKIPLIST_INSERT.
               * intros ?; rewrite lookup_total_alt Def_mark /=. done. apply Range_h.
               * clear -Range_k; lia.
               * rewrite (lookup_total_alt mark) Def_mark /=.
-                rewrite (Def_next 0). rewrite list_lookup_total_alt Hss0 /=.
-                apply Hflupd. all: apply Range_h. 
+                rewrite (Def_next 0). rewrite Hss0 /=. apply Hflupd. all: apply Range_h. 
             + assert (n' ∈ FP s0) as H'. clear -Hn' Hn'n; set_solver.
               apply PT4 in H'.
               destruct H' as (Hn1&Hn2&Hn3&Hn4&Hn5&Hn6&Hn7&Hn8).

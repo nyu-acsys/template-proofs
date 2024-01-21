@@ -1,3 +1,5 @@
+(* Big ops over ccm *)
+
 From stdpp Require Export functions gmap gmultiset.
 Require Export ccm.
 

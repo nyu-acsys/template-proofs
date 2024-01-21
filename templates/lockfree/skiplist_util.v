@@ -11,6 +11,8 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Export skiplist flows_big_op.
 
+(* Useful lemmas for the skiplist template *)
+
 Module Type SKIPLIST_UTIL.
   Declare Module SK : SKIPLIST.
   Declare Module DEFS : HINDSIGHT_DEFS with Module DS := SK.

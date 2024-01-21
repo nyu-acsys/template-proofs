@@ -11,7 +11,7 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
-Require Import list_flow_upd_marking skiplist_util.
+Require Import array_util list_flow_upd_marking skiplist_util.
 Require Export skiplist_delete_maintenance.
 
 Module Type SKIPLIST_DELETE.
@@ -44,18 +44,19 @@ Module Type SKIPLIST_DELETE.
   Proof.
     iIntros "#HInv #Thd_st #Upd [%HL %Range_k] #HR'". 
     iIntros (Φ) "!# (Hproph & Hmatch) Hpost".
-    wp_lam. wp_pures.
-    wp_apply (traverse_spec Σ Hg1 Hg2 Hg3); try done.
-    iIntros (preds succs ps ss res) "(Hpreds & Hsuccs & %Len_ps 
-      & %Len_ss & %HpsL & %HssL & #Htr)".  
+    wp_lam. wp_pures. wp_bind (AllocN _ _)%E. 
+    iApply array_repeat. iPureIntro; lia.
+    iNext. iIntros (preds) "Hpreds".
+    wp_pures. wp_bind (AllocN _ _)%E.
+    iApply array_repeat. iPureIntro; lia.
+    iNext. iIntros (succs) "Hsuccs". wp_pures.
+    wp_apply (traverse_spec Σ Hg1 Hg2 Hg3 with "[] [] [] [] [] [Hpreds Hsuccs]"); try done.
+    { iFrame "∗". iPureIntro. rewrite !replicate_length. rewrite !lookup_total_replicate_2.
+      done. all : lia. }
+    iIntros (pred c ps ss res) "(Hpreds & Hsuccs & %Len_ps & %Len_ss & %HpsL 
+      & %HssL & %Hps0 & %Hss0 & #Htr)".  
     wp_pures. destruct res; wp_pures.
-    - assert (is_Some(ss !! 0)) as [c Hss0].
-      { rewrite lookup_lt_is_Some Len_ss; lia. }
-      wp_apply (wp_load_offset _ _ _ (DfracOwn (pos_to_Qp 1)) _ 
-        ((λ n : loc, #n) <$> ss) #c with "[Hsuccs]"); try done.
-      { by rewrite list_lookup_fmap Hss0 /=. }
-      iIntros "Hsuccs". wp_pures.
-      iApply fupd_wp.
+    - iApply fupd_wp.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
       iDestruct "Templ" as (hd' tl' γ_ks)"(HR & SShot0 & Res & %PT0 & %Trans_M0)".
       iAssert (⌜hd' = hd ∧ tl' = tl⌝)%I with "[HR]" as %[-> ->]. 
@@ -63,8 +64,7 @@ Module Type SKIPLIST_DELETE.
       iDestruct "Res" as "(GKS & Nodes & Nodes_KS)".
       iPoseProof (per_tick_current with "[%] [%] [$Hist]") as "%PT_s0"; try done.
       iAssert (⌜Key s0 c = k⌝)%I as %Hk.
-      { apply list_lookup_total_correct in Hss0. rewrite Hss0.
-        iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s&%H'&%H''&%H''')".
+      { iDestruct "Htr" as "(_&H')". iDestruct "H'" as (s)"(Past_s&%H'&%H''&%H''')".
         iAssert (⌜Marki s c 0 = false⌝)%I as %Marki_cs. 
         { iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
           apply PT_s in H'. destruct H' as (_&_&_&_&_&H').
@@ -77,19 +77,19 @@ Module Type SKIPLIST_DELETE.
       assert (c ≠ hd) as c_neq_hd.
       { destruct PT_s0 as ((_&H'&_)&_). intros ->. lia. }
       assert (c ≠ tl) as c_neq_tl. 
-      { destruct PT_s0 as ((_&_&H'&_)&_). intros ->. lia. }      
+      { destruct PT_s0 as ((_&_&H'&_)&_). intros ->. lia. }
+      (*
       iPoseProof (traversal_inv_hd_tl with "[%] [%] [%] [%] [#] [Hist]") 
         as ">(#HtrL & Hist)"; try done.
+      *)
       iModIntro. iSplitR "Hpost Hpreds Hsuccs Hmatch Hproph".
       { iNext. iExists M0, T0, s0. iFrame "∗%". iExists hd, tl, γ_ks. iFrame "∗%". }
       clear Hk s0 PT_s0 Trans_M0 PT0 Habs0 M0 T0. iModIntro.
       wp_apply (maintenanceOp_delete_spec with "[]"); try done.
       { iFrame "%". iAssert (⌜0 < L⌝)%I as "H'". by (iPureIntro; lia).
-        iDestruct "Htr" as "(Htr & _)". 
-        iPoseProof ("Htr" with "H'") as "(_&H'')".  
-        iDestruct "H''" as (s)"#(Past_c & %FP_c & _)". 
-        iExists s; iFrame "#". apply list_lookup_total_correct in Hss0.
-        rewrite Hss0 in FP_c. by iPureIntro. } clear γ_ks.
+        iDestruct "Htr" as "(_ & Htr)".   
+        iDestruct "Htr" as (s)"#(Past_c & %FP_c & _)". 
+        iExists s; iFrame "#".  by iPureIntro. } clear γ_ks.
       iIntros "#Hmnt". wp_pure credit:"Hcred". wp_pures.
       awp_apply (markNode_proph_spec with "Hproph"); try done.
       iInv "HInv" as (M0 T0 s0) "(>Ds & >%Habs0 & >Hist & Help & >Templ)".
@@ -138,7 +138,6 @@ Module Type SKIPLIST_DELETE.
           intros x Hx. apply H' in Hx. by destruct Hx as (_&_&_&_&_&?). }
         iAssert (⌜Key s0 c = k⌝)%I as %Key_c. 
         { iDestruct "Htr" as "(_ & Htr)". iDestruct "Htr" as (s)"(Past_s & %H')".
-          apply list_lookup_total_correct in Hss0. rewrite Hss0 in H'.
           destruct H' as (H'&H''&H'''). 
           iAssert (⌜Marki s c 0 = false⌝)%I as %Marki_cs. 
           { iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
@@ -757,19 +756,13 @@ Module Type SKIPLIST_DELETE.
           iSplitR. iPureIntro. by rewrite lookup_total_insert. 
           iExists hd, tl, γ_ks. iFrame "∗#%". }
         wp_pures. 
-        wp_apply (traverse_rec_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
+        wp_apply (traverse_spec with "[] [] [] [] [] [Hpreds Hsuccs]"); 
           try done.
-        { iFrame "Hpreds Hsuccs".
-          repeat (try iSplit; first by iPureIntro).
-          iSplit. iPureIntro; clear -HL; lia.
-          repeat (try iSplit; first by iPureIntro).
-          iIntros (j) "%Hj". 
-          assert (j = L-1) as -> by lia. rewrite HpsL HssL. iFrame "HtrL Past_hd". }
-        iIntros (???)"_". wp_pures. done.
+        { iFrame "Hpreds Hsuccs". repeat (try iSplit; first by iPureIntro). }
+        iIntros (?????)"_". wp_pures. done.
       + iDestruct "Hif" as "%H'". destruct H' as [Mark_c0 [-> Def_pvs]].
         iDestruct "Htr" as "(_&Htr)". 
         iDestruct "Htr" as (s)"(Past_s & %H')".
-        apply list_lookup_total_correct in Hss0. rewrite Hss0 in H'.
         iAssert (⌜Mark s c !!! 0 = false⌝)%I as %Mark_cs. 
         { destruct H' as (H'&H''&H''').
           iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
@@ -821,7 +814,6 @@ Module Type SKIPLIST_DELETE.
       iAssert (past_lin_witness _ _ _ _ γ_m (deleteOp k) false t0)%I as "#PastW".
       { iDestruct "Htr" as "(_ & Htr)". 
         iDestruct "Htr" as (s)"(#Past_s & %H')". 
-        set c := ss !!! 0. rewrite -/c in H'.
         iPoseProof (per_tick_past with "[%] Hist Past_s") as "%PT_s"; try done.
         assert (k ∉ abs s) as k_notin_s.
         { destruct H' as (H' & H'' & H'''). destruct PT_s as (_&_&PT&_).

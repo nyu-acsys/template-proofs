@@ -9,42 +9,14 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 Require Export hindsight flows.
 
-Module Type HINDSIGHT_SPEC.
-  Declare Module DEFS : HINDSIGHT_DEFS.
-  Export DEFS.DS DEFS.
-
-  Parameter init_spec: ∀ Σ Hg1 Hg2,
-    {{{ True }}} init #() 
-    {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.
-  
-  Parameter dsOp_spec: ∀ Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r op 
-    (p: proph_id) pvs tid t0 Q,
-      main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
-      thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
-      □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
-      ⌜local_pre op⌝ -∗
-        {{{ proph p pvs ∗ 
-            (match process_proph tid pvs with
-              contra => au Σ Hg1 Hg2 Hg3 N γ_r op Q
-            | no_upd => True
-            | upd => au Σ Hg1 Hg2 Hg3 N γ_r op Q end) }}}
-              dsOp (Op_to_val op) #p #r @ ⊤
-        {{{ (res: resT) prf pvs', RET #res;
-            proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
-            (match process_proph tid pvs with
-              contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
-            | no_upd => past_lin_witness Σ Hg1 Hg2 Hg3 γ_m op res t0
-            | upd => Q #res ∨ 
-                ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
-  
-End HINDSIGHT_SPEC.
-
+(* Proof of client-level spec assuming hindsight specification *)
 Module CLIENT_SPEC.
   Declare Module SPEC : HINDSIGHT_SPEC.
   Export SPEC.DEFS.DS SPEC.DEFS SPEC.
   
-  (** Proofs *)
-    
+  (** Proof *)
+  
+  (* dsOp augmented with prophecies *)
   Definition dsOp' : val :=
     λ: "OP" "r",     
       let: "t_id" := NewProph in
@@ -55,6 +27,7 @@ Module CLIENT_SPEC.
       resolve_proph: "p" to: "v";;
       "v".
 
+  (* Verifying the initialization *)
   Lemma init_spec Σ Hg1 Hg2 Hg3 N :
     {{{ True }}} init #()
     {{{ (γ_t γ_r γ_m γ_mt γ_msy: gname) (r: Node) (a: absTUR), RET #r; 
@@ -98,6 +71,7 @@ Module CLIENT_SPEC.
     iModIntro. iApply ("Hpost" $! γ_t γ_r γ_m γ_mt γ_msy). iFrame "∗#".
   Qed.
 
+  (* Client-level Spec *)
   Lemma dsOp'_spec (Σ : gFunctors) (Hg1 : heapGS Σ) (Hg2 : dsG Σ) (Hg3 : hsG Σ) 
     N γ_t γ_r γ_m γ_mt γ_msy r op :
           main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗

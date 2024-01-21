@@ -9,16 +9,27 @@ From iris.heap_lang.lib Require Import nondet_bool.
 From iris.bi.lib Require Import fractional.
 From flows Require Export flows one_shot_proph typed_proph gset_seq.
 
+(* Hindsight Framework *)
+
+(* Input data structure *)
+(* See lockfree/skiplist.v or multicopy_hindsight/lsm.v for an example *)
 Module Type DATA_STRUCTURE.
   
+  (* initialization *)
   Parameter init : val.
+  (* one procedure to call data structure operations *)
   Parameter dsOp : val.
+
+  (* Data structure operations *)
   Parameter Op : Type.
+  (* Data structure operation in val form *)
   Parameter Op_to_val : Op -> val.
 
+  (* Type of the abstract state as ucmra *)
   Parameter absTUR : ucmra.
   Definition absT := ucmra_car absTUR.
 
+  (* Type of the return value; other definition to create TypedProph out of resT *)
   Parameter resT : Type.
   Parameter resT_to_base_lit : resT -> base_lit.
   Coercion resT_to_base_lit : resT >-> base_lit.
@@ -31,15 +42,19 @@ Module Type DATA_STRUCTURE.
   Definition resTTypedProph `{!heapGS Σ} := make_TypedProph resTProph.
   Parameter resT_proph_resolve : ∀ (res: resT), resT_from_val #res = Some res.
   
+  (* Sequential Spec of the structure *)
   Parameter seq_spec : Op -> absT -> absT -> resT -> Prop.
   #[global] Declare Instance seq_spec_dec : 
     ∀ op c c' res, Decision (seq_spec op c c' res).
 
+  (* Type of the snapshot as ucmra *)
   Parameter snapshotUR : ucmra.
   Definition snapshot := ucmra_car snapshotUR.
   
+  (* Function to compute abstract state out of a snapshot *)
   Parameter abs : snapshot -> absT.
   
+  (* Some useful instances *)
   #[global] Declare Instance Op_inhabited : Inhabited Op.
   #[global] Declare Instance absTUR_discrete : CmraDiscrete absTUR.
   #[global] Declare Instance absT_leibnizequiv : LeibnizEquiv (absT).
@@ -47,28 +62,27 @@ Module Type DATA_STRUCTURE.
   #[global] Declare Instance snapshotUR_discrete : CmraDiscrete snapshotUR.  
   #[global] Declare Instance snapshot_leibnizequiv : LeibnizEquiv (snapshot).
   #[global] Declare Instance snapshot_inhabited : Inhabited snapshot.
-  
+
+  (* List of functors needs for the structure *)
   Parameter dsG : gFunctors → Set.
-  (* Parameter test : heapGS dsΣ. *)
-  (* Print heapGS_gen. *)
-  (* Parameter subG_dsΣ : ∀ Σ, subG dsΣ Σ → dsG Σ. *)
 
 
-  (* Context `{!heapGS Σ, !dsG Σ}. *)
-   
+  (* Template invariant *) 
   Parameter ds_inv : ∀ Σ, heapGS Σ → dsG Σ → Node → gmap nat snapshot -> 
     nat -> snapshot -> iProp Σ.
 
+  (* Local preconditions for the data structure operations *)
   Parameter local_pre : Op -> Prop.
 
 End DATA_STRUCTURE.
 
 
+(* Shared State Invariant with the helping protocol and history *)
 Module Type HINDSIGHT_DEFS.
   Declare Module DS : DATA_STRUCTURE.
   Import DS.
     
-  (* RAs used in proof *)
+  (* RAs used in invariant *)
 
   Definition auth_natUR := authUR $ max_natUR.
   Definition frac_absTR := dfrac_agreeR $ absTUR.
@@ -112,6 +126,7 @@ Module Type HINDSIGHT_DEFS.
   Global Definition cntrN N := N .@ "cntr".
   Global Definition threadN N := N .@ "thread".
   
+  (* Storing history *)
   Definition hist (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ) 
     γ_t γ_m M T : iProp Σ :=
     ∃ (M': gmap nat (agreeR (_))),
@@ -120,6 +135,7 @@ Module Type HINDSIGHT_DEFS.
     ∗ ⌜∀ t s, M' !! t ≡ Some (to_agree s) ↔ M !! t = Some s⌝
     ∗ ⌜∀ t, t < T → (M !!! t) ≠ (M !!! (t+1)%nat)⌝.
 
+  (* Representation Predicate and its dual *)
   Definition dsRep (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     γ_r (a: absTUR) : iProp Σ := 
     own γ_r (to_frac_agree (1/2) a).
@@ -192,6 +208,7 @@ Module Type HINDSIGHT_DEFS.
       ∗ ([∗ set] t_id ∈ dom Mt, ∃ vtid, proph1 t_id vtid)
       ∗ ([∗ set] t_id ∈ dom Msy, Reg Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy t_id M).
 
+  (* Final invariant with all the pieces *)
   Definition main_inv (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_m γ_mt γ_msy (r: loc) : iProp Σ :=
     inv (cntrN N)
@@ -201,6 +218,7 @@ Module Type HINDSIGHT_DEFS.
     ∗ helping_inv Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy M
     ∗ ds_inv Σ H' H'' r M T s).
 
+  (* View shift to update the history *)
   Definition update_helping_protocol (Σ : gFunctors) (H' : heapGS Σ) (H'' : dsG Σ) (H''' : hsG Σ)
     N γ_t γ_r γ_mt γ_msy: iProp Σ :=
     ∀ M T s, 
@@ -210,6 +228,7 @@ Module Type HINDSIGHT_DEFS.
         helping_inv Σ H' H'' H''' N γ_t γ_r γ_mt γ_msy (<[T+1 := s]> M) 
         ∗ dsRep Σ H' H'' H''' γ_r (abs s).
 
+  (* Function to check for successful CAS *)
   Definition is_snd (b: bool) (x : val * val) := ∃ v, x.1 = (v, #b)%V.  
 
   Global Instance is_snd_dec : ∀ b (x : val * val), Decision (is_snd b x).
@@ -224,8 +243,10 @@ Module Type HINDSIGHT_DEFS.
     - right; intros [v1 H']; try done.
   Qed.
 
+  (* Case analysis on prophecies *)
   Inductive proph_case := contra | upd | no_upd.
 
+  (* Function Upd(pvs) from the paper  *)
   Definition process_proph (tid: proph_id) (pvs : list (val * val)) : proph_case :=
     match list_find (λ x, x.2 = #tid) pvs with
       None => contra
@@ -547,3 +568,35 @@ Module Type HINDSIGHT_DEFS.
   Qed.
 
 End HINDSIGHT_DEFS.
+
+(* Hindsight Specification *)
+Module Type HINDSIGHT_SPEC.
+  Declare Module DEFS : HINDSIGHT_DEFS.
+  Export DEFS.DS DEFS.
+
+  (* Data structrue initialization spec *)
+  Parameter init_spec: ∀ Σ Hg1 Hg2,
+    {{{ True }}} init #() 
+    {{{ (r: Node) (s : snapshot), RET #r; ds_inv Σ Hg1 Hg2 r {[0 := s]} 0 s }}}.
+  
+  Parameter dsOp_spec: ∀ Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r op 
+    (p: proph_id) pvs tid t0 Q,
+      main_inv Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_m γ_mt γ_msy r -∗
+      thread_start Σ Hg1 Hg2 Hg3 γ_t γ_mt tid t0 -∗
+      □ update_helping_protocol Σ Hg1 Hg2 Hg3 N γ_t γ_r γ_mt γ_msy -∗
+      ⌜local_pre op⌝ -∗
+        {{{ proph p pvs ∗ 
+            (match process_proph tid pvs with
+              contra => au Σ Hg1 Hg2 Hg3 N γ_r op Q
+            | no_upd => True
+            | upd => au Σ Hg1 Hg2 Hg3 N γ_r op Q end) }}}
+              dsOp (Op_to_val op) #p #r @ ⊤
+        {{{ (res: resT) prf pvs', RET #res;
+            proph p pvs' ∗ ⌜pvs = prf ++ pvs'⌝ ∗
+            (match process_proph tid pvs with
+              contra => ⌜Forall (λ x, x.2 ≠ #tid) prf⌝
+            | no_upd => past_lin_witness Σ Hg1 Hg2 Hg3 γ_m op res t0
+            | upd => Q #res ∨ 
+                ⌜Forall (λ x, ¬ is_snd true x ∧ x.2 ≠ #tid) prf⌝ end) }}}.
+  
+End HINDSIGHT_SPEC.

@@ -8,9 +8,12 @@
 .coqdeps.d
 *.v.d
 *.zip
+*.DS_store
 Makefile
 Makefile.conf
 .Makefile.d
+.CoqMakefile.d
+CoqMakefile
 CoqMakefile.conf
 grasshopper
 oopsla21_artifact

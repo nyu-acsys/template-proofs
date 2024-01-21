@@ -2,6 +2,8 @@ From iris.algebra Require Import cmra.
 From iris.heap_lang Require Export lang.
 Set Default Proof Using "All".
 
+(* Declaring bool and loc types as Discrete Unital RAs *)
+
 Section bool_ra.
   Local Instance bool_valid_instance : Valid bool := λ x, True.
   Local Instance bool_validN_instance : ValidN bool := λ n x, True.

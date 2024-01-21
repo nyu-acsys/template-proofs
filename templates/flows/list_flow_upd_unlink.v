@@ -7,6 +7,8 @@ Require Export multiset_flows flows_big_op.
 Require Import Coq.Setoids.Setoid.
 Require Export list_flow_upd.
 
+(* Unbounded (multiset) flow update over a list caused by unlinking a marked segment *)
+
 Section list_flow_upd_unlink.
   Open Scope ccm_scope.
   

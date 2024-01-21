@@ -6,6 +6,8 @@ Set Default Proof Using "All".
 Require Export list_flow_upd.
 Require Import Coq.Setoids.Setoid.
 
+(* Unbounded (multiset) flow update over a list: instantiated for insertion of a new node *)
+
 Section list_flow_upd_insert.
   Open Scope ccm_scope.
   

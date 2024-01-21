@@ -11,6 +11,8 @@ Set Default Proof Using "All".
 From iris.bi.lib Require Import fractional.
 From flows Require Export lsm.
 
+(* Useful lemmas for the multicopy template *)
+
 Module Type LSM_UTIL.
   Declare Module LSM : LSM_TREE.
   Declare Module DEFS : HINDSIGHT_DEFS with Module DS := LSM.

@@ -13,6 +13,7 @@ From iris.bi.lib Require Import fractional.
 From flows Require Export multiset_flows keyset_ra misc_ra.
 From flows Require Export hindsight lsm_node_module.
 
+(* Instantiating multicopy template as DATA_STRUCTURE for the Hindsight Framework *)
 Module Type LSM_TREE <: DATA_STRUCTURE.
   Declare Module NODE : LSM_NODE_IMPL.
   Export NODE.
