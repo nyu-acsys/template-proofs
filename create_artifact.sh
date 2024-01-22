@@ -7,9 +7,6 @@ cd ecoop24_artifact
 
 cp ../README_ecoop24.md .
 mv README_ecoop24.md README.md
-#cp ../run_experiments_oopsla21.sh .
-#mv run_experiments_oopsla21.sh run_experiments.sh
-#cp ../setup.sh .
 
 mkdir -p templates/flows
 mkdir -p templates/util
@@ -20,6 +17,7 @@ mkdir -p templates/multicopy_hindsight
 
 files=(
 "templates/xp_ecoop24.sh"
+"templates/xp_ecoop24_short.sh"
 "templates/_CoqProject_ecoop24"
 "templates/flows/gmap_more.v"
 "templates/flows/ccm.v"

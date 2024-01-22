@@ -2,13 +2,13 @@
 
 ### Getting Started Guide
 
-This artifact relies on Iris (a high-order concurrent separation logic built on top of Coq).
+This artifact relies on Iris (a high-order concurrent separation logic built on top of Coq). The artifact comes pre-installed with Coq/Iris and CoqIDE for evaluating the Coq proofs.
 
-Navigate to the directory `ecoop24_artifact/templates`. Run the script `./xp_ecoop24.sh` to generate the data from Table 1 (Section 6) from the paper. The script is expected to run for ~10 minutes. Note that the line count for the code of the template algorithms is obtained manually from the Coq proof scripts. Hence, the relevant entries are filled with `?` in the generated rows.
+Navigate to the directory `ecoop24_artifact/templates`. Run the script `./xp_ecoop24.sh` to generate the data from Table 1 (Sec. 6) from the paper. The script is expected to run for ~10 minutes. Note that the line count for the code of the template algorithms is obtained manually from the Coq proof scripts. Hence, the relevant entries are filled with `?` in the generated rows.
 
-### Step-by-step Setup Guide
+### Setup Guide
 
-The artifact has the following external dependencies:
+For sake of completeness, we provide instructions on how to setup Coq/Iris for Debian/Ubuntu system. The following are the packages to be installed :
 
 - OCaml, version 4.14.0 (or newer)
 
@@ -24,7 +24,7 @@ The artifact has the following external dependencies:
 
 - Iris heap lang library, version coq-iris-heap-lang.3.4.1
 
-The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM. We provide instructions for Debian/Ubuntu below:
+The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM.
 
 #### Installing OPAM
 
@@ -57,11 +57,9 @@ opam install -y coq-iris-heap-lang.3.4.1
 eval $(opam config env)
 ```
 
-Depending on your system, OPAM might run into errors due to missing dependencies. In that case, try again after installing the missing dependencies using your distributions package manager.
-
 ### Contents
 
-The Iris proofs are contained in `ecoop24_artifact/templates` directory. Its contents are described below:
+The Iris proofs are contained in `~/ecoop24_artifact/templates` directory. Its contents are described below:
     
 + util/ :
   - keyset_ra : Keyset camera definitions
@@ -125,17 +123,21 @@ You can prefix the make command with e.g. `TIMED=true` in order to time each che
 
 You can verify that our Coq proof scripts have no "holes" in them by checking that they do not contain any `admit` or `Admitted` commands (except one admit in file `templates/multicopy_hindsight/lsm_spec`, see comment below).
  	
+The artifact comes preinstalled with CoqIDE, a graphical tool to step through the coq proofs in a user-friendly manner. CoqIDE can be started by executing in terminal the command:
+
+```bash
+coqide
+```
+ 	
 ### Paper-to-Artifact Correspondence Guide (and additional comments):
 
 Below we list points that will make it easier to make the connection between the definitions in the paper and the artifact. We also list out the differences between the two.
 
-* In the paper, the arrays ps and cs are initialized by the core operations (Sec. 2). In the proof, they are initialized in the traversal (traverse_module.v).
-
-* Success and Failure values returned by helper functions (Sec. 2) are encoded as boolean (true for Success, and vice-versa).
+* Success and Failure values returned by helper functions (Sec. 2) are encoded as return values of a CAS operation ((_, true), _) for Success and vice-versa).
 
 * Upd(-) functions in Sec 4. is named process_proph in the proofs (hindsight.v). In the proofs, process_proph checks for result of successful resolution of CAS operation. Thus, it checks for values of the form ((_, b), _), where b is a boolean.
 
-* The proofs assumes that the list of prophesied values comes with an end marker indicating the end of the operation. It checks for Success or Failure only before the end markers. As a result, the hindsight spec has to deal with an additional case where the list of prophesied values do not have an end marked. This end marker is the cause of difference between the hindsight spec in the paper versus the proof.
+* The proofs assumes that the list of prophesied values comes with an end marker indicating the end of the operation. (We use the thread identifier as the end marker, a value of the form (_, tid)). The process_proph function checks for Success or Failure only before the end markers. As a result, the hindsight spec has to deal with an additional case where the list of prophesied values do not have an end marked. This end marker is the cause of difference between the hindsight spec in the paper versus the proof.
 
 * Due to the complicated module structures, some predicates have long parameter lists. We are working towards finding a better approach.
 

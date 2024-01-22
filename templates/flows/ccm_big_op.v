@@ -11,7 +11,7 @@ Fixpoint ccm_big_opL `{CCM M} {A} (f : nat → A → M) (xs : list A) : M :=
   end.
 Global Instance: Params (@ccm_big_opL) 3 := {}.
 Global Arguments ccm_big_opL {M} {_ A} _ !_ /.
-Typeclasses Opaque ccm_big_opL.
+#[global] Typeclasses Opaque ccm_big_opL.
 Notation "'[^' + 'list]' k ↦ x ∈ l , P" := (ccm_big_opL (λ k x, P) l)
   (at level 200, l at level 10, k, x at level 1, right associativity,
    format "[^ +  list]  k ↦ x  ∈  l ,  P") : stdpp_scope.

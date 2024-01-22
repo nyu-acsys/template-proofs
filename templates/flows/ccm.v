@@ -10,6 +10,7 @@ From iris Require Export base.
 From iris.algebra Require Export big_op.
 From flows Require Import gmap_more.
 
+Declare Scope ccm_scope.
 Delimit Scope ccm_scope with CCM.
 
 (* Cancelable operations. *)
