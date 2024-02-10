@@ -52,8 +52,8 @@ opam install -y coqide.8.18.0
 #### Installing Iris
 
 ```bash
-opam install -y coq-iris.3.4.1
-opam install -y coq-iris-heap-lang.3.4.1
+opam install -y coq-iris.4.1.0
+opam install -y coq-iris-heap-lang.4.1.0
 eval $(opam config env)
 ```
 
