@@ -20,9 +20,9 @@ For sake of completeness, we provide instructions on how to setup Coq/Iris for D
 
 - Coq stdpp, version coq-stdpp.1.9.0
 
-- Iris, version coq-iris.3.4.1
+- Iris, version coq-iris.4.1.0
 
-- Iris heap lang library, version coq-iris-heap-lang.3.4.1
+- Iris heap lang library, version coq-iris-heap-lang.4.1.0
 
 The easiest way to satisfy all OCaml and Coq-related requirements is through the OCaml package manager OPAM.
 
@@ -142,6 +142,38 @@ Below we list points that will make it easier to make the connection between the
 * Due to the complicated module structures, some predicates have long parameter lists. We are working towards finding a better approach.
 
 * We do not verify the initialization of the multicopy template because [2] does not offer an initialization procedure for the multicopy template.
+
+* The column `Code` line count in Table 1 is comprised of following lines:
+  * Client-level Spec : `hindsight/hindsight_proof.v`
+    * `Definition dsOp'` (9 lines)
+  * Skiplist : `lockfree/skiplist.v`
+    * `Definition dsOp` (12 lines)
+  * Skiplist Init : `lockfree/skiplist.v`
+    * `Definition init` (6 lines)
+  * Skiplist Search : `lockfree/skiplist.v`
+    * `Definition search` (7 lines)
+  * Skiplist Delete : `lockfree/skiplist.v`
+    * `Definitions delete` (15 lines) `maintenaceOp_delete` (5 lines) `maintenanceOp_delete_rec` (8 lines)
+  * Skiplist Insert : `lockfree/skiplist.v`
+    * `Definitions insert` (18 lines) `maintenaceOp_insert` (5 lines) `maintenanceOp_insert_rec` (14 lines)
+  * Node Impl 1 : `lockfree/node_impl1.v`
+    * `Definitions createTail, createTail_rec` (15 lines)
+    * `Definitions createHead, createHead_rec` (15 lines)
+    * `Definitions createNode, createNode_rec` (16 lines)
+    * `Definitions getKey, getHeight, findNext` (12 lines)
+    * `Definitions markNode, markNode'` (27 lines)
+    * `Definitions changeNext, changeNode'` (33 lines)
+  * Node Impl 2 : `lockfree/node_impl2.v`
+    * `Definitions createTail, createTail_rec` (14 lines)
+    * `Definitions createHead, createHead_rec` (14 lines)
+    * `Definitions createNode, createNode_rec` (15 lines)
+    * `Definitions getKey, getHeight, findNext` (13 lines)
+    * `Definitions markNode, markNode'` (25 lines)
+    * `Definitions changeNext, changeNode'` (25 lines)
+  * Eager Traversal : `lockfree/eager.v`
+    * `Definitions eager_i.v` (17 lines) `eager_rec.v` (18 lines) `traverse.v` (3 lines) 
+  * Lazy Traversal : `lockfree/lazy.v`
+    * `Definitions lazy_i.v` (26 lines) `lazy_rec.v` (18 lines) `traverse.v` (3 lines) 
 
 ## Code Acknowledgement
 
