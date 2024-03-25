@@ -25,7 +25,7 @@ The directory `~/ecoop24_artifact` contains:
 
 ## For authors claiming an available badge
 
-We agree to publishing your artifact under a Creative Commons license.
+We agree to publishing the artifact under a Creative Commons license.
 
 ## For authors claiming a functional or reusable badge
 
