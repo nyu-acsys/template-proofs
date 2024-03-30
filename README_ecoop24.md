@@ -69,7 +69,7 @@ The Iris proofs are contained in `~/ecoop24_artifact/templates` directory. Its c
   - misc_ra : Defining Booleans and Locations as Unital Discrete RAs
   - array_util : Lemmas about HeapLang array manipulations 
     
-+ flows/ : Formalization of the flow framework
++ flows/ : Formalization of the Flow Framework (from [1])
   - ccm.v : Commutative Cancelative Monoids, the basis for flow domains
   - ccm_big_op.v : Lemmas about iterated composition over CCM 
   - gmap_more.v : Lemmas about merge operation on finite maps.
@@ -177,11 +177,7 @@ Below we list points that will make it easier to make the connection between the
 
 ## Code Acknowledgement
 
-* From [1], we borrow the formalization of flow interfaces and the keyset as Iris camera.
-
-* From [2], we borrow the development on multiset flows.
-
-* From `iris/examples` repository, we borrow code for array_util.v, typed_proph.v and one_shot.v
+* From `iris/examples` repository, we borrow code for typed_proph.v and one_shot.v
 
 ### References
 
