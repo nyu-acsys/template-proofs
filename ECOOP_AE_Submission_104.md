@@ -12,7 +12,7 @@ Metadata provided at the HotCRP portal.
 
 ## Quick-start guide (Kick-the-tires phase)
 
-The artifact is available both as Ubuntu 22.04 VM (with GUI) and docker image based on Ubuntu 22.04 (without GUI). The files relevant to the artifact evaluation are contained in the directory `ecoop_artifact` in the Zenodo submission. The location of this directory is `~/ecoop24_artifact` in the VM and `/home/ecoop_artifact` in the docker image.  We provide file locations with respect to this directory. In order to check basic functionality, perform two tasks 
+The artifact is available both as Ubuntu 22.04 VM (with GUI) and docker image based on Ubuntu 22.04 (without GUI). The files relevant to the artifact evaluation are contained in the directory `ecoop_artifact.zip` in the Zenodo submission. The location of this directory is `~/ecoop24_artifact` in the VM and `/home/ecoop_artifact` in the docker image. We provide file locations with respect to this directory. In order to check basic functionality, perform two tasks 
 * Navigate to `/templates` and run `xp_ecoop24_short.sh`. The script compiles a small set of files and makes sure that Coq/Iris installation works.
 * In case of the VM, run `coqide` in the terminal to test CoqIDE. Step through `/template/flows/gmap_more.v` and `/templates/flows/ccm.v` to make sure CoqIDE runs fine. The docker image does not come with CoqIDE.
 

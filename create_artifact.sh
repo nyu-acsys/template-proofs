@@ -8,7 +8,8 @@ cd ecoop24_artifact
 cp ../README_ecoop24.md .
 mv README_ecoop24.md README.md
 
-cp ../LICENSE .
+cp ../LICENSE_ecoop24 .
+mv LICENSE_ecoop24 LICENSE
 
 mkdir -p templates/flows
 mkdir -p templates/util
